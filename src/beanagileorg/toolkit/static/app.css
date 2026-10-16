@@ -184,3 +184,5 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .org-people { font-size: .85rem; }
 .org-people a { color: var(--accent); }
 .kd { margin-bottom: 4px; }
+
+.commitment.done label span { text-decoration: line-through; color: var(--muted); }

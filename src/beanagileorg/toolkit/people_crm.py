@@ -18,6 +18,7 @@ from .routes import create_action, require_write
 
 router = APIRouter()
 LAYOUT_KEY = "people.hidden_fields"
+ME_KEY = "people.me_id"
 SENSITIVE = ("personal_context", "support_notes", "key_dates", "motivations")
 OPTIONAL = ("start_date", "location", "timezone", "background", "skills", "certifications", "goals", "wants_to_learn", "can_teach", "working_style",
             "support_notes", "contact", "tags", "cadence_days", "influence", "stance", "communication", "motivations", "personal_context",
@@ -58,6 +59,102 @@ def put_layout(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), con
     hidden = [f for f in body.get("hidden", []) if f in OPTIONAL]
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (LAYOUT_KEY, json.dumps(hidden)))
     return get_layout(viewer, conn)
+
+
+# ---- who you are, and who reports to you ----
+
+
+def me_id(conn) -> int | None:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (ME_KEY,)).fetchone()
+    if not row:
+        return None
+    pid = int(row["value"])
+    return pid if conn.execute("SELECT 1 FROM people WHERE id = ?", (pid,)).fetchone() else None
+
+
+@router.get("/api/people/me")
+def get_me(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    return {"person_id": me_id(conn)}
+
+
+@router.put("/api/people/me")
+def put_me(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    pid = body.get("person_id")
+    if pid is None:
+        conn.execute("DELETE FROM settings WHERE key = ?", (ME_KEY,))
+        return {"person_id": None}
+    if models.people.fetch(conn, pid) is None:
+        raise HTTPException(400, "That person isn't in People.")
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (ME_KEY, str(pid)))
+    return {"person_id": pid}
+
+
+@router.patch("/api/commitments/{commitment_id}")
+def update_commitment(commitment_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Marking a commitment done records the day; reopening it clears that."""
+    require_write(viewer)
+    if "status" in body and "done_on" not in body:
+        body = {**body, "done_on": _today().isoformat() if body["status"] == "done" else None}
+    c = models.commitments.update(conn, commitment_id, body, viewer.source)
+    if c is None:
+        raise HTTPException(404, "No such commitment.")
+    return c
+
+
+@router.get("/api/people/reports")
+def reports(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Your direct reports at a glance: what's owed each way, what's late, and when you last talked."""
+    me = me_id(conn)
+    if viewer.floor != Level.PRIVATE or me is None:
+        return {"me": me, "reports": []}
+    today = _today().isoformat()
+    last = _last_contacts(conn)
+    out = []
+    for p in models.people.fetch_all(conn, "manager_id = ? AND active = 1", (me,)):
+        cs = models.commitments.fetch_all(conn, "person_id = ? AND status = 'open'", (p["id"],))
+        lc = last.get(p["id"])
+        out.append({"id": p["id"], "name": p["name"], "role": p["role"], "last_contact": lc,
+                    "days_since": (_today() - date.fromisoformat(lc)).days if lc else None, "next_meeting": p["next_meeting"],
+                    "i_owe": sum(1 for c in cs if c["direction"] == "mine"), "they_owe": sum(1 for c in cs if c["direction"] == "theirs"),
+                    "late": sum(1 for c in cs if c["due"] and c["due"] < today),
+                    "goals": conn.execute("SELECT COUNT(*) FROM growth_goals WHERE person_id = ? AND status = 'active'", (p["id"],)).fetchone()[0],
+                    "unshared": conn.execute("SELECT COUNT(*) FROM manager_notes WHERE person_id = ? AND shared = 0 AND kind IN ('praise', 'constructive')", (p["id"],)).fetchone()[0]})
+    return {"me": me, "reports": out}
+
+
+@router.get("/api/people/{person_id}/agenda")
+def agenda(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """A draft agenda for your next one-on-one: what's owed each way, their goals, feedback to share, and what's open."""
+    if viewer.floor != Level.PRIVATE:
+        raise HTTPException(403, "Agendas are private.")
+    p = models.people.fetch(conn, person_id)
+    if p is None:
+        raise HTTPException(404, "No such person.")
+    first = p["name"].split(" ")[0]
+    cs = models.commitments.fetch_all(conn, "person_id = ? AND status = 'open'", (person_id,))
+    lines = [f"# One-on-one with {p['name']}", "", f"{p['next_meeting'] or _today().isoformat()}", ""]
+    talks = [i for i in models.interactions.fetch_all(conn) if person_id in i["person_ids"]]
+    if talks and talks[0]["takeaways"]:
+        lines += ["## Since last time", "", talks[0]["takeaways"], ""]
+    theirs = [c for c in cs if c["direction"] == "theirs"]
+    mine = [c for c in cs if c["direction"] == "mine"]
+    due = lambda c: f" (due {c['due']})" if c["due"] else ""
+    if theirs:
+        lines += [f"## {first}'s commitments", ""] + [f"- [ ] {c['title']}{due(c)}" for c in theirs] + [""]
+    if mine:
+        lines += ["## My commitments", ""] + [f"- [ ] {c['title']}{due(c)}" for c in mine] + [""]
+    goals = models.growth_goals.fetch_all(conn, "person_id = ? AND status = 'active'", (person_id,))
+    if goals:
+        lines += ["## Growth goals", ""] + [f"- {g['goal']}" + (f": {g['progress']}" if g["progress"] else "") for g in goals] + [""]
+    notes = models.manager_notes.fetch_all(conn, "person_id = ? AND shared = 0 AND kind IN ('praise', 'constructive')", (person_id,))
+    if notes:
+        lines += ["## Feedback to share", ""] + [f"- {n['kind'].capitalize()}: {n['note']}" for n in notes] + [""]
+    items = models.action_items.fetch_all(conn, "status != 'done' AND (owner_id = ? OR raised_by_id = ?)", (person_id, person_id))
+    if items:
+        lines += ["## Open dev-sync items", ""] + [f"- {a['concern']}" for a in items] + [""]
+    lines += ["## Their topics", "", "- ", "", "## Anything I can do to help?", ""]
+    return {"markdown": "\n".join(lines).rstrip() + "\n"}
 
 
 # ---- reporting lines ----
@@ -148,7 +245,10 @@ def crm(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_c
     talks = [i for i in models.interactions.fetch_all(conn) if person_id in i["person_ids"]]
     last = _last_contacts(conn).get(person_id)
     days = (_today() - date.fromisoformat(last)).days if last else None
+    me = me_id(conn)
     out.update({
+        "is_me": me == person_id, "is_report": me is not None and p["manager_id"] == me,
+        "commitments": models.commitments.fetch_all(conn, "person_id = ? AND (status = 'open' OR done_on >= ?)", (person_id, (_today() - timedelta(days=30)).isoformat())),
         "interactions": talks[:25],
         "health": {"last_contact": last, "days_since": days, "cadence_days": p["cadence_days"],
                    "due": bool(p["cadence_days"] and (days is None or days > p["cadence_days"])), "next_meeting": p["next_meeting"]},
@@ -157,6 +257,9 @@ def crm(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_c
                 if s["owner_id"] == person_id or person_id in s["stakeholder_ids"]],
         "upcoming_dates": _upcoming_dates(p, 30),
     })
+    if out["is_report"]:
+        out["manager"] = {"notes": models.manager_notes.fetch_all(conn, "person_id = ?", (person_id,))[:50],
+                          "goals": models.growth_goals.fetch_all(conn, "person_id = ?", (person_id,))}
     return out
 
 
@@ -215,4 +318,9 @@ def people_due(conn) -> dict:
         dates += [{"id": p["id"], "name": p["name"], **d} for d in _upcoming_dates(p)]
         if p["next_meeting"] and today.isoformat() <= p["next_meeting"] <= week:
             meetings.append({"id": p["id"], "name": p["name"], "date": p["next_meeting"]})
-    return {"check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"])}
+    open_c = models.commitments.fetch_all(conn, "status = 'open' AND due IS NOT NULL")
+    return {"check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"]),
+            "i_owe": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"], "late": c["due"] < today.isoformat()}
+                      for c in open_c if c["direction"] == "mine" and c["due"] <= week],
+            "they_owe_late": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"]}
+                              for c in open_c if c["direction"] == "theirs" and c["due"] < today.isoformat()]}

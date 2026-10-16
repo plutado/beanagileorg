@@ -19,6 +19,8 @@ TOOLKIT = {
         "steps": ["Add each person with their title and relationship; set who they report to, and an Org chart builds itself.",
                   "Log one-on-ones, meetings and calls on their Conversations tab, with notes, takeaways and follow-ups that can go to the dev-sync log.",
                   "Set a check-in cadence; anyone past it shows on Today. Check Before you meet on their Overview for your last notes and open follow-ups.",
+                  "Track commitments both ways on anyone's Overview: what you owe them and what they owe you.",
+                  "Pick your own record ('This is me'); your direct reports get a Manager tab with growth goals, a feedback and wins log, and a drafted one-on-one agenda.",
                   "Choose which fields you use under Fields. Sensitive notes stay masked until you click Show."],
         "privacy": "Only names, titles, departments and reporting lines show while presenting; notes and conversations are private.",
         "related": ["/listening", "/teams", "/coaching/one-on-ones"],

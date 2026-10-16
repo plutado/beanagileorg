@@ -90,6 +90,10 @@ INFLUENCE = ("low", "medium", "high")
 STANCE = ("champion", "supporter", "neutral", "skeptic", "blocker")
 INTERACTION_KINDS = ("one-on-one", "meeting", "call", "message", "conversation", "other")
 MOODS = ("great", "good", "mixed", "tense", "difficult")
+COMMITMENT_DIRECTIONS = ("mine", "theirs")
+COMMITMENT_STATES = ("open", "done", "dropped")
+MANAGER_NOTE_KINDS = ("praise", "constructive", "win", "concern")
+GROWTH_STATUS = ("active", "achieved", "paused", "dropped")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -1029,6 +1033,42 @@ MIGRATIONS = [
             mood TEXT
         );
         ALTER TABLE action_items ADD COLUMN interaction_id INTEGER REFERENCES interactions (id) ON DELETE SET NULL;
+        """,
+    ),
+    (
+        19,
+        """
+        CREATE TABLE commitments (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            direction TEXT NOT NULL DEFAULT 'mine',
+            title TEXT NOT NULL,
+            details TEXT,
+            due DATE,
+            status TEXT NOT NULL DEFAULT 'open',
+            done_on DATE,
+            created_on DATE,
+            interaction_id INTEGER REFERENCES interactions (id) ON DELETE SET NULL,
+            jira_keys TEXT
+        );
+        CREATE TABLE manager_notes (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'praise',
+            note TEXT NOT NULL,
+            shared INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE growth_goals (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            goal TEXT NOT NULL,
+            measure TEXT,
+            target_date DATE,
+            status TEXT NOT NULL DEFAULT 'active',
+            progress TEXT,
+            updated DATE
+        );
         """,
     ),
 ]
@@ -2430,6 +2470,61 @@ interactions = Record(
     hide_when_empty=True,
 )
 
+# ---- being someone's manager (and keeping your word to anyone): private end to end ----
+
+commitments = Record(
+    entity="commitment",
+    table="commitments",
+    path="/api/commitments",
+    order_by="status != 'open', due IS NULL, due, id",
+    fields={
+        "person_id": Field("int", P, required=True),
+        "direction": Field("text", P, choices=COMMITMENT_DIRECTIONS, default="mine"),
+        "title": Field("text", P, required=True),
+        "details": Field("text", P),
+        "due": Field("date", P),
+        "status": Field("text", P, choices=COMMITMENT_STATES, default="open"),
+        "done_on": Field("date", P),
+        "created_on": Field("date", P),
+        "interaction_id": Field("int", P),
+        "jira_keys": Field("keys", P),
+    },
+    computed={"person_name": ("(SELECT name FROM people p WHERE p.id = commitments.person_id)", P)},
+    hide_when_empty=True,
+)
+
+manager_notes = Record(
+    entity="manager_note",
+    table="manager_notes",
+    path="/api/manager-notes",
+    order_by="date DESC, id DESC",
+    fields={
+        "person_id": Field("int", P, required=True),
+        "date": Field("date", P, required=True),
+        "kind": Field("text", P, choices=MANAGER_NOTE_KINDS, default="praise"),
+        "note": Field("text", P, required=True),
+        "shared": Field("bool", P, default=False),
+    },
+    hide_when_empty=True,
+)
+
+growth_goals = Record(
+    entity="growth_goal",
+    table="growth_goals",
+    path="/api/growth-goals",
+    order_by="status != 'active', target_date IS NULL, target_date, id",
+    fields={
+        "person_id": Field("int", P, required=True),
+        "goal": Field("text", P, required=True),
+        "measure": Field("text", P),
+        "target_date": Field("date", P),
+        "status": Field("text", P, choices=GROWTH_STATUS, default="active"),
+        "progress": Field("text", P),
+        "updated": Field("date", P),
+    },
+    hide_when_empty=True,
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2447,5 +2542,5 @@ RECORDS = [
     tech_debt, debt_decisions,
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
-    interactions,
+    interactions, commitments, manager_notes, growth_goals,
 ]
