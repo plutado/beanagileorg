@@ -225,6 +225,53 @@
     };
   }
 
+  // Section intros: what this section is for and how to use it. Open on the first visit, then folded to one line.
+  const INTRO_SEEN = "ba-intro-seen";
+  BA.help = null;
+  const loadHelp = () => (BA.help ||= BA.api("/api/help").catch(() => ({})));
+  const navLabel = (path) => (BA.session.nav.find((n) => n.path === path) || {}).label;
+  const relatedLinks = (list) => (list || []).map((r) => `<a href="#${BA.esc(r)}">${BA.esc(navLabel(r) || (r.startsWith("/coaching/") ? "Guide: " + r.split("/")[2].replace(/-/g, " ") : r))}</a>`).join(", ");
+  function introBody(h) {
+    return `<p>${BA.esc(h.purpose)}</p>${h.steps && h.steps.length ? `<ol class="intro-steps">${h.steps.map((s) => `<li>${BA.esc(s)}</li>`).join("")}</ol>` : ""}
+      ${h.privacy ? `<p class="quiet">${BA.icon("eye-off")} ${BA.esc(h.privacy)}</p>` : ""}${h.related && h.related.length ? `<p class="quiet">See also: ${relatedLinks(h.related)}</p>` : ""}`;
+  }
+  async function showIntro(main, key) {
+    if (BA.session.presentation || main.hasAttribute("data-layout") || key === "/help") return;
+    const h = (await loadHelp())[key];
+    if (!h) return;
+    const seen = store.get(INTRO_SEEN, []);
+    const el = document.createElement("details");
+    el.className = "section-intro";
+    if (!seen.includes(key)) el.open = true;
+    el.innerHTML = `<summary>${BA.icon("info")}<span>About this section</span></summary><div class="intro-body">${introBody(h)}
+      <div class="row"><span class="spacer"></span><button class="btn" type="button" data-gotit>Got it</button></div></div>`;
+    main.prepend(el);
+    const mark = () => { const s = store.get(INTRO_SEEN, []); if (!s.includes(key)) store.set(INTRO_SEEN, [...s, key]); };
+    el.querySelector("[data-gotit]").onclick = () => { mark(); el.open = false; };
+    el.addEventListener("toggle", () => { if (!el.open) mark(); });
+  }
+
+  BA.view("/help", {
+    title: "Help",
+    async render(main) {
+      const help = await loadHelp();
+      const groups = [];
+      let current = { name: "", items: [] };
+      for (const n of BA.session.nav) {
+        if (n.group) { if (current.items.length) groups.push(current); current = { name: n.group, items: [] }; }
+        else if (n.path && help[n.path]) current.items.push(n);
+      }
+      if (current.items.length) groups.push(current);
+      main.innerHTML = `<section class="card"><h2>How to use ${BA.esc(BA.session.title)}</h2>
+          <p>Every section, what it's for and how to use it. The same explanation sits at the top of each section under <b>About this section</b>.</p>
+          <p class="quiet">Press <kbd>⌘K</kbd> or <kbd>/</kbd> to jump anywhere, <kbd>?</kbd> for keyboard shortcuts, and <kbd>Shift</kbd>+<kbd>P</kbd> for presentation mode before sharing your screen.</p>
+          <div class="row"><button class="btn" id="intros-reset">Show every section's intro again</button></div></section>
+        ${groups.map((g) => `<section class="card"><h2>${BA.esc(g.name || "Start here")}</h2>${g.items.map((n) => `<div class="help-item" id="help-${BA.esc(n.path.slice(1))}">
+            <h3><a href="#${BA.esc(n.path)}">${BA.icon(n.icon)} ${BA.esc(n.label)}</a></h3>${introBody(help[n.path])}</div>`).join("")}</section>`).join("")}`;
+      main.querySelector("#intros-reset").onclick = () => { store.set(INTRO_SEEN, []); BA.toast("Each section's intro will open again on your next visit."); };
+    },
+  });
+
   BA.guard = (fn) => async (...args) => {
     try {
       await fn(...args);
@@ -297,7 +344,10 @@
       const param = path.slice(key.length).replace(/^\//, "");
       const rendering = def.render(main, param);
       await rendering;
-      if (!param) await showCoachTip(main, key);
+      if (!param) {
+        await showCoachTip(main, key);
+        await showIntro(main, key);
+      }
       void main.offsetWidth;
       main.classList.add("entering");
     } catch (err) {

@@ -1,0 +1,260 @@
+"""What each section is for and how to use it, shown at the top of each landing page and on the Help page.
+
+Plain, short and practical. Every navigation entry in both apps has an entry here (a test checks this).
+"""
+
+from fastapi import APIRouter, Depends
+
+from .privacy import Viewer
+
+TOOLKIT = {
+    "/today": {
+        "purpose": "Your starting point each morning: everything that needs you today or this week, pulled from the rest of the toolkit.",
+        "steps": ["Clear anything overdue first.", "Mark tasks and obligations done right here.", "Follow a link to deal with an item in its own section."],
+        "privacy": "Private. Hidden while presenting.",
+        "related": ["/me", "/dev-sync", "/onboarding"],
+    },
+    "/people": {
+        "purpose": "A profile for everyone you work with: team members, peers, stakeholders and vendor contacts, so you remember what matters to each of them.",
+        "steps": ["Add each person with their role and how you work with them.", "Open a profile to record skills, goals, what they want to learn and can teach, and how they like to work.",
+                  "Update it after one-on-ones, so the next conversation picks up where the last one left off."],
+        "privacy": "Only names, roles and departments show while presenting; everything else stays private.",
+        "related": ["/listening", "/skills", "/onboarding"],
+    },
+    "/onboarding": {
+        "purpose": "Bring new team members in smoothly, with a checklist that runs from the week before they start to day 90.",
+        "steps": ["Load the starter checklist, then edit the template under Checklist template.", "When someone joins, add them under People, then build their checklist with their start date, buddy and tracks.",
+                  "Tick items off as they're done; your own items show on Today.", "Copy the checklist to send it to them."],
+        "privacy": "Checklists are shareable; your notes on how it's going stay private.",
+        "related": ["/people", "/sdlc", "/coaching/earning-trust"],
+    },
+    "/skills": {
+        "purpose": "See who knows what across the team, and match people who can teach with people who want to learn.",
+        "steps": ["Fill in skills, can teach and wants to learn on each person's profile.", "Check the matrix for gaps and single points of failure.",
+                  "Turn a teach-and-learn match into a group learning session."],
+        "privacy": "Counts show while presenting; who knows what stays private.",
+        "related": ["/people", "/learning"],
+    },
+    "/listening": {
+        "purpose": "Run your listening tour: one record per one-on-one, with the same four questions every time so you can compare answers.",
+        "steps": ["Plan a one-on-one with each person.", "Afterwards, record what's working, what's frustrating, what to change first and what not to change.",
+                  "Tag themes and systems as you go; they feed the day-30 rollup."],
+        "privacy": "Private end to end. Only theme counts are ever shared.",
+        "related": ["/rollup", "/plans", "/coaching/learn-fast"],
+    },
+    "/rollup": {
+        "purpose": "What the listening tour is telling you: themes ranked by how often they come up, with quotes, gaps, opportunities and the things not to change.",
+        "steps": ["Check it as one-on-ones finish.", "Use the themes to shape your 30/60/90 plans.", "Copy it as Markdown for your written diagnosis."],
+        "privacy": "Quotes and names are private; theme counts can be shown.",
+        "related": ["/listening", "/plans"],
+    },
+    "/sdlc": {
+        "purpose": "How work moves from idea to production: the stages, when each starts and is done, the environments, and the policies the team has agreed.",
+        "steps": ["Load the starter SDLC, then replace every [Placeholder] with how your team really works.", "Agree policies with the team and mark them agreed with the date.",
+                  "Copy the whole SDLC as Markdown to share it; new members are linked to it from onboarding."],
+        "privacy": "Shareable, except private notes.",
+        "related": ["/qa", "/onboarding", "/raci"],
+    },
+    "/sprints": {
+        "purpose": "Your private notebook for each sprint: what happened in each ceremony, what you noticed, and the follow-ups that came out of it.",
+        "steps": ["Start the next sprint with its goal and dates.", "Write a note after each ceremony using the prompts.", "Turn follow-ups into dev-sync items; open ones carry into the next sprint."],
+        "privacy": "Sprint goals and dates are shareable; the notes are private.",
+        "related": ["/retros", "/dev-sync", "/coaching/ceremonies"],
+    },
+    "/retros": {
+        "purpose": "Run retrospectives the team can see: points by column, votes, and commitments to change, each tagged to the sprint it came from.",
+        "steps": ["Start a retro for the sprint and pick a format.", "Open by reviewing earlier commitments: done, in progress or dropped.",
+                  "Add points, vote, and turn the top ones into commitments with an owner and date.", "Watch recurring topics; a repeat means the last fix didn't work."],
+        "privacy": "Built to show on screen during the retro. Keep your own impressions in the sprint notebook.",
+        "related": ["/sprints", "/coaching/retros"],
+    },
+    "/pi": {
+        "purpose": "Plan a Program Increment if your organization runs SAFe: objectives, features, stories, dependencies, milestones and risks on one board.",
+        "steps": ["Create the PI and assign its sprints in the sprint notebook.", "Add objectives with business value, then features and stories in each sprint.",
+                  "Check capacity per sprint, log dependencies and risks, and record the confidence vote."],
+        "privacy": "Built to present; only risk notes are private.",
+        "related": ["/sprints", "/roadmap", "/coaching/scrum-of-scrums"],
+    },
+    "/roadmap": {
+        "purpose": "Your Agile adoption roadmap: what you'll introduce and when, by day of your contract.",
+        "steps": ["Load the starter roadmap or add your own items.", "Set your start date in My development to turn days into dates.", "Update status as items land; it feeds the weekly status."],
+        "privacy": "Shareable.",
+        "related": ["/status", "/plans", "/coaching/introducing-scrum"],
+    },
+    "/raci": {
+        "purpose": "Who is responsible, accountable, consulted and informed for the decisions that matter.",
+        "steps": ["Load the five common decisions or add your own.", "Edit the roles to match your organization.", "Fill each cell; aim for exactly one accountable person per decision, then confirm each row with the people in it."],
+        "privacy": "Shareable.",
+        "related": ["/sdlc", "/qa", "/coaching/saying-no-to-scope"],
+    },
+    "/risks": {
+        "purpose": "Keep risks and pending decisions visible, with an owner, a next step and a date.",
+        "steps": ["Log a risk with its level, owner and next step.", "Log decisions you need from others, with who decides and by when.", "Record the outcome when a decision is made."],
+        "privacy": "Risks and decisions are shareable; notes are private.",
+        "related": ["/status", "/coaching/your-manager"],
+    },
+    "/metrics": {
+        "purpose": "Track a few delivery measures over time, with a baseline and a target, to see whether changes are working.",
+        "steps": ["Load the four starter metrics or add your own.", "Record a baseline before setting a target.", "Add readings regularly and look at the trend, not single numbers."],
+        "privacy": "Shareable.",
+        "related": ["/status", "/coaching/metrics-without-blame"],
+    },
+    "/qa": {
+        "purpose": "Everything about testing: manual test cases, test runs, automated suites, regression plans and the definition of done.",
+        "steps": ["Write smoke and regression tests in the Test library.", "Start a run after a deploy, mark each case, and send failures to the dev-sync log.",
+                  "Record automated suites and their latest results.", "Plan regression for each platform release and peak-season freeze."],
+        "privacy": "Shareable; run and suite notes are private.",
+        "related": ["/sdlc", "/architecture", "/coaching/quality-culture"],
+    },
+    "/dev-sync": {
+        "purpose": "Track every question and problem raised after standup until it's resolved, with an owner, a next action and a date.",
+        "steps": ["Add an item when something comes up in standup or anywhere else.", "Give it an owner, next action and due date.", "Close it when it's done; overdue items show on Today."],
+        "privacy": "Items are presentable; private notes stay private.",
+        "related": ["/today", "/learning", "/coaching/earning-trust"],
+    },
+    "/learning": {
+        "purpose": "A schedule of short team presentations, so people share what they know.",
+        "steps": ["Accept proposals from the dev-sync log and the skills matrix.", "Schedule a date and presenter.", "Mark it done afterwards."],
+        "privacy": "Shareable.",
+        "related": ["/skills", "/dev-sync"],
+    },
+    "/vendors": {
+        "purpose": "A light CRM for vendors and contractors: contacts, support process, contracts, a conversation log and open concerns.",
+        "steps": ["Add each vendor with contacts, support process and contract dates.", "Log conversations and turn follow-ups into dev-sync items.", "Track concerns with an owner and date; renewals show on Today."],
+        "privacy": "Commercial terms, notes and conversations are private.",
+        "related": ["/escalation", "/coaching/vendor-partnerships"],
+    },
+    "/plans": {
+        "purpose": "Your 30/60/90-day and six-month plans, built from the listening tour and ready to present.",
+        "steps": ["Write a headline for each month.", "Add outcomes, actions, measures and what you won't change, tagged with the themes behind them.",
+                  "Check What I heard for themes no item answers yet.", "Copy the outline, or build a deck from it in the Comms studio, and mark the plans presented."],
+        "privacy": "Plans are shareable; your evidence notes are private.",
+        "related": ["/rollup", "/status", "/coaching/your-manager"],
+    },
+    "/status": {
+        "purpose": "A weekly status draft built only from shareable data, with a suggested overall colour and the reason.",
+        "steps": ["Read the draft and check the suggested colour and reason.", "Copy it as Markdown and adjust the first line so it says the most important thing, or pull it into the Comms studio and finish it there."],
+        "privacy": "Only exportable data ever reaches this draft.",
+        "related": ["/roadmap", "/risks", "/coaching/honest-status"],
+    },
+    "/architecture": {
+        "purpose": "How your systems and tools fit together: a catalog, the integrations between them, a system map, decision records and guides.",
+        "steps": ["Add each system and tool with what it is, who owns it and how you use it.", "Add integrations, including the middleware they pass through; the map draws itself.",
+                  "Record significant technical decisions, and write guides that explain how things work."],
+        "privacy": "Shareable, except known issues and integration notes.",
+        "related": ["/escalation", "/qa", "/landscape"],
+    },
+    "/landscape": {
+        "purpose": "The business you support: products and services, the organization by department, and an honest assessment of strengths, weaknesses, opportunities and threats.",
+        "steps": ["Add products and services with owner, customers and systems.", "Build the organization tree and place people in it.",
+                  "Assess each offering and department with evidence and a confidence level; turn points into roadmap items or risks."],
+        "privacy": "Structure can be shown; the assessment is private and never exported.",
+        "related": ["/architecture", "/coaching/read-the-situation"],
+    },
+    "/escalation": {
+        "purpose": "Who to call when something breaks: systems with owners and backups, escalation chains, severity levels and an incident log.",
+        "steps": ["Add each system with owner, first responder and backup.", "Set business-hours and out-of-hours escalation steps.", "Log incidents and turn follow-ups into dev-sync items."],
+        "privacy": "Shareable, except vendor support details.",
+        "related": ["/architecture", "/vendors", "/coaching/psychological-safety"],
+    },
+    "/coaching": {
+        "purpose": "Guides, tips and reflection for leading well, especially through a new or growing role. Everything here is yours to edit.",
+        "steps": ["Browse guides and mark the ones you're working on.", "Rewrite or delete what doesn't fit, and write your own as you read.",
+                  "Use Reflect each week to note what you're learning and how you're doing.", "Edit the tips that appear on each screen under Tips and prompts."],
+        "privacy": "Guides and tips are shareable as a pack; your notes, focus and reflections are private.",
+        "related": ["/me", "/coaching/reflect"],
+    },
+    "/me": {
+        "purpose": "Your own development and workload: learning goals with time logged, ad hoc tasks, recurring obligations and your contract start date.",
+        "steps": ["Set your start date; it turns day numbers into dates across the toolkit.", "Add learning goals and log time; tick 'show in report' for goals leadership should see.",
+                  "Track tasks and obligations; they show on Today."],
+        "privacy": "Private, except learning goals you choose to report.",
+        "related": ["/today", "/coaching"],
+    },
+    "/settings": {
+        "purpose": "Sign-in, API tokens, coaching tips, backups and the history of changes and exports.",
+        "steps": ["Turn on an authenticator for sign-in.", "Create a token with the least access it needs.", "Back up now, or check that nightly backups are passing."],
+        "privacy": "Hidden while presenting.",
+        "related": [],
+    },
+}
+
+COMMS = {
+    "/this-week": {
+        "purpose": "What you need to send this week: messages due from your rhythms, drafts in progress and what you sent recently.",
+        "steps": ["Start a draft from anything due.", "Finish drafts in progress.", "Check what went out recently."],
+        "privacy": "Drafts are private.",
+        "related": ["/calendar", "/messages"],
+    },
+    "/messages": {
+        "purpose": "Write, check and send leadership messages, with a saved version on every edit.",
+        "steps": ["Start from a template or a blank message.", "Fix what the writing checks flag; leftover placeholders block 'ready'.",
+                  "Pull in the toolkit's weekly status if it helps.", "Mark it sent to keep the exact text in the sent log."],
+        "privacy": "Drafts are private; sent messages are shareable.",
+        "related": ["/templates", "/sent", "/plain-language"],
+    },
+    "/templates": {
+        "purpose": "Reusable starting points for the messages you send often, each with default audiences and channel.",
+        "steps": ["Start from the nine built-in templates.", "Edit them to match how you write.", "Add your own for messages you repeat."],
+        "privacy": "Shareable.",
+        "related": ["/messages", "/calendar"],
+    },
+    "/calendar": {
+        "purpose": "Your communication rhythm: weekly, fortnightly, monthly and quarterly messages that create due items ahead of time.",
+        "steps": ["Add a rhythm for each regular message.", "Pick its template and audiences.", "Due items appear on This week with a start-drafting date."],
+        "privacy": "Shareable.",
+        "related": ["/this-week", "/templates"],
+    },
+    "/sent": {
+        "purpose": "A record of exactly what went out: text, channel, audiences and check results.",
+        "steps": ["Look up what you told whom, and when.", "Check what a message said before you follow up on it."],
+        "privacy": "Shareable.",
+        "related": ["/messages"],
+    },
+    "/audiences": {
+        "purpose": "Who needs what, at what level of detail, and where they usually hear it.",
+        "steps": ["Add each audience with the detail they want.", "Add channels and how each is used.", "Pick them on templates and messages."],
+        "privacy": "Shareable.",
+        "related": ["/templates", "/messages"],
+    },
+    "/plain-language": {
+        "purpose": "Keep messages plain: the jargon list the writing checks use, with a plainer word for each.",
+        "steps": ["Review the built-in list.", "Add words your organization overuses.", "The checks flag them as you type."],
+        "privacy": "Shareable.",
+        "related": ["/messages"],
+    },
+    "/decks": {
+        "purpose": "Build and present HTML slide decks with a live editor, media and animations.",
+        "steps": ["Start a deck, load the placeholder deck, or build one from the toolkit's 30/60/90 plans.", "Add slides from the eleven layouts and edit them in the inspector.",
+                  "Present full screen, with speaker notes in the presenter view."],
+        "privacy": "Shareable.",
+        "related": ["/media"],
+    },
+    "/media": {
+        "purpose": "Your library of video, audio, images, animations and captions for decks.",
+        "steps": ["Upload a file and record where it came from and its license.", "Use it in a deck slide."],
+        "privacy": "License details are private.",
+        "related": ["/decks"],
+    },
+    "/connections": {
+        "purpose": "Connect the Comms studio to your toolkit, so it can pull the weekly status, your plans and your coaching tips.",
+        "steps": ["In the toolkit's Settings, create a token with the export:read scope only.", "Paste it here with the toolkit's address.", "Test the connection."],
+        "privacy": "The token can only ever read shareable data.",
+        "related": ["/messages", "/decks"],
+    },
+    "/settings": TOOLKIT["/settings"],
+}
+
+HELP = {"toolkit": TOOLKIT, "comms": COMMS}
+
+
+def router_for(app: str) -> APIRouter:
+    from .app import get_viewer  # imported here to avoid a circular import
+
+    router = APIRouter()
+
+    @router.get("/api/help")
+    def help_text(viewer: Viewer = Depends(get_viewer)):
+        return HELP.get(app, {})
+
+    return router

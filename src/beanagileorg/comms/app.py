@@ -21,6 +21,7 @@ NAV = [
     {"path": "/media", "icon": "film", "label": "Media library"},
     {"group": "Me"},
     {"path": "/connections", "icon": "send", "label": "Connections"},
+    {"path": "/help", "icon": "circle-help", "label": "Help"},
     {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
 

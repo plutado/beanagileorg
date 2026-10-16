@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import auth, backup, tokens
+from . import help as help_text
 from .changelog import recent_changes
 from .config import Settings
 from .db import CORE_MIGRATIONS, Database, migrate
@@ -390,6 +391,7 @@ def create_app(
 
     for router in routers:
         app.include_router(router)
+    app.include_router(help_text.router_for(settings.app))
 
     shell = (CORE_STATIC / "shell.html").read_text()
 

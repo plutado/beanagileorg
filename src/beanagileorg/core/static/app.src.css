@@ -272,3 +272,24 @@
   .coach-tip .coach-actions { display: flex; gap: 2px; flex: none; }
   .coach-tip .coach-actions .icon-btn { font-size: 0.75rem; color: var(--muted); }
 }
+
+/* "About this section" panel and the Help page. */
+@layer components {
+  .section-intro { margin-bottom: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .section-intro > summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; list-style: none; font-size: 0.85rem; color: var(--muted); }
+  .section-intro > summary::-webkit-details-marker { display: none; }
+  .section-intro > summary svg { width: 16px; height: 16px; color: var(--accent); }
+  .section-intro[open] > summary { color: var(--ink); font-weight: 600; }
+  .section-intro .intro-body { padding: 0 14px 12px; font-size: 0.92rem; }
+  .section-intro .intro-body > * + * { margin-top: 6px; }
+  .intro-steps { list-style: decimal; padding-left: 1.4em; }
+  .intro-steps li + li { margin-top: 3px; }
+  .section-intro .quiet svg, .help-item .quiet svg { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 2px; }
+  .help-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .help-item:last-child { border-bottom: 0; }
+  .help-item h3 { display: flex; align-items: center; margin-bottom: 4px; }
+  .help-item h3 a { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-weight: 650; }
+  .help-item h3 svg { width: 18px; height: 18px; color: var(--accent); }
+  .help-item > * + * { margin-top: 6px; }
+  kbd { font-family: ui-monospace, Menlo, monospace; font-size: 0.8em; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel-2); }
+}

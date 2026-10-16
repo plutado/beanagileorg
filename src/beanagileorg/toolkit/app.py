@@ -47,6 +47,7 @@ NAV = [
     {"group": "Me"},
     {"path": "/coaching", "icon": "compass", "label": "Coaching"},
     {"path": "/me", "icon": "user-round", "label": "My development"},
+    {"path": "/help", "icon": "circle-help", "label": "Help"},
     {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
 

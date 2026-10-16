@@ -18,6 +18,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Scoped API tokens** for LLM clients and the other app: `export:read`, `present:read`, `full`, plus app scopes such as `delivery:write`.
 - **Change log and export log.** Every data change records the field, old and new value and who made it (you or a named token), and every export records what went out.
 - **Design system.** Tailwind CSS v4 tokens with light and dark themes, Inter type, Lucide icons and responsive layouts.
+- **Built-in guidance.** Every section explains its purpose and how to use it at the top of the page, and the Help page gathers them into one guide.
 - **Command palette and shortcuts.** ⌘K or / jumps to any screen or runs an action; ? lists the shortcuts.
 - **Backups that are checked.** `beanagileorg backup all` snapshots each app's data and restores it to a scratch folder to prove it's good; `beanagileorg restore` puts one back without deleting what was there; `beanagileorg schedule` sets up nightly backups. See [docs/backups.md](docs/backups.md).
 - **Local domain.** Open the apps at https://toolkit.beanagile.org and https://comms.beanagile.org on your own machine, with Caddy and local certificates; requests addressed to any other name are refused. See [docs/local-domain.md](docs/local-domain.md).
@@ -64,6 +65,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 **Coaching**
 
 - **Guides:** an editable library for engineering leaders in six themes, with a strong focus on the transition into a new role: mindset, assertiveness, learning fast, the manager relationship, early wins, managing yourself and earning trust, plus team leadership, agile practice, stakeholders, leading leaders and vendors. Each guide has what to do, what to watch out for, questions to ask yourself and things to try this week. Rewrite, delete or add guides, and note what inspired them.
+- **Coaching where you work:** guidance isn't confined to the Coaching section. Each screen offers tips and links to the guides that fit what you're doing there, and every new section ships with its own.
 - **Tips on every screen:** a short coaching tip at the top of each landing page in both apps, linking to a guide, edited per screen, hidden while presenting.
 - **Reflection journal:** private prompts for each stage of the role, with energy and confidence over time.
 - **Coaching packs:** share your guides, tips and prompts with other leaders (never your notes or reflections) and import theirs.
