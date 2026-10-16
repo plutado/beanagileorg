@@ -14,6 +14,7 @@
   BA.command({ label: "Run a retrospective", hint: "Retrospectives", icon: "refresh-ccw", run: () => BA.go("/retros") });
   BA.command({ label: "Open the PI planning board", hint: "PI planning", icon: "kanban", run: () => BA.go("/pi") });
   BA.command({ label: "Work on the 30/60/90 plans", hint: "30/60/90 plans", icon: "flag", run: () => BA.go("/plans") });
+  BA.command({ label: "Assess a product, service or department", hint: "Business landscape", icon: "building-2", run: () => BA.go("/landscape/swot") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -1663,4 +1664,194 @@
       });
     },
   });
+
+  // ---------------------------------------------------------------- Business landscape
+
+  const OFFERING_KINDS = ["product", "service", "internal platform"];
+  const MATURITY = ["idea", "emerging", "growing", "mature", "declining", "sunsetting"];
+  const OFFERING_STATUS = ["active", "planned", "retired"];
+  const DEPT_KINDS = ["division", "department", "team"];
+  const QUADRANTS = ["strength", "weakness", "opportunity", "threat"];
+  const Q_TITLES = { strength: "Strengths", weakness: "Weaknesses", opportunity: "Opportunities", threat: "Threats" };
+  const Q_TONES = { strength: "good", weakness: "bad", opportunity: "accent", threat: "warn" };
+  const SOURCES = ["listening tour", "metrics", "incident", "vendor", "customer feedback", "document", "my observation"];
+  const MATURITY_TONES = { emerging: "accent", growing: "good", mature: "good", declining: "warn", sunsetting: "bad" };
+
+  const swotBadges = (s) => (s ? QUADRANTS.filter((q) => s[q]).map((q) => `<span class="pill ${Q_TONES[q]}" title="${Q_TITLES[q]}">${q[0].toUpperCase()} ${s[q]}</span>`).join(" ") : "");
+  const landscapeTabs = (active) => `<nav class="tabs">${[["", "Products and services"], ["org", "Organization"], ["swot", "Assessment"]]
+    .map(([k, label]) => `<a href="#/landscape${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const deptOptions = (depts, sel, skip) => `<option value=""></option>${depts.filter((d) => d.id !== skip).map((d) => `<option value="${d.id}"${d.id === sel ? " selected" : ""}>${esc(d.name)}</option>`).join("")}`;
+
+  BA.view("/landscape", {
+    title: "Business landscape",
+    async render(main, param) {
+      if (param && /^[od]-\d+$/.test(param)) return renderSubject(main, param[0] === "o" ? "offering" : "department", Number(param.slice(2)));
+      if (param === "org") return renderOrg(main);
+      if (param === "swot") return renderSwot(main);
+      const [offers, depts] = await Promise.all([BA.api("/api/landscape/offerings"), BA.api("/api/departments")]);
+      const ro = presenting();
+      main.innerHTML = `${landscapeTabs("")}
+        <p class="quiet">What [employer] offers today, who owns it and what it runs on. Open one to assess it.</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Kind</th><th>Owner</th><th>Maturity</th><th>Runs on</th><th>Assessment</th></tr></thead><tbody>${
+          offers.map((o) => `<tr class="clickable${o.status === "retired" ? " muted" : ""}" data-id="${o.id}"><td><b>${esc(o.name)}</b>${o.status !== "active" ? ` <span class="pill">${esc(o.status)}</span>` : ""}<div class="quiet">${esc(o.customers || "")}</div></td>
+            <td>${esc(o.kind)}</td><td>${esc(o.department_name || "")}</td><td>${o.maturity ? tonePill(o.maturity, MATURITY_TONES) : ""}</td>
+            <td>${BA.chips(o.systems.map((s) => s.name))}</td><td>${swotBadges(o.swot)}</td></tr>`).join("") ||
+          '<tr><td colspan="6" class="empty">No products or services yet.</td></tr>'
+        }</tbody></table></div>
+        ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Add a product or service</h2><form id="add-offer" class="row">
+          <input name="name" placeholder="Name" required style="max-width:260px"><select name="kind" style="max-width:170px">${opts(OFFERING_KINDS, "product")}</select>
+          <select name="department_id" style="max-width:220px" title="Owning department">${deptOptions(depts).replace('<option value=""></option>', '<option value="">Owning department</option>')}</select>
+          <select name="maturity" style="max-width:150px"><option value="">Maturity</option>${opts(MATURITY)}</select><button class="btn primary" type="submit">Add</button></form></section>`}`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/landscape/o-${tr.dataset.id}`)));
+      const add = main.querySelector("#add-offer");
+      if (add)
+        add.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(add);
+          const o = await BA.api("/api/offerings", { method: "POST", body: { name: f.get("name"), kind: f.get("kind"), department_id: f.get("department_id") ? Number(f.get("department_id")) : null, maturity: f.get("maturity") || null } });
+          BA.go(`/landscape/o-${o.id}`);
+        });
+    },
+  });
+
+  async function renderOrg(main) {
+    const [d, depts, people] = await Promise.all([BA.api("/api/landscape/org"), BA.api("/api/departments"), BA.api("/api/people")]);
+    const ro = presenting();
+    const node = (n) => `<li><div class="org-node"><a href="#/landscape/d-${n.id}"><b>${esc(n.name)}</b></a><span class="pill">${esc(n.kind)}</span>
+        ${n.leader_name ? `<span class="quiet">led by ${esc(n.leader_name)}</span>` : ""}<span class="spacer"></span>
+        ${n.people.length ? `<span class="quiet">${n.people.length} ${n.people.length === 1 ? "person" : "people"}</span>` : ""}
+        ${n.offerings.length ? BA.chips(n.offerings.map((o) => o.name)) : ""}${swotBadges(n.swot)}</div>
+        ${n.children.length ? `<ul>${n.children.map(node).join("")}</ul>` : ""}</li>`;
+    main.innerHTML = `${landscapeTabs("org")}
+      <section class="card"><h2>Organization by department</h2>${d.tree.length ? `<ul class="org-tree">${d.tree.map(node).join("")}</ul>` : '<p class="quiet">No departments yet. Add the top level first, then the departments and teams inside it.</p>'}</section>
+      ${ro ? "" : `<section class="card"><h2>Add a division, department or team</h2><form id="add-dept" class="row">
+        <input name="name" placeholder="Name" required style="max-width:240px"><select name="kind" style="max-width:150px">${opts(DEPT_KINDS, "department")}</select>
+        <select name="parent_id" style="max-width:220px">${deptOptions(depts).replace('<option value=""></option>', '<option value="">Top level</option>')}</select>
+        <select name="leader_id" style="max-width:200px">${personOptions(people).replace('<option value=""></option>', '<option value="">Leader</option>')}</select><button class="btn primary" type="submit">Add</button></form></section>
+      ${d.unassigned.length && depts.length ? `<section class="card"><h2>People not placed yet</h2>${d.unassigned.map((p) => `<div class="item"><span>${esc(p.name)}</span><span class="quiet">${esc(p.role || "")}</span><span class="spacer"></span><select data-place="${p.id}" style="max-width:220px">${deptOptions(depts)}</select></div>`).join("")}</section>` : ""}`}`;
+    if (ro) return;
+    const add = main.querySelector("#add-dept");
+    add.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(add);
+      const num = (v) => (v ? Number(v) : null);
+      await BA.api("/api/departments", { method: "POST", body: { name: f.get("name"), kind: f.get("kind"), parent_id: num(f.get("parent_id")), leader_id: num(f.get("leader_id")) } });
+      BA.rerender();
+    });
+    main.querySelectorAll("[data-place]").forEach((sel) => (sel.onchange = BA.guard(async () => {
+      await BA.api(`/api/people/${sel.dataset.place}`, { method: "PATCH", body: { department_id: sel.value ? Number(sel.value) : null } });
+      BA.rerender();
+    })));
+  }
+
+  async function renderSwot(main) {
+    const d = await BA.api("/api/landscape/swot");
+    if (d.private) {
+      main.innerHTML = `${landscapeTabs("swot")}<p class="empty">The assessment is private, so it's hidden while presenting.</p>`;
+      return;
+    }
+    const filter = sessionStorage.getItem("ba-swot-filter") || "all";
+    const shown = (a) => filter === "all" || a.subject_type === filter;
+    main.innerHTML = `${landscapeTabs("swot")}
+      <div class="row"><p class="quiet">Every open point across products, services and departments. Private: it never leaves this app.</p><span class="spacer"></span>
+        <select id="swot-filter" style="max-width:200px">${[["all", "Everything"], ["offering", "Products and services"], ["department", "Departments"]].map(([v, l]) => `<option value="${v}"${v === filter ? " selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="swot-grid">${QUADRANTS.map((q) => {
+        const list = d.quadrants[q].filter(shown);
+        return `<section class="card swot-${q}"><h2>${Q_TITLES[q]} <span class="quiet">${list.length}</span></h2>${list
+          .map((a) => `<div class="item"><span><a href="#/landscape/${a.subject_type === "offering" ? "o" : "d"}-${a.subject_id}">${esc(a.subject_name || "")}</a>: ${esc(a.title)}</span><span class="spacer"></span><span class="quiet">${esc(a.confidence)} confidence</span></div>`)
+          .join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
+      }).join("")}</div>`;
+    main.querySelector("#swot-filter").onchange = (e) => {
+      sessionStorage.setItem("ba-swot-filter", e.target.value);
+      BA.rerender();
+    };
+  }
+
+  async function renderSubject(main, kind, id) {
+    const [d, depts, people, systems, vendors] = await Promise.all([
+      BA.api(`/api/landscape/${kind}/${id}`), BA.api("/api/departments"), BA.api("/api/people"), BA.api("/api/systems"), BA.api("/api/vendors"),
+    ]);
+    const s = d.subject;
+    const ro = presenting();
+    const isOffer = kind === "offering";
+    document.getElementById("view-title").textContent = s.name;
+    const crumbs = [`<a href="#/landscape${isOffer ? "" : "/org"}">${isOffer ? "Products and services" : "Organization"}</a>`, ...d.path.map((p) => `<a href="#/landscape/d-${p.id}">${esc(p.name)}</a>`)].join(" / ");
+    const checks = (list, chosen, name) => list.map((x) => `<label class="check"><input type="checkbox" name="${name}" value="${x.id}"${chosen.includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("") || '<span class="quiet">None recorded yet.</span>';
+    const facts = isOffer
+      ? `<p>${s.description ? esc(s.description) : '<span class="quiet">No description yet.</span>'}</p>
+        <div class="row">${[s.kind, s.status].map((x) => `<span class="pill">${esc(x)}</span>`).join(" ")}${s.maturity ? tonePill(s.maturity, MATURITY_TONES) : ""}
+          ${s.department_name ? `<span class="quiet">Owned by ${esc(s.department_name)}</span>` : ""}</div>
+        ${s.customers ? `<p class="quiet">Serves: ${esc(s.customers)}</p>` : ""}
+        <p>Runs on: ${BA.chips(d.systems.map((x) => x.name)) || '<span class="quiet">no systems linked</span>'} · Vendors: ${BA.chips(d.vendors.map((x) => x.name)) || '<span class="quiet">none linked</span>'}</p>`
+      : `<p>${s.purpose ? esc(s.purpose) : '<span class="quiet">No purpose written yet.</span>'}</p>
+        <div class="row"><span class="pill">${esc(s.kind)}</span>${s.leader_name ? `<span class="quiet">Led by ${esc(s.leader_name)}</span>` : ""}</div>
+        ${d.children.length ? `<p>Inside it: ${d.children.map((c) => `<a href="#/landscape/d-${c.id}">${esc(c.name)}</a>`).join(", ")}</p>` : ""}
+        ${d.people.length ? `<p>People: ${esc(d.people.map((p) => p.name).join(", "))}</p>` : ""}
+        ${d.offerings.length ? `<p>Owns: ${d.offerings.map((o) => `<a href="#/landscape/o-${o.id}">${esc(o.name)}</a>`).join(", ")}</p>` : ""}`;
+    const aItem = (a) => `<details class="plan-item" data-a="${a.id}"><summary><span>${esc(a.title)}</span><span class="spacer"></span>
+        ${a.source ? `<span class="quiet">${esc(a.source)}</span>` : ""}<span class="pill">${esc(a.confidence)}</span>${a.status !== "open" ? `<span class="pill good">${esc(a.status)}</span>` : ""}</summary>
+        ${a.evidence ? BA.md(a.evidence) : '<p class="quiet">No evidence written down yet.</p>'}
+        <div class="row">${a.date ? `<span class="quiet">${BA.fmtDate(a.date)}</span>` : ""}<span class="spacer"></span>
+          ${a.roadmap_item_id ? '<a href="#/roadmap">On the roadmap</a>' : `<button class="btn" data-roadmap="${a.id}">Add to roadmap</button>`}
+          ${a.risk_id ? '<a href="#/risks">Logged as a risk</a>' : `<button class="btn" data-risk="${a.id}">Log as a risk</button>`}
+          <select data-status="${a.id}" style="max-width:130px">${opts(["open", "acted on", "closed"], a.status)}</select>
+          <button class="icon-btn" title="Delete" data-del-a="${a.id}">${BA.icon("x")}</button></div></details>`;
+    main.innerHTML = `<p>${crumbs}</p>
+      <section class="card"><h2>${esc(s.name)}</h2>${facts}</section>
+      ${d.assessments ? `<div class="swot-grid">${QUADRANTS.map((q) => `<section class="card swot-${q}"><h2>${Q_TITLES[q]}</h2>${d.assessments[q].map(aItem).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`).join("")}</div>
+        <section class="card"><h2>Add to the assessment</h2><form id="add-a">
+          <div class="row"><select name="quadrant" style="max-width:160px">${opts(QUADRANTS, "weakness")}</select><input name="title" placeholder="The point, in a sentence" required style="max-width:420px"></div>
+          <label>Evidence <span class="quiet">(what you saw or heard, and from whom)</span><textarea name="evidence"></textarea></label>
+          <div class="row"><select name="source" style="max-width:190px"><option value="">Source</option>${opts(SOURCES)}</select>
+            <select name="confidence" style="max-width:170px">${opts(["low", "medium", "high"], "medium")}</select><input type="date" name="date" value="${BA.today()}" style="max-width:170px">
+            <button class="btn primary" type="submit">Add</button></div></form></section>` : ""}
+      ${ro ? "" : `<form id="edit-subject" class="card"><h2>Details</h2><div class="grid2">
+        <label>Name<input name="name" value="${esc(s.name)}" required></label>
+        <label>Kind<select name="kind">${opts(isOffer ? OFFERING_KINDS : DEPT_KINDS, s.kind)}</select></label>
+        ${isOffer ? `<label>Owning department<select name="department_id">${deptOptions(depts, s.department_id)}</select></label>
+          <label>Maturity<select name="maturity"><option value=""></option>${opts(MATURITY, s.maturity)}</select></label>
+          <label>Status<select name="status">${opts(OFFERING_STATUS, s.status)}</select></label>
+          <label>Who it serves<input name="customers" value="${esc(s.customers || "")}"></label>`
+        : `<label>Inside<select name="parent_id">${deptOptions(depts, s.parent_id, s.id)}</select></label>
+          <label>Leader<select name="leader_id">${personOptions(people, s.leader_id)}</select></label>`}</div>
+        <label>${isOffer ? "What it is" : "Purpose"}<textarea name="${isOffer ? "description" : "purpose"}">${esc((isOffer ? s.description : s.purpose) || "")}</textarea></label>
+        ${isOffer ? `<label>Systems it runs on</label><div class="row">${checks(systems, s.system_ids, "system_ids")}</div>
+          <label>Vendors involved</label><div class="row">${checks(vendors, s.vendor_ids, "vendor_ids")}</div>` : ""}
+        <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
+        <div class="actions"><button class="btn danger left" type="button" id="del-subject">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+    if (ro) return;
+    const num = (v) => (v ? Number(v) : null);
+    const edit = main.querySelector("#edit-subject");
+    edit.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(edit);
+      const body = { name: f.get("name"), kind: f.get("kind"), notes: f.get("notes") };
+      if (isOffer) Object.assign(body, { department_id: num(f.get("department_id")), maturity: f.get("maturity") || null, status: f.get("status"), customers: f.get("customers"), description: f.get("description"),
+        system_ids: f.getAll("system_ids").map(Number), vendor_ids: f.getAll("vendor_ids").map(Number) });
+      else Object.assign(body, { parent_id: num(f.get("parent_id")), leader_id: num(f.get("leader_id")), purpose: f.get("purpose") });
+      await BA.api(`/api/${isOffer ? "offerings" : "departments"}/${id}`, { method: "PATCH", body });
+      BA.rerender();
+    });
+    main.querySelector("#del-subject").onclick = BA.guard(async () => {
+      if (!confirm(isOffer ? "Delete this and its assessment?" : "Delete this? Teams inside it move up a level, and its assessment is deleted.")) return;
+      await BA.api(`/api/${isOffer ? "offerings" : "departments"}/${id}`, { method: "DELETE" });
+      BA.go(isOffer ? "/landscape" : "/landscape/org");
+    });
+    const addA = main.querySelector("#add-a");
+    if (!addA) return;
+    addA.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(addA);
+      await BA.api("/api/assessments", { method: "POST", body: { subject_type: kind, subject_id: id, quadrant: f.get("quadrant"), title: f.get("title"), evidence: f.get("evidence"), source: f.get("source") || null, confidence: f.get("confidence"), date: f.get("date") || null } });
+      BA.rerender();
+    });
+    const act = (attr, fn) => main.querySelectorAll(`[${attr}]`).forEach((el) => (el.onclick = BA.guard(async (e) => { e.preventDefault(); await fn(el.getAttribute(attr), el); BA.rerender(); })));
+    act("data-roadmap", (aid) => BA.api(`/api/assessments/${aid}/to-roadmap`, { method: "POST", body: {} }).then(() => BA.toast("Added to the roadmap. Only the title went across.")));
+    act("data-risk", (aid) => BA.api(`/api/assessments/${aid}/to-risk`, { method: "POST", body: {} }));
+    act("data-del-a", (aid) => (confirm("Delete this point?") ? BA.api(`/api/assessments/${aid}`, { method: "DELETE" }) : null));
+    main.querySelectorAll("[data-status]").forEach((sel) => (sel.onchange = BA.guard(async () => {
+      await BA.api(`/api/assessments/${sel.dataset.status}`, { method: "PATCH", body: { status: sel.value } });
+      BA.rerender();
+    })));
+  }
 })();

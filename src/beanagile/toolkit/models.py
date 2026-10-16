@@ -41,6 +41,15 @@ ROAM = ("unroamed", "resolved", "owned", "accepted", "mitigated")
 PLAN_STATUS = ("draft", "reviewed", "presented")
 PLAN_ITEM_KINDS = ("outcome", "action", "measure", "keep")
 PLAN_ITEM_STATUS = ("planned", "in progress", "done", "dropped")
+DEPARTMENT_KINDS = ("division", "department", "team")
+OFFERING_KINDS = ("product", "service", "internal platform")
+MATURITY = ("idea", "emerging", "growing", "mature", "declining", "sunsetting")
+OFFERING_STATUS = ("active", "planned", "retired")
+QUADRANTS = ("strength", "weakness", "opportunity", "threat")
+ASSESSMENT_SOURCES = ("listening tour", "metrics", "incident", "vendor", "customer feedback", "document", "my observation")
+CONFIDENCE = ("low", "medium", "high")
+ASSESSMENT_STATUS = ("open", "acted on", "closed")
+SUBJECT_TYPES = ("offering", "department")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -448,6 +457,50 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        7,
+        """
+        CREATE TABLE departments (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'department',
+            parent_id INTEGER REFERENCES departments (id) ON DELETE SET NULL,
+            leader_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            purpose TEXT,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        ALTER TABLE people ADD COLUMN department_id INTEGER REFERENCES departments (id) ON DELETE SET NULL;
+        CREATE TABLE offerings (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'product',
+            description TEXT,
+            customers TEXT,
+            department_id INTEGER REFERENCES departments (id) ON DELETE SET NULL,
+            system_ids TEXT,
+            vendor_ids TEXT,
+            maturity TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT
+        );
+        CREATE TABLE assessments (
+            id INTEGER PRIMARY KEY,
+            subject_type TEXT NOT NULL,
+            subject_id INTEGER NOT NULL,
+            quadrant TEXT NOT NULL,
+            title TEXT NOT NULL,
+            evidence TEXT,
+            source TEXT,
+            confidence TEXT NOT NULL DEFAULT 'medium',
+            date DATE,
+            status TEXT NOT NULL DEFAULT 'open',
+            roadmap_item_id INTEGER REFERENCES roadmap_items (id) ON DELETE SET NULL,
+            risk_id INTEGER REFERENCES risks (id) ON DELETE SET NULL
+        );
+        CREATE INDEX assessments_subject ON assessments (subject_type, subject_id);
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -473,6 +526,7 @@ people = Record(
         "support_notes": Field("text", P),
         "contact": Field("text", P),
         "active": Field("bool", S, default=True),
+        "department_id": Field("int", S),
     },
 )
 
@@ -1111,6 +1165,72 @@ plan_items = Record(
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S)},
 )
 
+# ---- business landscape: structure is presentable; the assessment is [employer]'s confidential view, so private ----
+
+departments = Record(
+    entity="department",
+    table="departments",
+    path="/api/departments",
+    order_by="position, name",
+    fields={
+        "name": Field("text", S, required=True),
+        "kind": Field("text", S, choices=DEPARTMENT_KINDS, default="department"),
+        "parent_id": Field("int", S),
+        "leader_id": Field("int", S),
+        "purpose": Field("text", S),
+        "notes": Field("text", P),
+        "position": Field("int", S, default=0),
+    },
+    computed={
+        "leader_name": ("(SELECT name FROM people p WHERE p.id = departments.leader_id)", S),
+        "parent_name": ("(SELECT name FROM departments d WHERE d.id = departments.parent_id)", S),
+    },
+)
+
+offerings = Record(
+    entity="offering",
+    table="offerings",
+    path="/api/offerings",
+    order_by="status = 'retired', name",
+    fields={
+        "name": Field("text", S, required=True),
+        "kind": Field("text", S, choices=OFFERING_KINDS, default="product"),
+        "description": Field("text", S),
+        "customers": Field("text", S),
+        "department_id": Field("int", S),
+        "system_ids": Field("ids", S),
+        "vendor_ids": Field("ids", S),
+        "maturity": Field("text", S, choices=MATURITY),
+        "status": Field("text", S, choices=OFFERING_STATUS, default="active"),
+        "notes": Field("text", P),
+    },
+    computed={"department_name": ("(SELECT name FROM departments d WHERE d.id = offerings.department_id)", S)},
+)
+
+assessments = Record(
+    entity="assessment",
+    table="assessments",
+    path="/api/assessments",
+    order_by="status = 'closed', CASE confidence WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, id",
+    fields={
+        "subject_type": Field("text", P, required=True, choices=SUBJECT_TYPES),
+        "subject_id": Field("int", P, required=True),
+        "quadrant": Field("text", P, required=True, choices=QUADRANTS),
+        "title": Field("text", P, required=True),
+        "evidence": Field("text", P),
+        "source": Field("text", P, choices=ASSESSMENT_SOURCES),
+        "confidence": Field("text", P, choices=CONFIDENCE, default="medium"),
+        "date": Field("date", P),
+        "status": Field("text", P, choices=ASSESSMENT_STATUS, default="open"),
+        "roadmap_item_id": Field("int", P),
+        "risk_id": Field("int", P),
+    },
+    computed={
+        "subject_name": ("(CASE assessments.subject_type WHEN 'offering' THEN (SELECT name FROM offerings o WHERE o.id = assessments.subject_id) ELSE (SELECT name FROM departments d WHERE d.id = assessments.subject_id) END)", P),
+    },
+    hide_when_empty=True,
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1119,4 +1239,5 @@ RECORDS = [
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,
+    departments, offerings, assessments,
 ]

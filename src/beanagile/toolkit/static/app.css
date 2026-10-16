@@ -43,3 +43,18 @@ table.raci td, table.raci th { white-space: nowrap; }
 .plan-settings { margin: 4px 0 10px; }
 .plan-settings summary { cursor: pointer; font-size: .85rem; }
 .plan-settings form { margin-top: 8px; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; overflow-x: auto; }
+.tabs a { padding: 8px 14px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs a.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.swot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+@media (max-width: 760px) { .swot-grid { grid-template-columns: 1fr; } }
+.swot-grid .card { margin: 0; border-top: 3px solid var(--line); }
+.swot-strength { border-top-color: var(--good) !important; }
+.swot-weakness { border-top-color: var(--bad) !important; }
+.swot-opportunity { border-top-color: var(--accent) !important; }
+.swot-threat { border-top-color: var(--warn) !important; }
+.org-tree, .org-tree ul { list-style: none; margin: 0; padding: 0; }
+.org-tree ul { margin-left: 18px; padding-left: 14px; border-left: 1px solid var(--line); }
+.org-node { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; margin: 4px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+tr.muted td { opacity: .6; }

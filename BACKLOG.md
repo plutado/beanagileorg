@@ -12,12 +12,12 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Business landscape (toolkit):** products and services [employer] offers today (name, what it is, customers it serves, owning department, supporting systems and vendors, maturity); the organization by department (department, parent, leader, teams, people from People), shown as a hierarchy; an assessment per offering and per department: strengths, weaknesses, opportunities and threats, with evidence, source (listening tour, metrics, incidents, vendor) and a confidence level; opportunities can become roadmap items or risks; private by default because it holds [employer]'s confidential view
 - [ ] **QA resources (toolkit):** manual smoke test library (system, area, steps, expected result, owner, last run and result); test runs per release or sprint with pass, fail or blocked per case and failures turned into dev-sync items; automated test inventory (unit, integration, end-to-end and Apex suites, location, coverage, latest CI result); regression plans for each Salesforce release and peak-season freeze with named owners; ties to the definition of done and QA sign-off in the RACI
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
+- [ ] Business landscape: placeholder seed data; link assessments to listening-tour themes, incidents and metrics as evidence; a shareable summary of selected points for leadership; an org chart drawing; capabilities each system supports (a capability map)
 - [ ] Plans: a version history of each plan as presented, so a later review can show what changed and why; a day-30/60/90 check-in that marks each item met, moved or dropped with a note
 - [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket or the release log
 - [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
@@ -77,6 +77,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: Business landscape. Products, services and internal platforms with what each is, who it serves, owning department, systems and vendors it relies on, maturity and status; the organization as a tree of divisions, departments and teams with leaders, people placed in them and the offerings they own (department loops are refused; deleting one moves its teams up); a strengths, weaknesses, opportunities and threats assessment for each offering and department with evidence, source, confidence, date and status, plus a combined matrix filtered by kind; an opportunity or weakness can become a roadmap item (title only, since the roadmap is shareable) or a risk; structure is presentable, the assessment is private and hidden while presenting; 98 tests
 
 - [x] 2026-10-16: 30/60/90-day and six-month plans. Six plans, one per month (first 30 days, days 31 to 60, days 61 to 90, months 4, 5 and 6), created by the database upgrade; plans can be added (a finer check-in or a longer view such as month 9), renamed, re-dated or deleted; each with a headline, dates from the contract start date and a draft, reviewed or presented status with date and audience; items as outcomes, actions, measures or "what I won't change", with day, owner, status, listening-tour themes and private evidence; a flag for items outside their window; a "What I heard" panel showing which themes no item answers yet, plus the private one-on-one notes; an exportable outline copied as Markdown (logged); the Comms studio builds a deck from the outline over the export-only token (title, what I heard, one slide per stretch with details in the speaker notes, measures, what stays, closing). Fixed: each app now has its own session cookie, so signing in to one no longer signs you out of the other; 92 tests
 

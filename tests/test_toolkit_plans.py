@@ -73,7 +73,7 @@ def test_mark_presented(client):
 
 def test_migration_creates_six_monthly_plans(client):
     assert [p["horizon_days"] for p in client.get("/api/plans").json()] == [30, 60, 90, 120, 150, 180]
-    assert models.MIGRATIONS[-1][0] == 6
+    assert 6 in [v for v, _ in models.MIGRATIONS]
 
 
 def test_comms_builds_a_deck_from_the_plan(tmp_path, monkeypatch):

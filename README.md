@@ -26,7 +26,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 **Team**
 
 - **Today:** overdue tasks and dev-sync items, what's due this week, obligations, this week's one-on-ones, learning goals at risk, vendor renewals and vendor concerns.
-- **People and team profiles:** role, relationship, background, skills, certifications, goals, what each person wants to learn and can teach, working style and support notes. Only names and roles show in presentation mode.
+- **People and team profiles:** role, relationship, background, skills, certifications, goals, what each person wants to learn and can teach, working style and support notes. Only names, roles and departments show in presentation mode.
 - **Skills and learning:** a skills matrix and matches between who can teach and who wants to learn, each one proposable as a group learning session.
 - **Listening tour:** one record per one-on-one with the same four questions every time (what's working, what's frustrating, what to change first, what not to change), plus systems mentioned, gaps, opportunities and themes. Private end to end.
 - **Day-30 rollup:** themes ranked by how often they come up, with supporting quotes, gaps, opportunities and "don't change" notes, copyable as Markdown for the written diagnosis.
@@ -52,6 +52,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 **Knowledge**
 
+- **Business landscape:** the products, services and internal platforms [employer] offers, with owner, customers, systems, vendors and maturity; the organization as a tree of divisions, departments and teams with leaders and people; a private strengths, weaknesses, opportunities and threats assessment for each, with evidence, source and confidence, and a combined matrix. Any point can become a roadmap item or a risk.
 - **Escalation playbook:** systems with owner, first responder, backup and linked vendor, business-hours and out-of-hours escalation chains, severity levels, and an incident log whose follow-ups become dev-sync items.
 
 **Me**
