@@ -19,6 +19,8 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Change log and export log.** Every data change records the field, old and new value and who made it (you or a named token), and every export records what went out.
 - **Design system.** Tailwind CSS v4 tokens with light and dark themes, Inter type, Lucide icons and responsive layouts.
 - **Command palette and shortcuts.** ⌘K or / jumps to any screen or runs an action; ? lists the shortcuts.
+- **Backups that are checked.** `beanagile backup all` snapshots each app's data and restores it to a scratch folder to prove it's good; `beanagile restore` puts one back without deleting what was there; `beanagile schedule` sets up nightly backups. See [docs/backups.md](docs/backups.md).
+- **Local domain.** Open the apps at https://toolkit.beanagile.org and https://comms.beanagile.org on your own machine, with Caddy and local certificates; requests addressed to any other name are refused. See [docs/local-domain.md](docs/local-domain.md).
 - **Placeholder data.** One click fills empty parts of an app with bracketed `[Placeholder]` values for trying things out.
 
 ### Toolkit
@@ -119,6 +121,18 @@ Styles come from one Tailwind CSS v4 source, `src/beanagile/core/static/app.src.
 ```
 
 The script uses Tailwind's standalone CLI from `.tools/` (not committed). Icons are a Lucide subset (`scripts/build_icons.py`), and the font is Inter; both are vendored with their licenses. Press ⌘K in either app for the command palette, or ? for keyboard shortcuts.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `beanagile toolkit` / `beanagile comms` | Run an app (localhost only) |
+| `beanagile backup all` | Back up every app and check each backup |
+| `beanagile backups toolkit` | List backups and their check results |
+| `beanagile verify FILE` | Check a backup without changing anything |
+| `beanagile restore FILE --app toolkit` | Put a backup back (stop the app first) |
+| `beanagile schedule [--write]` | Nightly backups with launchd |
+| `beanagile domain [--caddyfile]` | Local beanagile.org setup |
 
 ## Data
 

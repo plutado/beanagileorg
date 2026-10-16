@@ -165,6 +165,26 @@
     return `<div class="md">${out.join("")}</div>`;
   };
 
+  // Backups: each one is restored to a scratch folder and checked before it counts.
+  async function renderBackups(el) {
+    const d = await BA.api("/api/backups");
+    const last = d.backups[0];
+    const kb = (n) => `${Math.max(1, Math.round(n / 1024))} KB`;
+    el.innerHTML = `<h2>Backups</h2>
+      <p class="quiet">Each backup is a snapshot of this app's data, checked straight away by restoring it to a scratch folder and comparing every table. Kept in <code>${BA.esc(d.location)}</code>.</p>
+      <div class="row">${last ? `<span class="pill ${last.ok ? "good" : "bad"}">${last.ok ? "last backup checked" : "last backup failed its check"}</span><span class="quiet">${BA.esc(last.at || last.file)}</span>` : '<span class="pill warn">no backups yet</span>'}
+        <span class="pill ${d.scheduled ? "good" : "warn"}">${d.scheduled ? "nightly schedule saved" : "no nightly schedule"}</span><span class="spacer"></span><button class="btn primary" id="backup-now">Back up now</button></div>
+      ${d.backups.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Backup</th><th>Size</th><th>Rows</th><th>Check</th></tr></thead><tbody>${d.backups
+        .map((b) => `<tr><td>${BA.esc(b.file)}</td><td>${kb(b.bytes)}</td><td>${b.rows ?? ""}</td><td>${b.ok ? '<span class="pill good">restores cleanly</span>' : b.ok === false ? `<span class="pill bad" title="${BA.esc((b.problems || []).join("; "))}">failed</span>` : '<span class="quiet">not checked</span>'}</td></tr>`)
+        .join("")}</tbody></table></div>${d.count > d.backups.length ? `<p class="quiet">${d.count - d.backups.length} older backups not shown.</p>` : ""}` : ""}
+      <p class="quiet">Nightly backups and restores run from the terminal: <code>beanagile schedule --write</code> saves a nightly job, and <code>beanagile restore FILE --app ${BA.esc(BA.session.app)}</code> puts a backup back (stop the app first).</p>`;
+    el.querySelector("#backup-now").onclick = BA.guard(async () => {
+      const r = await BA.api("/api/backups", { method: "POST" });
+      BA.toast(r.ok ? "Backed up and checked." : "The backup failed its check: " + r.problems.join("; "));
+      renderBackups(el);
+    });
+  }
+
   BA.guard = (fn) => async (...args) => {
     try {
       await fn(...args);
@@ -307,6 +327,7 @@
             <button class="btn primary" type="submit">Create token</button>
           </form>
         </section>
+        <section class="card" id="backups"><h2>Backups</h2><p class="quiet">Loading…</p></section>
         <section class="card">
           <h2>Recent changes</h2>
           <div class="tablewrap"><table class="data"><thead><tr><th>When</th><th>Record</th><th>Field</th><th>By</th></tr></thead><tbody>${
@@ -323,6 +344,7 @@
         </section>`;
 
       renderTotp(main.querySelector("#totp"));
+      renderBackups(main.querySelector("#backups"));
 
       main.querySelector("#pw-form").onsubmit = async (e) => {
         e.preventDefault();

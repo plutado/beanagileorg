@@ -152,3 +152,17 @@ def test_static_files_are_revalidated(tmp_path):
     c = TestClient(build(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path)))
     assert c.get("/core-static/shell.js").headers["cache-control"] == "no-cache"
     assert c.get("/static/app.js").headers["cache-control"] == "no-cache"
+
+
+def test_unknown_hosts_are_refused(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from beanagile.core.config import Settings
+    from beanagile.toolkit.app import build
+
+    monkeypatch.setenv("BEANAGILE_ALLOWED_HOSTS", "placeholder-host.test")
+    app = build(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path))
+    for host, ok in (("127.0.0.1:8801", True), ("localhost", True), ("toolkit.beanagile.org", True), ("placeholder-host.test", True),
+                     ("comms.beanagile.org", False), ("evil.example", False)):
+        status = TestClient(app, base_url=f"http://{host}").get("/health").status_code
+        assert (status == 200) == ok, host

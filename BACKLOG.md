@@ -12,7 +12,7 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
+- [ ] **On the company device (David):** turn on nightly backups (`beanagile schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
 ## Toolkit, later versions
 
@@ -65,6 +65,7 @@ In the order the 90-day plan needs them:
 
 ## Shared base and platform
 
+- [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location; a warning on Today when the last good backup is more than two days old
 - [ ] Timed sharing (Share control): same-network and Tailscale modes, read-only presentable view, access code, auto-timeout, banner, visit log
 - [ ] Optional Odysseus integration: documents, calendar, local models, scheduled jobs
 - [ ] MCP server exposing toolkit tools, scoped like the API
@@ -78,6 +79,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: Platform before real data. `beanagile backup` takes a consistent snapshot of each app's database and media while it runs, writes a manifest of row counts, then restores it to a scratch folder and checks integrity, every table's row count and every file before calling it good; keeps the newest 30; `backups`, `verify` and `restore` commands (restore checks first, refuses a running app, and sets current data aside rather than deleting it); `schedule` writes a launchd job for nightly backups; a Backups panel in each app's Settings with Back up now and each backup's check result. Local domain: the apps refuse requests addressed to unknown hostnames (blocks DNS rebinding) and accept 127.0.0.1, localhost and <app>.beanagile.org plus BEANAGILE_ALLOWED_HOSTS; `beanagile domain` prints the hosts lines and a Caddy config with local HTTPS; docs/backups.md and docs/local-domain.md; site/ holds the public cat-video page; 122 tests
 
 - [x] 2026-10-16: Architecture and tools. One catalog for systems and tools (shared with the escalation playbook, QA and the business landscape) with kind, category, what it is, how we use it, environments, what it's built with, docs link, owner, admin, vendor, lifecycle, criticality and private known issues; integrations between systems with the middleware they pass through, pattern, direction, data, frequency, protocol, owner, criticality, status and private notes; a system map drawn from the integrations in lanes (external services, applications and platforms, integration layer, data stores, connected tools) where hovering a system traces its connections; a page per system showing what it sends and receives, what it carries, the offerings it supports, its tests and suites, decisions and guides; numbered architecture decision records (context, decision, consequences, alternatives, superseded by); Markdown guides linked to systems; documentation gaps and unowned integrations called out. Also: Markdown now renders numbered and bulleted lists properly and supports links and inline code; static files are revalidated on every load so an update never leaves old screens in the browser; 114 tests
 

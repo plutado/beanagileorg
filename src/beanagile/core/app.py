@@ -1,6 +1,7 @@
 """App factory shared by every supporting app: sign-in, sessions, presentation mode, tokens and the UI shell."""
 
 import html
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, tokens
+from . import auth, backup, tokens
 from .changelog import recent_changes
 from .config import Settings
 from .db import CORE_MIGRATIONS, Database, migrate
@@ -187,6 +188,8 @@ def create_app(
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
         path = request.url.path
+        if (request.url.hostname or "").lower().strip("[]") not in settings.allowed_hosts:
+            return JSONResponse({"detail": "Unknown host. Open this app at 127.0.0.1 or its beanagile.org address."}, status_code=421)
         with db.session() as conn:
             viewer = resolve_viewer(conn, request)
             has_user = conn.execute("SELECT 1 FROM users").fetchone() is not None
@@ -371,6 +374,19 @@ def create_app(
     @app.get("/api/exports")
     def exports(viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
         return recent_exports(conn)
+
+    def backup_dest() -> Path:
+        return Path(os.environ.get("BEANAGILE_BACKUP_DIR") or settings.data_dir.parent / "backups")
+
+    @app.get("/api/backups")
+    def backups_list(viewer: Viewer = Depends(require_full)):
+        rows = backup.list_backups(settings.app, backup_dest())
+        plist = Path.home() / "Library/LaunchAgents" / f"{backup.LAUNCHD_LABEL}.plist"
+        return {"location": str(backup_dest() / settings.app), "backups": rows[:10], "count": len(rows), "scheduled": plist.exists()}
+
+    @app.post("/api/backups", status_code=201)
+    def backup_now(viewer: Viewer = Depends(require_full)):
+        return backup.create_backup(settings.app, settings.data_dir, backup_dest())
 
     for router in routers:
         app.include_router(router)
