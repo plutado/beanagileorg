@@ -48,6 +48,22 @@ TOOLKIT = {
         "privacy": "Quotes and names are private; theme counts can be shown.",
         "related": ["/listening", "/plans"],
     },
+    "/teams": {
+        "purpose": "Your team and the teams around it: who's on each, who leads it, its Jira project and board, its current sprint and goal, and a dated status.",
+        "steps": ["Rename My team and fill in its members, product owner and Scrum Master.", "Add the other teams you work with or oversee, with their contacts and Jira project.",
+                  "Update each team's status in a line when you hear how they're doing; it's stamped with the date.",
+                  "With more than one team, a team picker appears on delivery screens to filter by team."],
+        "privacy": "Teams can be shown on screen; private notes stay private.",
+        "related": ["/sos", "/people", "/coaching/scrum-of-scrums"],
+    },
+    "/sos": {
+        "purpose": "The Scrum of Scrums log: questions, dependencies, decisions, risks, impediments and knowledge that cross team lines, each with stakeholders, an owner, the outcome expected and a date.",
+        "steps": ["Log each cross-team item with the teams involved, its stakeholders, an owner, the outcome or deliverable, and a due date.",
+                  "Start a meeting to walk every open item, update them in the log, and write a short summary.",
+                  "Record the resolution when an item is settled.", "Copy the leadership summary for the layer above."],
+        "privacy": "Items and meeting summaries can be shared; private notes stay private.",
+        "related": ["/teams", "/pi", "/coaching/scrum-of-scrums"],
+    },
     "/sdlc": {
         "purpose": "How work moves from idea to production: the stages, when each starts and is done, the environments, and the policies the team has agreed.",
         "steps": ["Load the starter SDLC, then replace every [Placeholder] with how your team really works.", "Agree policies with the team and mark them agreed with the date.",

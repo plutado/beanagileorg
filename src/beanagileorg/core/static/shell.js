@@ -420,6 +420,7 @@
       const rendering = def.render(main, param);
       await rendering;
       // A newer navigation may have started while this one rendered; only the latest adds the tip and intro.
+      if (token === routeToken && BA.afterRender) BA.afterRender(main, key, param);
       if (!param && token === routeToken) {
         await showCoachTip(main, key);
         await showIntro(main, key);

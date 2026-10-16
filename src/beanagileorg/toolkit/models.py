@@ -82,6 +82,10 @@ BACKLOG_TYPES = ("story", "bug", "task", "spike", "tech debt")
 BACKLOG_STATUS = ("needs refinement", "ready", "in sprint", "done", "removed")
 ESTIMATE_CONFIDENCE = ("low", "medium", "high")
 PLAN_STATUS_SPRINT = ("planning", "committed", "closed")
+TEAM_KINDS = ("mine", "other")
+TEAM_STATUS = ("on track", "at risk", "off track")
+SOS_KINDS = ("issue", "dependency", "decision", "risk", "impediment", "knowledge")
+SOS_STATUS = ("open", "in progress", "waiting", "done")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -909,6 +913,92 @@ MIGRATIONS = [
         ALTER TABLE sdlc_environments ADD COLUMN deploy_method TEXT;
         """,
     ),
+    (
+        17,
+        """
+        CREATE TABLE teams (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'other',
+            purpose TEXT,
+            product_owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            scrum_master_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            lead_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            member_ids TEXT,
+            jira_project TEXT,
+            board_url TEXT,
+            cadence TEXT,
+            system_ids TEXT,
+            status TEXT,
+            status_note TEXT,
+            status_date DATE,
+            current_sprint TEXT,
+            sprint_ends DATE,
+            current_goal TEXT,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        INSERT INTO teams (name, kind, position) VALUES ('My team', 'mine', 0);
+        ALTER TABLE action_items ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE action_items SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE sprints ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE sprints SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE risks ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE risks SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE decisions_needed ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE decisions_needed SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE retros ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE retros SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE test_runs ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE test_runs SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE tech_debt ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE tech_debt SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        ALTER TABLE backlog_items ADD COLUMN team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL;
+        UPDATE backlog_items SET team_id = (SELECT id FROM teams WHERE kind = 'mine' LIMIT 1);
+        CREATE TRIGGER action_items_default_team AFTER INSERT ON action_items WHEN NEW.team_id IS NULL
+        BEGIN UPDATE action_items SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER sprints_default_team AFTER INSERT ON sprints WHEN NEW.team_id IS NULL
+        BEGIN UPDATE sprints SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER risks_default_team AFTER INSERT ON risks WHEN NEW.team_id IS NULL
+        BEGIN UPDATE risks SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER decisions_needed_default_team AFTER INSERT ON decisions_needed WHEN NEW.team_id IS NULL
+        BEGIN UPDATE decisions_needed SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER retros_default_team AFTER INSERT ON retros WHEN NEW.team_id IS NULL
+        BEGIN UPDATE retros SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER test_runs_default_team AFTER INSERT ON test_runs WHEN NEW.team_id IS NULL
+        BEGIN UPDATE test_runs SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER tech_debt_default_team AFTER INSERT ON tech_debt WHEN NEW.team_id IS NULL
+        BEGIN UPDATE tech_debt SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TRIGGER backlog_items_default_team AFTER INSERT ON backlog_items WHEN NEW.team_id IS NULL
+        BEGIN UPDATE backlog_items SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TABLE sos_items (
+            id INTEGER PRIMARY KEY,
+            question TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'issue',
+            details TEXT,
+            raised_by_team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            team_ids TEXT,
+            stakeholder_ids TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            owner_team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            outcome TEXT,
+            raised_on DATE,
+            due DATE,
+            status TEXT NOT NULL DEFAULT 'open',
+            resolution TEXT,
+            jira_keys TEXT,
+            notes TEXT
+        );
+        CREATE TABLE sos_meetings (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            team_ids TEXT,
+            item_ids TEXT,
+            summary TEXT,
+            notes TEXT
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1047,6 +1137,7 @@ action_items = Record(
         "note_id": Field("int", P),
         "notes": Field("text", P),
         "jira_keys": Field("keys", S),
+        "team_id": Field("int", S),
     },
     computed={
         "vendor_name": ("(SELECT name FROM vendors v WHERE v.id = action_items.vendor_id)", S),
@@ -1257,6 +1348,7 @@ sprints = Record(
         "kind": Field("text", E, choices=SPRINT_KINDS, default="development"),
         "pi_id": Field("int", E),
         "capacity": Field("int", S),
+        "team_id": Field("int", S),
     },
     computed={"note_count": ("(SELECT COUNT(*) FROM ceremony_notes n WHERE n.sprint_id = sprints.id)", P)},
 )
@@ -1324,6 +1416,7 @@ risks = Record(
         "status": Field("text", E, choices=RISK_STATUS, default="open"),
         "notes": Field("text", P),
         "jira_keys": Field("keys", E),
+        "team_id": Field("int", S),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = risks.owner_id)", E)},
 )
@@ -1340,6 +1433,7 @@ decisions_needed = Record(
         "status": Field("text", E, choices=DECISION_STATUS, default="open"),
         "outcome": Field("text", E),
         "jira_keys": Field("keys", E),
+        "team_id": Field("int", S),
     },
     computed={"from_name": ("(SELECT name FROM people p WHERE p.id = decisions_needed.from_id)", E)},
 )
@@ -1385,6 +1479,7 @@ retros = Record(
         "attendee_ids": Field("ids", S),
         "summary": Field("text", S),
         "note_id": Field("int", P),
+        "team_id": Field("int", S),
     },
     computed={
         "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = retros.sprint_id)", S),
@@ -1730,6 +1825,7 @@ test_runs = Record(
         "tester_id": Field("int", S),
         "status": Field("text", S, choices=RUN_STATUS, default="in progress"),
         "notes": Field("text", P),
+        "team_id": Field("int", S),
     },
     computed={
         "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = test_runs.sprint_id)", S),
@@ -2079,6 +2175,7 @@ tech_debt = Record(
         "identified_on": Field("date", E),
         "raised_by": Field("text", S),
         "notes": Field("text", P),
+        "team_id": Field("int", S),
     },
     computed={
         "owner_name": ("(SELECT name FROM people p WHERE p.id = tech_debt.owner_id)", S),
@@ -2130,6 +2227,7 @@ backlog_items = Record(
         "labels": Field("list", S),
         "added_on": Field("date", S),
         "notes": Field("text", P),
+        "team_id": Field("int", S),
     },
     computed={
         "owner_name": ("(SELECT name FROM people p WHERE p.id = backlog_items.owner_id)", S),
@@ -2186,6 +2284,84 @@ sprint_availability = Record(
     },
 )
 
+# ---- teams and the Scrum of Scrums: structure is presentable; private notes stay private ----
+
+teams = Record(
+    entity="team",
+    table="teams",
+    path="/api/teams",
+    order_by="kind = 'other', position, name",
+    fields={
+        "name": Field("text", S, required=True),
+        "kind": Field("text", S, choices=TEAM_KINDS, default="other"),
+        "purpose": Field("text", S),
+        "product_owner_id": Field("int", S),
+        "scrum_master_id": Field("int", S),
+        "lead_id": Field("int", S),
+        "member_ids": Field("ids", S),
+        "jira_project": Field("text", S),
+        "board_url": Field("text", S),
+        "cadence": Field("text", S),
+        "system_ids": Field("ids", S),
+        "status": Field("text", S, choices=TEAM_STATUS),
+        "status_note": Field("text", S),
+        "status_date": Field("date", S),
+        "current_sprint": Field("text", S),
+        "sprint_ends": Field("date", S),
+        "current_goal": Field("text", S),
+        "notes": Field("text", P),
+        "position": Field("int", S, default=0),
+    },
+    computed={
+        "product_owner_name": ("(SELECT name FROM people p WHERE p.id = teams.product_owner_id)", S),
+        "scrum_master_name": ("(SELECT name FROM people p WHERE p.id = teams.scrum_master_id)", S),
+        "lead_name": ("(SELECT name FROM people p WHERE p.id = teams.lead_id)", S),
+    },
+)
+
+sos_items = Record(
+    entity="sos_item",
+    table="sos_items",
+    path="/api/sos-items",
+    order_by="status = 'done', due IS NULL, due, id",
+    fields={
+        "question": Field("text", S, required=True),
+        "kind": Field("text", S, choices=SOS_KINDS, default="issue"),
+        "details": Field("text", S),
+        "raised_by_team_id": Field("int", S),
+        "team_ids": Field("ids", S),
+        "stakeholder_ids": Field("ids", S),
+        "owner_id": Field("int", S),
+        "owner_team_id": Field("int", S),
+        "outcome": Field("text", S),
+        "raised_on": Field("date", S),
+        "due": Field("date", S),
+        "status": Field("text", S, choices=SOS_STATUS, default="open"),
+        "resolution": Field("text", S),
+        "jira_keys": Field("keys", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = sos_items.owner_id)", S),
+        "owner_team_name": ("(SELECT name FROM teams t WHERE t.id = sos_items.owner_team_id)", S),
+        "raised_by_team_name": ("(SELECT name FROM teams t WHERE t.id = sos_items.raised_by_team_id)", S),
+    },
+)
+
+sos_meetings = Record(
+    entity="sos_meeting",
+    table="sos_meetings",
+    path="/api/sos-meetings",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", S, required=True),
+        "team_ids": Field("ids", S),
+        "item_ids": Field("ids", S),
+        "summary": Field("text", S),
+        "notes": Field("text", P),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2202,4 +2378,5 @@ RECORDS = [
     coaching_guides, coaching_tips, coaching_prompts, reflections,
     tech_debt, debt_decisions,
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
+    teams, sos_items, sos_meetings,
 ]

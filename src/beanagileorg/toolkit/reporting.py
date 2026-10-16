@@ -31,12 +31,19 @@ def _setting(conn, key: str):
 # ---- sprint notebook ----
 
 
-def current_sprint(conn) -> dict | None:
+def my_team_id(conn) -> int | None:
+    row = conn.execute("SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1").fetchone()
+    return row["id"] if row else None
+
+
+def current_sprint(conn, team_id: int | None = None) -> dict | None:
+    """The team's sprint running today, or its latest one. Defaults to your team."""
+    team = team_id or my_team_id(conn)
     t = today().isoformat()
-    found = models.sprints.fetch_all(conn, "start_date <= ? AND (end_date IS NULL OR end_date >= ?)", (t, t))
+    found = models.sprints.fetch_all(conn, "team_id IS ? AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)", (team, t, t))
     if found:
         return found[0]
-    latest = models.sprints.fetch_all(conn)
+    latest = models.sprints.fetch_all(conn, "team_id IS ?", (team,))
     return latest[0] if latest else None
 
 
@@ -49,7 +56,8 @@ def get_current_sprint(viewer: Viewer = Depends(get_viewer), conn=Depends(get_co
 @router.post("/api/sprints/next", status_code=201)
 def next_sprint(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
-    latest = models.sprints.fetch_all(conn)
+    team = body.get("team_id") or my_team_id(conn)
+    latest = models.sprints.fetch_all(conn, "team_id IS ?", (team,))  # each team numbers its own sprints
     prev = latest[0] if latest else None
     start = date.fromisoformat(prev["end_date"]) + timedelta(days=1) if prev and prev["end_date"] else today()
     if body.get("start_date"):
@@ -63,6 +71,7 @@ def next_sprint(body: dict = Body(default={}), viewer: Viewer = Depends(get_view
         "end_date": (start + timedelta(days=13)).isoformat(),
         "kind": "development",
         "pi_id": prev["pi_id"] if prev else None,
+        "team_id": team,
         **body,
     }
     return models.sprints.create(conn, data, viewer.source)
@@ -73,7 +82,7 @@ def notebook(sprint_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(
     sprint = models.sprints.fetch(conn, sprint_id)
     if sprint is None:
         raise HTTPException(404, "No sprint with that id.")
-    earlier = models.sprints.fetch_all(conn, "number < ?", (sprint["number"],))
+    earlier = models.sprints.fetch_all(conn, "number < ? AND team_id IS ?", (sprint["number"], sprint["team_id"]))
     previous = earlier[0] if earlier else None
     carry = []
     if previous:

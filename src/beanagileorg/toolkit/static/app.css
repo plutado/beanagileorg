@@ -168,3 +168,9 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .plan-cols .card { margin: 0; }
 .plan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .plan-row:last-child { border-bottom: 0; }
+
+.team-card .row { margin-top: 6px; gap: 4px; flex-wrap: wrap; }
+
+.team-pick { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.team-pick select { max-width: 220px; }
+.team-pick svg { width: 16px; height: 16px; vertical-align: -3px; color: var(--muted); }

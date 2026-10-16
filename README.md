@@ -37,6 +37,11 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Listening tour:** one record per one-on-one with the same four questions every time (what's working, what's frustrating, what to change first, what not to change), plus systems mentioned, gaps, opportunities and themes. Private end to end.
 - **Day-30 rollup:** themes ranked by how often they come up, with supporting quotes, gaps, opportunities and "don't change" notes, copyable as Markdown for the written diagnosis.
 
+**Across teams**
+
+- **Teams:** your team and the teams you work with or oversee, with members, roles, Jira project, current sprint and goal, and a dated status. Delivery records carry a team, each team numbers its own sprints, and a team picker filters the delivery screens.
+- **Scrum of Scrums:** the cross-team log of questions, dependencies, decisions, risks, impediments and knowledge, each with stakeholders, an owner, the outcome expected and a date; meetings that walk every open item; and a summary for the layer above.
+
 **Delivery**
 
 - **SDLC:** how work moves from idea to production: stages with when each starts and when it's done, who's involved and what it produces; environments and the promotion path for Salesforce and MuleSoft; policies from draft to agreed; change history; and the whole thing as one Markdown document to share.

@@ -24,6 +24,7 @@ SOURCES = [
     (models.vendor_concerns, "title", "Vendor concern", lambda r: f"/vendors/{r['vendor_id']}"),
     (models.arch_decisions, "title", "Architecture decision", lambda r: "/architecture/decisions"),
     (models.tech_debt, "title", "Tech debt", lambda r: "/debt"),
+    (models.sos_items, "question", "Scrum of Scrums item", lambda r: "/sos"),
     (models.backlog_items, "title", "Backlog story", lambda r: f"/planning/{r['sprint_id']}" if r.get("sprint_id") else "/planning"),
     (models.epics, "title", "Epic", lambda r: "/pi"),
     (models.features, "title", "Feature", lambda r: f"/pi/{r['pi_id']}" if r.get("pi_id") else "/pi"),

@@ -16,6 +16,7 @@ from .coaching import router as coaching_router, seed_once
 from .debt import router as debt_router
 from .jira import router as jira_router
 from .sprint_planning import router as sprint_planning_router
+from .teams import router as teams_router
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -27,6 +28,9 @@ NAV = [
     {"path": "/skills", "icon": "graduation-cap", "label": "Skills and learning"},
     {"path": "/listening", "icon": "messages-square", "label": "Listening tour"},
     {"path": "/rollup", "icon": "chart-column", "label": "Day-30 rollup"},
+    {"group": "Across teams"},
+    {"path": "/teams", "icon": "users-round", "label": "Teams"},
+    {"path": "/sos", "icon": "network", "label": "Scrum of Scrums"},
     {"group": "Delivery"},
     {"path": "/sdlc", "icon": "git-branch", "label": "SDLC"},
     {"path": "/planning", "icon": "list-ordered", "label": "Sprint planning"},
@@ -66,7 +70,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

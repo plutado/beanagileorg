@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] Teams: per-team PI objectives and an ART view across teams; a dependency map between teams drawn from Scrum of Scrums items; each team's metrics side by side; export a team's status pack for its own manager
 - [ ] Code: a proper code editor for code-heavy fields (indent with Tab, line numbers), and a dedicated Apex highlighter instead of borrowing Java's
 - [ ] **Releases (toolkit):** a record per release: the release branch, the Jira stories in it (from the sprint backlog), where it is on the sandbox path (shared sandbox, QA sandbox, production) with dates, the regression plan and QA sign-off, and the go/no-go decision. Needs David to confirm the shared sandbox's name and branch names first
 - [ ] Sprint planning: import the backlog and sprints from Jira through its API instead of pasting; burndown during the sprint; planning poker on a phone for the team
@@ -87,6 +88,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: Teams and the Scrum of Scrums. Teams with members, product owner, Scrum Master, lead, Jira project, board link, cadence, systems owned, current sprint and goal, and a status stamped with the date; your team is created by the upgrade and every existing record is assigned to it, and new records default to it. Sprints, the backlog, retros, the dev-sync log, risks and decisions, tech debt and QA runs carry a team; each team numbers its own sprints and has its own velocity, carry-over and planning capacity (from its members); a team picker filters delivery screens and sends new records to the chosen team. The Scrum of Scrums log holds questions, dependencies, decisions, risks, impediments and knowledge across teams, each with the teams involved, stakeholders, an owner and owning team, the outcome expected, a due date, status, resolution and Jira keys; meetings walk every open item with a shareable summary; a leadership summary covers each team's status, what's overdue, what's open and what was settled; overdue and upcoming items on Today; Find a Jira key covers it; coaching tips on both screens; 168 tests
 
 - [x] 2026-10-16: Code blocks. Any text shown as formatted text accepts fenced code (three backticks, with a language): kept exactly as pasted, coloured like a code editor in light and dark themes, with the language shown and a copy button. Apex and triggers colour as Java, SOQL and SOSL as SQL, LWC, Aura, Visualforce and metadata as XML; unlabelled code is guessed. highlight.js 11.9.0 (BSD-3) is vendored after checking it against the npm registry's integrity hash. More fields render Markdown: tech debt, product and department descriptions, retro and vendor conversation summaries, and coaching guides
 

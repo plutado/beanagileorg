@@ -723,6 +723,9 @@ TIPS = {
                 ("The 'don't change' notes matter as much as the complaints. Plan to keep them.", "read-the-situation")],
     "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum")],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
+    "/teams": [("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4)],
+    "/sos": [("Every cross-team item needs one owner, a due date and the outcome you expect. Otherwise it just gets discussed again next week.", "scrum-of-scrums", 4),
+             ("Keep the Scrum of Scrums short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4)],
     "/planning": [("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
                   ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
@@ -810,7 +813,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 3  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 4  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

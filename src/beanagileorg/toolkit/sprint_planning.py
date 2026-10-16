@@ -135,7 +135,7 @@ def paste(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Dep
                 skipped += 1
             continue
         rank += 1
-        models.backlog_items.create(conn, {"jira_key": key, "title": title, "points": int(pts) if pts else None, "rank": rank, "added_on": _today()}, viewer.source)
+        models.backlog_items.create(conn, {"jira_key": key, "title": title, "points": int(pts) if pts else None, "rank": rank, "added_on": _today(), "team_id": body.get("team_id")}, viewer.source)
         added += 1
     return {"added": added, "updated": updated, "skipped": skipped, "not_understood": problems}
 
@@ -197,10 +197,10 @@ def _plan(conn, sprint_id: int) -> dict:
     return rows[0] if rows else models.sprint_plans.create(conn, {"sprint_id": sprint_id}, "planning")
 
 
-def _velocity(conn, before_number: int) -> dict:
+def _velocity(conn, before_number: int, team_id: int | None) -> dict:
     rows = conn.execute(
         "SELECT s.number, p.completed_points FROM sprint_plans p JOIN sprints s ON s.id = p.sprint_id "
-        "WHERE p.status = 'closed' AND p.completed_points IS NOT NULL AND s.number < ? ORDER BY s.number DESC LIMIT 6", (before_number,)).fetchall()
+        "WHERE p.status = 'closed' AND p.completed_points IS NOT NULL AND s.number < ? AND s.team_id IS ? ORDER BY s.number DESC LIMIT 6", (before_number, team_id)).fetchall()
     history = [{"sprint": r["number"], "completed": r["completed_points"]} for r in reversed(rows)]
     recent = [h["completed"] for h in history[-3:]]
     return {"history": history, "average": round(sum(recent) / len(recent)) if recent else None}
@@ -210,18 +210,23 @@ def build_plan(conn, sprint_id: int, viewer: Viewer) -> dict:
     s = _sprint_or_404(conn, sprint_id)
     plan = models.sprint_plans.visible(_plan(conn, sprint_id), viewer)
     days = working_days(s["start_date"], s["end_date"])
-    team = [p for p in models.people.fetch_all(conn) if p["active"] and p["relationship"] in TEAM]
+    # The sprint's team members if the team lists them; otherwise everyone who's an employee or contractor.
+    members = []
+    if s.get("team_id"):
+        row = conn.execute("SELECT member_ids FROM teams WHERE id = ?", (s["team_id"],)).fetchone()
+        members = json.loads(row["member_ids"]) if row and row["member_ids"] else []
+    team = [p for p in models.people.fetch_all(conn) if p["active"] and (p["id"] in members if members else p["relationship"] in TEAM)]
     avail = {a["person_id"]: a for a in models.sprint_availability.fetch_all(conn, "sprint_id = ?", (sprint_id,))}
     people = [{"person_id": p["id"], "name": p["name"], "days": avail.get(p["id"], {}).get("days", days), "note": avail.get(p["id"], {}).get("note")} for p in team]
     full = (days or 0) * len(team)
     available = sum(p["days"] or 0 for p in people)
     ratio = available / full if full else None
-    vel = _velocity(conn, s["number"])
+    vel = _velocity(conn, s["number"], s.get("team_id"))
     suggested = round(vel["average"] * ratio) if vel["average"] is not None and ratio is not None else None
     capacity = plan["capacity_override"] or suggested or s["capacity"]
     pulled = _decorate(conn, models.backlog_items.visible_all(models.backlog_items.fetch_all(conn, "sprint_id = ?", (sprint_id,)), viewer))
-    ready = _decorate(conn, models.backlog_items.visible_all(models.backlog_items.fetch_all(conn, "sprint_id IS NULL AND status = 'ready'"), viewer))
-    prev = conn.execute("SELECT id, number FROM sprints WHERE number < ? ORDER BY number DESC LIMIT 1", (s["number"],)).fetchone()
+    ready = _decorate(conn, models.backlog_items.visible_all(models.backlog_items.fetch_all(conn, "sprint_id IS NULL AND status = 'ready' AND team_id IS ?", (s.get("team_id"),)), viewer))
+    prev = conn.execute("SELECT id, number FROM sprints WHERE number < ? AND team_id IS ? ORDER BY number DESC LIMIT 1", (s["number"], s.get("team_id"))).fetchone()
     carried = [i for i in pulled if i.get("carried_from_id")]
     planned_points = sum(i.get("points") or 0 for i in pulled)
     return {
@@ -303,7 +308,7 @@ def close(sprint_id: int, body: dict = Body(default={}), viewer: Viewer = Depend
     s = _sprint_or_404(conn, sprint_id)
     items = models.backlog_items.fetch_all(conn, "sprint_id = ?", (sprint_id,))
     done = sum(i["points"] or 0 for i in items if i["status"] == "done")
-    nxt = conn.execute("SELECT id FROM sprints WHERE number > ? ORDER BY number LIMIT 1", (s["number"],)).fetchone()
+    nxt = conn.execute("SELECT id FROM sprints WHERE number > ? AND team_id IS ? ORDER BY number LIMIT 1", (s["number"], s["team_id"])).fetchone()
     to = body.get("carry_to", nxt["id"] if nxt else None)
     carried = 0
     for i in items:

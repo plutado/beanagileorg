@@ -27,6 +27,8 @@
   BA.command({ label: "Find a Jira key", hint: "Search everything that references it", icon: "search", run: () => { const k = prompt("Jira key, such as ABC-123"); if (k) BA.go(`/jira/${k.trim().toUpperCase()}`); } });
   BA.command({ label: "Plan the next sprint", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning/plan") });
   BA.command({ label: "Paste stories from Jira into the backlog", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning") });
+  BA.command({ label: "Log a Scrum of Scrums item", hint: "Scrum of Scrums", icon: "network", run: () => BA.go("/sos") });
+  BA.command({ label: "Update a team's status", hint: "Teams", icon: "users-round", run: () => BA.go("/teams") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -103,6 +105,7 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
+        ${d.sos_due && d.sos_due.length ? `<section class="card"><h2>Scrum of Scrums</h2>${d.sos_due.map((x) => `<div class="item">${x.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/sos">${esc(x.question)}</a><span class="spacer"></span><span class="quiet">${esc(x.owner || "no owner")} · ${BA.fmtDate(x.due)}</span></div>`).join("")}</section>` : ""}
         ${d.planning_due && d.planning_due.length ? `<section class="card"><h2>Sprint planning</h2>${d.planning_due.map((p) => `<div class="item"><a href="#/planning/${p.sprint_id}">Plan sprint ${p.number}</a><span class="spacer"></span><span class="quiet">starts ${BA.fmtDate(p.start_date)} · ${p.ready_stories} ready stories, ${p.ready_points} points</span></div>`).join("")}</section>` : ""}
         ${d.debt_due && d.debt_due.length ? `<section class="card"><h2>Technical debt</h2>${d.debt_due.map((x) => `<div class="item"><span class="pill ${x.kind === "deadline" ? "warn" : ""}">${x.kind === "deadline" ? "needed by" : "revisit"}</span><a href="#/debt">${esc(x.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.when)}</span></div>`).join("")}</section>` : ""}
         ${d.onboarding_due.length ? `<section class="card"><h2>Onboarding</h2>${d.onboarding_due.map((o) => `<div class="item">${o.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/onboarding/${o.onboarding_id}">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${esc(o.person_name)} · ${esc(o.owner_role)} · ${BA.fmtDate(o.due)}</span></div>`).join("")}</section>` : ""}
@@ -502,6 +505,24 @@
 
   const ACTION_STATUS = ["open", "in progress", "waiting", "done"];
   const ACTION_ORIGINS = ["dev sync", "retro", "incident", "one-on-one", "vendor", "testing", "other"];
+  // Teams: a picker on delivery screens filters lists to one team; new records go to the chosen team (or yours).
+  BA.teamList = [];
+  const loadTeams = () => BA.api("/api/teams").then((ts) => { const grew = ts.length > 1 && BA.teamList.length < 2; BA.teamList = ts; if (grew && BA.session) BA.rerender(); }).catch(() => {});
+  loadTeams();
+  const teamFilter = () => { try { return localStorage.getItem("ba-team") || ""; } catch { return ""; } };
+  const inTeam = (r) => !teamFilter() || String(r.team_id) === teamFilter();
+  const newTeamId = () => (teamFilter() ? Number(teamFilter()) : null);
+  const keepTeam = (list) => list.splice(0, list.length, ...list.filter(inTeam));
+  const TEAM_ROUTES = ["/dev-sync", "/sprints", "/risks", "/retros", "/qa", "/debt", "/planning"];
+  BA.afterRender = (main, key, param) => {
+    const showsLists = key === "/qa" ? param === "runs" : key === "/planning" ? !param || param === "plan" || /^\d+$/.test(param) : !param;
+    if (BA.teamList.length < 2 || !TEAM_ROUTES.includes(key) || !showsLists || main.querySelector(":scope > .team-pick")) return;
+    const el = document.createElement("div");
+    el.className = "team-pick";
+    el.innerHTML = `<label class="check">${BA.icon("users-round")} Team <select data-team-pick><option value="">All teams</option>${BA.teamList.map((t) => `<option value="${t.id}"${String(t.id) === teamFilter() ? " selected" : ""}>${esc(t.name)}${t.kind === "mine" ? " (mine)" : ""}</option>`).join("")}</select></label>`;
+    main.prepend(el);
+    el.querySelector("select").onchange = (e) => { try { localStorage.setItem("ba-team", e.target.value); } catch {} BA.rerender(); };
+  };
   const personOptions = (people, sel) => `<option value=""></option>${people.map((p) => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("")}`;
   const ACTION_FIELDS = (people) => [
     { name: "concern", label: "Question or concern", type: "textarea", required: true },
@@ -523,6 +544,7 @@
       const people = await BA.api("/api/people");
       if (param) return renderAction(main, Number(param), people);
       const [items, summary] = await Promise.all([BA.api("/api/actions"), BA.api("/api/actions/summary")]);
+      keepTeam(items);
       const t = BA.today();
       const late = (i) => i.status !== "done" && i.due && i.due < t;
       const state = BA._devSyncFilter || (BA._devSyncFilter = { status: "active", owner: "" });
@@ -561,7 +583,7 @@
       if (add)
         add.onsubmit = BA.guard(async (e) => {
           e.preventDefault();
-          await BA.api("/api/actions", { method: "POST", body: BA.readForm(add, ACTION_FIELDS(people).slice(0, 9).filter((f) => f.name !== "raised_on")) });
+          await BA.api("/api/actions", { method: "POST", body: { ...BA.readForm(add, ACTION_FIELDS(people).slice(0, 9).filter((f) => f.name !== "raised_on")), team_id: newTeamId() } });
           BA.rerender();
         });
     },
@@ -940,6 +962,7 @@
       const people = await BA.api("/api/people");
       if (param) return renderSprint(main, Number(param), people);
       const [sprints, current, pis] = await Promise.all([BA.api("/api/sprints"), BA.api("/api/sprints/current"), BA.api("/api/program-increments")]);
+      keepTeam(sprints);
       const piName = (id) => pis.find((p) => p.id === id)?.number;
       main.innerHTML = `
         <section class="card"><div class="row"><h2>${current ? `Sprint ${current.number}` : "No sprints yet"}</h2><span class="spacer"></span>
@@ -959,7 +982,7 @@
       const next = main.querySelector("#next");
       if (next)
         next.onclick = BA.guard(async () => {
-          const s = await BA.api("/api/sprints/next", { method: "POST", body: {} });
+          const s = await BA.api("/api/sprints/next", { method: "POST", body: newTeamId() ? { team_id: newTeamId() } : {} });
           BA.go(`/sprints/${s.id}`);
         });
       const addPi = main.querySelector("#add-pi");
@@ -1164,6 +1187,8 @@
     title: "Risks and decisions",
     async render(main) {
       const [risks, decisions, people] = await Promise.all([BA.api("/api/risks"), BA.api("/api/decisions-needed"), BA.api("/api/people")]);
+      keepTeam(risks);
+      keepTeam(decisions);
       const levelPill = (l) => `<span class="pill ${l === "high" ? "bad" : l === "medium" ? "warn" : ""}">${esc(l)}</span>`;
       const ro = presenting();
       main.innerHTML = `
@@ -1203,6 +1228,7 @@
           e.preventDefault();
           const f = Object.fromEntries(new FormData(addRisk));
           f.owner_id = num(f.owner_id);
+          f.team_id = newTeamId();
           await BA.api("/api/risks", { method: "POST", body: f });
           BA.rerender();
         });
@@ -1210,6 +1236,7 @@
           e.preventDefault();
           const f = Object.fromEntries(new FormData(e.target));
           f.from_id = num(f.from_id);
+          f.team_id = newTeamId();
           await BA.api("/api/decisions-needed", { method: "POST", body: f });
           BA.rerender();
         });
@@ -1293,6 +1320,8 @@
       const [retros, sprints, current, improvements, patterns] = await Promise.all([
         BA.api("/api/retros"), BA.api("/api/sprints"), BA.api("/api/sprints/current"), BA.api("/api/improvements"), BA.api("/api/retros/patterns"),
       ]);
+      keepTeam(retros);
+      keepTeam(sprints);
       const open = improvements.filter((c) => c.status === "committed" || c.status === "in progress");
       main.innerHTML = `
         ${presenting() ? "" : `<section class="card"><h2>New retrospective</h2><form id="new" class="row">
@@ -1318,7 +1347,7 @@
         form.onsubmit = BA.guard(async (e) => {
           e.preventDefault();
           const f = new FormData(form);
-          const r = await BA.api("/api/retros", { method: "POST", body: { sprint_id: f.get("sprint_id") ? Number(f.get("sprint_id")) : null, format: f.get("format"), date: f.get("date") } });
+          const r = await BA.api("/api/retros", { method: "POST", body: { sprint_id: f.get("sprint_id") ? Number(f.get("sprint_id")) : null, format: f.get("format"), date: f.get("date"), team_id: newTeamId() } });
           BA.go(`/retros/${r.id}`);
         });
     },
@@ -1988,6 +2017,8 @@
     const [runs, systems, sprints, plans, people, current] = await Promise.all([
       BA.api("/api/test-runs"), BA.api("/api/systems"), BA.api("/api/sprints"), BA.api("/api/regression-plans"), BA.api("/api/people"), BA.api("/api/sprints/current"),
     ]);
+    keepTeam(runs);
+    keepTeam(sprints);
     const ro = presenting();
     main.innerHTML = `${qaTabs("runs")}
       ${ro ? "" : `<section class="card"><h2>Start a run</h2><form id="start-run"><div class="grid2">
@@ -2011,7 +2042,7 @@
         e.preventDefault();
         const f = new FormData(form);
         const body = { name: f.get("name"), select: f.get("select"), system_id: numOrNull(f.get("system_id")), plan_id: numOrNull(f.get("plan_id")), sprint_id: numOrNull(f.get("sprint_id")),
-          tester_id: numOrNull(f.get("tester_id")), environment: f.get("environment"), release: f.get("release"), kind: f.get("select") === "regression" ? "regression" : "smoke" };
+          tester_id: numOrNull(f.get("tester_id")), environment: f.get("environment"), release: f.get("release"), kind: f.get("select") === "regression" ? "regression" : "smoke", team_id: newTeamId() };
         const run = await BA.api("/api/test-runs", { method: "POST", body });
         BA.go(`/qa/run-${run.id}`);
       });
@@ -3055,6 +3086,7 @@
       if (param === "policy") return renderDebtPolicy(main, d);
       const [systems, people, sprints] = await Promise.all([BA.api("/api/systems"), BA.api("/api/people"), BA.api("/api/sprints")]);
       const ro = presenting();
+      keepTeam(d.items);
       const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-debt-filter") || "{}"); } catch { return {}; } })();
       const shown = d.items.filter((i) => (!f.cat || (i.categories || []).includes(f.cat)) && (!f.quad || i.quadrant === f.quad) && (f.closed || !["done", "won't fix"].includes(i.status)))
         .sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
@@ -3107,7 +3139,7 @@
       }));
       if (ro) return;
       const add = main.querySelector("#add-debt");
-      add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/tech-debt", { method: "POST", body: { ...read(add), identified_on: BA.today() } }); BA.rerender(); });
+      add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/tech-debt", { method: "POST", body: { ...read(add), identified_on: BA.today(), team_id: newTeamId() } }); BA.rerender(); });
       main.querySelectorAll("[data-debt]").forEach((det) => {
         const id = det.dataset.debt;
         const dec = det.querySelector("form.decide");
@@ -3219,6 +3251,7 @@
       const [d, people, pis] = await Promise.all([BA.api("/api/backlog"), BA.api("/api/people"), BA.api("/api/program-increments")]);
       const team = people.filter((p) => p.active && ["employee", "contractor"].includes(p.relationship));
       const ro = presenting();
+      keepTeam(d.items);
       const filter = sessionStorage.getItem("ba-backlog-filter") || "";
       const items = d.items.filter((i) => !filter || i.status === filter);
       const item = (i, idx) => `<details class="plan-item backlog-item" data-item="${i.id}"><summary>
@@ -3266,14 +3299,14 @@
       const paste = main.querySelector("#paste");
       paste.onsubmit = BA.guard(async (e) => {
         e.preventDefault();
-        const r = await BA.api("/api/backlog/paste", { method: "POST", body: { text: paste.elements.text.value, update: paste.elements.update.checked } });
+        const r = await BA.api("/api/backlog/paste", { method: "POST", body: { text: paste.elements.text.value, update: paste.elements.update.checked, team_id: newTeamId() } });
         BA.toast(`${r.added} added, ${r.updated} updated, ${r.skipped} already here${r.not_understood.length ? `, ${r.not_understood.length} lines not understood` : ""}.`);
         BA.rerender();
       });
       main.querySelector("#add-item").onsubmit = BA.guard(async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
-        await BA.api("/api/backlog-items", { method: "POST", body: { jira_key: fd.get("jira_key") || null, title: fd.get("title"), item_type: fd.get("item_type"), rank: d.items.length + 1, added_on: BA.today() } });
+        await BA.api("/api/backlog-items", { method: "POST", body: { jira_key: fd.get("jira_key") || null, title: fd.get("title"), item_type: fd.get("item_type"), rank: d.items.length + 1, added_on: BA.today(), team_id: newTeamId() } });
         BA.rerender();
       });
       const ids = items.map((i) => i.id);
@@ -3324,6 +3357,7 @@
 
   async function renderPlan(main, sprintId) {
     const sprints = await BA.api("/api/sprints");
+    keepTeam(sprints);
     const ro = presenting();
     if (!sprints.length) { main.innerHTML = `${planTabs("plan")}<p class="empty">Start a sprint in the <a href="#/sprints">sprint notebook</a> first.</p>`; return; }
     if (!sprintId) {
@@ -3409,5 +3443,172 @@
     main.querySelector("#dor").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/planning/definition-of-ready", { method: "PUT", body: { items: new FormData(e.target).get("items").split("\n") } }); BA.toast("Saved."); BA.rerender(); });
     const st = main.querySelector("#dor-starter");
     if (st) st.onclick = BA.guard(async () => { await BA.api("/api/planning/definition-of-ready/starter", { method: "POST", body: {} }); BA.rerender(); });
+  }
+
+  // ---------------------------------------------------------------- Teams and the Scrum of Scrums
+
+  const TEAM_STATUS = ["on track", "at risk", "off track"];
+  const TEAM_TONES = { "on track": "good", "at risk": "warn", "off track": "bad" };
+  const SOS_KINDS = ["issue", "dependency", "decision", "risk", "impediment", "knowledge"];
+  const SOS_STATUS = ["open", "in progress", "waiting", "done"];
+  const SOS_TONES = { open: "warn", "in progress": "accent", waiting: "", done: "good" };
+
+  BA.view("/teams", {
+    title: "Teams",
+    async render(main, param) {
+      if (param && /^\d+$/.test(param)) return renderTeam(main, Number(param));
+      const teams = await BA.api("/api/teams/overview");
+      const ro = presenting();
+      const card = (t) => `<a class="sys-card team-card" href="#/teams/${t.id}"><div class="row"><b>${esc(t.name)}</b>${t.kind === "mine" ? '<span class="pill">my team</span>' : ""}<span class="spacer"></span>${t.status ? tonePill(t.status, TEAM_TONES) : '<span class="quiet">no status</span>'}</div>
+          ${t.status_note ? `<p class="clamp">${esc(t.status_note)}</p>` : ""}
+          <div class="quiet">${[t.sprint ? `Sprint ${t.sprint.number}` : t.current_sprint ? esc(t.current_sprint) : "", t.members.length ? `${t.members.length} people` : "", t.jira_project ? `Jira ${esc(t.jira_project)}` : "", t.status_date ? `updated ${BA.fmtDate(t.status_date)}` : ""].filter(Boolean).join(" · ")}</div>
+          <div class="row">${t.open_sos ? `<span class="pill${t.overdue_sos ? " bad" : ""}">${t.open_sos} open across teams${t.overdue_sos ? `, ${t.overdue_sos} late` : ""}</span>` : ""}${t.dependencies ? `<span class="pill warn">${t.dependencies} dependencies</span>` : ""}
+            ${t.kind === "mine" && t.open_actions ? `<span class="pill">${t.open_actions} dev-sync</span>` : ""}${t.kind === "mine" && t.open_risks ? `<span class="pill">${t.open_risks} risks</span>` : ""}</div></a>`;
+      main.innerHTML = `<p class="quiet">Your team, and the teams you work with or oversee. Your team's work is tracked across the toolkit; other teams are tracked lightly here, with what's open between you in the <a href="#/sos">Scrum of Scrums</a>.</p>
+        <div class="sys-grid">${teams.map(card).join("")}</div>
+        ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Add a team</h2><form id="add-team" class="row"><input name="name" required placeholder="Team name" style="max-width:280px">
+          <input name="jira_project" placeholder="Jira project key" style="max-width:160px"><button class="btn primary" type="submit">Add</button></form></section>`}`;
+      const add = main.querySelector("#add-team");
+      if (add) add.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(add); const t = await BA.api("/api/teams", { method: "POST", body: { name: fd.get("name"), jira_project: fd.get("jira_project") || null } }); loadTeams(); BA.go(`/teams/${t.id}`); });
+    },
+  });
+
+  async function renderTeam(main, id) {
+    const [d, people, systems] = await Promise.all([BA.api(`/api/teams/${id}/detail`), BA.api("/api/people"), BA.api("/api/systems")]);
+    const t = d.team;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = t.name;
+    const sosRow = (i) => `<div class="item">${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><a href="#/sos">${esc(i.question)}</a>${BA.issueKeys(i.jira_keys)}<span class="spacer"></span><span class="quiet">${esc(i.owner_name || i.owner_team_name || "")}${i.due ? " · " + BA.fmtDate(i.due) : ""}</span></div>`;
+    main.innerHTML = `<p><a href="#/teams">All teams</a></p>
+      <section class="card"><div class="row"><h2>${esc(t.name)}</h2>${t.kind === "mine" ? '<span class="pill">my team</span>' : ""}<span class="spacer"></span>${t.status ? tonePill(t.status, TEAM_TONES) : ""}${t.status_date ? `<span class="quiet">${BA.fmtDate(t.status_date)}</span>` : ""}</div>
+        ${t.purpose ? BA.md(t.purpose) : ""}${t.status_note ? `<p><b>Status:</b> ${esc(t.status_note)}</p>` : ""}
+        <div class="facts">${[t.product_owner_name ? `<div><span class="quiet">Product owner</span> ${esc(t.product_owner_name)}</div>` : "", t.scrum_master_name ? `<div><span class="quiet">Scrum Master</span> ${esc(t.scrum_master_name)}</div>` : "",
+          t.lead_name ? `<div><span class="quiet">Lead</span> ${esc(t.lead_name)}</div>` : "", t.jira_project ? `<div><span class="quiet">Jira project</span> ${esc(t.jira_project)}</div>` : "", t.cadence ? `<div><span class="quiet">Cadence</span> ${esc(t.cadence)}</div>` : "",
+          t.current_sprint || t.current_goal ? `<div><span class="quiet">Current sprint</span> ${esc(t.current_sprint || "")}${t.sprint_ends ? ` (ends ${BA.fmtDate(t.sprint_ends)})` : ""}${t.current_goal ? `: ${esc(t.current_goal)}` : ""}</div>` : "",
+          t.board_url ? `<div><span class="quiet">Board</span> ${/^https?:/.test(t.board_url) ? `<a href="${esc(t.board_url)}" target="_blank" rel="noopener">open ${BA.icon("external-link")}</a>` : esc(t.board_url)}</div>` : ""].join("")}</div>
+        ${d.members.length ? `<p>${d.members.map((m) => `<a href="#/people/${m.id}">${esc(m.name)}</a>${m.role ? ` <span class="quiet">${esc(m.role)}</span>` : ""}`).join(" · ")}</p>` : ""}
+        ${d.systems.length ? `<p class="quiet">Owns: ${d.systems.map((s) => `<a href="#/architecture/s-${s.id}">${esc(s.name)}</a>`).join(", ")}</p>` : ""}</section>
+      ${ro ? "" : `<section class="card"><h2>Status update</h2><form id="team-status" class="row"><select name="status" style="max-width:150px"><option value=""></option>${opts(TEAM_STATUS, t.status)}</select>
+        <input name="status_note" value="${esc(t.status_note || "")}" placeholder="One line on where things stand" style="flex:1;min-width:240px">
+        ${t.kind === "other" ? `<input name="current_sprint" value="${esc(t.current_sprint || "")}" placeholder="Their sprint" style="max-width:140px"><input type="date" name="sprint_ends" value="${esc(t.sprint_ends || "")}" style="max-width:160px">
+          <input name="current_goal" value="${esc(t.current_goal || "")}" placeholder="Their sprint goal" style="max-width:260px">` : ""}<button class="btn primary" type="submit">Save</button></form></section>`}
+      <div class="cards">
+        <section class="card"><h2>Open across teams</h2>${d.sos_open.map(sosRow).join("") || '<p class="quiet">Nothing open with this team.</p>'}<p class="quiet"><a href="#/sos">Scrum of Scrums</a></p></section>
+        ${t.kind === "mine" ? `<section class="card"><h2>This team's open work</h2>${d.sprints.length ? `<p class="quiet">Latest sprint: ${d.sprints[0].number}${d.sprints[0].goal ? ", " + esc(d.sprints[0].goal) : ""}</p>` : ""}
+          <p>${d.actions.length} open dev-sync items · ${d.risks.length} open risks</p>${d.risks.slice(0, 5).map((r) => `<div class="item"><a href="#/risks">${esc(r.title)}</a><span class="spacer"></span><span class="quiet">${esc(r.level)}</span></div>`).join("")}</section>` : ""}
+        ${d.sos_done.length ? `<section class="card"><h2>Settled recently</h2>${d.sos_done.map((i) => `<div class="item"><span>${esc(i.question)}</span><span class="spacer"></span><span class="quiet">${esc(i.resolution || "")}</span></div>`).join("")}</section>` : ""}
+      </div>
+      ${ro ? "" : `<details class="card"><summary><b>Team details</b></summary><form id="team-edit"><div class="grid2">
+        <label>Name<input name="name" value="${esc(t.name)}" required></label><label>Whose<select name="kind"><option value="mine"${t.kind === "mine" ? " selected" : ""}>My team</option><option value="other"${t.kind === "other" ? " selected" : ""}>Another team</option></select></label>
+        <label>Product owner<select name="product_owner_id">${personOptions(people, t.product_owner_id)}</select></label><label>Scrum Master<select name="scrum_master_id">${personOptions(people, t.scrum_master_id)}</select></label>
+        <label>Lead or manager<select name="lead_id">${personOptions(people, t.lead_id)}</select></label><label>Jira project key<input name="jira_project" value="${esc(t.jira_project || "")}"></label>
+        <label>Board link<input name="board_url" value="${esc(t.board_url || "")}"></label><label>Cadence<input name="cadence" value="${esc(t.cadence || "")}" placeholder="Such as: two-week sprints, starting Mondays"></label></div>
+        <label>Purpose<textarea name="purpose" rows="2">${esc(t.purpose || "")}</textarea></label>
+        <label>Members</label><div class="case-picks">${people.map((p) => `<label class="check"><input type="checkbox" name="member_ids" value="${p.id}"${t.member_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("") || '<span class="quiet">Add people first.</span>'}</div>
+        <label>Systems it owns</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${t.system_ids.includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("") || '<span class="quiet">Add systems under Architecture.</span>'}</div>
+        <label>Private notes<textarea name="notes" rows="2">${esc(t.notes || "")}</textarea></label>
+        <div class="actions"><button class="btn danger left" type="button" id="del-team">Delete team</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+    if (ro) return;
+    const st = main.querySelector("#team-status");
+    st.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(st);
+      const body = { status: fd.get("status") || null, status_note: fd.get("status_note") };
+      if (t.kind === "other") Object.assign(body, { current_sprint: fd.get("current_sprint"), sprint_ends: fd.get("sprint_ends") || null, current_goal: fd.get("current_goal") });
+      await BA.api(`/api/teams/${id}`, { method: "PATCH", body });
+      BA.rerender();
+    });
+    const form = main.querySelector("#team-edit");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      await BA.api(`/api/teams/${id}`, { method: "PATCH", body: { name: fd.get("name"), kind: fd.get("kind"), product_owner_id: numOrNull(fd.get("product_owner_id")), scrum_master_id: numOrNull(fd.get("scrum_master_id")),
+        lead_id: numOrNull(fd.get("lead_id")), jira_project: fd.get("jira_project"), board_url: fd.get("board_url"), cadence: fd.get("cadence"), purpose: fd.get("purpose"),
+        member_ids: fd.getAll("member_ids").map(Number), system_ids: fd.getAll("system_ids").map(Number), notes: fd.get("notes") } });
+      loadTeams();
+      BA.rerender();
+    });
+    main.querySelector("#del-team").onclick = BA.guard(async () => { if (!confirm("Delete this team? Records tied to it are kept, without a team.")) return; await BA.api(`/api/teams/${id}`, { method: "DELETE" }); loadTeams(); BA.go("/teams"); });
+  }
+
+  BA.view("/sos", {
+    title: "Scrum of Scrums",
+    async render(main, param) {
+      if (param === "summary") return renderSosSummary(main);
+      if (param && /^m-\d+$/.test(param)) return renderSosMeeting(main, Number(param.slice(2)));
+      const [d, people] = await Promise.all([BA.api("/api/sos/overview"), BA.api("/api/people")]);
+      const ro = presenting();
+      const teamName = Object.fromEntries(d.teams.map((x) => [x.id, x.name]));
+      const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-sos-filter") || "{}"); } catch { return {}; } })();
+      const shown = d.items.filter((i) => (f.done || i.status !== "done") && (!f.kind || i.kind === f.kind) && (!f.team || i.owner_team_id === Number(f.team) || (i.team_ids || []).includes(Number(f.team)) || i.raised_by_team_id === Number(f.team)));
+      const teamChecks = (sel, name) => d.teams.map((x) => `<label class="check"><input type="checkbox" name="${name}" value="${x.id}"${(sel || []).includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("");
+      const teamOpts = (sel) => `<option value=""></option>${d.teams.map((x) => `<option value="${x.id}"${x.id === sel ? " selected" : ""}>${esc(x.name)}</option>`).join("")}`;
+      const fields = (i = {}) => `<div class="grid2"><label>Question or topic<input name="question" value="${esc(i.question || "")}" required></label><label>Kind<select name="kind">${opts(SOS_KINDS, i.kind || "issue")}</select></label>
+          <label>Raised by team<select name="raised_by_team_id">${teamOpts(i.raised_by_team_id)}</select></label><label>Owning team<select name="owner_team_id">${teamOpts(i.owner_team_id)}</select></label>
+          <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label><label>Due<input type="date" name="due" value="${esc(i.due || "")}"></label>
+          <label>Status<select name="status">${opts(SOS_STATUS, i.status || "open")}</select></label><label>Jira keys<input name="jira_keys" value="${esc((i.jira_keys || []).join(", "))}" placeholder="ABC-123"></label></div>
+        <label>Outcome or deliverable expected<input name="outcome" value="${esc(i.outcome || "")}" placeholder="What 'done' looks like"></label>
+        <label>Teams involved</label><div class="row">${teamChecks(i.team_ids, "team_ids")}</div>
+        <label>Stakeholders</label><div class="case-picks">${people.map((p) => `<label class="check"><input type="checkbox" name="stakeholder_ids" value="${p.id}"${(i.stakeholder_ids || []).includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>
+        <label>Details<textarea name="details" rows="3">${esc(i.details || "")}</textarea></label>
+        ${i.id ? `<label>Resolution <span class="quiet">(what was decided or delivered)</span><input name="resolution" value="${esc(i.resolution || "")}"></label>` : ""}
+        <label>Private notes<textarea name="notes" rows="2">${esc(i.notes || "")}</textarea></label>`;
+      const read = (form) => { const fd = new FormData(form); return { question: fd.get("question"), kind: fd.get("kind"), raised_by_team_id: numOrNull(fd.get("raised_by_team_id")), owner_team_id: numOrNull(fd.get("owner_team_id")),
+        owner_id: numOrNull(fd.get("owner_id")), due: fd.get("due") || null, status: fd.get("status"), jira_keys: fd.get("jira_keys"), outcome: fd.get("outcome"), team_ids: fd.getAll("team_ids").map(Number),
+        stakeholder_ids: fd.getAll("stakeholder_ids").map(Number), details: fd.get("details"), ...(form.elements.resolution ? { resolution: fd.get("resolution") } : {}), notes: fd.get("notes") }; };
+      const pname = Object.fromEntries(people.map((p) => [p.id, p.name]));
+      const row = (i) => `<details class="plan-item${i.status === "done" ? " dropped" : ""}" data-sos="${i.id}"><summary>${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><b>${esc(i.question)}</b>${BA.issueKeys(i.jira_keys)}<span class="spacer"></span>
+          <span class="quiet">${esc(i.owner_name || i.owner_team_name || "no owner")}</span>${i.due ? `<span class="${d.overdue.includes(i.id) ? "pill bad" : "quiet"}">${BA.fmtDate(i.due)}</span>` : ""}</summary>
+          ${i.outcome ? `<p><b>Outcome expected:</b> ${esc(i.outcome)}</p>` : ""}${i.details ? BA.md(i.details) : ""}
+          <p class="quiet">${[(i.team_ids || []).length ? "Teams: " + i.team_ids.map((x) => esc(teamName[x] || "")).join(", ") : "", (i.stakeholder_ids || []).length ? "Stakeholders: " + i.stakeholder_ids.map((x) => esc(pname[x] || "")).join(", ") : "",
+            i.raised_by_team_name ? "Raised by " + esc(i.raised_by_team_name) : ""].filter(Boolean).join(" · ")}</p>${i.resolution ? `<p><b>Resolution:</b> ${esc(i.resolution)}</p>` : ""}
+          ${ro ? "" : `<form class="edit-sos">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+      main.innerHTML = `<nav class="tabs"><a href="#/sos" class="active">Log</a><a href="#/sos/summary">Leadership summary</a></nav>
+        <p class="quiet">The cross-team log: questions, dependencies, decisions, risks, impediments and knowledge that cross team lines, each with stakeholders, an owner, the outcome expected and a date.</p>
+        <div class="stats">${SOS_KINDS.map((k) => `<section class="card stat"><div class="stat-n">${d.counts[k]}</div><div class="quiet">open ${k === "knowledge" ? "knowledge items" : k + (k.endsWith("y") ? "" : "s")}</div></section>`).join("").replace("open dependencys", "open dependencies")}</div>
+        <div class="row"><select id="sf-team" style="max-width:200px"><option value="">Every team</option>${d.teams.map((x) => `<option value="${x.id}"${String(x.id) === f.team ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
+          <select id="sf-kind" style="max-width:170px"><option value="">Every kind</option>${opts(SOS_KINDS, f.kind)}</select><label class="check"><input type="checkbox" id="sf-done"${f.done ? " checked" : ""}> Show done</label><span class="spacer"></span>
+          ${d.overdue.length ? `<span class="pill bad">${d.overdue.length} overdue</span>` : ""}${ro ? "" : `<button class="btn" id="start-meeting">Start a meeting</button>`}</div>
+        <section class="card">${shown.map(row).join("") || '<p class="quiet">Nothing logged yet, or nothing matches.</p>'}</section>
+        ${ro ? "" : `<form id="add-sos" class="card"><h2>Log an item</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}
+        ${d.meetings.length ? `<section class="card"><h2>Meetings</h2>${d.meetings.map((m) => `<div class="item"><a href="#/sos/m-${m.id}">${BA.fmtDate(m.date)}</a><span class="spacer"></span><span class="quiet">${(m.item_ids || []).length} items</span></div>`).join("")}</section>` : ""}`;
+      const saveF = () => { sessionStorage.setItem("ba-sos-filter", JSON.stringify({ team: main.querySelector("#sf-team").value, kind: main.querySelector("#sf-kind").value, done: main.querySelector("#sf-done").checked })); BA.rerender(); };
+      ["#sf-team", "#sf-kind", "#sf-done"].forEach((s) => (main.querySelector(s).onchange = saveF));
+      if (ro) return;
+      const add = main.querySelector("#add-sos");
+      add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/sos-items", { method: "POST", body: { ...read(add), raised_on: BA.today() } }); BA.rerender(); });
+      main.querySelector("#start-meeting").onclick = BA.guard(async () => { const m = await BA.api("/api/sos/meetings/start", { method: "POST" }); BA.go(`/sos/m-${m.id}`); });
+      main.querySelectorAll("[data-sos]").forEach((det) => {
+        const id = det.dataset.sos, form = det.querySelector("form");
+        form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/sos-items/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+        det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this item? Marking it done keeps the record.")) return; await BA.api(`/api/sos-items/${id}`, { method: "DELETE" }); BA.rerender(); });
+      });
+    },
+  });
+
+  async function renderSosMeeting(main, id) {
+    const [m, d] = await Promise.all([BA.api(`/api/sos-meetings/${id}`), BA.api("/api/sos/overview")]);
+    const ro = presenting();
+    const byId = Object.fromEntries(d.items.map((i) => [i.id, i]));
+    const teamName = Object.fromEntries(d.teams.map((x) => [x.id, x.name]));
+    document.getElementById("view-title").textContent = `Scrum of Scrums, ${BA.fmtDate(m.date)}`;
+    main.innerHTML = `<p><a href="#/sos">Scrum of Scrums</a></p>
+      <section class="card"><h2>${BA.fmtDate(m.date)}</h2><p class="quiet">Teams: ${(m.team_ids || []).map((x) => esc(teamName[x] || "")).join(", ")}</p>
+        <h3>Walk the open items</h3>${(m.item_ids || []).map((iid) => byId[iid]).filter(Boolean).map((i) => `<div class="item">${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><span>${esc(i.question)}</span><span class="spacer"></span><span class="quiet">${esc(i.owner_name || i.owner_team_name || "no owner")}${i.due ? " · " + BA.fmtDate(i.due) : ""}</span></div>`).join("") || '<p class="quiet">Nothing was open.</p>'}
+        <p class="quiet">Update each item in the <a href="#/sos">log</a> as you go.</p>
+        ${ro ? (m.summary ? BA.md(m.summary) : "") : `<form id="meeting"><label>Summary <span class="quiet">(shareable: what was agreed, what's next)</span><textarea name="summary" rows="5">${esc(m.summary || "")}</textarea></label>
+          <label>Private notes<textarea name="notes" rows="3">${esc(m.notes || "")}</textarea></label><div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`}</section>`;
+    const form = main.querySelector("#meeting");
+    if (form) form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(form); await BA.api(`/api/sos-meetings/${id}`, { method: "PATCH", body: { summary: fd.get("summary"), notes: fd.get("notes") } }); BA.toast("Saved."); });
+  }
+
+  async function renderSosSummary(main) {
+    const s = await BA.api("/api/sos/summary");
+    main.innerHTML = `<nav class="tabs"><a href="#/sos">Log</a><a href="#/sos/summary" class="active">Leadership summary</a></nav>
+      <section class="card"><div class="row"><h2>For leadership</h2><span class="spacer"></span>${presenting() ? "" : `<button class="btn primary" id="copy-sos">${BA.icon("copy")} Copy as Markdown</button>`}</div>
+        <p class="quiet">Each team's status, what's overdue, what's open across teams with owners and dates, and what was settled recently. Private notes are left out.</p>
+        <div class="msg-preview">${BA.md(s.markdown)}</div></section>`;
+    const c = main.querySelector("#copy-sos");
+    if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/sos/summary/export", { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Summary copied."); });
   }
 })();
