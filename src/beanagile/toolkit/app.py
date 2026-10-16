@@ -17,6 +17,7 @@ NAV = [
     {"group": "Delivery"},
     {"path": "/dev-sync", "icon": "list-checks", "label": "Dev-sync log"},
     {"path": "/learning", "icon": "presentation", "label": "Group learning"},
+    {"path": "/vendors", "icon": "handshake", "label": "Vendors"},
     {"group": "Knowledge"},
     {"path": "/escalation", "icon": "siren", "label": "Escalation playbook"},
     {"group": "Me"},

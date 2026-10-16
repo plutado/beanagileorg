@@ -25,6 +25,8 @@ def load_placeholders(conn, source: str) -> dict:
         loaded.update(_dev_sync(conn, source, person_ids))
     if person_ids and _empty(conn, "systems"):
         loaded.update(_escalation(conn, source, person_ids))
+    if person_ids and _empty(conn, "vendors"):
+        loaded.update(_vendors(conn, source, person_ids))
     return loaded
 
 
@@ -164,3 +166,39 @@ def _escalation(conn, source: str, people: list[int]) -> dict:
         source,
     )
     return {"systems": len(systems), "severities": len(severities), "incidents": 1}
+
+
+def _vendors(conn, source: str, people: list[int]) -> dict:
+    pick = lambda i: people[i % len(people)]
+    specs = [
+        (1, "platform vendor", 40, 60),
+        (2, "contractor agency", 200, 30),
+        (3, "consulting partner", 25, 45),
+    ]
+    vendors = []
+    for n, kind, ends_in, notice in specs:
+        vendor = models.vendors.create(
+            conn,
+            {"name": f"[Placeholder vendor {n}]", "type": kind, "support_process": f"[Placeholder: how to get support from vendor {n}]",
+             "service_promise": f"[Placeholder service promise {n}]", "contract_start": _day(ends_in - 365), "contract_end": _day(ends_in),
+             "renewal_notice_days": notice, "contact_ids": [pick(n + 3)], "commercial_terms": f"[Placeholder commercial terms {n}]"},
+            source,
+        )
+        vendors.append(vendor)
+        for k, (offset, channel) in enumerate(((-12, "call"), (-3, "meeting")), start=1):
+            interaction = models.vendor_interactions.create(
+                conn,
+                {"vendor_id": vendor["id"], "date": _day(offset), "channel": channel, "people_ids": [pick(n + 3), pick(n)],
+                 "summary": f"[Placeholder summary of conversation {k} with vendor {n}]", "concerns": f"[Placeholder concerns raised {k}]"},
+                source,
+            )
+        models.vendor_concerns.create(
+            conn,
+            {"vendor_id": vendor["id"], "title": f"[Placeholder vendor concern {n}]", "raised_on": _day(-3), "owner_id": pick(n),
+             "due": _day(n * 3), "status": "open", "interaction_id": interaction["id"]},
+            source,
+        )
+    first_system = conn.execute("SELECT id FROM systems ORDER BY id LIMIT 1").fetchone()
+    if first_system:
+        models.systems.update(conn, first_system[0], {"vendor_id": vendors[0]["id"]}, source)
+    return {"vendors": len(vendors), "vendor_interactions": len(vendors) * 2, "vendor_concerns": len(vendors)}

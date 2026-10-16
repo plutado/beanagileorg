@@ -12,12 +12,12 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Vendor relationships (toolkit):** vendors with type, account contacts (from People), support process, contract and renewal dates, service promise and private commercial terms; a communication log (date, vendor, people, channel, summary, concerns, follow-ups that become dev-sync items); open concerns per vendor; renewals on Today; escalation systems linked to their vendor
 - [ ] **Toolkit, day-45 batch:** sprint notebook, Agile roadmap items, RACI, risks and decisions, weekly status draft that feeds the Comms studio
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
+- [ ] Vendors: attach documents (contracts, statements of work) from the docs library, and a vendor scorecard reviewed at renewal
 - [ ] Themes as their own records (version 1 stores them as tags on each one-on-one)
 - [ ] Sprint notebook: sprints, a private note per ceremony, follow-ups that carry into the next planning note
 - [ ] SAFe support: optional Program Increments, innovation and planning sprints, PI planning and end-of-PI demo notes
@@ -78,6 +78,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-15: Vendor relationships: vendors (type, status, account contacts from People, support process, service promise, contract dates, renewal notice, private commercial terms and notes); private conversation log with who was involved; open concerns with owners and due dates; follow-ups from a conversation become dev-sync items tagged with the vendor; renewals and due concerns on Today; escalation systems link to their vendor; database upgrade tested; 67 tests
 
 - [x] 2026-10-15: Design system pass: Tailwind CSS v4.3.3 (standalone CLI, checksum verified) building one shared stylesheet; light and dark tokens with a theme switch (system, light, dark); Inter and a Lucide icon subset vendored with licenses; new shell with icon navigation, command palette (Cmd+K or /) with app actions, keyboard shortcuts (?, Shift+P, Shift+T), loading skeletons, view transitions, mobile menu; restyled buttons, inputs, cards, tables, pills, dialogs, toasts and sign-in pages
 

@@ -135,6 +135,8 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
             models.learning_goals.fetch_all(conn, "status = 'at risk'"), viewer
         ),
         "overdue_actions": models.action_items.fetch_all(conn, "status != 'done' AND due IS NOT NULL AND due < ?", (t,)),
+        "vendor_renewals": renewals_due(conn),
+        "vendor_concerns": models.vendor_concerns.fetch_all(conn, "status != 'resolved' AND due IS NOT NULL AND due <= ?", (week,)),
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
 
@@ -220,6 +222,66 @@ def incident_follow_up(incident_id: int, body: dict = Body(...), viewer: Viewer 
         raise HTTPException(404, "No incident with that id.")
     data = {**body, "origin": "incident", "incident_id": incident_id}
     data.setdefault("concern", f"Follow-up: {incident['summary']}")
+    return create_action(data, viewer, conn)
+
+
+# ---- vendor relationships ----
+
+
+def renewals_due(conn, within_days: int | None = None) -> list[dict]:
+    """Vendors whose renewal notice window has opened (or that renew within the given days)."""
+    t = today()
+    out = []
+    for v in models.vendors.fetch_all(conn, "status != 'ended' AND contract_end IS NOT NULL"):
+        end = date.fromisoformat(v["contract_end"])
+        window = within_days if within_days is not None else (v["renewal_notice_days"] or 0)
+        if end - timedelta(days=window) <= t:
+            out.append({**v, "days_left": (end - t).days})
+    return sorted(out, key=lambda v: v["contract_end"])
+
+
+@router.get("/api/vendors/renewals")
+def vendor_renewals(days: int | None = None, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    rows = renewals_due(conn, days)
+    shown = models.vendors.visible_all(rows, viewer)
+    for s, r in zip(shown, rows):
+        s["days_left"] = r["days_left"]
+    return shown
+
+
+@router.get("/api/vendors/{vendor_id}/overview")
+def vendor_overview(vendor_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    vendor = models.vendors.fetch(conn, vendor_id)
+    if vendor is None:
+        raise HTTPException(404, "No vendor with that id.")
+    names = {p["id"]: p["name"] for p in models.people.fetch_all(conn)}
+    shown = models.vendors.visible(vendor, viewer)
+    shown["contacts"] = [{"id": i, "name": names.get(i)} for i in vendor["contact_ids"] if i in names]
+    interactions = models.vendor_interactions.visible_all(
+        models.vendor_interactions.fetch_all(conn, "vendor_id = ?", (vendor_id,)), viewer
+    )
+    for i in interactions:
+        if "people_ids" in i:
+            i["people"] = [names[p] for p in i["people_ids"] if p in names]
+    return {
+        "vendor": shown,
+        "interactions": interactions,
+        "concerns": models.vendor_concerns.visible_all(models.vendor_concerns.fetch_all(conn, "vendor_id = ?", (vendor_id,)), viewer),
+        "systems": models.systems.visible_all(models.systems.fetch_all(conn, "vendor_id = ?", (vendor_id,)), viewer),
+        "follow_ups": models.action_items.visible_all(models.action_items.fetch_all(conn, "vendor_id = ?", (vendor_id,)), viewer),
+    }
+
+
+@router.post("/api/vendor-interactions/{interaction_id}/follow-up", status_code=201)
+def vendor_follow_up(interaction_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """An agreed follow-up from a vendor conversation becomes a dev-sync item, so it can't drop."""
+    require_write(viewer)
+    interaction = models.vendor_interactions.fetch(conn, interaction_id)
+    if interaction is None:
+        raise HTTPException(404, "No vendor conversation with that id.")
+    vendor = models.vendors.fetch(conn, interaction["vendor_id"])
+    data = {**body, "origin": "vendor", "vendor_id": interaction["vendor_id"]}
+    data.setdefault("concern", f"{vendor['name']}: follow-up from {interaction['date'] or 'a conversation'}")
     return create_action(data, viewer, conn)
 
 

@@ -6,6 +6,7 @@
   BA.command({ label: "Add a dev-sync item", hint: "Dev-sync log", icon: "plus", run: () => BA.go("/dev-sync") });
   BA.command({ label: "Plan a one-on-one", hint: "Listening tour", icon: "plus", run: () => BA.go("/listening") });
   BA.command({ label: "Add a person", hint: "People", icon: "plus", run: () => BA.go("/people") });
+  BA.command({ label: "Log a vendor conversation", hint: "Vendors", icon: "handshake", run: () => BA.go("/vendors") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
   const RELATIONSHIPS = ["employee", "contractor", "peer", "stakeholder", "manager", "vendor"];
@@ -74,6 +75,12 @@
         <section class="card"><h2>Dev-sync items overdue</h2>${
           d.overdue_actions.map((a) => `<div class="item"><a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span><span class="quiet">${esc(a.owner_name || "")} · ${BA.fmtDate(a.due)}</span></div>`).join("") ||
           empty("Nothing overdue in the dev-sync log.")
+        }</section>
+        <section class="card"><h2>Vendors</h2>${
+          [
+            ...d.vendor_renewals.map((v) => `<div class="item"><span class="pill ${v.days_left <= 14 ? "bad" : "warn"}">renews in ${v.days_left} days</span><a href="#/vendors/${v.id}">${esc(v.name)}</a></div>`),
+            ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
+          ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
         <section class="card"><h2>Due in the next 7 days</h2>${d.tasks_due_soon.map(taskRow).join("") || empty("Nothing due this week.")}</section>
         <section class="card"><h2>Obligations</h2>${
@@ -659,7 +666,7 @@
   });
 
   async function renderSystem(main, id, people, severities) {
-    const d = await BA.api(`/api/escalation/${id}`);
+    const [d, vendors] = await Promise.all([BA.api(`/api/escalation/${id}`), BA.api("/api/vendors")]);
     const s = d.system;
     document.getElementById("view-title").textContent = s.name;
     const chain = (steps) =>
@@ -669,7 +676,8 @@
         : '<p class="quiet">No steps yet.</p>';
     const roles = `<dl class="readonly"><dt>Owner</dt><dd>${esc(s.owner_name || "")}</dd><dt>First responder</dt><dd>${esc(s.first_responder_name || "")}</dd>
       <dt>Backup</dt><dd>${esc(s.backup_name || "")}</dd><dt>Opening a vendor case</dt><dd>${esc(s.how_to_open_case || "")}</dd>
-      <dt>Business contacts</dt><dd>${esc(s.business_contacts || "")}</dd>${s.vendor_support !== undefined ? `<dt>Vendor support</dt><dd>${esc(s.vendor_support || "")}</dd>` : ""}</dl>`;
+      <dt>Business contacts</dt><dd>${esc(s.business_contacts || "")}</dd>
+      <dt>Vendor</dt><dd>${s.vendor_id ? `<a href="#/vendors/${s.vendor_id}">${esc(s.vendor_name || "vendor")}</a>` : ""}</dd>${s.vendor_support !== undefined ? `<dt>Vendor support</dt><dd>${esc(s.vendor_support || "")}</dd>` : ""}</dl>`;
     main.innerHTML = `<p><a href="#/escalation">Escalation playbook</a></p>
       <div class="cards">
         <section class="card"><h2>Who owns it</h2>${roles}</section>
@@ -689,7 +697,8 @@
           <label>Backup<select name="backup_id">${personOptions(people, s.backup_id)}</select></label>
           <label>Opening a vendor case<input name="how_to_open_case" value="${esc(s.how_to_open_case || "")}"></label>
           <label>Vendor support (private)<input name="vendor_support" value="${esc(s.vendor_support || "")}"></label>
-          <label>Business contacts<input name="business_contacts" value="${esc(s.business_contacts || "")}"></label></div>
+          <label>Business contacts<input name="business_contacts" value="${esc(s.business_contacts || "")}"></label>
+          <label>Vendor<select name="vendor_id"><option value=""></option>${vendors.map((v) => `<option value="${v.id}"${v.id === s.vendor_id ? " selected" : ""}>${esc(v.name)}</option>`).join("")}</select></label></div>
           <div class="actions"><button class="btn danger left" type="button" id="del">Delete system</button><button class="btn primary" type="submit">Save</button></div></form>`}
       <section class="card"><h2>Recent incidents</h2>${
         d.recent_incidents.map((i) => `<div class="item">${BA.fmtDate(i.date)} <b>${esc(i.severity_level || "")}</b> ${esc(i.summary)}</div>`).join("") || '<p class="quiet">None logged.</p>'
@@ -716,7 +725,7 @@
       e.preventDefault();
       const f = new FormData(sys);
       const body = Object.fromEntries(f);
-      for (const k of ["owner_id", "first_responder_id", "backup_id"]) body[k] = body[k] ? Number(body[k]) : null;
+      for (const k of ["owner_id", "first_responder_id", "backup_id", "vendor_id"]) body[k] = body[k] ? Number(body[k]) : null;
       await BA.api(`/api/systems/${id}`, { method: "PATCH", body });
       BA.toast("Saved.");
       BA.rerender();
@@ -725,6 +734,162 @@
       if (!confirm("Delete this system and its escalation chain?")) return;
       await BA.api(`/api/systems/${id}`, { method: "DELETE" });
       BA.go("/escalation");
+    });
+  }
+
+  // ---------------------------------------------------------------- Vendors
+
+  const VENDOR_TYPES = ["platform vendor", "consulting partner", "contractor agency", "tooling", "other"];
+  const VENDOR_STATUS = ["active", "onboarding", "under review", "ended"];
+  const CHANNELS = ["call", "meeting", "email", "chat", "other"];
+  const tonePill = (text, tones) => `<span class="pill ${tones[text] || ""}">${esc(text)}</span>`;
+  const VENDOR_TONES = { active: "good", onboarding: "warn", "under review": "warn", ended: "" };
+  const CONCERN_TONES = { open: "warn", "in progress": "warn", resolved: "good" };
+  const renewalPill = (v) => {
+    if (!v.contract_end) return "";
+    const days = Math.round((new Date(v.contract_end + "T12:00:00") - new Date(BA.today() + "T12:00:00")) / 864e5);
+    if (days < 0) return '<span class="pill bad">contract ended</span>';
+    if (days <= (v.renewal_notice_days || 0)) return `<span class="pill ${days <= 14 ? "bad" : "warn"}">renews in ${days} days</span>`;
+    return `<span class="quiet">renews ${BA.fmtDate(v.contract_end)}</span>`;
+  };
+
+  BA.view("/vendors", {
+    title: "Vendors",
+    async render(main, param) {
+      const people = await BA.api("/api/people");
+      if (param) return renderVendor(main, Number(param), people);
+      const vendors = await BA.api("/api/vendors");
+      main.innerHTML = `
+        ${presenting() ? "" : `<section class="card"><h2>Add a vendor</h2><form id="add" class="grid2">
+          <label>Name<input name="name" required placeholder="[Placeholder vendor name]"></label>
+          <label>Type<select name="type">${VENDOR_TYPES.map((x) => `<option>${x}</option>`).join("")}</select></label>
+          <div class="actions"><button class="btn primary" type="submit">Add vendor</button></div></form></section>`}
+        <div class="tablewrap"><table class="data"><thead><tr><th>Vendor</th><th>Type</th><th>Status</th><th>Renewal</th><th>Open concerns</th><th>Last contact</th></tr></thead><tbody>${
+          vendors
+            .map((v) => `<tr class="clickable" data-id="${v.id}"><td><b>${esc(v.name)}</b></td><td>${esc(v.type)}</td><td>${tonePill(v.status, VENDOR_TONES)}</td>
+              <td>${renewalPill(v)}</td><td>${v.open_concerns ? `<span class="pill warn">${v.open_concerns}</span>` : '<span class="quiet">none</span>'}</td><td>${BA.fmtDate(v.last_contact) || '<span class="quiet">never</span>'}</td></tr>`)
+            .join("") || '<tr><td colspan="6" class="empty">No vendors yet.</td></tr>'
+        }</tbody></table></div>`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/vendors/${tr.dataset.id}`)));
+      const add = main.querySelector("#add");
+      if (add)
+        add.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(add);
+          const v = await BA.api("/api/vendors", { method: "POST", body: { name: f.get("name"), type: f.get("type") } });
+          BA.go(`/vendors/${v.id}`);
+        });
+    },
+  });
+
+  async function renderVendor(main, id, people) {
+    const d = await BA.api(`/api/vendors/${id}/overview`);
+    const v = d.vendor;
+    document.getElementById("view-title").textContent = v.name;
+    const concerns = `<section class="card"><h2>Open concerns</h2>${
+      d.concerns
+        .map((c) => `<div class="item">${tonePill(c.status, CONCERN_TONES)}
+          <span>${esc(c.title)}</span><span class="spacer"></span><span class="quiet">${esc(c.owner_name || "")} ${BA.fmtDate(c.due)}</span>
+          ${presenting() || c.status === "resolved" ? "" : `<button class="btn" data-resolve="${c.id}">Resolved</button>`}</div>`)
+        .join("") || '<p class="quiet">No concerns logged.</p>'
+    }${presenting() ? "" : `<form id="add-concern" class="row" style="margin-top:10px">
+        <input name="title" placeholder="New concern" required style="max-width:320px">
+        <select name="owner_id" style="max-width:220px">${personOptions(people)}</select>
+        <input type="date" name="due" style="max-width:170px"><button class="btn primary" type="submit">Add concern</button></form>`}</section>`;
+    const followUps = `<section class="card"><h2>Follow-ups in the dev-sync log</h2>${
+      d.follow_ups.map((a) => `<div class="item">${BA.statusPill(a.status)}<a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span><span class="quiet">${esc(a.owner_name || "")} ${BA.fmtDate(a.due)}</span></div>`).join("") ||
+      '<p class="quiet">None yet. Add one from a logged conversation.</p>'
+    }</section>`;
+    const systems = d.systems.length ? `<p>Escalation: ${d.systems.map((s) => `<a href="#/escalation/${s.id}">${esc(s.name)}</a>`).join(", ")}</p>` : "";
+    const summary = `<dl class="readonly"><dt>Type</dt><dd>${esc(v.type)}</dd><dt>Status</dt><dd>${esc(v.status)}</dd>
+      <dt>Contract</dt><dd>${BA.fmtDate(v.contract_start)}${v.contract_end ? " to " + BA.fmtDate(v.contract_end) : ""} ${renewalPill(v)}</dd>
+      <dt>Account contacts</dt><dd>${v.contacts.map((c) => `<a href="#/people/${c.id}">${esc(c.name)}</a>`).join(", ") || '<span class="quiet">none</span>'}</dd>
+      <dt>Getting support</dt><dd>${esc(v.support_process || "")}</dd><dt>Service promise</dt><dd>${esc(v.service_promise || "")}</dd></dl>${systems}`;
+    if (presenting()) {
+      main.innerHTML = `<p><a href="#/vendors">All vendors</a></p><div class="cards"><section class="card"><h2>Overview</h2>${summary}</section>${concerns}</div>${followUps}`;
+      return;
+    }
+    main.innerHTML = `<p><a href="#/vendors">All vendors</a></p>
+      <div class="cards"><section class="card"><h2>Overview</h2>${summary}</section>${concerns}</div>
+      <section class="card"><h2>Log a conversation</h2><form id="log" class="grid2">
+        <label>Date<input type="date" name="date" value="${BA.today()}"></label>
+        <label>Channel<select name="channel">${CHANNELS.map((c) => `<option>${c}</option>`).join("")}</select></label>
+        <label>Summary<textarea name="summary" required placeholder="What was discussed and agreed"></textarea></label>
+        <label>Concerns raised<textarea name="concerns" placeholder="Anything they're worried about, or we are"></textarea></label>
+        <label>Who was involved</label><div class="row">${people.map((p) => `<label class="check"><input type="checkbox" name="people" value="${p.id}"${v.contact_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>
+        <div class="actions"><button class="btn primary" type="submit">Log conversation</button></div></form></section>
+      <section class="card"><h2>Conversation log</h2>${
+        d.interactions
+          .map((i) => `<div class="item" style="display:block"><div class="row"><b>${BA.fmtDate(i.date)}</b><span class="pill">${esc(i.channel)}</span>
+              <span class="quiet">${esc((i.people || []).join(", "))}</span><span class="spacer"></span><button class="btn" data-follow="${i.id}">Add follow-up</button></div>
+              <p style="margin:6px 0 0">${esc(i.summary)}</p>${i.concerns ? `<p class="quiet" style="margin:4px 0 0">Concerns: ${esc(i.concerns)}</p>` : ""}</div>`)
+          .join("") || '<p class="quiet">No conversations logged yet.</p>'
+      }</section>
+      ${followUps}
+      <form id="vendor" class="card"><h2>Edit vendor</h2><div class="grid2">
+        <label>Name<input name="name" value="${esc(v.name)}"></label>
+        <label>Type<select name="type">${VENDOR_TYPES.map((x) => `<option${x === v.type ? " selected" : ""}>${x}</option>`).join("")}</select></label>
+        <label>Status<select name="status">${VENDOR_STATUS.map((x) => `<option${x === v.status ? " selected" : ""}>${x}</option>`).join("")}</select></label>
+        <label>Renewal notice (days)<input type="number" name="renewal_notice_days" value="${esc(v.renewal_notice_days)}"></label>
+        <label>Contract start<input type="date" name="contract_start" value="${esc(v.contract_start || "")}"></label>
+        <label>Contract end<input type="date" name="contract_end" value="${esc(v.contract_end || "")}"></label>
+        <label>Getting support<textarea name="support_process">${esc(v.support_process || "")}</textarea></label>
+        <label>Service promise<textarea name="service_promise">${esc(v.service_promise || "")}</textarea></label>
+        <label>Commercial terms (private)<textarea name="commercial_terms">${esc(v.commercial_terms || "")}</textarea></label>
+        <label>My notes (private)<textarea name="notes">${esc(v.notes || "")}</textarea></label>
+        <label>Account contacts</label><div class="row">${people.map((p) => `<label class="check"><input type="checkbox" name="contacts" value="${p.id}"${v.contact_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div>
+        <div class="actions"><button class="btn danger left" type="button" id="del">Delete vendor</button><button class="btn primary" type="submit">Save</button></div></form>`;
+    const ids = (form, name) => [...form.querySelectorAll(`input[name="${name}"]:checked`)].map((x) => Number(x.value));
+    const log = main.querySelector("#log");
+    log.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(log);
+      await BA.api("/api/vendor-interactions", {
+        method: "POST",
+        body: { vendor_id: id, date: f.get("date"), channel: f.get("channel"), summary: f.get("summary"), concerns: f.get("concerns"), people_ids: ids(log, "people") },
+      });
+      BA.toast("Conversation logged.");
+      BA.rerender();
+    });
+    main.querySelectorAll("[data-follow]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const item = await BA.api(`/api/vendor-interactions/${b.dataset.follow}/follow-up`, { method: "POST", body: {} });
+      BA.go(`/dev-sync/${item.id}`);
+    })));
+    main.querySelectorAll("[data-resolve]").forEach((b) => (b.onclick = BA.guard(async () => {
+      await BA.api(`/api/vendor-concerns/${b.dataset.resolve}`, { method: "PATCH", body: { status: "resolved" } });
+      BA.rerender();
+    })));
+    const addConcern = main.querySelector("#add-concern");
+    addConcern.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(addConcern);
+      await BA.api("/api/vendor-concerns", {
+        method: "POST",
+        body: { vendor_id: id, title: f.get("title"), owner_id: f.get("owner_id") ? Number(f.get("owner_id")) : null, due: f.get("due"), raised_on: BA.today() },
+      });
+      BA.rerender();
+    });
+    const form = main.querySelector("#vendor");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      await BA.api(`/api/vendors/${id}`, {
+        method: "PATCH",
+        body: {
+          name: f.get("name"), type: f.get("type"), status: f.get("status"),
+          renewal_notice_days: Number(f.get("renewal_notice_days") || 0),
+          contract_start: f.get("contract_start"), contract_end: f.get("contract_end"),
+          support_process: f.get("support_process"), service_promise: f.get("service_promise"),
+          commercial_terms: f.get("commercial_terms"), notes: f.get("notes"), contact_ids: ids(form, "contacts"),
+        },
+      });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+    main.querySelector("#del").onclick = BA.guard(async () => {
+      if (!confirm("Delete this vendor with its conversations and concerns? Dev-sync follow-ups stay.")) return;
+      await BA.api(`/api/vendors/${id}`, { method: "DELETE" });
+      BA.go("/vendors");
     });
   }
 })();
