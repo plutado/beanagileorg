@@ -64,7 +64,7 @@ tr.muted td { opacity: .6; }
 .stat-n { font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
 .stat-n.good { color: var(--good); } .stat-n.warn { color: var(--warn); } .stat-n.bad { color: var(--bad); }
 .tally { display: inline-flex; flex-wrap: wrap; gap: 4px; }
-.checklist { margin: 0; padding-left: 20px; } .checklist li { margin: 4px 0; }
+.checklist { margin: 0; padding-left: 20px; list-style: disc; } .checklist li { margin: 4px 0; }
 .plan-item h4, .run-row h4 { margin: 10px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .run-row { border-bottom: 1px solid var(--line); padding: 10px 0; border-left: 3px solid transparent; padding-left: 10px; }
 .run-row:last-child { border-bottom: 0; }
@@ -114,3 +114,14 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .ob-task > details summary { cursor: pointer; font-size: .85rem; }
 .ob-task.done label span { text-decoration: line-through; color: var(--muted); }
 
+.stage-flow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.stage-flow a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px; border: 1px solid var(--line); border-radius: 99px; background: var(--panel-2); color: var(--ink); text-decoration: none; font-size: .88rem; }
+.stage-flow a:hover { border-color: var(--accent); }
+.stage-flow a span, .stage-n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; background: var(--accent); color: #fff; font-size: .75rem; font-weight: 700; }
+.stage-n { width: 28px; height: 28px; font-size: .85rem; }
+.sdlc-stage h4 { margin: 12px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.stage-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.checklist.exit li::marker { content: "☐  "; }
+.env-path { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.env-box { border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 12px; background: var(--panel-2); font-weight: 600; font-size: .9rem; }
+.env-arrow { color: var(--muted); }

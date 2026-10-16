@@ -18,6 +18,7 @@
   BA.command({ label: "Start a smoke test run", hint: "QA resources", icon: "flask-conical", run: () => BA.go("/qa/runs") });
   BA.command({ label: "Open the system map", hint: "Architecture and tools", icon: "network", run: () => BA.go("/architecture") });
   BA.command({ label: "Start onboarding a new team member", hint: "Onboarding", icon: "list-checks", run: () => BA.go("/onboarding") });
+  BA.command({ label: "Open our SDLC", hint: "SDLC", icon: "git-branch", run: () => BA.go("/sdlc") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -2653,4 +2654,143 @@
         '<p class="empty">No materials yet. Give checklist items a link or mark them as learning.</p>'}`;
   }
 
+  // ---------------------------------------------------------------- SDLC
+
+  const POLICY_CATEGORIES = ["branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "other"];
+  const POLICY_TONES = { draft: "warn", agreed: "good", retired: "" };
+  const sdlcTabs = (active) => `<nav class="tabs">${[["", "Lifecycle"], ["environments", "Environments"], ["policies", "Policies"], ["history", "History and sharing"]]
+    .map(([k, label]) => `<a href="#/sdlc${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const lines = (v) => (v || "").split("\n").map((x) => x.trim()).filter(Boolean);
+
+  BA.view("/sdlc", {
+    title: "SDLC",
+    async render(main, param) {
+      const d = await BA.api("/api/sdlc");
+      const ro = presenting();
+      const empty = !d.stages.length && !d.environments.length && !d.policies.length;
+      const starterCard = empty && !ro ? `<section class="card"><h2>Start from a draft</h2><p class="quiet">Nine stages from intake to support, each with when it starts, what happens and when it's done; Salesforce and MuleSoft environments; and draft policies for branching, review, testing, release, changes, hotfixes, freezes and test data. Anything specific to how [employer] works is a [Placeholder] for the team to settle.</p>
+        <button class="btn primary" id="sdlc-starter">Load the starter SDLC</button></section>` : "";
+      const bindStarter = () => { const b = main.querySelector("#sdlc-starter"); if (b) b.onclick = BA.guard(async () => { await BA.api("/api/sdlc/starter", { method: "POST", body: {} }); BA.rerender(); }); };
+      if (param === "environments") return renderEnvs(main, d, ro, starterCard, bindStarter);
+      if (param === "policies") return renderPolicies(main, d, ro, starterCard, bindStarter);
+      if (param === "history") return renderSdlcHistory(main, d, ro);
+      const systems = await BA.api("/api/systems");
+      const stage = (s, i) => `<section class="card sdlc-stage" id="stage-${s.id}" data-stage="${s.id}">
+          <div class="row"><span class="stage-n">${i + 1}</span><h2>${esc(s.name)}</h2><span class="spacer"></span>${s.duration ? `<span class="quiet">${esc(s.duration)}</span>` : ""}
+            ${ro ? "" : `<button class="icon-btn" title="Move earlier" data-move="up"${i === 0 ? " disabled" : ""}>${BA.icon("arrow-up")}</button><button class="icon-btn" title="Move later" data-move="down"${i === d.stages.length - 1 ? " disabled" : ""}>${BA.icon("arrow-down")}</button>`}</div>
+          ${s.purpose ? `<p>${esc(s.purpose)}</p>` : ""}
+          <div class="stage-cols"><div><h4>Starts when</h4>${s.entry_criteria.length ? `<ul class="checklist">${s.entry_criteria.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : '<p class="quiet">Not written yet.</p>'}</div>
+            <div><h4>Done when</h4>${s.exit_criteria.length ? `<ul class="checklist exit">${s.exit_criteria.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : '<p class="quiet">Not written yet.</p>'}</div></div>
+          ${s.activities ? `<h4>What happens</h4>${BA.md(s.activities)}` : ""}
+          <div class="facts">${s.roles ? `<div><span class="quiet">Who</span> ${esc(s.roles)}</div>` : ""}${s.artifacts ? `<div><span class="quiet">Produces</span> ${esc(s.artifacts)}</div>` : ""}
+            ${s.environment ? `<div><span class="quiet">Environment</span> ${esc(s.environment)}</div>` : ""}${s.systems.length ? `<div><span class="quiet">Tools</span> ${BA.chips(s.systems)}</div>` : ""}
+            ${s.links ? `<div><span class="quiet">See also</span> ${lines(s.links).map((l) => l.startsWith("#/") ? `<a href="${esc(l)}">${esc(l.slice(2))}</a>` : /^https?:\/\//.test(l) ? `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l)}</a>` : esc(l)).join(", ")}</div>` : ""}</div>
+          ${ro ? "" : `<details><summary class="quiet">Edit this stage</summary><form class="edit-stage"><div class="grid2">
+            <label>Name<input name="name" value="${esc(s.name)}" required></label><label>Typical time<input name="duration" value="${esc(s.duration || "")}" placeholder="Such as: one to two days"></label>
+            <label>Who's involved<input name="roles" value="${esc(s.roles || "")}"></label><label>What it produces<input name="artifacts" value="${esc(s.artifacts || "")}"></label>
+            <label>Environment<input name="environment" value="${esc(s.environment || "")}"></label><label>See also <span class="quiet">(one toolkit page or link per line)</span><textarea name="links" rows="2">${esc(s.links || "")}</textarea></label></div>
+            <label>Purpose<input name="purpose" value="${esc(s.purpose || "")}"></label>
+            <div class="grid2"><label>Starts when <span class="quiet">(one per line)</span><textarea name="entry_criteria" rows="4">${esc(s.entry_criteria.join("\n"))}</textarea></label>
+              <label>Done when <span class="quiet">(one per line)</span><textarea name="exit_criteria" rows="4">${esc(s.exit_criteria.join("\n"))}</textarea></label></div>
+            <label>What happens<textarea name="activities">${esc(s.activities || "")}</textarea></label>
+            <label>Tools</label><div class="case-picks">${systems.map((x) => `<label class="check"><input type="checkbox" name="system_ids" value="${x.id}"${s.system_ids.includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("") || '<span class="quiet">Add systems and tools under Architecture first.</span>'}</div>
+            <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete stage</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</section>`;
+      main.innerHTML = `${sdlcTabs("")}${starterCard}
+        ${d.stages.length ? `<nav class="stage-flow">${d.stages.map((s, i) => `<a href="#stage-${s.id}" data-jump="${s.id}"><span>${i + 1}</span>${esc(s.name)}</a>`).join("")}</nav>` : ""}
+        ${d.stages.map(stage).join("")}
+        ${ro ? "" : `<section class="card"><h2>Add a stage</h2><form id="add-stage" class="row"><input name="name" required placeholder="Stage name" style="max-width:280px"><button class="btn" type="submit">Add at the end</button></form></section>`}`;
+      bindStarter();
+      main.querySelectorAll("[data-jump]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); document.getElementById(`stage-${a.dataset.jump}`).scrollIntoView({ behavior: "smooth" }); }));
+      if (ro) return;
+      main.querySelector("#add-stage").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        await BA.api("/api/sdlc-stages", { method: "POST", body: { name: new FormData(e.target).get("name"), position: d.stages.length } });
+        BA.rerender();
+      });
+      main.querySelectorAll("[data-stage]").forEach((sec) => {
+        const id = sec.dataset.stage;
+        sec.querySelectorAll("[data-move]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/sdlc-stages/${id}/move`, { method: "POST", body: { direction: b.dataset.move } }); BA.rerender(); })));
+        const form = sec.querySelector("form");
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(form);
+          await BA.api(`/api/sdlc-stages/${id}`, { method: "PATCH", body: { name: f.get("name"), duration: f.get("duration"), roles: f.get("roles"), artifacts: f.get("artifacts"), environment: f.get("environment"),
+            links: f.get("links"), purpose: f.get("purpose"), entry_criteria: lines(f.get("entry_criteria")), exit_criteria: lines(f.get("exit_criteria")), activities: f.get("activities"),
+            system_ids: f.getAll("system_ids").map(Number), notes: f.get("notes") } });
+          BA.rerender();
+        });
+        sec.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this stage?")) return; await BA.api(`/api/sdlc-stages/${id}`, { method: "DELETE" }); BA.rerender(); });
+      });
+    },
+  });
+
+  async function renderEnvs(main, d, ro, starterCard, bindStarter) {
+    const systems = await BA.api("/api/systems");
+    const fields = (e = {}) => `<div class="grid2"><label>Name<input name="name" value="${esc(e.name || "")}" required></label><label>Platform<input name="platform" value="${esc(e.platform || "")}" placeholder="Such as: Salesforce, MuleSoft"></label>
+        <label>Order in the path<input type="number" name="position" value="${esc(e.position ?? "")}"></label><label>System<select name="system_id">${sysOptions(systems, e.system_id)}</select></label>
+        <label>Purpose<input name="purpose" value="${esc(e.purpose || "")}"></label><label>Data it holds<input name="data" value="${esc(e.data || "")}"></label>
+        <label>Who deploys<input name="deploys_by" value="${esc(e.deploys_by || "")}"></label><label>Refresh<input name="refresh" value="${esc(e.refresh || "")}" placeholder="Such as: after each platform release"></label></div>
+        <label>Private notes<textarea name="notes">${esc(e.notes || "")}</textarea></label>`;
+    const read = (form) => { const f = new FormData(form); return { name: f.get("name"), platform: f.get("platform") || null, position: numOrNull(f.get("position")) ?? 0, system_id: numOrNull(f.get("system_id")), purpose: f.get("purpose"), data: f.get("data"), deploys_by: f.get("deploys_by"), refresh: f.get("refresh"), notes: f.get("notes") }; };
+    main.innerHTML = `${sdlcTabs("environments")}${starterCard}
+      <p class="quiet">Where changes go on their way to production, in order, and what each environment is for.</p>
+      ${d.environments.map((g) => `<section class="card"><h2>${esc(g.platform)}</h2><div class="env-path">${g.environments.map((e) => `<span class="env-box">${esc(e.name)}</span>`).join('<span class="env-arrow">→</span>')}</div>
+        ${g.environments.map((e) => `<details class="plan-item" data-env="${e.id}"><summary><b>${esc(e.name)}</b><span class="quiet">${esc(e.purpose || "")}</span><span class="spacer"></span>${e.data ? `<span class="quiet">${esc(e.data)}</span>` : ""}</summary>
+          <p>${[e.deploys_by ? `Deploys: ${esc(e.deploys_by)}` : "", e.refresh ? `Refresh: ${esc(e.refresh)}` : "", e.system_name ? `System: ${esc(e.system_name)}` : ""].filter(Boolean).join(" · ")}</p>
+          ${ro ? "" : `<form>${fields(e)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") || (starterCard ? "" : '<p class="empty">No environments yet.</p>')}
+      ${ro ? "" : `<form id="add-env" class="card"><h2>Add an environment</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
+    bindStarter();
+    if (ro) return;
+    const add = main.querySelector("#add-env");
+    add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/sdlc-environments", { method: "POST", body: read(add) }); BA.rerender(); });
+    main.querySelectorAll("[data-env]").forEach((det) => {
+      const id = det.dataset.env, form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/sdlc-environments/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this environment?")) return; await BA.api(`/api/sdlc-environments/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderPolicies(main, d, ro, starterCard, bindStarter) {
+    const people = await BA.api("/api/people");
+    const groups = POLICY_CATEGORIES.map((c) => [c, d.policies.filter((p) => p.category === c)]).filter(([, l]) => l.length);
+    const read = (form) => { const f = new FormData(form); return { title: f.get("title"), category: f.get("category"), status: f.get("status"), agreed_on: f.get("agreed_on") || null, owner_id: numOrNull(f.get("owner_id")), body: f.get("body") }; };
+    main.innerHTML = `${sdlcTabs("policies")}${starterCard}
+      <p class="quiet">The rules the team has agreed. A policy stays a draft until the team agrees it; mark it agreed with the date so everyone knows it's in force.</p>
+      ${groups.map(([c, list]) => `<section class="card"><h2>${esc(c[0].toUpperCase() + c.slice(1))}</h2>${list.map((p) => `<details class="plan-item${p.status === "retired" ? " dropped" : ""}" data-policy="${p.id}"><summary><b>${esc(p.title)}</b><span class="spacer"></span>
+          ${tonePill(p.status, POLICY_TONES)}${p.agreed_on ? `<span class="quiet">${BA.fmtDate(p.agreed_on)}</span>` : ""}${p.owner_name ? `<span class="quiet">${esc(p.owner_name)}</span>` : ""}</summary>
+          ${p.body ? BA.md(p.body) : '<p class="quiet">Not written yet.</p>'}
+          ${ro ? "" : `<form><div class="grid2"><label>Title<input name="title" value="${esc(p.title)}" required></label><label>Category<select name="category">${opts(POLICY_CATEGORIES, p.category)}</select></label>
+            <label>Status<select name="status">${opts(["draft", "agreed", "retired"], p.status)}</select></label><label>Agreed on<input type="date" name="agreed_on" value="${esc(p.agreed_on || "")}"></label>
+            <label>Owner<select name="owner_id">${personOptions(people, p.owner_id)}</select></label></div>
+            <label>Policy <span class="quiet">(Markdown)</span><textarea name="body" rows="6">${esc(p.body || "")}</textarea></label>
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") || (starterCard ? "" : '<p class="empty">No policies yet.</p>')}
+      ${ro ? "" : `<section class="card"><h2>Add a policy</h2><form id="add-policy" class="row"><input name="title" required placeholder="Policy title" style="max-width:320px"><select name="category" style="max-width:190px">${opts(POLICY_CATEGORIES, "other")}</select><button class="btn" type="submit">Add</button></form></section>`}`;
+    bindStarter();
+    if (ro) return;
+    main.querySelector("#add-policy").onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(e.target); await BA.api("/api/sdlc-policies", { method: "POST", body: { title: f.get("title"), category: f.get("category") } }); BA.rerender(); });
+    main.querySelectorAll("[data-policy]").forEach((det) => {
+      const id = det.dataset.policy, form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/sdlc-policies/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this policy? Marking it retired keeps the record.")) return; await BA.api(`/api/sdlc-policies/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderSdlcHistory(main, d, ro) {
+    const doc = await BA.api("/api/sdlc/document");
+    const label = { sdlc_stage: "stage", sdlc_environment: "environment", sdlc_policy: "policy" };
+    main.innerHTML = `${sdlcTabs("history")}
+      <section class="card"><div class="row"><h2>Share it</h2><span class="spacer"></span>${ro ? "" : `<button class="btn primary" id="copy-sdlc">${BA.icon("copy")} Copy as Markdown</button>`}</div>
+        <p class="quiet">The whole SDLC as one document, without private notes: for the team wiki, a new member, or leadership. New members get a link to it in their onboarding checklist.</p>
+        <details><summary>Preview</summary><div class="msg-preview">${BA.md(doc.markdown)}</div></details></section>
+      ${d.history ? `<section class="card"><h2>Recent changes</h2><div class="tablewrap"><table class="data"><thead><tr><th>When</th><th>What</th><th>Field</th><th>By</th></tr></thead><tbody>${
+        d.history.map((h) => `<tr><td>${esc(h.at)}</td><td>${label[h.entity] || esc(h.entity)} ${esc(h.record_id)}</td><td>${esc(h.field)}</td><td>${esc(h.source)}</td></tr>`).join("") || '<tr><td colspan="4" class="empty">No changes yet.</td></tr>'
+      }</tbody></table></div></section>` : ""}`;
+    const copy = main.querySelector("#copy-sdlc");
+    if (copy) copy.onclick = BA.guard(async () => {
+      const out = await BA.api("/api/sdlc/document/export", { method: "POST", body: {} });
+      await navigator.clipboard.writeText(out.markdown);
+      BA.toast("SDLC copied as Markdown.");
+    });
+  }
 })();

@@ -69,6 +69,8 @@ ONBOARDING_CATEGORIES = ("accounts and access", "tools and setup", "people", "wa
 ONBOARDING_OWNERS = ("new member", "manager", "buddy", "IT or admin")
 ONBOARDING_TRACKS = ("Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor")
 ONBOARDING_STATUS = ("not started", "in progress", "done")
+POLICY_CATEGORIES = ("branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "other")
+POLICY_STATUS = ("draft", "agreed", "retired")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -683,6 +685,48 @@ MIGRATIONS = [
             done INTEGER NOT NULL DEFAULT 0,
             done_on DATE,
             notes TEXT
+        );
+        """,
+    ),
+    (
+        11,
+        """
+        CREATE TABLE sdlc_stages (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0,
+            purpose TEXT,
+            entry_criteria TEXT,
+            exit_criteria TEXT,
+            activities TEXT,
+            roles TEXT,
+            artifacts TEXT,
+            system_ids TEXT,
+            environment TEXT,
+            duration TEXT,
+            links TEXT,
+            notes TEXT
+        );
+        CREATE TABLE sdlc_environments (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0,
+            platform TEXT,
+            purpose TEXT,
+            data TEXT,
+            deploys_by TEXT,
+            refresh TEXT,
+            system_id INTEGER REFERENCES systems (id) ON DELETE SET NULL,
+            notes TEXT
+        );
+        CREATE TABLE sdlc_policies (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'other',
+            body TEXT,
+            status TEXT NOT NULL DEFAULT 'draft',
+            agreed_on DATE,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL
         );
         """,
     ),
@@ -1684,6 +1728,65 @@ onboarding_tasks = Record(
     },
 )
 
+# ---- SDLC: how work moves from idea to production; a shared document, so exportable ----
+
+sdlc_stages = Record(
+    entity="sdlc_stage",
+    table="sdlc_stages",
+    path="/api/sdlc-stages",
+    order_by="position, id",
+    fields={
+        "name": Field("text", E, required=True),
+        "position": Field("int", E, default=0),
+        "purpose": Field("text", E),
+        "entry_criteria": Field("list", E),
+        "exit_criteria": Field("list", E),
+        "activities": Field("text", E),
+        "roles": Field("text", E),
+        "artifacts": Field("text", E),
+        "system_ids": Field("ids", E),
+        "environment": Field("text", E),
+        "duration": Field("text", E),
+        "links": Field("text", E),
+        "notes": Field("text", P),
+    },
+)
+
+sdlc_environments = Record(
+    entity="sdlc_environment",
+    table="sdlc_environments",
+    path="/api/sdlc-environments",
+    order_by="platform, position, id",
+    fields={
+        "name": Field("text", E, required=True),
+        "position": Field("int", E, default=0),
+        "platform": Field("text", E),
+        "purpose": Field("text", E),
+        "data": Field("text", E),
+        "deploys_by": Field("text", E),
+        "refresh": Field("text", E),
+        "system_id": Field("int", E),
+        "notes": Field("text", P),
+    },
+    computed={"system_name": ("(SELECT name FROM systems s WHERE s.id = sdlc_environments.system_id)", E)},
+)
+
+sdlc_policies = Record(
+    entity="sdlc_policy",
+    table="sdlc_policies",
+    path="/api/sdlc-policies",
+    order_by="status = 'retired', category, title",
+    fields={
+        "title": Field("text", E, required=True),
+        "category": Field("text", E, choices=POLICY_CATEGORIES, default="other"),
+        "body": Field("text", E),
+        "status": Field("text", E, choices=POLICY_STATUS, default="draft"),
+        "agreed_on": Field("date", E),
+        "owner_id": Field("int", S),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = sdlc_policies.owner_id)", S)},
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1696,4 +1799,5 @@ RECORDS = [
     test_cases, regression_plans, test_runs, test_results, test_suites,
     integrations, arch_decisions, guides,
     onboarding_items, onboardings, onboarding_tasks,
+    sdlc_stages, sdlc_environments, sdlc_policies,
 ]
