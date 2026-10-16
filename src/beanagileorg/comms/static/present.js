@@ -1,6 +1,8 @@
 // Full-screen presenting with reveal.js. Press S for the speaker view (notes, next slide, timer), F for full screen.
 (async function () {
-  const res = await fetch(`/api/decks/${window.DECK_ID}/full`, { credentials: "same-origin" });
+  // ?version=N presents a saved version, so an approved deck can be shown while the next draft is in progress.
+  const version = new URLSearchParams(location.search).get("version");
+  const res = await fetch(version ? `/api/decks/${window.DECK_ID}/versions/${encodeURIComponent(version)}/full` : `/api/decks/${window.DECK_ID}/full`, { credentials: "same-origin" });
   if (res.status === 401) {
     location.href = "/login";
     return;
@@ -13,6 +15,7 @@
   document.title = data.deck.title;
   document.getElementById("slides").innerHTML = BADeck.render(data.slides, data.media);
   const deck = new Reveal(document.querySelector(".reveal"), {
+      scrollActivationWidth: null, // reveal 5 switches narrow decks to scroll view, which breaks the editor and small screens
     hash: true,
     center: false,
     width: 1280,

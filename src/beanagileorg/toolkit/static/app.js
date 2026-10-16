@@ -176,7 +176,7 @@
     const interviews = (await BA.api("/api/interviews")).filter((i) => i.person_id === id);
     main.innerHTML = `<p><a href="#/people">All people</a></p>
       <form id="person" class="card"><div class="grid2">${BA.form(PERSON_FIELDS, rec)}</div>
-        <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button><button class="btn primary" type="submit">Save</button></div></form>
+        <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("person", id)}<button class="btn primary" type="submit">Save</button></div></form>
       <section class="card"><div class="row"><h2>One-on-ones</h2><span class="spacer"></span><button class="btn" id="plan">Plan a one-on-one</button></div>${
         interviews.map((i) => `<div class="item"><a href="#/listening/${i.id}">${BA.fmtDate(i.date) || "[No date]"}</a> ${BA.statusPill(i.status)} ${BA.chips(i.themes)}</div>`).join("") ||
         '<p class="quiet">None yet.</p>'
@@ -198,6 +198,7 @@
       BA.go(`/listening/${i.id}`);
     });
   }
+
 
   // ---------------------------------------------------------------- Skills and learning
 
@@ -292,7 +293,7 @@
         <h3>The same four questions, every time</h3>${BA.form(fields.slice(3, 7), rec)}
         <h3>What I heard</h3>${BA.form(fields.slice(7), rec)}
         ${known.length ? `<p class="quiet">Themes so far: ${BA.chips(known)}</p>` : ""}
-        <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button><button class="btn primary" type="submit">Save</button></div>
+        <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("interview", id)}<button class="btn primary" type="submit">Save</button></div>
       </form>`;
     const form = main.querySelector("#iv");
     form.onsubmit = BA.guard(async (e) => {
@@ -598,7 +599,7 @@
       return;
     }
     main.innerHTML = `<p><a href="#/dev-sync">Dev-sync log</a></p><form id="item" class="card"><div class="grid2">${BA.form(fields, rec)}</div>
-      <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`;
+      <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("action_item", id)}<button class="btn primary" type="submit">Save</button></div></form>`;
     const form = main.querySelector("#item");
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
@@ -1014,7 +1015,7 @@
         <label>What I noticed <span class="quiet">energy, who spoke and who didn't</span><textarea name="noticed">${esc(n.noticed || "")}</textarea></label>
         <label>Implementation thoughts<textarea name="thoughts">${esc(n.thoughts || "")}</textarea></label>
         <label>Follow-ups <span class="quiet">one per line</span><textarea name="follow_ups">${esc(n.follow_ups || "")}</textarea></label></div>
-      <div class="actions"><button class="btn danger left" type="button" data-del-note="${n.id}">Delete</button>
+      <div class="actions"><button class="btn danger left" type="button" data-del-note="${n.id}">Delete</button>${BA.historyButton("ceremony_note", n.id)}
         <button class="btn" type="button" data-follow-note="${n.id}">First follow-up to dev-sync log</button><button class="btn primary" type="submit">Save</button></div></form>`;
     main.innerHTML = `<p><a href="#/sprints">All sprints</a></p>${head}
       ${d.carry_over.length ? `<section class="card"><h2>Still open from the last sprint</h2>${d.carry_over.map(itemRow).join("")}</section>` : ""}
@@ -1389,7 +1390,7 @@
         <label>Date<input type="date" name="date" value="${esc(r.date || "")}"></label>
         <label>Summary<textarea name="summary">${esc(r.summary || "")}</textarea></label>
         <div><label>Who was there</label><div class="row">${people.map((p) => `<label class="check"><input type="checkbox" name="att" value="${p.id}"${r.attendee_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div></div>
-        <div class="actions"><button class="btn danger left" type="button" id="del">Delete retro</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del">Delete retro</button>${BA.historyButton("retro", id)}${BA.historyButton("plan_item", i.id)}<button class="btn primary" type="submit">Save</button></div></form>`}`;
     main.querySelectorAll("[data-vote]").forEach((b) => (b.onclick = BA.guard(async () => (await BA.api(`/api/retro-items/${b.dataset.vote}/vote`, { method: "POST", body: {} }), BA.rerender()))));
     if (ro) return;
     main.querySelectorAll("form.add-item").forEach((form) => (form.onsubmit = BA.guard(async (e) => {
@@ -1872,7 +1873,7 @@
         ${isOffer ? `<label>Systems it runs on</label><div class="row">${checks(systems, s.system_ids, "system_ids")}</div>
           <label>Vendors involved</label><div class="row">${checks(vendors, s.vendor_ids, "vendor_ids")}</div>` : ""}
         <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
-        <div class="actions"><button class="btn danger left" type="button" id="del-subject">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del-subject">Delete</button>${BA.historyButton(kind, id)}<button class="btn primary" type="submit">Save</button></div></form>`}`;
     if (ro) return;
     const num = (v) => (v ? Number(v) : null);
     const edit = main.querySelector("#edit-subject");
@@ -1971,7 +1972,7 @@
           <label>Steps <span class="quiet">(a numbered list works best)</span><textarea name="steps" rows="5">${esc(c.steps || "")}</textarea></label>
           <label>Expected result<textarea name="expected">${esc(c.expected || "")}</textarea></label>
           <label class="check"><input type="checkbox" name="active"${c.active ? " checked" : ""}> In use</label>
-          <div class="actions"><button class="btn danger left" type="button" data-del-case="${c.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+          <div class="actions"><button class="btn danger left" type="button" data-del-case="${c.id}">Delete</button>${BA.historyButton("test_case", c.id)}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
     main.innerHTML = `${qaTabs("library")}
       <div class="row"><p class="quiet">Manual tests anyone on the team can follow. Smoke tests are the quick checks after every deploy; regression tests go into release plans.</p><span class="spacer"></span>
         <select id="f-system" style="max-width:200px">${sysOptions(systems, numOrNull(filter.system), "All systems")}</select>
@@ -2394,7 +2395,7 @@
         <label>What it is<textarea name="description">${esc(s.description || "")}</textarea></label>
         <label>How we use it<textarea name="how_we_use">${esc(s.how_we_use || "")}</textarea></label>
         <label>Known issues <span class="quiet">(private: weaknesses, tech debt, workarounds)</span><textarea name="known_issues">${esc(s.known_issues || "")}</textarea></label>
-        <div class="actions"><button class="btn danger left" type="button" id="del-sys">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del-sys">Delete</button>${BA.historyButton("system", id)}<button class="btn primary" type="submit">Save</button></div></form>`}`;
     if (ro) return;
     const form = main.querySelector("#edit-sys");
     const list = (v) => (v || "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -2436,7 +2437,7 @@
       <section class="card">${ints.map((i) => `<details class="plan-item${i.status === "retired" ? " dropped" : ""}" data-int="${i.id}"><summary><b>${esc(i.name)}</b><span class="quiet">${flow(i)}</span><span class="spacer"></span>
           <span class="pill">${esc(i.pattern)}</span>${i.frequency ? `<span class="quiet">${esc(i.frequency)}</span>` : ""}${i.criticality ? tonePill(i.criticality, CRIT_TONES) : ""}${i.status !== "live" ? `<span class="pill warn">${esc(i.status)}</span>` : ""}</summary>
           <p>${[i.data ? `Carries ${esc(i.data)}` : "", i.protocol ? esc(i.protocol) : "", i.owner_name ? `Owner: ${esc(i.owner_name)}` : "No owner yet"].filter(Boolean).join(" · ")}</p>
-          ${ro ? "" : `<form class="edit-int">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del-int>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No integrations yet.</p>'}</section>
+          ${ro ? "" : `<form class="edit-int">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del-int>Delete</button>${BA.historyButton("integration", i.id)}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No integrations yet.</p>'}</section>
       ${ro ? "" : live.length < 2 ? '<p class="quiet">Add at least two systems first.</p>' : `<form id="add-int" class="card"><h2>Add an integration</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
     if (ro) return;
     const add = main.querySelector("#add-int");
@@ -2474,7 +2475,7 @@
             <label>Consequences <span class="quiet">(what gets easier, what gets harder)</span><textarea name="consequences">${esc(a.consequences || "")}</textarea></label>
             <label>Alternatives considered<textarea name="alternatives">${esc(a.alternatives || "")}</textarea></label>
             <label>Systems</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${a.system_ids.includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("")}</div>
-            <div class="actions"><button class="btn danger left" type="button" data-del-adr>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No decisions recorded yet.</p>'}</section>
+            <div class="actions"><button class="btn danger left" type="button" data-del-adr>Delete</button>${BA.historyButton("arch_decision", a.id)}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No decisions recorded yet.</p>'}</section>
       ${ro ? "" : `<section class="card"><h2>Record a decision</h2><form id="add-adr" class="row"><input name="title" placeholder="Such as: use platform events for order updates" required style="max-width:420px"><button class="btn primary" type="submit">Add</button></form>
         <p class="quiet">It starts as proposed. Open it to write the context and options, then mark it accepted.</p></section>`}`;
     if (ro) return;
@@ -2536,7 +2537,7 @@
         <label>Summary<input name="summary" value="${esc(g.summary || "")}"></label>
         <label>Guide <span class="quiet">(Markdown: # headings, lists, **bold**, links)</span><textarea name="body" rows="16" class="mono">${esc(g.body || "")}</textarea></label>
         <label>Systems</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${g.system_ids.includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("")}</div>
-        <div class="actions"><button class="btn danger left" type="button" id="del-guide">Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del-guide">Delete</button>${BA.historyButton("guide", id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}`;
     if (ro) return;
     const form = main.querySelector("#edit-guide");
     form.onsubmit = BA.guard(async (e) => {
@@ -2750,7 +2751,7 @@
             <label>What happens<textarea name="activities">${esc(s.activities || "")}</textarea></label>
             <label>Tools</label><div class="case-picks">${systems.map((x) => `<label class="check"><input type="checkbox" name="system_ids" value="${x.id}"${s.system_ids.includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("") || '<span class="quiet">Add systems and tools under Architecture first.</span>'}</div>
             <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
-            <div class="actions"><button class="btn danger left" type="button" data-del>Delete stage</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</section>`;
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete stage</button>${BA.historyButton("sdlc_stage", s.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</section>`;
       main.innerHTML = `${sdlcTabs("")}${starterCard}
         ${d.stages.length ? `<nav class="stage-flow">${d.stages.map((s, i) => `<a href="#stage-${s.id}" data-jump="${s.id}"><span>${i + 1}</span>${esc(s.name)}</a>`).join("")}</nav>` : ""}
         ${d.stages.map(stage).join("")}
@@ -2820,7 +2821,7 @@
             <label>Status<select name="status">${opts(["draft", "agreed", "retired"], p.status)}</select></label><label>Agreed on<input type="date" name="agreed_on" value="${esc(p.agreed_on || "")}"></label>
             <label>Owner<select name="owner_id">${personOptions(people, p.owner_id)}</select></label></div>
             <label>Policy <span class="quiet">(Markdown)</span><textarea name="body" rows="6">${esc(p.body || "")}</textarea></label>
-            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") || (starterCard ? "" : '<p class="empty">No policies yet.</p>')}
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("sdlc_policy", p.id)}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") || (starterCard ? "" : '<p class="empty">No policies yet.</p>')}
       ${ro ? "" : `<section class="card"><h2>Add a policy</h2><form id="add-policy" class="row"><input name="title" required placeholder="Policy title" style="max-width:320px"><select name="category" style="max-width:190px">${opts(POLICY_CATEGORIES, "other")}</select><button class="btn" type="submit">Add</button></form></section>`}`;
     bindStarter();
     if (ro) return;
@@ -2941,7 +2942,7 @@
           <label>Try this week <span class="quiet">(one per line)</span><textarea name="try_this" rows="4">${esc((g.try_this || []).join("\n"))}</textarea></label></div>
         <label>More <span class="quiet">(Markdown: anything else, such as your own reading notes)</span><textarea name="body" rows="6" class="mono">${esc(g.body || "")}</textarea></label>
         <label>Screens it relates to <span class="quiet">(one per line, such as /retros)</span><textarea name="related" rows="2">${esc((g.related || []).join("\n"))}</textarea></label>
-        <div class="actions"><button class="btn danger left" type="button" id="del-guide">Delete guide</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del-guide">Delete guide</button>${BA.historyButton("coaching_guide", g.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}`;
     if (ro) return;
     main.querySelector("#g-focus").onchange = BA.guard(async (e) => { await BA.api(`/api/coaching-guides/${g.id}`, { method: "PATCH", body: { focus: e.target.value || null } }); BA.toast("Saved."); });
     main.querySelector("#g-notes").onchange = BA.guard(async (e) => { await BA.api(`/api/coaching-guides/${g.id}`, { method: "PATCH", body: { my_notes: e.target.value } }); BA.toast("Saved."); });
@@ -3118,7 +3119,7 @@
           ${ro ? "" : `<form class="decide row"><select name="decision" style="max-width:160px">${opts(DEBT_DECISIONS, "schedule")}</select><input name="decided_by" placeholder="Decided by" style="max-width:180px">
             <input type="date" name="revisit_on" title="Revisit on (needed when accepting)" style="max-width:160px"><input name="rationale" placeholder="Why" style="flex:1;min-width:200px"><button class="btn" type="submit">Record decision</button></form>
             <div class="row"><button class="btn" type="button" data-to-backlog>${BA.icon("list-ordered")} Add to the sprint backlog</button></div>
-            <details><summary class="quiet">Edit</summary><form class="edit-debt">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
+            <details><summary class="quiet">Edit</summary><form class="edit-debt">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("tech_debt", i.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
       main.innerHTML = `${debtTabs("")}
         <div class="stats">${d.categories.filter((c) => c.open).map((c) => `<section class="card stat" title="${esc(c.help)}"><div class="stat-n">${c.open}</div><div class="quiet">${esc(cap(c.key))}${c.points ? ` · ${c.points} pts` : ""}</div></section>`).join("") ||
           '<section class="card stat"><div class="stat-n">0</div><div class="quiet">open items</div></section>'}</div>
@@ -3278,7 +3279,7 @@
           <label>Technical notes <span class="quiet">(approach, risks, what to touch)</span><textarea name="technical_notes" rows="3">${esc(i.technical_notes || "")}</textarea></label>
           <label>Dependencies<input name="dependencies" value="${esc(i.dependencies || "")}"></label>
           <label>Private notes<textarea name="notes" rows="2">${esc(i.notes || "")}</textarea></label>
-          <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
+          <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("backlog_item", i.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
       main.innerHTML = `${planTabs("")}
         <p class="quiet">The next set of candidate stories for the upcoming sprint, in priority order. Bring them over from Jira, refine them until they're ready, estimate together, then pull them into a sprint.</p>
         ${ro ? "" : `<details class="card"${d.items.length ? "" : " open"}><summary><b>Bring stories over from Jira</b></summary>
@@ -3507,7 +3508,7 @@
         <label>Members</label><div class="case-picks">${people.map((p) => `<label class="check"><input type="checkbox" name="member_ids" value="${p.id}"${t.member_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("") || '<span class="quiet">Add people first.</span>'}</div>
         <label>Systems it owns</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${t.system_ids.includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("") || '<span class="quiet">Add systems under Architecture.</span>'}</div>
         <label>Private notes<textarea name="notes" rows="2">${esc(t.notes || "")}</textarea></label>
-        <div class="actions"><button class="btn danger left" type="button" id="del-team">Delete team</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del-team">Delete team</button>${BA.historyButton("team", id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}`;
     if (ro) return;
     const st = main.querySelector("#team-status");
     st.onsubmit = BA.guard(async (e) => {
@@ -3562,7 +3563,7 @@
           ${i.outcome ? `<p><b>Outcome expected:</b> ${esc(i.outcome)}</p>` : ""}${i.details ? BA.md(i.details) : ""}
           <p class="quiet">${[(i.team_ids || []).length ? "Teams: " + i.team_ids.map((x) => esc(teamName[x] || "")).join(", ") : "", (i.stakeholder_ids || []).length ? "Stakeholders: " + i.stakeholder_ids.map((x) => esc(pname[x] || "")).join(", ") : "",
             i.raised_by_team_name ? "Raised by " + esc(i.raised_by_team_name) : ""].filter(Boolean).join(" · ")}</p>${i.resolution ? `<p><b>Resolution:</b> ${esc(i.resolution)}</p>` : ""}
-          ${ro ? "" : `<form class="edit-sos">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+          ${ro ? "" : `<form class="edit-sos">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("sos_item", i.id)}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
       main.innerHTML = `<nav class="tabs"><a href="#/sos" class="active">Log</a><a href="#/sos/summary">Leadership summary</a></nav>
         <p class="quiet">The cross-team log: questions, dependencies, decisions, risks, impediments and knowledge that cross team lines, each with stakeholders, an owner, the outcome expected and a date.</p>
         <div class="stats">${SOS_KINDS.map((k) => `<section class="card stat"><div class="stat-n">${d.counts[k]}</div><div class="quiet">open ${k === "knowledge" ? "knowledge items" : k + (k.endsWith("y") ? "" : "s")}</div></section>`).join("").replace("open dependencys", "open dependencies")}</div>
@@ -3597,7 +3598,7 @@
         <h3>Walk the open items</h3>${(m.item_ids || []).map((iid) => byId[iid]).filter(Boolean).map((i) => `<div class="item">${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><span>${esc(i.question)}</span><span class="spacer"></span><span class="quiet">${esc(i.owner_name || i.owner_team_name || "no owner")}${i.due ? " · " + BA.fmtDate(i.due) : ""}</span></div>`).join("") || '<p class="quiet">Nothing was open.</p>'}
         <p class="quiet">Update each item in the <a href="#/sos">log</a> as you go.</p>
         ${ro ? (m.summary ? BA.md(m.summary) : "") : `<form id="meeting"><label>Summary <span class="quiet">(shareable: what was agreed, what's next)</span><textarea name="summary" rows="5">${esc(m.summary || "")}</textarea></label>
-          <label>Private notes<textarea name="notes" rows="3">${esc(m.notes || "")}</textarea></label><div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`}</section>`;
+          <label>Private notes<textarea name="notes" rows="3">${esc(m.notes || "")}</textarea></label><div class="actions">${BA.historyButton("sos_meeting", id)}<button class="btn primary" type="submit">Save</button></div></form>`}</section>`;
     const form = main.querySelector("#meeting");
     if (form) form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(form); await BA.api(`/api/sos-meetings/${id}`, { method: "PATCH", body: { summary: fd.get("summary"), notes: fd.get("notes") } }); BA.toast("Saved."); });
   }

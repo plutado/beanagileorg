@@ -11,6 +11,7 @@ from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.privacy import Viewer
 
 from . import mediafiles, models
+from .versions import ensure_editable
 
 router = APIRouter()
 STATIC = Path(__file__).parent / "static"
@@ -62,7 +63,7 @@ def deck_full(deck_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(g
 @router.post("/api/decks/{deck_id}/slides", status_code=201)
 def add_slide(deck_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
-    deck_or_404(conn, deck_id)
+    ensure_editable(conn, deck_id)
     slides = deck_slides(conn, deck_id)
     after = body.pop("after_id", None)
     index = next((i + 1 for i, s in enumerate(slides) if s["id"] == after), len(slides))
@@ -78,6 +79,7 @@ def duplicate_slide(slide_id: int, viewer: Viewer = Depends(get_viewer), conn=De
     original = models.slides.fetch(conn, slide_id)
     if original is None:
         raise HTTPException(404, "No slide with that id.")
+    ensure_editable(conn, original["deck_id"])
     copy = {k: original[k] for k in ("layout", "content", "notes", "transition", "hidden")}
     return add_slide(original["deck_id"], {**copy, "after_id": slide_id}, viewer, conn)
 
@@ -85,7 +87,7 @@ def duplicate_slide(slide_id: int, viewer: Viewer = Depends(get_viewer), conn=De
 @router.post("/api/decks/{deck_id}/reorder")
 def reorder(deck_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
-    deck_or_404(conn, deck_id)
+    ensure_editable(conn, deck_id)
     slides = {s["id"]: s for s in deck_slides(conn, deck_id)}
     order = body.get("slide_ids")
     if not isinstance(order, list) or sorted(order) != sorted(slides):

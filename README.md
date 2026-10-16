@@ -18,6 +18,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Scoped API tokens** for LLM clients and the other app: `export:read`, `present:read`, `full`, plus app scopes such as `delivery:write`.
 - **Change log and export log.** Every data change records the field, old and new value and who made it (you or a named token), and every export records what went out.
 - **Design system.** Tailwind CSS v4 tokens with light and dark themes, Inter type, Lucide icons and responsive layouts.
+- **History.** Records you write in (notes, meeting summaries, guides, decisions, policies, stories and more) keep every saved change, compared line by line, with a way to restore an earlier version.
 - **Code blocks.** Paste code between triple backticks in any longer text box (Apex, SOQL, LWC markup, JSON, YAML and more) and it's kept exactly as pasted and shown like a code editor, with a copy button.
 - **Jira keys.** Anything tracked in Jira (dev-sync items, risks, roadmap items, tests and test failures, incidents, retro commitments, onboarding items, vendor concerns, decisions, stories and tech debt) can carry its Jira keys, which link straight to the issue once the Jira address is set. Find a Jira key shows everywhere a key is mentioned.
 - **Built-in guidance.** Every section explains its purpose and how to use it at the top of the page, and the Help page gathers them into one guide.
@@ -106,6 +107,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Eleven layouts:** title, section break, one big number, points (optionally revealed one at a time), quote, comparison, image, video, audio, animation and closing.
 - **Media players:** video and audio with trim start and end, loop, poster frame, captions, and play on entering the slide, on a click or only when pressed.
 - **Lottie animations:** loop, play once, play on a click, speed and frame segments. The light player runs no expressions.
+- **Versions and review:** save named versions, compare them slide by slide, restore one, and move a deck from draft to review to approved to presented, with each step saved. Approved decks are locked until you start a new draft; any saved version can be presented, and a deck can be copied for another audience.
 - **Present:** full screen from the same renderer as the editor, with reveal.js's speaker view (notes, next slide, timer).
 - **Media library:** uploads of video, audio, images, Lottie and WebVTT captions, with type checks, seekable playback, source and license recorded, and license details kept private.
 

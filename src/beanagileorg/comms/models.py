@@ -22,6 +22,8 @@ DETAIL_LEVELS = ("summary first", "full detail", "technical", "what changes for 
 CHANNEL_KINDS = ("chat", "email", "meeting", "document", "other")
 RHYTHMS = ("weekly", "every two weeks", "monthly", "quarterly")
 
+DECK_STATUS = ("draft", "in review", "approved", "presented")
+
 MIGRATIONS = [
     (
         1,
@@ -137,6 +139,29 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        3,
+        """
+        ALTER TABLE decks ADD COLUMN status TEXT NOT NULL DEFAULT 'draft';
+        ALTER TABLE decks ADD COLUMN audience TEXT;
+        ALTER TABLE decks ADD COLUMN presented_on DATE;
+        ALTER TABLE decks ADD COLUMN copied_from TEXT;
+        CREATE TABLE deck_versions (
+            id INTEGER PRIMARY KEY,
+            deck_id INTEGER NOT NULL REFERENCES decks (id) ON DELETE CASCADE,
+            number INTEGER NOT NULL,
+            label TEXT,
+            kind TEXT NOT NULL DEFAULT 'saved',
+            status TEXT,
+            note TEXT,
+            snapshot TEXT NOT NULL,
+            slide_count INTEGER,
+            saved_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now')),
+            source TEXT,
+            UNIQUE (deck_id, number)
+        );
+        """,
+    ),
 ]
 
 # Decks are made to be shown, so their content is presentable. Speaker notes are presentable too:
@@ -150,8 +175,16 @@ decks = Record(
         "title": Field("text", S, required=True),
         "theme": Field("text", S, default="beanagileorg"),
         "transition": Field("text", S, choices=TRANSITIONS, default="slide"),
+        "status": Field("text", S, choices=DECK_STATUS, default="draft"),
+        "audience": Field("text", S),
+        "presented_on": Field("date", S),
+        "copied_from": Field("text", S),
     },
-    computed={"slide_count": ("(SELECT COUNT(*) FROM slides s WHERE s.deck_id = decks.id)", S)},
+    computed={
+        "slide_count": ("(SELECT COUNT(*) FROM slides s WHERE s.deck_id = decks.id)", S),
+        "version_count": ("(SELECT COUNT(*) FROM deck_versions v WHERE v.deck_id = decks.id)", S),
+        "latest_version": ("(SELECT MAX(number) FROM deck_versions v WHERE v.deck_id = decks.id)", S),
+    },
 )
 
 slides = Record(

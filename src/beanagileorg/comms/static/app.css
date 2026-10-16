@@ -44,3 +44,14 @@
 .check-row:last-child { border-bottom: 0; }
 .check-row ul { margin: 4px 0 0 18px; padding: 0; }
 @media (max-width: 1000px) { .msg-grid { grid-template-columns: 1fr; } }
+
+.drawer { position: fixed; top: 56px; right: 0; bottom: 0; width: min(420px, 100vw); overflow-y: auto; z-index: 40; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgb(0 0 0 / 0.12); padding: 16px; }
+.drawer section { border-top: 1px solid var(--line); padding: 12px 0; }
+.drawer h3 { margin: 0 0 8px; font-size: .9rem; }
+.drawer form { display: flex; flex-direction: column; gap: 6px; }
+.drawer #step-note { margin: 6px 0; }
+.drawer .version { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.drawer .version:last-child { border-bottom: 0; }
+.drawer .compare { background: var(--panel-2); border-radius: 8px; padding: 6px 10px; margin-top: 6px; font-size: .88rem; }
+.drawer .compare ul { padding-left: 18px; list-style: disc; }
+.deck-lock { margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-size: .9rem; }

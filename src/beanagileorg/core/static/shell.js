@@ -269,6 +269,60 @@
     }
   });
 
+  // History: every revision of a record from the change log, with a line-by-line comparison and restore.
+  BA.historyButton = (entity, id) => (BA.session && BA.session.presentation ? "" : `<button type="button" class="btn" data-history="${BA.esc(entity)}" data-history-id="${id}">${BA.icon("history")} History</button>`);
+  const lineDiff = (a, b) => {
+    const x = (a || "").split("\n"), y = (b || "").split("\n");
+    const m = x.length, n = y.length;
+    if (m * n > 250000) return [...x.map((l) => ["-", l]), ...y.map((l) => ["+", l])];
+    const L = Array.from({ length: m + 1 }, () => new Uint32Array(n + 1));
+    for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const out = [];
+    let i = 0, j = 0;
+    while (i < m && j < n) {
+      if (x[i] === y[j]) { out.push([" ", x[i]]); i++; j++; }
+      else if (L[i + 1][j] >= L[i][j + 1]) out.push(["-", x[i++]]);
+      else out.push(["+", y[j++]]);
+    }
+    while (i < m) out.push(["-", x[i++]]);
+    while (j < n) out.push(["+", y[j++]]);
+    return out;
+  };
+  const humanField = (f) => f.replace(/_ids?$/, "").replace(/_/g, " ");
+  const showValue = (v) => (v === null || v === undefined || v === "" ? '<span class="quiet">empty</span>' : Array.isArray(v) ? BA.esc(v.join(", ")) || '<span class="quiet">none</span>' : typeof v === "object" ? `<code>${BA.esc(JSON.stringify(v))}</code>` : BA.esc(String(v)));
+  async function openHistory(entity, id) {
+    document.querySelectorAll(".history-drawer").forEach((d) => d.remove());
+    const drawer = document.createElement("aside");
+    drawer.className = "drawer history-drawer";
+    document.getElementById("view").appendChild(drawer);
+    const d = await BA.api(`/api/history/${encodeURIComponent(entity)}/${id}`);
+    drawer.innerHTML = `<div class="row"><h2>History</h2><span class="spacer"></span><button class="icon-btn" type="button" data-close title="Close">${BA.icon("x")}</button></div>
+      <p class="quiet">Every saved change, newest first. Restore puts a field back to how it was; the restore itself is recorded too.</p>
+      ${d.revisions.map((r, ri) => `<section class="revision"><div class="row"><b>${BA.esc(r.at)}</b><span class="spacer"></span><span class="quiet">${BA.esc(r.source)}${ri === d.revisions.length - 1 ? " · created" : ""}</span></div>
+        ${r.changes.map((c) => `<div class="hchange"><div class="row"><span class="pill">${BA.esc(humanField(c.field))}</span><span class="spacer"></span>
+            ${c.old !== null && c.old !== undefined && d.exists ? `<button type="button" class="link-btn" data-restore="${c.change_id}">Restore the earlier version</button>` : ""}</div>
+          ${c.long ? `<pre class="diff">${(c.old ? lineDiff(typeof c.old === "string" ? c.old : "", typeof c.new === "string" ? c.new : "") : String(c.new || "").split("\n").map((l) => ["+", l]))
+              .map(([k, l]) => `<span class="d${k === "+" ? "add" : k === "-" ? "del" : "same"}">${k} ${BA.esc(l)}</span>`).join("")}</pre>`
+            : `<div class="hvals">${showValue(c.old)} <span class="quiet">→</span> ${showValue(c.new)}</div>`}</div>`).join("")}</section>`).join("") || '<p class="quiet">No changes recorded yet.</p>'}`;
+    drawer.querySelector("[data-close]").onclick = () => drawer.remove();
+    drawer.querySelectorAll("[data-restore]").forEach((b) => (b.onclick = async () => {
+      if (!confirm("Put this field back to its earlier version? The current wording stays in the history.")) return;
+      try {
+        await BA.api(`/api/history/${encodeURIComponent(entity)}/${id}/restore`, { method: "POST", body: { change_id: Number(b.dataset.restore), which: "old" } });
+        BA.toast("Restored.");
+        drawer.remove();
+        BA.rerender();
+      } catch (err) { BA.toast(err.message); }
+    }));
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-history]");
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openHistory(b.dataset.history, b.dataset.historyId).catch((err) => BA.toast(err.message));
+  }, true);
+
   // Section intros: what this section is for and how to use it. Open on the first visit, then folded to one line.
   const INTRO_SEEN = "ba-intro-seen";
   BA.help = null;
@@ -309,6 +363,7 @@
       main.innerHTML = `<section class="card"><h2>How to use ${BA.esc(BA.session.title)}</h2>
           <p>Every section, what it's for and how to use it. The same explanation sits at the top of each section under <b>About this section</b>.</p>
           <p class="quiet">Longer text boxes accept Markdown: headings, lists, <b>bold</b>, links, <code>inline code</code>, and code blocks. Put code between two lines of three backticks, with the language after the first: <code>\`\`\`apex</code>, <code>soql</code>, <code>html</code> (for LWC and Aura markup), <code>xml</code>, <code>json</code>, <code>javascript</code>, <code>yaml</code> or <code>bash</code>. It's kept exactly as pasted and shown like a code editor, with a copy button.</p>
+          <p class="quiet">Records you write in, such as ceremony notes, Scrum of Scrums meetings, guides, decisions and policies, have a <b>History</b> button: every saved change, compared line by line, with a way to restore an earlier version. Decks in the Comms studio have full versions and a review workflow.</p>
           <p class="quiet">Press <kbd>⌘K</kbd> or <kbd>/</kbd> to jump anywhere, <kbd>?</kbd> for keyboard shortcuts, and <kbd>Shift</kbd>+<kbd>P</kbd> for presentation mode before sharing your screen.</p>
           <div class="row"><button class="btn" id="intros-reset">Show every section's intro again</button></div></section>
         ${groups.map((g) => `<section class="card"><h2>${BA.esc(g.name || "Start here")}</h2>${g.items.map((n) => `<div class="help-item" id="help-${BA.esc(n.path.slice(1))}">

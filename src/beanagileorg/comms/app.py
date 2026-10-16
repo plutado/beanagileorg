@@ -6,6 +6,7 @@ from beanagileorg.core.config import Settings
 from . import models
 from .messaging import router as messaging_router
 from .routes import router
+from .versions import router as versions_router
 
 NAV = [
     {"path": "/this-week", "icon": "calendar-clock", "label": "This week"},
@@ -35,6 +36,7 @@ def build(settings: Settings | None = None):
         # Custom routes first, so /api/media/upload isn't read as a media id.
         routers=[
             messaging_router,
+            versions_router,
             router,
             *(r.router() for r in (models.decks, models.slides, models.media, models.messages, models.templates,
                                    models.audiences, models.channels, models.cadences, models.glossary)),

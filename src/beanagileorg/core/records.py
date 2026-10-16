@@ -22,6 +22,8 @@ def _integrity(exc: sqlite3.IntegrityError) -> HTTPException:
     return HTTPException(400, "That refers to a record that doesn't exist.")
 
 
+REGISTRY: dict[str, "Record"] = {}  # entity name -> record, for history and other generic tools
+
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,19}-\d+$")  # Jira-style keys such as ABC-123
 
@@ -51,6 +53,7 @@ class Record:
         levels = {name: f.level for name, f in self.fields.items()}
         levels.update({name: level for name, (_, level) in self.computed.items()})
         register(self.entity, levels)
+        REGISTRY[self.entity] = self
 
     # ---- reading ----
 

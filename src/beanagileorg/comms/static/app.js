@@ -555,7 +555,8 @@
           <button class="btn" type="button" id="from-plan" title="Build a deck from the toolkit's 30/60/90 plans">Deck from toolkit plans</button>
           <button class="btn" type="button" id="seed">Load placeholder deck</button></form></section>
         <div class="deck-cards">${
-          decks.map((d) => `<div class="card deck-card" data-id="${d.id}"><h2>${esc(d.title)}</h2><p class="quiet">${d.slide_count} slides · ${esc(d.transition)} transition</p></div>`).join("") ||
+          decks.map((d) => `<div class="card deck-card" data-id="${d.id}"><div class="row"><h2>${esc(d.title)}</h2><span class="spacer"></span><span class="pill ${DECK_TONES[d.status] || ""}">${esc(d.status)}</span></div>
+            <p class="quiet">${d.slide_count} slides${d.latest_version ? ` · version ${d.latest_version}` : ""}${d.presented_on ? ` · presented ${BA.fmtDate(d.presented_on)}` : ""}${d.copied_from ? ` · copied from ${esc(d.copied_from)}` : ""}</p></div>`).join("") ||
           '<p class="empty">No decks yet.</p>'
         }</div>`;
       main.querySelectorAll(".deck-card").forEach((c) => (c.onclick = () => BA.go(`/decks/${c.dataset.id}`)));
@@ -577,6 +578,97 @@
     },
   });
 
+  // ---- deck versions and the review workflow ----
+
+  const DECK_TONES = { draft: "warn", "in review": "accent", approved: "good", presented: "good" };
+  const STEP_LABELS = { "in review": "Send for review", approved: "Approve", presented: "Mark presented", draft: "" };
+
+  async function setupVersions(main, deckId) {
+    const statusEl = main.querySelector("#deck-status");
+    const lockEl = main.querySelector("#deck-lock");
+    const drawer = document.createElement("aside");
+    drawer.className = "drawer";
+    drawer.hidden = true;
+    main.appendChild(drawer);
+    const refreshBar = (d) => {
+      statusEl.innerHTML = `<span class="pill ${DECK_TONES[d.deck.status] || ""}">${esc(d.deck.status)}</span>${d.versions.length ? ` <span class="quiet">v${d.versions[0].number}</span>` : ""}`;
+      const locked = ["approved", "presented"].includes(d.deck.status);
+      lockEl.hidden = !locked;
+      lockEl.className = "deck-lock";
+      lockEl.innerHTML = locked ? `This deck is <b>${esc(d.deck.status)}</b>${d.deck.presented_on ? ` (${BA.fmtDate(d.deck.presented_on)}${d.deck.audience ? ", " + esc(d.deck.audience) : ""})` : ""}, so it's locked. <button class="btn" type="button" data-new-draft>Start a new draft</button> to change it; the ${esc(d.deck.status)} version stays saved.` : "";
+      const nd = lockEl.querySelector("[data-new-draft]");
+      if (nd) nd.onclick = BA.guard(async () => { await BA.api(`/api/decks/${deckId}/status`, { method: "POST", body: { status: "draft" } }); BA.toast("New draft started."); render(); });
+    };
+    const render = async () => {
+      const d = await BA.api(`/api/decks/${deckId}/versions`);
+      refreshBar(d);
+      if (drawer.hidden) return;
+      const s = d.deck.status;
+      const steps = d.next.map((to) => {
+        const label = to === "draft" ? (s === "in review" ? "Request changes" : "Start a new draft") : to === "presented" && s === "presented" ? "Presented again" : STEP_LABELS[to];
+        return `<button class="btn${to === "approved" || to === "in review" ? " primary" : ""}" type="button" data-step="${to}">${label}</button>`;
+      }).join("");
+      drawer.innerHTML = `<div class="row"><h2>Versions</h2><span class="spacer"></span><button class="icon-btn" type="button" data-close title="Close">${BA.icon("x")}</button></div>
+        <section><p>Status: <span class="pill ${DECK_TONES[s] || ""}">${esc(s)}</span></p>
+          <p class="quiet">Draft, then review, then approved, then presented. Each step saves a version. Approved and presented decks are locked until you start a new draft.</p>
+          <input id="step-note" placeholder="Note for this step (optional)"><div class="row">${steps}</div></section>
+        <section><h3>Save a version</h3><form id="save-version"><input name="label" placeholder="Name, such as: leadership review draft"><input name="note" placeholder="What changed"><button class="btn" type="submit">Save version</button></form></section>
+        <section><h3>History</h3>${d.versions.map((v) => `<div class="version" data-v="${v.number}"><div class="row"><b>v${v.number}</b><span>${esc(v.label || v.kind)}</span><span class="spacer"></span>${v.status ? `<span class="pill ${DECK_TONES[v.status] || ""}">${esc(v.status)}</span>` : ""}</div>
+            <div class="quiet">${esc(v.saved_at)} · ${v.slide_count} slides${v.label && v.kind !== "saved" ? " · " + esc(v.kind) : ""}</div>${v.note ? `<div>${esc(v.note)}</div>` : ""}
+            <div class="row"><button class="link-btn" type="button" data-preview>Preview</button><button class="link-btn" type="button" data-compare>Compare with now</button><button class="link-btn" type="button" data-restore>Restore</button></div>
+            <div class="compare" hidden></div></div>`).join("") || '<p class="quiet">No versions yet. Save one when the deck reaches a point worth keeping.</p>'}</section>
+        <section><h3>Make a copy</h3><form id="copy-deck"><input name="title" placeholder="Title, such as: [Placeholder] for the team"><button class="btn" type="submit">Copy deck</button></form>
+          <p class="quiet">For a version of this deck for a different audience. The copy has its own history.</p></section>`;
+      drawer.querySelector("[data-close]").onclick = () => { drawer.hidden = true; };
+      drawer.querySelectorAll("[data-step]").forEach((b) => (b.onclick = BA.guard(async () => {
+        const body = { status: b.dataset.step, note: drawer.querySelector("#step-note").value || null };
+        if (b.dataset.step === "presented") {
+          const when = prompt("Presented on (YYYY-MM-DD)", BA.today());
+          if (when === null) return;
+          body.presented_on = when;
+          body.audience = prompt("Presented to", d.deck.audience || "") || null;
+        }
+        const r = await BA.api(`/api/decks/${deckId}/status`, { method: "POST", body });
+        BA.toast(`Now ${r.status}. Saved as version ${r.version.number}.`);
+        render();
+      })));
+      drawer.querySelector("#save-version").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const v = await BA.api(`/api/decks/${deckId}/versions`, { method: "POST", body: { label: fd.get("label"), note: fd.get("note") } });
+        BA.toast(`Saved version ${v.number}.`);
+        render();
+      });
+      drawer.querySelector("#copy-deck").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const nd = await BA.api(`/api/decks/${deckId}/copy`, { method: "POST", body: { title: new FormData(e.target).get("title") } });
+        BA.go(`/decks/${nd.id}`);
+      });
+      drawer.querySelectorAll("[data-v]").forEach((row) => {
+        const n = row.dataset.v;
+        row.querySelector("[data-preview]").onclick = () => window.open(`/present/${deckId}?version=${n}`, "_blank");
+        row.querySelector("[data-compare]").onclick = BA.guard(async () => {
+          const box = row.querySelector(".compare");
+          if (!box.hidden) { box.hidden = true; return; }
+          const c = await BA.api(`/api/decks/${deckId}/compare?a=${n}&b=current`);
+          const list = (title, items, fmt) => (items.length ? `<p><b>${title}</b></p><ul>${items.map((i) => `<li>${fmt(i)}</li>`).join("")}</ul>` : "");
+          box.innerHTML = (list("Added", c.added, (i) => `slide ${i.position}: ${esc(i.title)}`) + list("Removed", c.removed, (i) => `was slide ${i.position}: ${esc(i.title)}`) +
+            list("Changed", c.changed, (i) => `slide ${i.position}: ${esc(i.title)} <span class="quiet">(${i.fields.map(esc).join(", ")})</span>`) +
+            list("Moved", c.moved, (i) => `${esc(i.title)}: ${i.from} → ${i.to}`) + (c.deck.length ? `<p><b>Deck settings:</b> ${c.deck.map(esc).join(", ")}</p>` : "")) || '<p class="quiet">No differences.</p>';
+          box.hidden = false;
+        });
+        row.querySelector("[data-restore]").onclick = BA.guard(async () => {
+          if (!confirm(`Restore version ${n}? The deck as it is now is saved as a version first, and the deck goes back to draft.`)) return;
+          const r = await BA.api(`/api/decks/${deckId}/versions/${n}/restore`, { method: "POST" });
+          BA.toast(`Restored version ${r.restored}; the previous state is version ${r.saved_first}.`);
+          BA.rerender();
+        });
+      });
+    };
+    main.querySelector("#versions-btn").onclick = () => { drawer.hidden = !drawer.hidden; render(); };
+    render();
+  }
+
   // ---- the deck builder ----
 
   async function editor(main, deckId) {
@@ -590,12 +682,12 @@
       <div class="ed-bar">
         <input id="deck-title" value="${esc(data.deck.title)}" aria-label="Deck title">
         <select id="deck-transition" aria-label="Transition">${TRANSITIONS.map((t) => `<option${t === data.deck.transition ? " selected" : ""}>${t}</option>`).join("")}</select>
-        <span class="spacer"></span><a class="btn" href="#/decks">All decks</a>
+        <span class="spacer"></span><span id="deck-status"></span><button class="btn" id="versions-btn" type="button">Versions</button><a class="btn" href="#/decks">All decks</a>
         <button class="btn primary" id="present" type="button">Present</button></div>
       <aside class="ed-list"><div id="slide-list"></div>
         <div class="ed-add"><select id="new-layout">${Object.entries(LAYOUTS).map(([k, l]) => `<option value="${k}">${esc(l.label)}</option>`).join("")}</select>
         <button class="btn" id="add-slide" type="button">Add slide</button></div></aside>
-      <section class="ed-canvas"><div class="ed-stage"><div class="reveal ba-theme" id="ed-reveal" tabindex="0"><div class="slides"></div></div></div>
+      <section class="ed-canvas"><div id="deck-lock" hidden></div><div class="ed-stage"><div class="reveal ba-theme" id="ed-reveal" tabindex="0"><div class="slides"></div></div></div>
         <p class="quiet">Click the slide, then use the arrow keys to step through reveals. Present opens it full screen; press S there for speaker notes.</p></section>
       <aside class="ed-inspector" id="inspector"></aside></div>`;
 
@@ -603,6 +695,7 @@
     const inspector = main.querySelector("#inspector");
     const revealEl = main.querySelector("#ed-reveal");
     const deck = new Reveal(revealEl, {
+      scrollActivationWidth: null, // reveal 5 switches narrow decks to scroll view, which breaks the editor and small screens
       embedded: true,
       keyboardCondition: "focused",
       hash: false,
@@ -816,6 +909,7 @@
       deck.configure({ transition: e.target.value });
     });
     main.querySelector("#present").onclick = () => window.open(`/present/${deckId}#/${Math.max(0, indexOf(current))}`, "_blank");
+    setupVersions(main, deckId);
 
     renderAll();
   }

@@ -340,3 +340,15 @@
   .hljs-deletion { color: var(--tok-keyword); }
   .hljs-emphasis { font-style: italic; } .hljs-strong { font-weight: 700; }
 }
+
+/* Side drawers (history, deck versions) and the line comparison. */
+@layer components {
+  .drawer { position: fixed; top: 56px; right: 0; bottom: 0; width: min(460px, 100vw); overflow-y: auto; z-index: 40; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgb(0 0 0 / 0.12); padding: 16px; }
+  .history-drawer .revision { border-top: 1px solid var(--line); padding: 10px 0; }
+  .history-drawer .hchange { margin: 8px 0; }
+  .history-drawer .hvals { margin-top: 4px; font-size: 0.9rem; word-break: break-word; }
+  .diff { margin: 6px 0 0; padding: 8px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--code-line); font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow: auto; }
+  .diff .dadd { display: block; background: var(--good-soft); color: var(--good); }
+  .diff .ddel { display: block; background: var(--bad-soft); color: var(--bad); text-decoration: line-through; }
+  .diff .dsame { display: block; color: var(--muted); }
+}
