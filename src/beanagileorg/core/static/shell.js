@@ -133,6 +133,15 @@
     const lines = (text || "").split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      // Fenced code: kept exactly as written (no trimming, no inline formatting), then coloured.
+      const fence = line.match(/^\s*(`{3,}|~{3,})\s*([\w+#.-]*)\s*$/);
+      if (fence) {
+        const body = [];
+        i++;
+        while (i < lines.length && !new RegExp(`^\\s*${fence[1][0] === "`" ? "`" : "~"}{${fence[1].length},}\\s*$`).test(lines[i])) body.push(lines[i++]);
+        out.push(BA.codeBlock(body.join("\n"), fence[2]));
+        continue;
+      }
       if (/^\s*$/.test(line)) continue;
       const h = line.match(/^(#{1,3})\s+(.*)/);
       if (h) {
@@ -161,7 +170,7 @@
         continue;
       }
       const para = [line];
-      while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#|\||\s*([-*]|\d+\.)\s)/.test(lines[i + 1])) para.push(lines[++i]);
+      while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#|\||\s*([-*]|\d+\.)\s|\s*(`{3,}|~{3,}))/.test(lines[i + 1])) para.push(lines[++i]);
       out.push(`<p>${inline(para.join(" "))}</p>`);
     }
     return `<div class="md">${out.join("")}</div>`;
@@ -204,8 +213,9 @@
   BA.coachingOn = () => !store.get(COACH_OFF, false);
   BA.setCoaching = (on) => { store.set(COACH_OFF, !on); if (on) store.set(COACH_HIDDEN, []); };
   async function showCoachTip(main, key) {
-    if (BA.session.presentation || main.hasAttribute("data-layout") || !BA.coachingOn() || store.get(COACH_HIDDEN, []).includes(key)) return;
+    if (BA.session.presentation || main.hasAttribute("data-layout") || !BA.coachingOn() || store.get(COACH_HIDDEN, []).includes(key) || main.querySelector(":scope > .coach-tip")) return;
     const { tips, guide_base } = await loadTips();
+    if (main.querySelector(":scope > .coach-tip")) return;
     const list = tips[key] || [];
     if (!list.length || location.hash.slice(1).replace(/\/$/, "") !== key && location.hash) return;
     const i = (BA.coachIndex[key] || 0) % list.length;
@@ -227,6 +237,38 @@
     };
   }
 
+  // Code blocks: highlight.js colours known languages; Salesforce names map to their nearest relative.
+  const CODE_ALIASES = { apex: "java", trigger: "java", soql: "sql", sosl: "sql", lwc: "xml", aura: "xml", visualforce: "xml", vf: "xml", html: "xml",
+    metadata: "xml", dataweave: "plaintext", dw: "plaintext", js: "javascript", ts: "typescript", sh: "bash", zsh: "bash", yml: "yaml", text: "plaintext", txt: "plaintext" };
+  const CODE_GUESS = ["java", "sql", "xml", "json", "javascript", "typescript", "yaml", "bash", "css", "python"];
+  BA.codeBlock = (code, lang) => {
+    const named = (lang || "").toLowerCase();
+    const language = CODE_ALIASES[named] || named;
+    let html = BA.esc(code), shown = named;
+    const hl = window.hljs;
+    try {
+      if (hl && language && hl.getLanguage(language)) html = hl.highlight(code, { language, ignoreIllegals: true }).value;
+      else if (hl && !named && code.trim()) {
+        const auto = hl.highlightAuto(code, CODE_GUESS);
+        if (auto.relevance >= 5) { html = auto.value; shown = auto.language; }
+      }
+    } catch { html = BA.esc(code); }
+    return `<div class="code-block"><div class="code-head"><span>${BA.esc(shown || "code")}</span><button type="button" class="link-btn" data-copy-code>Copy</button></div><pre><code class="hljs">${html}</code></pre></div>`;
+  };
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest && e.target.closest("[data-copy-code]");
+    if (!b) return;
+    e.preventDefault();
+    const code = b.closest(".code-block").querySelector("code").textContent;
+    try {
+      await navigator.clipboard.writeText(code);
+      b.textContent = "Copied";
+      setTimeout(() => (b.textContent = "Copy"), 1500);
+    } catch {
+      BA.toast("Couldn't copy. Select the code and copy it instead.");
+    }
+  });
+
   // Section intros: what this section is for and how to use it. Open on the first visit, then folded to one line.
   const INTRO_SEEN = "ba-intro-seen";
   BA.help = null;
@@ -238,9 +280,9 @@
       ${h.privacy ? `<p class="quiet">${BA.icon("eye-off")} ${BA.esc(h.privacy)}</p>` : ""}${h.related && h.related.length ? `<p class="quiet">See also: ${relatedLinks(h.related)}</p>` : ""}`;
   }
   async function showIntro(main, key) {
-    if (BA.session.presentation || main.hasAttribute("data-layout") || key === "/help") return;
+    if (BA.session.presentation || main.hasAttribute("data-layout") || key === "/help" || main.querySelector(":scope > .section-intro")) return;
     const h = (await loadHelp())[key];
-    if (!h) return;
+    if (!h || main.querySelector(":scope > .section-intro")) return;
     const seen = store.get(INTRO_SEEN, []);
     const el = document.createElement("details");
     el.className = "section-intro";
@@ -266,6 +308,7 @@
       if (current.items.length) groups.push(current);
       main.innerHTML = `<section class="card"><h2>How to use ${BA.esc(BA.session.title)}</h2>
           <p>Every section, what it's for and how to use it. The same explanation sits at the top of each section under <b>About this section</b>.</p>
+          <p class="quiet">Longer text boxes accept Markdown: headings, lists, <b>bold</b>, links, <code>inline code</code>, and code blocks. Put code between two lines of three backticks, with the language after the first: <code>\`\`\`apex</code>, <code>soql</code>, <code>html</code> (for LWC and Aura markup), <code>xml</code>, <code>json</code>, <code>javascript</code>, <code>yaml</code> or <code>bash</code>. It's kept exactly as pasted and shown like a code editor, with a copy button.</p>
           <p class="quiet">Press <kbd>⌘K</kbd> or <kbd>/</kbd> to jump anywhere, <kbd>?</kbd> for keyboard shortcuts, and <kbd>Shift</kbd>+<kbd>P</kbd> for presentation mode before sharing your screen.</p>
           <div class="row"><button class="btn" id="intros-reset">Show every section's intro again</button></div></section>
         ${groups.map((g) => `<section class="card"><h2>${BA.esc(g.name || "Start here")}</h2>${g.items.map((n) => `<div class="help-item" id="help-${BA.esc(n.path.slice(1))}">
@@ -345,7 +388,9 @@
     btn.classList.toggle("primary", on);
   }
 
+  let routeToken = 0;
   async function route() {
+    const token = ++routeToken;
     const path = location.hash.slice(1) || BA.session.nav.find((i) => i.path)?.path || "/settings";
     const key = matchView(path);
     const def = key ? BA.views[key] : null;
@@ -374,7 +419,8 @@
       const param = path.slice(key.length).replace(/^\//, "");
       const rendering = def.render(main, param);
       await rendering;
-      if (!param) {
+      // A newer navigation may have started while this one rendered; only the latest adds the tip and intro.
+      if (!param && token === routeToken) {
         await showCoachTip(main, key);
         await showIntro(main, key);
       }

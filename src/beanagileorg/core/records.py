@@ -16,6 +16,12 @@ from .changelog import record_changes
 from .db import transaction
 from .privacy import Level, Viewer, filter_record, register
 
+def _integrity(exc: sqlite3.IntegrityError) -> HTTPException:
+    if "UNIQUE" in str(exc):
+        return HTTPException(409, "That's already recorded. Each one can only appear once.")
+    return HTTPException(400, "That refers to a record that doesn't exist.")
+
+
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,19}-\d+$")  # Jira-style keys such as ABC-123
 
@@ -241,7 +247,7 @@ class Record:
             try:
                 rec = self.create(conn, body, viewer.source)
             except sqlite3.IntegrityError as exc:
-                raise HTTPException(400, "That refers to a record that doesn't exist.") from exc
+                raise _integrity(exc) from exc
             return self.visible(rec, viewer) or {"id": rec["id"]}
 
         @r.patch(self.path + "/{record_id}")
@@ -252,7 +258,7 @@ class Record:
             try:
                 rec = self.update(conn, record_id, body, viewer.source)
             except sqlite3.IntegrityError as exc:
-                raise HTTPException(400, "That refers to a record that doesn't exist.") from exc
+                raise _integrity(exc) from exc
             if rec is None:
                 raise HTTPException(404, f"No {self.entity} with that id.")
             return self.visible(rec, viewer) or {"id": rec["id"]}

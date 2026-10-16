@@ -55,6 +55,15 @@ TOOLKIT = {
         "privacy": "Shareable, except private notes.",
         "related": ["/qa", "/onboarding", "/raci"],
     },
+    "/planning": {
+        "purpose": "Plan each sprint beside Jira: the backlog of candidate stories, refinement until they're ready, estimating together, and pulling stories in against the team's real capacity.",
+        "steps": ["Paste stories from Jira (key and title, one per line) into the Backlog, in priority order.",
+                  "Refine each one: the story, acceptance criteria, technical notes and dependencies, checked against the definition of ready.",
+                  "Estimate together; a wide spread of votes means talk it through and vote again.",
+                  "In Plan a sprint, set availability and the goal, pull ready stories up to capacity, commit, then copy the plan back to Jira. Close the sprint to record what got done and carry the rest over."],
+        "privacy": "Stories and plans can be shown on screen; private notes stay private.",
+        "related": ["/sprints", "/pi", "/debt", "/coaching/refinement-and-estimation"],
+    },
     "/sprints": {
         "purpose": "Your private notebook for each sprint: what happened in each ceremony, what you noticed, and the follow-ups that came out of it.",
         "steps": ["Start the next sprint with its goal and dates.", "Write a note after each ceremony using the prompts.", "Turn follow-ups into dev-sync items; open ones carry into the next sprint."],

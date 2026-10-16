@@ -78,6 +78,10 @@ DEBT_CATEGORIES = ("maintainability", "stability", "performance", "cleanup", "re
 DEBT_EFFORT = ("S", "M", "L", "XL")
 DEBT_STATUS = ("identified", "accepted", "planned", "in progress", "done", "won't fix")
 DEBT_DECISIONS = ("fix now", "schedule", "accept for now", "won't fix")
+BACKLOG_TYPES = ("story", "bug", "task", "spike", "tech debt")
+BACKLOG_STATUS = ("needs refinement", "ready", "in sprint", "done", "removed")
+ESTIMATE_CONFIDENCE = ("low", "medium", "high")
+PLAN_STATUS_SPRINT = ("planning", "committed", "closed")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -838,6 +842,71 @@ MIGRATIONS = [
         ALTER TABLE onboarding_tasks ADD COLUMN jira_keys TEXT;
         ALTER TABLE vendor_concerns ADD COLUMN jira_keys TEXT;
         ALTER TABLE arch_decisions ADD COLUMN jira_keys TEXT;
+        """,
+    ),
+    (
+        15,
+        """
+        CREATE TABLE backlog_items (
+            id INTEGER PRIMARY KEY,
+            jira_key TEXT,
+            title TEXT NOT NULL,
+            item_type TEXT NOT NULL DEFAULT 'story',
+            description TEXT,
+            acceptance TEXT,
+            technical_notes TEXT,
+            dependencies TEXT,
+            rank INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'needs refinement',
+            ready_checks TEXT,
+            points INTEGER,
+            confidence TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            carried_from_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            feature_id INTEGER REFERENCES features (id) ON DELETE SET NULL,
+            debt_id INTEGER REFERENCES tech_debt (id) ON DELETE SET NULL,
+            system_ids TEXT,
+            labels TEXT,
+            added_on DATE,
+            notes TEXT
+        );
+        CREATE UNIQUE INDEX backlog_items_jira ON backlog_items (jira_key) WHERE jira_key IS NOT NULL;
+        CREATE TABLE estimate_votes (
+            id INTEGER PRIMARY KEY,
+            item_id INTEGER NOT NULL REFERENCES backlog_items (id) ON DELETE CASCADE,
+            person_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            points INTEGER NOT NULL,
+            round INTEGER NOT NULL DEFAULT 1,
+            date DATE
+        );
+        CREATE TABLE sprint_plans (
+            id INTEGER PRIMARY KEY,
+            sprint_id INTEGER NOT NULL UNIQUE REFERENCES sprints (id) ON DELETE CASCADE,
+            focus_factor REAL NOT NULL DEFAULT 0.8,
+            capacity_override INTEGER,
+            status TEXT NOT NULL DEFAULT 'planning',
+            committed_points INTEGER,
+            committed_on DATE,
+            completed_points INTEGER,
+            closed_on DATE,
+            notes TEXT
+        );
+        CREATE TABLE sprint_availability (
+            id INTEGER PRIMARY KEY,
+            sprint_id INTEGER NOT NULL REFERENCES sprints (id) ON DELETE CASCADE,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            days INTEGER,
+            note TEXT,
+            UNIQUE (sprint_id, person_id)
+        );
+        """,
+    ),
+    (
+        16,
+        """
+        ALTER TABLE sdlc_environments ADD COLUMN branch TEXT;
+        ALTER TABLE sdlc_environments ADD COLUMN deploy_method TEXT;
         """,
     ),
 ]
@@ -1887,6 +1956,8 @@ sdlc_environments = Record(
         "deploys_by": Field("text", E),
         "refresh": Field("text", E),
         "system_id": Field("int", E),
+        "branch": Field("text", E),
+        "deploy_method": Field("text", E),
         "notes": Field("text", P),
     },
     computed={"system_name": ("(SELECT name FROM systems s WHERE s.id = sdlc_environments.system_id)", E)},
@@ -2030,6 +2101,91 @@ debt_decisions = Record(
     },
 )
 
+# ---- sprint planning: the backlog of candidate stories beside Jira, estimates, and each sprint's plan ----
+
+backlog_items = Record(
+    entity="backlog_item",
+    table="backlog_items",
+    path="/api/backlog-items",
+    order_by="status IN ('done', 'removed'), rank, id",
+    fields={
+        "jira_key": Field("key", S),
+        "title": Field("text", S, required=True),
+        "item_type": Field("text", S, choices=BACKLOG_TYPES, default="story"),
+        "description": Field("text", S),
+        "acceptance": Field("text", S),
+        "technical_notes": Field("text", S),
+        "dependencies": Field("text", S),
+        "rank": Field("int", S, default=0),
+        "status": Field("text", S, choices=BACKLOG_STATUS, default="needs refinement"),
+        "ready_checks": Field("list", S),
+        "points": Field("int", S),
+        "confidence": Field("text", S, choices=ESTIMATE_CONFIDENCE),
+        "owner_id": Field("int", S),
+        "sprint_id": Field("int", S),
+        "carried_from_id": Field("int", S),
+        "feature_id": Field("int", S),
+        "debt_id": Field("int", S),
+        "system_ids": Field("ids", S),
+        "labels": Field("list", S),
+        "added_on": Field("date", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = backlog_items.owner_id)", S),
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = backlog_items.sprint_id)", S),
+        "carried_from_number": ("(SELECT number FROM sprints s WHERE s.id = backlog_items.carried_from_id)", S),
+        "feature_title": ("(SELECT title FROM features f WHERE f.id = backlog_items.feature_id)", S),
+        "debt_title": ("(SELECT title FROM tech_debt d WHERE d.id = backlog_items.debt_id)", S),
+    },
+)
+
+estimate_votes = Record(
+    entity="estimate_vote",
+    table="estimate_votes",
+    path="/api/estimate-votes",
+    order_by="item_id, round, id",
+    fields={
+        "item_id": Field("int", S, required=True),
+        "person_id": Field("int", S),
+        "points": Field("int", S, required=True),
+        "round": Field("int", S, default=1),
+        "date": Field("date", S),
+    },
+    computed={"person_name": ("(SELECT name FROM people p WHERE p.id = estimate_votes.person_id)", S)},
+)
+
+sprint_plans = Record(
+    entity="sprint_plan",
+    table="sprint_plans",
+    path="/api/sprint-plans",
+    order_by="sprint_id",
+    fields={
+        "sprint_id": Field("int", S, required=True),
+        "focus_factor": Field("number", S, default=0.8),
+        "capacity_override": Field("int", S),
+        "status": Field("text", S, choices=PLAN_STATUS_SPRINT, default="planning"),
+        "committed_points": Field("int", S),
+        "committed_on": Field("date", S),
+        "completed_points": Field("int", S),
+        "closed_on": Field("date", S),
+        "notes": Field("text", P),
+    },
+)
+
+sprint_availability = Record(
+    entity="sprint_availability",
+    table="sprint_availability",
+    path="/api/sprint-availability",
+    order_by="sprint_id, id",
+    fields={
+        "sprint_id": Field("int", S, required=True),
+        "person_id": Field("int", S, required=True),
+        "days": Field("int", S),
+        "note": Field("text", P),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2045,4 +2201,5 @@ RECORDS = [
     sdlc_stages, sdlc_environments, sdlc_policies,
     coaching_guides, coaching_tips, coaching_prompts, reflections,
     tech_debt, debt_decisions,
+    backlog_items, estimate_votes, sprint_plans, sprint_availability,
 ]

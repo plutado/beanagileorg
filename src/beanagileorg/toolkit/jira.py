@@ -24,6 +24,7 @@ SOURCES = [
     (models.vendor_concerns, "title", "Vendor concern", lambda r: f"/vendors/{r['vendor_id']}"),
     (models.arch_decisions, "title", "Architecture decision", lambda r: "/architecture/decisions"),
     (models.tech_debt, "title", "Tech debt", lambda r: "/debt"),
+    (models.backlog_items, "title", "Backlog story", lambda r: f"/planning/{r['sprint_id']}" if r.get("sprint_id") else "/planning"),
     (models.epics, "title", "Epic", lambda r: "/pi"),
     (models.features, "title", "Feature", lambda r: f"/pi/{r['pi_id']}" if r.get("pi_id") else "/pi"),
     (models.stories, "title", "Story", lambda r: "/pi"),
@@ -37,7 +38,7 @@ def find(key: str, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn))
         raise HTTPException(400, "That doesn't look like a Jira key such as ABC-123.")
     found = []
     for record, name_field, kind, link in SOURCES:
-        col = "jira_keys" if "jira_keys" in record.fields else "ticket_key"
+        col = "jira_keys" if "jira_keys" in record.fields else "jira_key" if "jira_key" in record.fields else "ticket_key"
         where = f"{col} LIKE ?" if col == "jira_keys" else f"{col} = ?"
         arg = f'%"{key}"%' if col == "jira_keys" else key
         for r in record.visible_all(record.fetch_all(conn, where, (arg,)), viewer):

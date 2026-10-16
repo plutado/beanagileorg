@@ -25,6 +25,8 @@
   BA.command({ label: "Browse coaching guides", hint: "Coaching", icon: "compass", run: () => BA.go("/coaching") });
   BA.command({ label: "Log technical debt", hint: "Tech debt", icon: "wrench", run: () => BA.go("/debt") });
   BA.command({ label: "Find a Jira key", hint: "Search everything that references it", icon: "search", run: () => { const k = prompt("Jira key, such as ABC-123"); if (k) BA.go(`/jira/${k.trim().toUpperCase()}`); } });
+  BA.command({ label: "Plan the next sprint", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning/plan") });
+  BA.command({ label: "Paste stories from Jira into the backlog", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -101,6 +103,7 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
+        ${d.planning_due && d.planning_due.length ? `<section class="card"><h2>Sprint planning</h2>${d.planning_due.map((p) => `<div class="item"><a href="#/planning/${p.sprint_id}">Plan sprint ${p.number}</a><span class="spacer"></span><span class="quiet">starts ${BA.fmtDate(p.start_date)} · ${p.ready_stories} ready stories, ${p.ready_points} points</span></div>`).join("")}</section>` : ""}
         ${d.debt_due && d.debt_due.length ? `<section class="card"><h2>Technical debt</h2>${d.debt_due.map((x) => `<div class="item"><span class="pill ${x.kind === "deadline" ? "warn" : ""}">${x.kind === "deadline" ? "needed by" : "revisit"}</span><a href="#/debt">${esc(x.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.when)}</span></div>`).join("")}</section>` : ""}
         ${d.onboarding_due.length ? `<section class="card"><h2>Onboarding</h2>${d.onboarding_due.map((o) => `<div class="item">${o.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/onboarding/${o.onboarding_id}">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${esc(o.person_name)} · ${esc(o.owner_role)} · ${BA.fmtDate(o.due)}</span></div>`).join("")}</section>` : ""}
         <section class="card"><h2>Due in the next 7 days</h2>${d.tasks_due_soon.map(taskRow).join("") || empty("Nothing due this week.")}</section>
@@ -853,7 +856,7 @@
         d.interactions
           .map((i) => `<div class="item" style="display:block"><div class="row"><b>${BA.fmtDate(i.date)}</b><span class="pill">${esc(i.channel)}</span>
               <span class="quiet">${esc((i.people || []).join(", "))}</span><span class="spacer"></span><button class="btn" data-follow="${i.id}">Add follow-up</button></div>
-              <p style="margin:6px 0 0">${esc(i.summary)}</p>${i.concerns ? `<p class="quiet" style="margin:4px 0 0">Concerns: ${esc(i.concerns)}</p>` : ""}</div>`)
+              <div style="margin:6px 0 0">${BA.md(i.summary)}</div>${i.concerns ? `<p class="quiet" style="margin:4px 0 0">Concerns: ${esc(i.concerns)}</p>` : ""}</div>`)
           .join("") || '<p class="quiet">No conversations logged yet.</p>'
       }</section>
       ${followUps}
@@ -1333,7 +1336,7 @@
     main.innerHTML = `<p><a href="#/retros">All retrospectives</a></p>
       <section class="card"><div class="row"><h2>${r.date ? BA.fmtDate(r.date) : "No date set"}</h2><span class="pill">${esc(r.format)}</span><span class="spacer"></span>
         <span class="quiet">${r.attendees.length ? "With " + esc(r.attendees.join(", ")) : ""}</span></div>
-        ${r.summary ? `<p>${esc(r.summary)}</p>` : ""}
+        ${r.summary ? BA.md(r.summary) : ""}
         ${ro ? "" : `<p class="quiet">Your private impressions belong in the <a href="#/sprints${r.sprint_id ? "/" + r.sprint_id : ""}">sprint notebook</a>'s retro note.</p>`}</section>
       ${d.carried_forward.length ? `<section class="card"><h2>Did we do what we said?</h2><p class="quiet">Open commitments from earlier retros.</p>${d.carried_forward
         .map((c) => `<div class="item" data-carry="${c.id}"><span>${esc(c.commitment)}</span>${BA.keysEditor(`/api/retro-commitments/${c.id}`, c.jira_keys)}<span class="quiet">${c.sprint_number ? `sprint ${c.sprint_number}` : ""} ${esc(c.owner_name || "")}</span><span class="spacer"></span>
@@ -1800,12 +1803,12 @@
     const crumbs = [`<a href="#/landscape${isOffer ? "" : "/org"}">${isOffer ? "Products and services" : "Organization"}</a>`, ...d.path.map((p) => `<a href="#/landscape/d-${p.id}">${esc(p.name)}</a>`)].join(" / ");
     const checks = (list, chosen, name) => list.map((x) => `<label class="check"><input type="checkbox" name="${name}" value="${x.id}"${chosen.includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("") || '<span class="quiet">None recorded yet.</span>';
     const facts = isOffer
-      ? `<p>${s.description ? esc(s.description) : '<span class="quiet">No description yet.</span>'}</p>
+      ? `${s.description ? BA.md(s.description) : '<p class="quiet">No description yet.</p>'}
         <div class="row">${[s.kind, s.status].map((x) => `<span class="pill">${esc(x)}</span>`).join(" ")}${s.maturity ? tonePill(s.maturity, MATURITY_TONES) : ""}
           ${s.department_name ? `<span class="quiet">Owned by ${esc(s.department_name)}</span>` : ""}</div>
         ${s.customers ? `<p class="quiet">Serves: ${esc(s.customers)}</p>` : ""}
         <p>Runs on: ${BA.chips(d.systems.map((x) => x.name)) || '<span class="quiet">no systems linked</span>'} · Vendors: ${BA.chips(d.vendors.map((x) => x.name)) || '<span class="quiet">none linked</span>'}</p>`
-      : `<p>${s.purpose ? esc(s.purpose) : '<span class="quiet">No purpose written yet.</span>'}</p>
+      : `${s.purpose ? BA.md(s.purpose) : '<p class="quiet">No purpose written yet.</p>'}
         <div class="row"><span class="pill">${esc(s.kind)}</span>${s.leader_name ? `<span class="quiet">Led by ${esc(s.leader_name)}</span>` : ""}</div>
         ${d.children.length ? `<p>Inside it: ${d.children.map((c) => `<a href="#/landscape/d-${c.id}">${esc(c.name)}</a>`).join(", ")}</p>` : ""}
         ${d.people.length ? `<p>People: ${esc(d.people.map((p) => p.name).join(", "))}</p>` : ""}
@@ -2751,14 +2754,15 @@
     const fields = (e = {}) => `<div class="grid2"><label>Name<input name="name" value="${esc(e.name || "")}" required></label><label>Platform<input name="platform" value="${esc(e.platform || "")}" placeholder="Such as: Salesforce, MuleSoft"></label>
         <label>Order in the path<input type="number" name="position" value="${esc(e.position ?? "")}"></label><label>System<select name="system_id">${sysOptions(systems, e.system_id)}</select></label>
         <label>Purpose<input name="purpose" value="${esc(e.purpose || "")}"></label><label>Data it holds<input name="data" value="${esc(e.data || "")}"></label>
-        <label>Who deploys<input name="deploys_by" value="${esc(e.deploys_by || "")}"></label><label>Refresh<input name="refresh" value="${esc(e.refresh || "")}" placeholder="Such as: after each platform release"></label></div>
+        <label>Who deploys<input name="deploys_by" value="${esc(e.deploys_by || "")}"></label><label>Refresh<input name="refresh" value="${esc(e.refresh || "")}" placeholder="Such as: after each platform release"></label>
+        <label>Branch <span class="quiet">(the Bitbucket branch tied to this environment)</span><input name="branch" value="${esc(e.branch || "")}"></label><label>How changes arrive<input name="deploy_method" value="${esc(e.deploy_method || "")}" placeholder="Such as: deployed when a pull request merges"></label></div>
         <label>Private notes<textarea name="notes">${esc(e.notes || "")}</textarea></label>`;
-    const read = (form) => { const f = new FormData(form); return { name: f.get("name"), platform: f.get("platform") || null, position: numOrNull(f.get("position")) ?? 0, system_id: numOrNull(f.get("system_id")), purpose: f.get("purpose"), data: f.get("data"), deploys_by: f.get("deploys_by"), refresh: f.get("refresh"), notes: f.get("notes") }; };
+    const read = (form) => { const f = new FormData(form); return { name: f.get("name"), platform: f.get("platform") || null, position: numOrNull(f.get("position")) ?? 0, system_id: numOrNull(f.get("system_id")), purpose: f.get("purpose"), data: f.get("data"), deploys_by: f.get("deploys_by"), refresh: f.get("refresh"), branch: f.get("branch"), deploy_method: f.get("deploy_method"), notes: f.get("notes") }; };
     main.innerHTML = `${sdlcTabs("environments")}${starterCard}
-      <p class="quiet">Where changes go on their way to production, in order, and what each environment is for.</p>
-      ${d.environments.map((g) => `<section class="card"><h2>${esc(g.platform)}</h2><div class="env-path">${g.environments.map((e) => `<span class="env-box">${esc(e.name)}</span>`).join('<span class="env-arrow">→</span>')}</div>
+      <p class="quiet">Where changes go on their way to production, in order, what each environment is for, and the branch tied to it. Salesforce work moves through sandboxes: a developer's own sandbox, the shared sandbox where merged work lands, the QA sandbox, then production.</p>
+      ${d.environments.map((g) => `<section class="card"><h2>${esc(g.platform)}</h2><div class="env-path">${g.environments.map((e) => `<span class="env-box">${esc(e.name)}${e.branch ? `<small>${esc(e.branch)}</small>` : ""}</span>`).join('<span class="env-arrow">→</span>')}</div>
         ${g.environments.map((e) => `<details class="plan-item" data-env="${e.id}"><summary><b>${esc(e.name)}</b><span class="quiet">${esc(e.purpose || "")}</span><span class="spacer"></span>${e.data ? `<span class="quiet">${esc(e.data)}</span>` : ""}</summary>
-          <p>${[e.deploys_by ? `Deploys: ${esc(e.deploys_by)}` : "", e.refresh ? `Refresh: ${esc(e.refresh)}` : "", e.system_name ? `System: ${esc(e.system_name)}` : ""].filter(Boolean).join(" · ")}</p>
+          <p>${[e.branch ? `Branch: ${esc(e.branch)}` : "", e.deploy_method ? `Changes arrive: ${esc(e.deploy_method)}` : "", e.deploys_by ? `Deploys: ${esc(e.deploys_by)}` : "", e.refresh ? `Refresh: ${esc(e.refresh)}` : "", e.system_name ? `System: ${esc(e.system_name)}` : ""].filter(Boolean).join(" · ")}</p>
           ${ro ? "" : `<form>${fields(e)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") || (starterCard ? "" : '<p class="empty">No environments yet.</p>')}
       ${ro ? "" : `<form id="add-env" class="card"><h2>Add an environment</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
     bindStarter();
@@ -2882,7 +2886,7 @@
       <article class="card guide coaching-guide"><div class="row"><span class="quiet">${esc(theme ? theme.title : g.theme)}</span><span class="spacer"></span>
           ${g.status === "draft" ? '<span class="pill warn">draft</span>' : ""}${tonePill(g.origin, ORIGIN_TONES)}${g.minutes ? `<span class="quiet">${g.minutes} min</span>` : ""}</div>
         <h2>${esc(g.title)}</h2>${g.summary ? `<p class="lead">${esc(g.summary)}</p>` : ""}
-        ${g.why ? `<h3>Why it matters</h3><p>${esc(g.why)}</p>` : ""}
+        ${g.why ? `<h3>Why it matters</h3>${BA.md(g.why)}` : ""}
         ${list("What to do", g.practices)}${list("Watch out for", g.pitfalls)}${list("Ask yourself", g.questions)}
         ${g.try_this && g.try_this.length ? `<h3>Try this week</h3>${g.try_this.map((x, i) => `<div class="item"><span>${esc(x)}</span><span class="spacer"></span>${ro ? "" : `<button class="btn" data-task="${i}">Add as a task</button>`}</div>`).join("")}` : ""}
         ${g.body ? `<h3>More</h3>${BA.md(g.body)}` : ""}
@@ -3075,12 +3079,13 @@
         system_ids: fd.getAll("system_ids").map(Number), notes: fd.get("notes") }; };
       const item = (i) => `<details class="plan-item${["done", "won't fix"].includes(i.status) ? " dropped" : ""}" data-debt="${i.id}"><summary><b>${esc(i.title)}</b><span class="spacer"></span>
           ${BA.issueKeys(i.ticket_key)}${BA.chips(i.categories)}${tonePill(i.quadrant, QUAD_TONES)}${i.value ? `<span class="quiet">value ${i.value} · ${esc(i.effort)}</span>` : ""}${i.trigger_date ? `<span class="pill warn">by ${BA.fmtDate(i.trigger_date)}</span>` : ""}${BA.statusPill(i.status)}</summary>
-          ${i.description ? `<p>${esc(i.description)}</p>` : ""}${i.cost_of_delay ? `<p><b>Cost of leaving it:</b> ${esc(i.cost_of_delay)}</p>` : ""}
+          ${i.description ? BA.md(i.description) : ""}${i.cost_of_delay ? `<p><b>Cost of leaving it:</b> ${esc(i.cost_of_delay)}</p>` : ""}
           <p class="quiet">${[i.systems.length ? `Systems: ${i.systems.map(esc).join(", ")}` : "", i.owner_name ? `Owner: ${esc(i.owner_name)}` : "", i.sprint_number ? `Sprint ${i.sprint_number}` : "", i.points ? `${i.points} points` : "",
             i.revisit_on ? `Revisit ${BA.fmtDate(i.revisit_on)}` : ""].filter(Boolean).join(" · ")} ${BA.keysEditor(`/api/tech-debt/${i.id}`, i.ticket_key, "ticket_key")}</p>
           <div class="decisions" data-decisions="${i.id}"></div>
           ${ro ? "" : `<form class="decide row"><select name="decision" style="max-width:160px">${opts(DEBT_DECISIONS, "schedule")}</select><input name="decided_by" placeholder="Decided by" style="max-width:180px">
             <input type="date" name="revisit_on" title="Revisit on (needed when accepting)" style="max-width:160px"><input name="rationale" placeholder="Why" style="flex:1;min-width:200px"><button class="btn" type="submit">Record decision</button></form>
+            <div class="row"><button class="btn" type="button" data-to-backlog>${BA.icon("list-ordered")} Add to the sprint backlog</button></div>
             <details><summary class="quiet">Edit</summary><form class="edit-debt">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
       main.innerHTML = `${debtTabs("")}
         <div class="stats">${d.categories.filter((c) => c.open).map((c) => `<section class="card stat" title="${esc(c.help)}"><div class="stat-n">${c.open}</div><div class="quiet">${esc(cap(c.key))}${c.points ? ` · ${c.points} pts` : ""}</div></section>`).join("") ||
@@ -3115,6 +3120,7 @@
         });
         const form = det.querySelector("form.edit-debt");
         form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/tech-debt/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+        det.querySelector("[data-to-backlog]").onclick = BA.guard(async () => { await BA.api(`/api/tech-debt/${id}/to-backlog`, { method: "POST" }); BA.toast("Added to the sprint backlog for refinement."); });
         det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this debt item and its decisions? Marking it won't fix keeps the record.")) return; await BA.api(`/api/tech-debt/${id}`, { method: "DELETE" }); BA.rerender(); });
       });
     },
@@ -3194,4 +3200,214 @@
         r.found.map((f) => `<div class="item"><span class="pill">${esc(f.kind)}</span><a href="#${esc(f.route)}">${esc(f.title)}</a></div>`).join("") || '<p class="quiet">Nothing in the toolkit mentions this key yet.</p>'}</section>`;
     },
   });
+
+  // ---------------------------------------------------------------- Sprint planning
+
+  const BACKLOG_TYPES = ["story", "bug", "task", "spike", "tech debt"];
+  const BACKLOG_TONES = { "needs refinement": "warn", ready: "good", "in sprint": "accent", done: "good", removed: "" };
+  const planTabs = (active) => `<nav class="tabs">${[["", "Backlog"], ["plan", "Plan a sprint"], ["ready", "Definition of ready"]]
+    .map(([k, label]) => `<a href="#/planning${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const readiness = (i) => (i.ready_total ? `<span class="pill ${i.ready_met === i.ready_total ? "good" : "warn"}" title="Definition of ready">${i.ready_met}/${i.ready_total} ready</span>` : "");
+  const spreadPill = (s) => (!s ? "" : s.discuss ? `<span class="pill bad" title="Votes ${s.votes.map((v) => v.points).join(", ")}">spread ${s.low} to ${s.high}: talk it through</span>` : `<span class="pill" title="Votes ${s.votes.map((v) => v.points).join(", ")}">votes ${s.low}${s.high !== s.low ? "–" + s.high : ""}</span>`);
+  const ptsLabel = (i) => (i.points != null ? `<b class="pts">${i.points}</b>` : '<span class="pill warn">not estimated</span>');
+
+  BA.view("/planning", {
+    title: "Sprint planning",
+    async render(main, param) {
+      if (param === "ready") return renderDor(main);
+      if (param === "plan" || /^\d+$/.test(param || "")) return renderPlan(main, param === "plan" ? null : Number(param));
+      const [d, people, pis] = await Promise.all([BA.api("/api/backlog"), BA.api("/api/people"), BA.api("/api/program-increments")]);
+      const team = people.filter((p) => p.active && ["employee", "contractor"].includes(p.relationship));
+      const ro = presenting();
+      const filter = sessionStorage.getItem("ba-backlog-filter") || "";
+      const items = d.items.filter((i) => !filter || i.status === filter);
+      const item = (i, idx) => `<details class="plan-item backlog-item" data-item="${i.id}"><summary>
+          ${ro ? "" : `<span class="rank-btns"><button class="icon-btn" type="button" title="Move up" data-move="-1"${idx === 0 ? " disabled" : ""}>${BA.icon("arrow-up")}</button><button class="icon-btn" type="button" title="Move down" data-move="1"${idx === items.length - 1 ? " disabled" : ""}>${BA.icon("arrow-down")}</button></span>`}
+          ${BA.keysEditor(`/api/backlog-items/${i.id}`, i.jira_key, "jira_key")}<b>${esc(i.title)}</b><span class="spacer"></span>
+          ${i.item_type !== "story" ? `<span class="pill">${esc(i.item_type)}</span>` : ""}${i.carried_from_number ? `<span class="pill warn">carried from sprint ${i.carried_from_number}</span>` : ""}
+          ${readiness(i)}${spreadPill(i.spread)}${ptsLabel(i)}${tonePill(i.status, BACKLOG_TONES)}</summary>
+        <div class="grid2 backlog-detail">
+          <div>${i.description ? `<h4>Story</h4>${BA.md(i.description)}` : ""}${i.acceptance ? `<h4>Acceptance criteria</h4>${BA.md(i.acceptance)}` : ""}
+            ${i.technical_notes ? `<h4>Technical notes</h4>${BA.md(i.technical_notes)}` : ""}${i.dependencies ? `<h4>Dependencies</h4><p>${esc(i.dependencies)}</p>` : ""}
+            ${[i.feature_title ? `Feature: ${esc(i.feature_title)}` : "", i.debt_title ? `From tech debt: <a href="#/debt">${esc(i.debt_title)}</a>` : "", i.owner_name ? `Owner: ${esc(i.owner_name)}` : ""].filter(Boolean).map((x) => `<p class="quiet">${x}</p>`).join("")}</div>
+          <div>${d.definition_of_ready.length ? `<h4>Definition of ready</h4>${d.definition_of_ready.map((c) => `<label class="check"><input type="checkbox" data-check="${esc(c)}"${(i.ready_checks || []).includes(c) ? " checked" : ""}${ro ? " disabled" : ""}> ${esc(c)}</label>`).join("<br>")}` : '<p class="quiet">Agree a <a href="#/planning/ready">definition of ready</a> to check stories against.</p>'}
+            ${ro ? "" : `<h4>Estimate together</h4><form class="votes">${team.map((p) => `<label class="vote">${esc(p.name)}<select name="v-${p.id}"><option value=""></option>${[0, 1, 2, 3, 5, 8, 13, 21].map((n) => `<option>${n}</option>`).join("")}</select></label>`).join("") || '<span class="quiet">Add team members under People to vote.</span>'}
+              <button class="btn" type="submit">Record votes</button></form>`}</div></div>
+        ${ro ? "" : `<div class="row"><select name="status" data-field="status" style="max-width:170px">${opts(["needs refinement", "ready", "removed"], i.status)}</select>
+          <label class="check">Points <input type="number" min="0" data-field="points" value="${esc(i.points ?? "")}" style="max-width:80px"></label>
+          <label class="check">Confidence <select data-field="confidence" style="max-width:110px"><option value=""></option>${opts(["low", "medium", "high"], i.confidence)}</select></label></div>
+        <details><summary class="quiet">Edit details</summary><form class="edit-item"><div class="grid2">
+          <label>Title<input name="title" value="${esc(i.title)}" required></label><label>Type<select name="item_type">${opts(BACKLOG_TYPES, i.item_type)}</select></label>
+          <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
+          <label>PI feature <span class="quiet">(optional)</span><select name="feature_id" data-features><option value=""></option></select></label></div>
+          <label>Story <span class="quiet">(the problem or user story)</span><textarea name="description" rows="3">${esc(i.description || "")}</textarea></label>
+          <label>Acceptance criteria<textarea name="acceptance" rows="3">${esc(i.acceptance || "")}</textarea></label>
+          <label>Technical notes <span class="quiet">(approach, risks, what to touch)</span><textarea name="technical_notes" rows="3">${esc(i.technical_notes || "")}</textarea></label>
+          <label>Dependencies<input name="dependencies" value="${esc(i.dependencies || "")}"></label>
+          <label>Private notes<textarea name="notes" rows="2">${esc(i.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
+      main.innerHTML = `${planTabs("")}
+        <p class="quiet">The next set of candidate stories for the upcoming sprint, in priority order. Bring them over from Jira, refine them until they're ready, estimate together, then pull them into a sprint.</p>
+        ${ro ? "" : `<details class="card"${d.items.length ? "" : " open"}><summary><b>Bring stories over from Jira</b></summary>
+          <form id="paste"><label>One per line: the Jira key, then the title. Add <code>| 5</code> at the end for points.<textarea name="text" rows="5" class="mono" placeholder="ABC-123 [Placeholder story title]&#10;ABC-124 [Placeholder story title] | 3"></textarea></label>
+            <label class="check"><input type="checkbox" name="update"> Update titles and points of stories already here</label><div class="actions"><button class="btn primary" type="submit">Add to backlog</button></div></form><div id="paste-result"></div></details>`}
+        <div class="row"><select id="bf" style="max-width:200px"><option value="">Everything open</option>${opts(["needs refinement", "ready"], filter)}</select><span class="spacer"></span>
+          <span class="quiet">${d.items.filter((i) => i.status === "ready").length} ready, ${d.items.filter((i) => i.status === "ready").reduce((n, i) => n + (i.points || 0), 0)} points · <a href="#/planning/plan">Plan a sprint</a></span></div>
+        <section class="card">${items.map(item).join("") || '<p class="quiet">The backlog is empty.</p>'}</section>
+        ${ro ? "" : `<section class="card"><h2>Add one story</h2><form id="add-item" class="row"><input name="jira_key" placeholder="ABC-123" style="max-width:130px"><input name="title" required placeholder="Title" style="flex:1;min-width:220px">
+          <select name="item_type" style="max-width:140px">${opts(BACKLOG_TYPES, "story")}</select><button class="btn" type="submit">Add</button></form></section>`}`;
+      main.querySelector("#bf").onchange = (e) => { sessionStorage.setItem("ba-backlog-filter", e.target.value); BA.rerender(); };
+      if (ro) return;
+      const features = (await Promise.all(pis.slice(0, 3).map((p) => BA.api(`/api/pis/${p.id}/board`).then((b) => b.features.map((f) => ({ ...f, pi: p.number })))))).flat();
+      main.querySelectorAll("[data-features]").forEach((sel) => {
+        const cur = Number(sel.closest("[data-item]") && d.items.find((i) => i.id === Number(sel.closest("[data-item]").dataset.item))?.feature_id);
+        sel.innerHTML += features.map((f) => `<option value="${f.id}"${f.id === cur ? " selected" : ""}>PI ${f.pi}: ${esc(f.title)}</option>`).join("");
+      });
+      const paste = main.querySelector("#paste");
+      paste.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const r = await BA.api("/api/backlog/paste", { method: "POST", body: { text: paste.elements.text.value, update: paste.elements.update.checked } });
+        BA.toast(`${r.added} added, ${r.updated} updated, ${r.skipped} already here${r.not_understood.length ? `, ${r.not_understood.length} lines not understood` : ""}.`);
+        BA.rerender();
+      });
+      main.querySelector("#add-item").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        await BA.api("/api/backlog-items", { method: "POST", body: { jira_key: fd.get("jira_key") || null, title: fd.get("title"), item_type: fd.get("item_type"), rank: d.items.length + 1, added_on: BA.today() } });
+        BA.rerender();
+      });
+      const ids = items.map((i) => i.id);
+      main.querySelectorAll("[data-item]").forEach((det) => {
+        const id = Number(det.dataset.item);
+        const it = d.items.find((i) => i.id === id);
+        det.querySelectorAll("[data-move]").forEach((b) => (b.onclick = BA.guard(async (e) => {
+          e.preventDefault();
+          const pos = ids.indexOf(id), to = pos + Number(b.dataset.move);
+          const order = [...ids];
+          [order[pos], order[to]] = [order[to], order[pos]];
+          await BA.api("/api/backlog/reorder", { method: "POST", body: { ids: order } });
+          BA.rerender();
+        })));
+        det.querySelectorAll("[data-check]").forEach((cb) => (cb.onchange = BA.guard(async () => {
+          const checks = [...det.querySelectorAll("[data-check]:checked")].map((x) => x.dataset.check);
+          await BA.api(`/api/backlog-items/${id}`, { method: "PATCH", body: { ready_checks: checks } });
+          BA.toast(checks.length === d.definition_of_ready.length ? "Meets the definition of ready." : "Saved.");
+        })));
+        det.querySelectorAll("[data-field]").forEach((el) => (el.onchange = BA.guard(async () => {
+          const f = el.dataset.field;
+          const value = f === "points" ? numOrNull(el.value) : el.value || null;
+          if (f === "status" && value === "ready" && it.ready_total && it.ready_met < it.ready_total && !confirm("This story doesn't meet every item in the definition of ready yet. Mark it ready anyway?")) { el.value = it.status; return; }
+          await BA.api(`/api/backlog-items/${id}`, { method: "PATCH", body: { [f]: value } });
+          BA.rerender();
+        })));
+        const votes = det.querySelector("form.votes");
+        if (votes) votes.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const vs = team.map((p) => ({ person_id: p.id, points: numOrNull(votes.elements[`v-${p.id}`].value) })).filter((v) => v.points != null);
+          const s = await BA.api(`/api/backlog-items/${id}/votes`, { method: "POST", body: { votes: vs } });
+          BA.toast(s.discuss ? `Votes run from ${s.low} to ${s.high}. Ask the highest and lowest to explain, then vote again.` : `Votes agree around ${s.median}.`);
+          if (!s.discuss && it.points == null) await BA.api(`/api/backlog-items/${id}`, { method: "PATCH", body: { points: Math.round(s.median) } });
+          BA.rerender();
+        });
+        const form = det.querySelector("form.edit-item");
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const fd = new FormData(form);
+          await BA.api(`/api/backlog-items/${id}`, { method: "PATCH", body: { title: fd.get("title"), item_type: fd.get("item_type"), owner_id: numOrNull(fd.get("owner_id")), feature_id: numOrNull(fd.get("feature_id")),
+            description: fd.get("description"), acceptance: fd.get("acceptance"), technical_notes: fd.get("technical_notes"), dependencies: fd.get("dependencies"), notes: fd.get("notes") } });
+          BA.rerender();
+        });
+        det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this story from the backlog? Marking it removed keeps the record.")) return; await BA.api(`/api/backlog-items/${id}`, { method: "DELETE" }); BA.rerender(); });
+      });
+    },
+  });
+
+  async function renderPlan(main, sprintId) {
+    const sprints = await BA.api("/api/sprints");
+    const ro = presenting();
+    if (!sprints.length) { main.innerHTML = `${planTabs("plan")}<p class="empty">Start a sprint in the <a href="#/sprints">sprint notebook</a> first.</p>`; return; }
+    if (!sprintId) {
+      const today = BA.today();
+      const upcoming = [...sprints].sort((a, b) => a.number - b.number).find((s) => s.start_date && s.start_date >= today) || [...sprints].sort((a, b) => b.number - a.number)[0];
+      sprintId = upcoming.id;
+    }
+    const d = await BA.api(`/api/sprint-planning/${sprintId}`);
+    const s = d.sprint, c = d.capacity, plan = d.plan;
+    document.getElementById("view-title").textContent = `Sprint ${s.number} planning`;
+    const pct = c.points ? Math.min(100, Math.round((100 * c.planned) / c.points)) : 0;
+    const over = c.points != null && c.planned > c.points;
+    const row = (i, inSprint) => `<div class="plan-row" data-row="${i.id}">${BA.issueKeys(i.jira_key)}<span>${esc(i.title)}</span>${i.carried_from_number ? `<span class="pill warn">carried</span>` : ""}
+        <span class="spacer"></span>${readiness(i)}${spreadPill(i.spread)}${ptsLabel(i)}
+        ${ro ? (inSprint ? tonePill(i.status, BACKLOG_TONES) : "") : inSprint
+          ? `${plan.status !== "planning" ? `<select data-status style="max-width:120px">${opts(["in sprint", "done", "removed"], i.status === "ready" ? "in sprint" : i.status)}</select>` : ""}<button class="icon-btn" title="Back to the backlog" data-return>${BA.icon("undo-2")}</button>`
+          : `<button class="btn" data-pull>${BA.icon("arrow-big-up")} Pull in</button>`}</div>`;
+    const vel = c.velocity.history;
+    const maxV = Math.max(1, ...vel.map((v) => v.completed));
+    main.innerHTML = `${planTabs("plan")}
+      <div class="row"><select id="sprint-pick" style="max-width:220px">${[...sprints].sort((a, b) => b.number - a.number).map((x) => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>Sprint ${x.number}${x.start_date ? " · " + BA.fmtDate(x.start_date) : ""}</option>`).join("")}</select>
+        ${tonePill(plan.status, { planning: "warn", committed: "accent", closed: "good" })}<span class="quiet">${d.working_days ? `${d.working_days} working days` : "Set sprint dates in the sprint notebook"}</span><span class="spacer"></span>
+        ${ro ? "" : `<button class="btn" id="copy-plan">${BA.icon("copy")} Copy plan</button>`}</div>
+      <section class="card"><h2>Sprint goal</h2>${ro || plan.status === "closed" ? `<p>${esc(s.goal || "Not set.")}</p>` : `<textarea id="goal" rows="2" placeholder="What will be true at the end of this sprint?">${esc(s.goal || "")}</textarea>`}</section>
+      <div class="cards">
+        <section class="card"><h2>Capacity</h2>
+          <div class="cap-bar${over ? " over" : ""}"><span style="width:${pct}%"></span></div>
+          <p><b>${c.planned}</b> of <b>${c.points ?? "?"}</b> points planned${over ? ' <span class="pill bad">over capacity</span>' : ""}${c.unestimated ? ` <span class="pill warn">${c.unestimated} not estimated</span>` : ""}</p>
+          <p class="quiet">${c.full_days ? `${c.available_days} of ${c.full_days} person-days available` : "Add team members under People to plan by availability"}${c.velocity.average != null ? ` · recent velocity ${c.velocity.average}` : ""}${c.suggested != null ? ` · suggested ${c.suggested}` : ""}</p>
+          ${ro ? "" : `<label class="check">Capacity override <input type="number" id="cap-override" min="0" value="${esc(plan.capacity_override ?? "")}" style="max-width:90px"></label>`}
+          ${vel.length ? `<div class="vel">${vel.map((v) => `<div title="Sprint ${v.sprint}: ${v.completed} points"><span style="height:${Math.round((100 * v.completed) / maxV)}%"></span><small>${v.sprint}</small></div>`).join("")}</div><p class="quiet">Completed points, recent sprints</p>` : ""}</section>
+        <section class="card"><h2>Who's available</h2>${d.people.map((p) => `<div class="item"><span>${esc(p.name)}</span><span class="spacer"></span>${ro ? `<span class="quiet">${p.days ?? "?"} days</span>`
+          : `<input type="number" min="0" data-avail="${p.person_id}" value="${esc(p.days ?? "")}" style="max-width:70px"><span class="quiet">days</span>`}</div>`).join("") || '<p class="quiet">No team members yet. Add people with the employee or contractor relationship.</p>'}</section>
+      </div>
+      <div class="plan-cols">
+        <section class="card"><h2>In sprint ${s.number} <span class="quiet">${d.pulled.length}</span></h2>${d.pulled.map((i) => row(i, true)).join("") || '<p class="quiet">Nothing pulled in yet.</p>'}</section>
+        ${plan.status === "closed" ? "" : `<section class="card"><h2>Ready on the backlog <span class="quiet">${d.ready.length}</span></h2>${d.ready.map((i) => row(i, false)).join("") || '<p class="quiet">No ready stories. <a href="#/planning">Refine the backlog</a>.</p>'}</section>`}
+      </div>
+      ${ro ? "" : `<div class="row">${plan.status === "planning" ? `<button class="btn primary" id="commit">Commit the sprint</button>` : ""}${plan.status === "committed" ? `<button class="btn" id="close-sprint">Close the sprint</button>` : ""}
+        ${plan.status === "committed" ? `<span class="quiet">Committed ${plan.committed_points} points on ${BA.fmtDate(plan.committed_on)}.</span>` : ""}${plan.status === "closed" ? `<span class="quiet">Closed: ${plan.completed_points} of ${plan.committed_points ?? "?"} points done.</span>` : ""}</div>`}`;
+    main.querySelector("#sprint-pick").onchange = (e) => BA.go(`/planning/${e.target.value}`);
+    if (ro) return;
+    const goal = main.querySelector("#goal");
+    if (goal) goal.onchange = BA.guard(async () => { await BA.api(`/api/sprints/${s.id}`, { method: "PATCH", body: { goal: goal.value } }); BA.toast("Goal saved."); });
+    main.querySelector("#cap-override").onchange = BA.guard(async (e) => { await BA.api(`/api/sprint-plans/${plan.id}`, { method: "PATCH", body: { capacity_override: numOrNull(e.target.value) } }); BA.rerender(); });
+    main.querySelectorAll("[data-avail]").forEach((el) => (el.onchange = BA.guard(async () => { await BA.api(`/api/sprint-planning/${s.id}/availability`, { method: "PUT", body: { person_id: Number(el.dataset.avail), days: numOrNull(el.value) } }); BA.rerender(); })));
+    main.querySelectorAll("[data-row]").forEach((r) => {
+      const id = Number(r.dataset.row);
+      const pullB = r.querySelector("[data-pull]");
+      if (pullB) pullB.onclick = BA.guard(async () => { const res = await BA.api(`/api/sprint-planning/${s.id}/pull`, { method: "POST", body: { item_id: id } }); if (res.warning) BA.toast(res.warning); BA.rerender(); });
+      const ret = r.querySelector("[data-return]");
+      if (ret) ret.onclick = BA.guard(async () => { await BA.api(`/api/sprint-planning/${s.id}/return`, { method: "POST", body: { item_id: id } }); BA.rerender(); });
+      const st = r.querySelector("[data-status]");
+      if (st) st.onchange = BA.guard(async () => { await BA.api(`/api/backlog-items/${id}`, { method: "PATCH", body: { status: st.value } }); BA.rerender(); });
+    });
+    const commitB = main.querySelector("#commit");
+    if (commitB) commitB.onclick = BA.guard(async () => {
+      if (over && !confirm(`That's ${c.planned} points against a capacity of ${c.points}. Commit anyway?`)) return;
+      await BA.api(`/api/sprint-planning/${s.id}/commit`, { method: "POST", body: { goal: goal ? goal.value : null } });
+      BA.toast("Sprint committed.");
+      BA.rerender();
+    });
+    const closeB = main.querySelector("#close-sprint");
+    if (closeB) closeB.onclick = BA.guard(async () => {
+      if (!confirm("Close the sprint? Unfinished stories carry into the next sprint (or back to the backlog if there isn't one).")) return;
+      const r = await BA.api(`/api/sprint-planning/${s.id}/close`, { method: "POST", body: {} });
+      BA.toast(`${r.completed_points} points done; ${r.carried} stories carried over.`);
+      BA.rerender();
+    });
+    main.querySelector("#copy-plan").onclick = BA.guard(async () => { const out = await BA.api(`/api/sprint-planning/${s.id}/summary/export`, { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Plan copied."); });
+  }
+
+  async function renderDor(main) {
+    const d = await BA.api("/api/planning/definition-of-ready");
+    const ro = presenting();
+    main.innerHTML = `${planTabs("ready")}
+      <section class="card"><h2>Definition of ready</h2><p class="quiet">What a story needs before the team pulls it into a sprint. Each backlog story is checked against this list. Agree it with the team, then revisit it at retros.</p>
+        ${d.items.length ? `<ul class="checklist">${d.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : '<p class="quiet">Nothing agreed yet.</p>'}
+        ${ro ? "" : `<form id="dor"><label>One item per line<textarea name="items" rows="8">${esc(d.items.join("\n"))}</textarea></label>
+          <div class="actions">${d.items.length ? "" : '<button class="btn left" type="button" id="dor-starter">Load a starter list</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}
+        <p class="quiet">Its partner, the <a href="#/qa/dod">definition of done</a>, lives under QA resources.</p></section>`;
+    if (ro) return;
+    main.querySelector("#dor").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/planning/definition-of-ready", { method: "PUT", body: { items: new FormData(e.target).get("items").split("\n") } }); BA.toast("Saved."); BA.rerender(); });
+    const st = main.querySelector("#dor-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/planning/definition-of-ready/starter", { method: "POST", body: {} }); BA.rerender(); });
+  }
 })();

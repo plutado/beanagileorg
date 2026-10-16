@@ -125,6 +125,7 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .env-path { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
 .env-box { border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 12px; background: var(--panel-2); font-weight: 600; font-size: .9rem; }
 .env-arrow { color: var(--muted); }
+.env-box small { display: block; font-weight: 400; font-size: .75rem; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
 
 .coaching-guide .lead { font-size: 1.05rem; }
 .coaching-guide h3 { margin: 16px 0 6px; font-size: .95rem; }
@@ -145,3 +146,25 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .debt-matrix .dot circle { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
 .debt-matrix .q-quick-win circle { fill: var(--good); } .debt-matrix .q-money-pit circle { fill: var(--bad); }
 .decisions h4 { margin: 8px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+.backlog-item summary { gap: 6px; }
+.rank-btns { display: inline-flex; flex-direction: column; margin-right: 2px; }
+.rank-btns .icon-btn { height: 14px; padding: 0 2px; }
+.rank-btns .icon-btn svg { width: 12px; height: 12px; }
+.pts { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; background: var(--accent-soft, var(--panel-2)); color: var(--accent); font-size: .85rem; }
+.backlog-detail h4 { margin: 10px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.votes { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.votes .vote { display: flex; flex-direction: column; font-size: .8rem; }
+.votes .vote select { max-width: 80px; }
+.cap-bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin: 6px 0 8px; }
+.cap-bar span { display: block; height: 100%; background: var(--accent); }
+.cap-bar.over span { background: var(--bad); }
+.vel { display: flex; align-items: flex-end; gap: 6px; height: 70px; margin-top: 10px; }
+.vel div { flex: 1; max-width: 36px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.vel span { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.vel small { font-size: .7rem; color: var(--muted); }
+.plan-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .plan-cols { grid-template-columns: 1fr; } }
+.plan-cols .card { margin: 0; }
+.plan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.plan-row:last-child { border-bottom: 0; }

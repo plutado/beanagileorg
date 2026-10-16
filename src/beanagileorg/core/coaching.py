@@ -675,6 +675,38 @@ GUIDES = [
         ],
         "related": ["/debt", "/risks", "/architecture"], "reading": [MEA],
     },
+    # ---------------------------------------------------------------- added in starter version 3
+    {
+        "slug": "refinement-and-estimation", "theme": "agile", "minutes": 6, "since": 3,
+        "title": "Refinement and estimation that make planning easy",
+        "summary": "Most sprint planning problems are refinement problems. Stories that are ready and estimated make planning short and the commitment real.",
+        "why": "When stories arrive at planning half-understood, the meeting turns into refinement, estimates are guesses, and the sprint fills with surprises. A steady habit of refinement during the sprint, against an agreed definition of ready, fixes that.",
+        "practices": [
+            "Keep two sprints' worth of stories near the top of the backlog refined and ready.",
+            "Refine with the whole team in the room, including QA, so acceptance criteria and test approach are shared.",
+            "Write down the technical approach and dependencies while the conversation is fresh.",
+            "Estimate together, in relative points, and vote at the same time so nobody anchors on the first number.",
+            "When votes spread widely, ask the highest and lowest to explain. The difference is usually something one of them knows.",
+            "Plan to the team's real capacity: recent velocity, adjusted for who's away. Leave room for the unexpected.",
+            "Start planning with the sprint goal, then pull the stories that serve it.",
+        ],
+        "pitfalls": [
+            "Refining stories for the first time in sprint planning.",
+            "Treating estimates as promises, or comparing velocity between teams.",
+            "Filling capacity to 100% and leaving no room for support work and surprises.",
+            "Pulling stories that aren't ready because they're urgent.",
+        ],
+        "questions": [
+            "How many ready stories are on the backlog right now, in points?",
+            "Which story's estimate spread the most last time, and what did we learn?",
+            "Did we finish what we committed to last sprint? If not, why?",
+        ],
+        "try": [
+            "Hold a 45-minute refinement session mid-sprint, and aim to leave it with the next sprint's stories ready.",
+            "Agree a definition of ready with the team and check the top five stories against it.",
+        ],
+        "related": ["/planning", "/sprints", "/qa"], "reading": [SG, MEA],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -691,6 +723,9 @@ TIPS = {
                 ("The 'don't change' notes matter as much as the complaints. Plan to keep them.", "read-the-situation")],
     "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum")],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
+    "/planning": [("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
+                  ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
+                  ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
     "/retros": [("Open every retro by reviewing last time's commitments. That's what makes retros worth the hour.", "retros"),
                 ("If you're the manager, speak last.", "psychological-safety")],
     "/pi": [("Make cross-team dependencies visible early, each with an owner and a needed-by date.", "scrum-of-scrums")],
@@ -775,7 +810,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 2  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 3  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

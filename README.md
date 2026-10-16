@@ -18,6 +18,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Scoped API tokens** for LLM clients and the other app: `export:read`, `present:read`, `full`, plus app scopes such as `delivery:write`.
 - **Change log and export log.** Every data change records the field, old and new value and who made it (you or a named token), and every export records what went out.
 - **Design system.** Tailwind CSS v4 tokens with light and dark themes, Inter type, Lucide icons and responsive layouts.
+- **Code blocks.** Paste code between triple backticks in any longer text box (Apex, SOQL, LWC markup, JSON, YAML and more) and it's kept exactly as pasted and shown like a code editor, with a copy button.
 - **Jira keys.** Anything tracked in Jira (dev-sync items, risks, roadmap items, tests and test failures, incidents, retro commitments, onboarding items, vendor concerns, decisions, stories and tech debt) can carry its Jira keys, which link straight to the issue once the Jira address is set. Find a Jira key shows everywhere a key is mentioned.
 - **Built-in guidance.** Every section explains its purpose and how to use it at the top of the page, and the Help page gathers them into one guide.
 - **Command palette and shortcuts.** ⌘K or / jumps to any screen or runs an action; ? lists the shortcuts.
@@ -39,6 +40,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 **Delivery**
 
 - **SDLC:** how work moves from idea to production: stages with when each starts and when it's done, who's involved and what it produces; environments and the promotion path for Salesforce and MuleSoft; policies from draft to agreed; change history; and the whole thing as one Markdown document to share.
+- **Sprint planning:** the backlog of candidate stories beside Jira (paste keys and titles), refined against a definition of ready and estimated together with team votes; then plan each sprint from who's available and recent velocity, pull ready stories up to capacity, set the goal, commit, and close the sprint to carry unfinished work over. A plan summary copies back to Jira.
 - **Sprint notebook:** sprints with goals and dates, a private note per ceremony (planning, refinement, review, retro, dev sync, ad hoc, PI planning, end-of-PI demo) with prompts for what happened, what you noticed, implementation thoughts and follow-ups. Follow-ups become dev-sync items tied to the sprint, and anything still open shows in the next sprint's notebook.
 - **SAFe-ready:** optional Program Increments and innovation and planning sprints.
 - **Retrospectives:** a shared board per sprint in four formats, with votes and topic tags; commitments with owner, due date and status, tagged to the sprint they came from; each retro opens by reviewing earlier commitments; a running improvement backlog and a list of topics that keep coming back.
