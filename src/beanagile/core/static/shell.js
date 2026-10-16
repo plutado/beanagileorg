@@ -33,6 +33,94 @@
     BA.views[path] = def;
   };
 
+  // ---- small helpers shared by app screens ----
+
+  BA.today = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  };
+
+  BA.fmtDate = (s) =>
+    s ? new Date(s + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+
+  BA.chips = (items) => (items || []).map((x) => `<span class="pill">${BA.esc(x)}</span>`).join(" ");
+
+  BA.statusPill = (s) => {
+    const cls = { done: "good", "at risk": "bad", "in progress": "warn", planned: "warn", open: "warn" }[s] || "";
+    return s ? `<span class="pill ${cls}">${BA.esc(s)}</span>` : "";
+  };
+
+  // Field spec: {name, label, type: text|textarea|date|number|select|list|checkbox, options, numeric}
+  BA.input = (f, value) => {
+    const id = `f-${f.name}`;
+    const v = value ?? (f.type === "list" ? [] : "");
+    const attrs = `id="${id}" name="${BA.esc(f.name)}"${f.required ? " required" : ""}${f.placeholder ? ` placeholder="${BA.esc(f.placeholder)}"` : ""}`;
+    let control;
+    switch (f.type) {
+      case "textarea":
+        control = `<textarea ${attrs}>${BA.esc(v)}</textarea>`;
+        break;
+      case "select":
+        control = `<select ${attrs}>${f.blank !== false ? '<option value=""></option>' : ""}${f.options
+          .map((o) => {
+            const val = o.value ?? o;
+            return `<option value="${BA.esc(val)}"${String(val) === String(v) ? " selected" : ""}>${BA.esc(o.label ?? o)}</option>`;
+          })
+          .join("")}</select>`;
+        break;
+      case "list":
+        control = `<input ${attrs} value="${BA.esc(v.join(", "))}">`;
+        break;
+      case "checkbox":
+        return `<label class="check"><input type="checkbox" ${attrs}${v ? " checked" : ""}> ${BA.esc(f.label)}</label>`;
+      case "number":
+        control = `<input type="number" ${attrs} value="${BA.esc(v)}">`;
+        break;
+      case "date":
+        control = `<input type="date" ${attrs} value="${BA.esc(v)}">`;
+        break;
+      default:
+        control = `<input ${attrs} value="${BA.esc(v)}">`;
+    }
+    const hint = f.hint ? ` <span class="quiet">${BA.esc(f.hint)}</span>` : "";
+    return `<label for="${id}">${BA.esc(f.label)}${hint}${control}</label>`;
+  };
+
+  BA.form = (fields, rec = {}) => fields.map((f) => BA.input(f, rec[f.name])).join("");
+
+  BA.readForm = (form, fields) => {
+    const out = {};
+    for (const f of fields) {
+      const el = form.elements[f.name];
+      if (!el) continue;
+      if (f.type === "list") out[f.name] = el.value.split(",").map((s) => s.trim()).filter(Boolean);
+      else if (f.type === "checkbox") out[f.name] = el.checked;
+      else if (f.type === "number" || f.numeric) out[f.name] = el.value === "" ? null : Number(el.value);
+      else out[f.name] = el.value;
+    }
+    return out;
+  };
+
+  // Read-only view of whatever fields the server returned (used in presentation mode).
+  BA.readOnly = (fields, rec) =>
+    `<dl class="readonly">${fields
+      .filter((f) => rec[f.name] !== undefined && rec[f.name] !== null && rec[f.name] !== "")
+      .map((f) => {
+        const v = rec[f.name];
+        const shown = Array.isArray(v) ? BA.chips(v) : typeof v === "boolean" ? (v ? "Yes" : "No") : BA.esc(v);
+        return `<dt>${BA.esc(f.label)}</dt><dd>${shown}</dd>`;
+      })
+      .join("")}</dl>`;
+
+  BA.guard = (fn) => async (...args) => {
+    try {
+      await fn(...args);
+    } catch (err) {
+      BA.toast(err.message);
+    }
+  };
+
   BA.go = (path) => {
     if (location.hash === "#" + path) route();
     else location.hash = path;

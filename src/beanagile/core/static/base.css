@@ -73,6 +73,19 @@ table.data th { font-size: .8rem; color: var(--muted); background: var(--bg); fo
 .tablewrap { overflow-x: auto; }
 .empty { color: var(--muted); padding: 24px; text-align: center; }
 
+.readonly { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.readonly dt { color: var(--muted); font-weight: 600; }
+.readonly dd { margin: 0; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--accent-soft); }
+.actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.actions .left { margin-right: auto; }
+.bar { height: 6px; background: var(--accent); border-radius: 3px; margin-top: 4px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.cards .card { margin: 0; }
+.item { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; }
 
 .auth-page { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
