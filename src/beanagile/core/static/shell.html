@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="stylesheet" href="/core-static/base.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">{{TITLE}}</div>
+    <nav id="nav" aria-label="Main"></nav>
+    <form method="post" action="/logout" class="signout"><button type="submit" class="link">Sign out</button></form>
+  </aside>
+  <div class="main-col">
+    <header class="topbar">
+      <h1 id="view-title"></h1>
+      <div class="topbar-actions">
+        <span id="present-badge" class="present-badge" hidden>Presentation mode: private fields hidden</span>
+        <button id="present-toggle" class="btn" type="button">Present</button>
+      </div>
+    </header>
+    <main id="view" tabindex="-1"></main>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="/core-static/shell.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

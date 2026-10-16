@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+dist/
+*.egg-info/
+# Local data never goes in the repo
+data/
+*.db
+*.db-wal
+*.db-shm
+secret.key
+.env
+.DS_Store
