@@ -1,12 +1,12 @@
 """Toolkit endpoints beyond plain records: rollup, skills, Today, obligations, settings, placeholder data."""
 
-import calendar
 from collections import Counter
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from beanagile.core.app import get_conn, get_viewer, require_full
+from beanagile.core.dates import next_occurrence
 from beanagile.core.privacy import Level, Viewer
 
 from . import models
@@ -19,24 +19,6 @@ NOTE_FIELDS = ("change_first", "frustrating", "dont_change", "gaps", "opportunit
 
 def today() -> date:
     return date.today()
-
-
-def add_months(d: date, months: int) -> date:
-    year, month = divmod(d.month - 1 + months, 12)
-    year, month = d.year + year, month + 1
-    return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
-
-
-def next_occurrence(d: date, cadence: str) -> date | None:
-    if cadence == "weekly":
-        return d + timedelta(days=7)
-    if cadence == "every two weeks":
-        return d + timedelta(days=14)
-    if cadence == "monthly":
-        return add_months(d, 1)
-    if cadence == "quarterly":
-        return add_months(d, 3)
-    return None
 
 
 def require_write(viewer: Viewer) -> None:

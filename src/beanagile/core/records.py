@@ -21,7 +21,7 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 @dataclass(frozen=True)
 class Field:
-    type: str  # text | date | int | bool | list | json (an object)
+    type: str  # text | date | int | bool | list (of text) | ids (list of record ids) | json (an object)
     level: Level = Level.PRIVATE
     required: bool = False
     choices: tuple[str, ...] | None = None
@@ -56,7 +56,7 @@ class Record:
     def _decode(self, row: sqlite3.Row) -> dict:
         rec = dict(row)
         for name, f in self.fields.items():
-            if f.type == "list":
+            if f.type in ("list", "ids"):
                 rec[name] = json.loads(rec[name]) if rec[name] else []
             elif f.type == "json":
                 rec[name] = json.loads(rec[name]) if rec[name] else {}
@@ -108,7 +108,7 @@ class Record:
         if value is None or value == "":
             if f.required:
                 raise HTTPException(400, f"{name} is required.")
-            return {"list": [], "json": {}, "bool": False}.get(f.type)
+            return {"list": [], "ids": [], "json": {}, "bool": False}.get(f.type)
         if f.type in ("text", "date"):
             if not isinstance(value, str):
                 raise HTTPException(400, f"{name} must be text.")
@@ -126,6 +126,10 @@ class Record:
             if not isinstance(value, bool):
                 raise HTTPException(400, f"{name} must be true or false.")
             return value
+        if f.type == "ids":
+            if not isinstance(value, list) or not all(isinstance(v, int) and not isinstance(v, bool) for v in value):
+                raise HTTPException(400, f"{name} must be a list of ids.")
+            return list(dict.fromkeys(value))
         if f.type == "json":
             if not isinstance(value, dict):
                 raise HTTPException(400, f"{name} must be an object.")
@@ -140,7 +144,7 @@ class Record:
         out = {}
         for name, value in values.items():
             f = self.fields[name]
-            if f.type in ("list", "json"):
+            if f.type in ("list", "ids", "json"):
                 out[name] = json.dumps(value)
             else:
                 out[name] = int(value) if f.type == "bool" else value

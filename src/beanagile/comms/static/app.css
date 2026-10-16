@@ -33,3 +33,14 @@
   .ed { grid-template-columns: 1fr; height: auto; }
   .ed-list, .ed-inspector { border: 0; }
 }
+
+/* Messages */
+.msg-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.msg-body { min-height: 380px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; line-height: 1.5; }
+.msg-preview { max-height: 520px; overflow: auto; }
+.msg-preview h2, .msg-preview h3, .msg-preview h4 { margin: 14px 0 6px; }
+.msg-preview table.data { margin: 8px 0; }
+.check-row { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.check-row:last-child { border-bottom: 0; }
+.check-row ul { margin: 4px 0 0 18px; padding: 0; }
+@media (max-width: 1000px) { .msg-grid { grid-template-columns: 1fr; } }

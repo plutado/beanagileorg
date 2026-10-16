@@ -47,11 +47,480 @@
 
   // ---------------------------------------------------------------- This week
 
+  const MESSAGE_TYPES = ["weekly note", "weekly status", "alert", "release notes", "stakeholder update", "decision announcement", "team announcement", "review", "memo", "other"];
+  const DETAIL_LEVELS = ["summary first", "full detail", "technical", "what changes for them"];
+  const CHANNEL_KINDS = ["chat", "email", "meeting", "document", "other"];
+  const RHYTHMS = ["weekly", "every two weeks", "monthly", "quarterly"];
+  const presenting = () => BA.session.presentation;
+  const stateClass = { draft: "", "in review": "warn", ready: "good", sent: "good", archived: "", overdue: "bad", "start drafting": "warn", drafted: "warn", upcoming: "" };
+  const pill = (s) => `<span class="pill ${stateClass[s] || ""}">${esc(s)}</span>`;
+
+  // Minimal, safe Markdown for previews: headings, lists, tables, bold, italics, links-as-text, paragraphs.
+  function md(text) {
+    const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\W)_(.+?)_(?=\W|$)/g, "$1<i>$2</i>");
+    const out = [];
+    const lines = (text || "").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^\s*$/.test(line)) continue;
+      const h = line.match(/^(#{1,3})\s+(.*)/);
+      if (h) {
+        out.push(`<h${h[1].length + 1}>${inline(h[2])}</h${h[1].length + 1}>`);
+        continue;
+      }
+      if (line.trim().startsWith("|")) {
+        const rows = [];
+        while (i < lines.length && lines[i].trim().startsWith("|")) rows.push(lines[i++].trim());
+        i--;
+        const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+        const body = rows.filter((r) => !/^\|[\s:|-]+\|$/.test(r));
+        out.push(`<table class="data"><thead><tr>${cells(body[0]).map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body
+          .slice(1)
+          .map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
+          .join("")}</tbody></table>`);
+        continue;
+      }
+      const li = line.match(/^\s*([-*]|\d+\.)\s+(.*)/);
+      if (li) {
+        const ordered = /\d/.test(li[1]);
+        const items = [];
+        while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*([-*]|\d+\.)\s+/, ""));
+        i--;
+        out.push(`<${ordered ? "ol" : "ul"}>${items.map((x) => `<li>${inline(x)}</li>`).join("")}</${ordered ? "ol" : "ul"}>`);
+        continue;
+      }
+      const para = [line];
+      while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#|\||\s*([-*]|\d+\.)\s)/.test(lines[i + 1])) para.push(lines[++i]);
+      out.push(`<p>${inline(para.join(" "))}</p>`);
+    }
+    return out.join("");
+  }
+
+  const lookups = async () => {
+    const [audiences, channels, templates] = await Promise.all([BA.api("/api/audiences"), BA.api("/api/channels"), BA.api("/api/templates")]);
+    return { audiences, channels, templates };
+  };
+
+  // ---------------------------------------------------------------- This week
+
   BA.view("/this-week", {
     title: "This week",
     async render(main) {
-      main.innerHTML = `<section class="card"><h2>What I owe people this week</h2>
-        <p class="quiet">Messages, templates and the comms calendar arrive with Comms studio version 1. The deck builder is ready under <a href="#/decks">Decks</a>.</p></section>`;
+      const [week, templates] = await Promise.all([BA.api("/api/this-week"), BA.api("/api/templates")]);
+      if (!templates.length && !presenting()) {
+        main.innerHTML = `<section class="card"><h2>Set up the studio</h2>
+          <p class="quiet">Load the starter kit: nine templates (weekly status, alerts, release notes, reviews and more), common audiences, placeholder channels, and a weekly cadence. Edit any of it afterwards.</p>
+          <button class="btn primary" id="kit">Load starter kit</button></section>`;
+        main.querySelector("#kit").onclick = BA.guard(async () => {
+          await BA.api("/api/comms/starter-kit", { method: "POST" });
+          BA.rerender();
+        });
+        return;
+      }
+      const dueRow = (d) => `<div class="item">${pill(d.status)}<span><b>${esc(d.title)}</b> <span class="quiet">due ${BA.fmtDate(d.due)}</span></span><span class="spacer"></span>
+        ${d.message_id ? `<a class="btn" href="#/messages/${d.message_id}">Open</a>` : `<button class="btn primary" data-draft="${d.id}">Start draft</button>`}</div>`;
+      main.innerHTML = `<div class="cards">
+        <section class="card"><h2>Due</h2>${week.due.map(dueRow).join("") || '<p class="quiet">Nothing due in the next two weeks. Set rhythms in the <a href="#/calendar">comms calendar</a>.</p>'}</section>
+        <section class="card"><h2>In progress</h2>${
+          week.drafts.map((m) => `<div class="item">${pill(m.state)}<a href="#/messages/${m.id}">${esc(m.title)}</a></div>`).join("") || '<p class="quiet">No drafts.</p>'
+        }<div class="actions"><a class="btn" href="#/messages">New message</a></div></section>
+        <section class="card"><h2>Recently sent</h2>${
+          week.recently_sent.map((m) => `<div class="item"><a href="#/messages/${m.id}">${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${esc((m.sent_at || "").slice(0, 10))}</span></div>`).join("") ||
+          '<p class="quiet">Nothing sent yet.</p>'
+        }</section></div>`;
+      main.querySelectorAll("[data-draft]").forEach((b) => {
+        b.onclick = BA.guard(async () => {
+          const m = await BA.api(`/api/comms-due/${b.dataset.draft}/draft`, { method: "POST" });
+          BA.go(`/messages/${m.id}`);
+        });
+      });
+    },
+  });
+
+  // ---------------------------------------------------------------- Messages
+
+  BA.view("/messages", {
+    title: "Messages",
+    async render(main, param) {
+      if (param) return messageEditor(main, Number(param));
+      const [messages, { audiences, templates }] = await Promise.all([BA.api("/api/messages"), lookups()]);
+      const names = (ids) => audiences.filter((a) => ids.includes(a.id)).map((a) => a.name).join(", ");
+      main.innerHTML = `
+        ${presenting() ? '<p class="quiet">Drafts are hidden while presenting; only sent messages show.</p>' : `<section class="card"><h2>New message</h2><form id="new" class="row">
+          <select name="template_id" style="max-width:300px"><option value="">Blank message</option>${templates.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
+          <input name="title" placeholder="Title (optional with a template)" style="max-width:340px">
+          <button class="btn primary" type="submit">Create</button></form></section>`}
+        <div class="tablewrap"><table class="data"><thead><tr><th>Title</th><th>Type</th><th>State</th><th>Audiences</th></tr></thead><tbody>${
+          messages
+            .map((m) => `<tr class="clickable" data-id="${m.id}"><td>${esc(m.title)}</td><td>${esc(m.type)}</td><td>${pill(m.state)}</td><td>${esc(names(m.audience_ids || []))}</td></tr>`)
+            .join("") || '<tr><td colspan="4" class="empty">No messages yet.</td></tr>'
+        }</tbody></table></div>`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/messages/${tr.dataset.id}`)));
+      const form = main.querySelector("#new");
+      if (form)
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(form);
+          const body = {};
+          if (f.get("template_id")) body.template_id = Number(f.get("template_id"));
+          if (f.get("title")) body.title = f.get("title");
+          if (!body.template_id && !body.title) body.title = "[Untitled message]";
+          const m = await BA.api("/api/messages", { method: "POST", body });
+          BA.go(`/messages/${m.id}`);
+        });
+    },
+  });
+
+  async function messageEditor(main, id) {
+    const [m, { audiences, channels }] = await Promise.all([BA.api(`/api/messages/${id}`), lookups()]);
+    document.getElementById("view-title").textContent = m.title;
+    const locked = m.state === "sent" || m.state === "archived";
+    const audienceBoxes = audiences
+      .map((a) => `<label class="check"><input type="checkbox" name="aud" value="${a.id}"${(m.audience_ids || []).includes(a.id) ? " checked" : ""}${locked ? " disabled" : ""}> ${esc(a.name)} <span class="quiet">(${esc(a.detail_level || "")})</span></label>`)
+      .join("");
+    const channelOpts = (sel) => `<option value="">Choose a channel</option>${channels.map((c) => `<option value="${c.id}"${c.id === sel ? " selected" : ""}>${esc(c.name)}</option>`).join("")}`;
+    const actions = {
+      draft: [["in review", "Send for review"], ["ready", "Mark ready"], ["archived", "Archive"]],
+      "in review": [["ready", "Mark ready"], ["draft", "Back to draft"]],
+      ready: [["sent", "Mark sent"], ["draft", "Back to draft"]],
+      sent: [["archived", "Archive"]],
+      archived: [["draft", "Restore as draft"]],
+    }[m.state];
+    main.innerHTML = `<p><a href="#/messages">All messages</a></p>
+      <div class="msg-grid">
+        <form id="msg" class="card">
+          <div class="row">${pill(m.state)}${m.sent_at ? `<span class="quiet">sent ${esc(m.sent_at)}</span>` : ""}<span class="spacer"></span>
+            ${actions.map(([s, label]) => `<button class="btn${s === "ready" || s === "sent" ? " primary" : ""}" type="button" data-state="${s}">${label}</button>`).join("")}</div>
+          <div class="grid2">
+            <label>Title<input name="title" value="${esc(m.title)}"${locked ? " disabled" : ""}></label>
+            <label>Type<select name="type"${locked ? " disabled" : ""}>${MESSAGE_TYPES.map((t) => `<option${t === m.type ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+          </div>
+          <label>Audiences</label><div class="row">${audienceBoxes || '<span class="quiet">Add audiences under Audiences and channels.</span>'}</div>
+          <label>Channel<select name="channel_id"${locked ? " disabled" : ""}>${channelOpts(m.channel_id)}</select></label>
+          <label>Message <span class="quiet">Markdown: # headings, - lists, | tables |, **bold**</span>
+            <textarea name="body" class="msg-body"${locked ? " readonly" : ""}>${esc(m.body)}</textarea></label>
+          <div class="actions"><button class="btn left" type="button" id="dup">Duplicate</button>
+            <button class="btn" type="button" data-export="text">Copy text</button>
+            <button class="btn" type="button" data-export="markdown">Download .md</button>
+            <button class="btn" type="button" data-export="print">Print or save PDF</button></div>
+        </form>
+        <div>
+          <section class="card"><h2>Checks</h2><div id="checks"></div></section>
+          <section class="card"><h2>Preview</h2><div id="preview" class="msg-preview"></div></section>
+          <section class="card"><h2>Versions</h2><div id="versions"></div></section>
+        </div>
+      </div>`;
+    const form = main.querySelector("#msg");
+    const previewEl = main.querySelector("#preview");
+    const checksEl = main.querySelector("#checks");
+
+    const showChecks = (results) => {
+      checksEl.innerHTML = results
+        .map((r) => `<div class="check-row"><span class="pill ${r.result === "pass" ? "good" : r.result === "fail" ? "bad" : "warn"}">${r.result}</span> <b>${esc(r.label)}</b>${r.blocks && r.result === "fail" ? ' <span class="quiet">blocks "ready"</span>' : ""}
+          ${r.findings.length ? `<ul class="quiet">${r.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}</div>`)
+        .join("");
+    };
+    const refresh = BA.guard(async () => {
+      previewEl.innerHTML = md(form.elements.body.value);
+      showChecks(await BA.api("/api/check", { method: "POST", body: { body: form.elements.body.value } }));
+    });
+    const loadVersions = BA.guard(async () => {
+      const vs = await BA.api(`/api/messages/${id}/versions`);
+      main.querySelector("#versions").innerHTML =
+        vs.map((v, i) => `<div class="item"><span class="quiet">${esc(v.saved_at)} · ${esc(v.source)}</span><span class="spacer"></span>${i && !locked ? `<button class="btn" data-restore="${v.id}">Restore</button>` : i ? "" : '<span class="pill">current</span>'}</div>`).join("") ||
+        '<p class="quiet">No versions yet.</p>';
+      main.querySelectorAll("[data-restore]").forEach((b) => {
+        b.onclick = BA.guard(async () => {
+          const v = vs.find((x) => x.id === Number(b.dataset.restore));
+          form.elements.body.value = v.body;
+          await save();
+          refresh();
+        });
+      });
+    });
+    const save = BA.guard(async () => {
+      if (locked) return;
+      await BA.api(`/api/messages/${id}`, {
+        method: "PATCH",
+        body: {
+          title: form.elements.title.value,
+          type: form.elements.type.value,
+          channel_id: form.elements.channel_id.value ? Number(form.elements.channel_id.value) : null,
+          audience_ids: [...form.querySelectorAll('input[name="aud"]:checked')].map((x) => Number(x.value)),
+          body: form.elements.body.value,
+        },
+      });
+      loadVersions();
+    });
+    const saveSoon = debounce(save, 900);
+    const refreshSoon = debounce(refresh, 400);
+    form.oninput = () => {
+      refreshSoon();
+      saveSoon();
+    };
+    form.onchange = (e) => (e.target.tagName === "SELECT" || e.target.type === "checkbox" ? save() : null);
+
+    main.querySelectorAll("[data-state]").forEach((b) => {
+      b.onclick = BA.guard(async () => {
+        await save();
+        const body = { state: b.dataset.state };
+        if (body.state === "sent") {
+          const ch = form.elements.channel_id.value;
+          if (!ch) throw new Error("Choose the channel it went out on first.");
+          if (!confirm("Mark this as sent? It's logged with its text and check results, and can't be edited afterwards.")) return;
+          body.channel_id = Number(ch);
+        }
+        await BA.api(`/api/messages/${id}/state`, { method: "POST", body });
+        BA.rerender();
+      });
+    });
+    main.querySelector("#dup").onclick = BA.guard(async () => {
+      const copy = await BA.api(`/api/messages/${id}/duplicate`, { method: "POST" });
+      BA.go(`/messages/${copy.id}`);
+    });
+    main.querySelectorAll("[data-export]").forEach((b) => {
+      b.onclick = BA.guard(async () => {
+        await save();
+        const fmt = b.dataset.export;
+        const res = await BA.api(`/api/messages/${id}/export`, { method: "POST", body: { format: fmt } });
+        if (fmt === "text") {
+          await navigator.clipboard.writeText(res.body);
+          BA.toast("Copied. Logged as an export.");
+        } else if (fmt === "markdown") {
+          const a = Object.assign(document.createElement("a"), {
+            href: URL.createObjectURL(new Blob([res.body], { type: "text/markdown" })),
+            download: `${res.title.replace(/[^\w\- ]+/g, "").trim() || "message"}.md`,
+          });
+          a.click();
+        } else {
+          const w = window.open("", "_blank");
+          w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(res.title)}</title>
+            <style>body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;color:#1c1c1a}
+            table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f2f1ed}</style></head>
+            <body><h1>${esc(res.title)}</h1>${md(res.body)}</body></html>`);
+          w.document.close();
+          w.focus();
+          w.print();
+        }
+      });
+    });
+    refresh();
+    loadVersions();
+  }
+
+  // ---------------------------------------------------------------- Templates
+
+  BA.view("/templates", {
+    title: "Templates",
+    async render(main, param) {
+      const { audiences, channels, templates } = await lookups();
+      if (param) {
+        const t = templates.find((x) => x.id === Number(param));
+        if (!t) throw new Error("No template with that id.");
+        document.getElementById("view-title").textContent = t.name;
+        main.innerHTML = `<p><a href="#/templates">All templates</a></p><form id="tpl" class="card">
+          <div class="grid2"><label>Name<input name="name" value="${esc(t.name)}"></label>
+          <label>Type<select name="type">${MESSAGE_TYPES.map((x) => `<option${x === t.type ? " selected" : ""}>${x}</option>`).join("")}</select></label></div>
+          <label>Default audiences</label><div class="row">${audiences.map((a) => `<label class="check"><input type="checkbox" name="aud" value="${a.id}"${t.audience_ids.includes(a.id) ? " checked" : ""}> ${esc(a.name)}</label>`).join("")}</div>
+          <label>Default channel<select name="channel_id"><option value=""></option>${channels.map((c) => `<option value="${c.id}"${c.id === t.channel_id ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+          <label>Body <span class="quiet">keep sections as [Placeholder: …] so the check catches anything left unfilled</span><textarea name="body" class="msg-body">${esc(t.body)}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button><button class="btn" type="button" id="use">Write a message from this</button><button class="btn primary" type="submit">Save</button></div></form>`;
+        const form = main.querySelector("#tpl");
+        const body = () => ({
+          name: form.elements.name.value,
+          type: form.elements.type.value,
+          body: form.elements.body.value,
+          channel_id: form.elements.channel_id.value ? Number(form.elements.channel_id.value) : null,
+          audience_ids: [...form.querySelectorAll('input[name="aud"]:checked')].map((x) => Number(x.value)),
+        });
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          await BA.api(`/api/templates/${t.id}`, { method: "PATCH", body: body() });
+          BA.toast("Saved.");
+        });
+        main.querySelector("#use").onclick = BA.guard(async () => {
+          await BA.api(`/api/templates/${t.id}`, { method: "PATCH", body: body() });
+          const m = await BA.api("/api/messages", { method: "POST", body: { template_id: t.id } });
+          BA.go(`/messages/${m.id}`);
+        });
+        main.querySelector("#del").onclick = BA.guard(async () => {
+          if (!confirm("Delete this template? Messages made from it stay.")) return;
+          await BA.api(`/api/templates/${t.id}`, { method: "DELETE" });
+          BA.go("/templates");
+        });
+        return;
+      }
+      main.innerHTML = `<section class="card"><form id="new" class="row"><input name="name" placeholder="New template name" required style="max-width:340px">
+        <button class="btn primary" type="submit">Add template</button></form></section>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Template</th><th>Type</th><th>Default audiences</th></tr></thead><tbody>${
+          templates
+            .map((t) => `<tr class="clickable" data-id="${t.id}"><td>${esc(t.name)}</td><td>${esc(t.type)}</td><td>${esc(audiences.filter((a) => t.audience_ids.includes(a.id)).map((a) => a.name).join(", "))}</td></tr>`)
+            .join("") || '<tr><td colspan="3" class="empty">No templates yet. Load the starter kit from This week.</td></tr>'
+        }</tbody></table></div>`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/templates/${tr.dataset.id}`)));
+      main.querySelector("#new").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const t = await BA.api("/api/templates", { method: "POST", body: { name: new FormData(e.target).get("name"), body: "[Placeholder: opening line]" } });
+        BA.go(`/templates/${t.id}`);
+      });
+    },
+  });
+
+  // ---------------------------------------------------------------- Comms calendar
+
+  BA.view("/calendar", {
+    title: "Comms calendar",
+    async render(main) {
+      const [cadences, due, templates] = await Promise.all([BA.api("/api/cadences"), BA.api("/api/comms-due"), BA.api("/api/templates")]);
+      const tplName = (id) => templates.find((t) => t.id === id)?.name || "";
+      main.innerHTML = `
+        <section class="card"><h2>Rhythms</h2>
+          <p class="quiet">Each rhythm creates due items from its first due date onward. Drafting starts "lead days" before each one.</p>
+          <div class="tablewrap"><table class="data"><thead><tr><th>Rhythm</th><th>Type</th><th>Repeats</th><th>First due</th><th>Lead days</th><th>Template</th><th>On</th><th></th></tr></thead><tbody>${
+            cadences
+              .map((c) => `<tr><td>${esc(c.title)}</td><td>${esc(c.message_type)}</td><td>${esc(c.rhythm)}</td><td>${BA.fmtDate(c.next_due)}</td><td>${c.lead_days}</td>
+                <td>${esc(tplName(c.template_id))}</td><td><input type="checkbox" data-active="${c.id}"${c.active ? " checked" : ""}></td>
+                <td><button class="btn danger" data-del="${c.id}">Delete</button></td></tr>`)
+              .join("") || '<tr><td colspan="8" class="empty">No rhythms yet.</td></tr>'
+          }</tbody></table></div>
+          <form id="add" class="grid2">
+            <label>Name<input name="title" required placeholder="[Placeholder rhythm name]"></label>
+            <label>Type<select name="message_type">${MESSAGE_TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label>
+            <label>Repeats<select name="rhythm">${RHYTHMS.map((r) => `<option>${r}</option>`).join("")}</select></label>
+            <label>First due<input type="date" name="next_due" required value="${BA.today()}"></label>
+            <label>Lead days<input type="number" name="lead_days" value="2" min="0"></label>
+            <label>Template<select name="template_id"><option value=""></option>${templates.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+            <div class="actions"><button class="btn primary" type="submit">Add rhythm</button></div></form></section>
+        <section class="card"><h2>Due items</h2>${
+          due.map((d) => `<div class="item">${pill(d.status)}<span>${esc(d.title)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.due)}</span>
+            ${d.message_id ? `<a class="btn" href="#/messages/${d.message_id}">Open</a>` : `<button class="btn" data-draft="${d.id}">Start draft</button>`}</div>`).join("") ||
+          '<p class="quiet">Nothing scheduled.</p>'
+        }</section>`;
+      main.querySelector("#add").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        await BA.api("/api/cadences", {
+          method: "POST",
+          body: {
+            title: f.get("title"),
+            message_type: f.get("message_type"),
+            rhythm: f.get("rhythm"),
+            next_due: f.get("next_due"),
+            lead_days: Number(f.get("lead_days") || 0),
+            template_id: f.get("template_id") ? Number(f.get("template_id")) : null,
+          },
+        });
+        BA.rerender();
+      });
+      main.querySelectorAll("[data-active]").forEach((el) => (el.onchange = BA.guard(async () => {
+        await BA.api(`/api/cadences/${el.dataset.active}`, { method: "PATCH", body: { active: el.checked } });
+        BA.rerender();
+      })));
+      main.querySelectorAll("[data-del]").forEach((el) => (el.onclick = BA.guard(async () => {
+        if (!confirm("Delete this rhythm and its upcoming due items?")) return;
+        await BA.api(`/api/cadences/${el.dataset.del}`, { method: "DELETE" });
+        BA.rerender();
+      })));
+      main.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = BA.guard(async () => {
+        const m = await BA.api(`/api/comms-due/${b.dataset.draft}/draft`, { method: "POST" });
+        BA.go(`/messages/${m.id}`);
+      })));
+    },
+  });
+
+  // ---------------------------------------------------------------- Sent log
+
+  BA.view("/sent", {
+    title: "Sent log",
+    async render(main) {
+      const rows = await BA.api("/api/sent-log");
+      main.innerHTML = `<p class="quiet">Every message marked sent, with when, where and to whom. The text is kept exactly as sent.</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Sent</th><th>Message</th><th>Type</th><th>Channel</th><th>Audiences</th><th>Check warnings</th></tr></thead><tbody>${
+          rows
+            .map((r) => `<tr><td>${esc(r.sent_at)}</td><td>${r.message_id ? `<a href="#/messages/${r.message_id}">${esc(r.title)}</a>` : esc(r.title)}</td><td>${esc(r.type)}</td>
+              <td>${esc(r.channel)}</td><td>${esc(r.audiences.join(", "))}</td><td>${r.warnings}</td></tr>`)
+            .join("") || '<tr><td colspan="6" class="empty">Nothing sent yet.</td></tr>'
+        }</tbody></table></div>`;
+    },
+  });
+
+  // ---------------------------------------------------------------- Audiences and channels
+
+  BA.view("/audiences", {
+    title: "Audiences and channels",
+    async render(main) {
+      const { audiences, channels } = await lookups();
+      const chOpts = (sel) => `<option value=""></option>${channels.map((c) => `<option value="${c.id}"${c.id === sel ? " selected" : ""}>${esc(c.name)}</option>`).join("")}`;
+      main.innerHTML = `
+        <section class="card"><h2>Audiences</h2><p class="quiet">Who needs what from engineering. Changes save as you go.</p>
+          <div class="tablewrap"><table class="data"><thead><tr><th>Audience</th><th>What they need</th><th>Detail level</th><th>Usual channel</th><th></th></tr></thead><tbody>${audiences
+            .map((a) => `<tr data-aud="${a.id}"><td><input name="name" value="${esc(a.name)}"></td><td><input name="needs" value="${esc(a.needs)}"></td>
+              <td><select name="detail_level"><option value=""></option>${DETAIL_LEVELS.map((d) => `<option${d === a.detail_level ? " selected" : ""}>${d}</option>`).join("")}</select></td>
+              <td><select name="channel_id">${chOpts(a.channel_id)}</select></td><td><button class="btn danger" data-del-aud="${a.id}">Delete</button></td></tr>`)
+            .join("")}</tbody></table></div>
+          <form id="add-aud" class="row"><input name="name" placeholder="New audience" required style="max-width:300px"><button class="btn primary" type="submit">Add audience</button></form></section>
+        <section class="card"><h2>Channels</h2>
+          <div class="tablewrap"><table class="data"><thead><tr><th>Channel</th><th>Kind</th><th>Notes</th><th></th></tr></thead><tbody>${channels
+            .map((c) => `<tr data-ch="${c.id}"><td><input name="name" value="${esc(c.name)}"></td>
+              <td><select name="kind">${CHANNEL_KINDS.map((k) => `<option${k === c.kind ? " selected" : ""}>${k}</option>`).join("")}</select></td>
+              <td><input name="notes" value="${esc(c.notes)}"></td><td><button class="btn danger" data-del-ch="${c.id}">Delete</button></td></tr>`)
+            .join("")}</tbody></table></div>
+          <form id="add-ch" class="row"><input name="name" placeholder="[Placeholder channel name]" required style="max-width:300px"><button class="btn primary" type="submit">Add channel</button></form></section>`;
+      const wire = (attr, path) =>
+        main.querySelectorAll(`tr[${attr}]`).forEach((tr) => {
+          tr.onchange = BA.guard(async (e) => {
+            const el = e.target;
+            const value = el.name === "channel_id" ? (el.value ? Number(el.value) : null) : el.value;
+            await BA.api(`${path}/${tr.getAttribute(attr)}`, { method: "PATCH", body: { [el.name]: value } });
+            BA.toast("Saved.");
+          });
+        });
+      wire("data-aud", "/api/audiences");
+      wire("data-ch", "/api/channels");
+      const del = (attr, path) =>
+        main.querySelectorAll(`[${attr}]`).forEach((b) => (b.onclick = BA.guard(async () => {
+          if (!confirm("Delete it?")) return;
+          await BA.api(`${path}/${b.getAttribute(attr)}`, { method: "DELETE" });
+          BA.rerender();
+        })));
+      del("data-del-aud", "/api/audiences");
+      del("data-del-ch", "/api/channels");
+      main.querySelector("#add-aud").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        await BA.api("/api/audiences", { method: "POST", body: { name: new FormData(e.target).get("name") } });
+        BA.rerender();
+      });
+      main.querySelector("#add-ch").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        await BA.api("/api/channels", { method: "POST", body: { name: new FormData(e.target).get("name") } });
+        BA.rerender();
+      });
+    },
+  });
+
+  // ---------------------------------------------------------------- Plain language
+
+  BA.view("/plain-language", {
+    title: "Plain language",
+    async render(main) {
+      const [terms, builtIn] = await Promise.all([BA.api("/api/glossary"), BA.api("/api/plain-language/jargon")]);
+      main.innerHTML = `
+        <section class="card"><h2>My terms</h2><p class="quiet">Platform terms, acronyms or jargon to flag in messages, with the plain way to say it. These also feed the stakeholder explainers later.</p>
+          ${terms.map((t) => `<div class="item"><b>${esc(t.term)}</b><span class="quiet">${t.plain ? "→ " + esc(t.plain) : ""}</span><span class="spacer"></span><button class="btn danger" data-del="${t.id}">Delete</button></div>`).join("") || '<p class="quiet">None yet.</p>'}
+          <form id="add" class="row"><input name="term" placeholder="Term, for example an acronym" required style="max-width:240px">
+            <input name="plain" placeholder="Plain alternative" style="max-width:300px"><button class="btn primary" type="submit">Add term</button></form></section>
+        <section class="card"><h2>Built-in list</h2><p class="quiet">Always checked.</p>
+          ${builtIn.map((t) => `<span class="pill">${esc(t.term)} → ${esc(t.plain)}</span>`).join(" ")}</section>`;
+      main.querySelector("#add").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        await BA.api("/api/glossary", { method: "POST", body: { term: f.get("term"), plain: f.get("plain") } });
+        BA.rerender();
+      });
+      main.querySelectorAll("[data-del]").forEach((b) => (b.onclick = BA.guard(async () => {
+        await BA.api(`/api/glossary/${b.dataset.del}`, { method: "DELETE" });
+        BA.rerender();
+      })));
     },
   });
 

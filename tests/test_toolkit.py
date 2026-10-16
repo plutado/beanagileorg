@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from beanagile.core.config import Settings
 from beanagile.toolkit.app import build
-from beanagile.toolkit.routes import add_months, next_occurrence
+from beanagile.core.dates import add_months, next_occurrence
 
 PASSWORD = "[placeholder-password]"
 

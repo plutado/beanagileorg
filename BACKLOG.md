@@ -10,7 +10,11 @@ Nothing right now.
 
 ## Next up
 
-- [ ] **Comms studio version 1:** messages, templates, audiences and channels, comms calendar, sent log, plain-language check
+In the order the 90-day plan needs them:
+
+- [ ] **Toolkit, day-30 batch:** dev-sync action log, group learning schedule, escalation playbook (details under Toolkit, later versions)
+- [ ] **Toolkit, day-45 batch:** sprint notebook, Agile roadmap items, RACI, risks and decisions, weekly status draft that feeds the Comms studio
+- [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
@@ -38,7 +42,9 @@ Nothing right now.
 - [ ] Deck builder: per-element reveal order in the inspector (version 1 reveals points in order)
 - [ ] Present page: rehearsal timer and rehearsal log
 
-- [ ] Writing checks: placeholders left, one version of the truth, no surprises, stale facts, sensitive content, summary first, questions answered
+- [ ] Writing checks, remaining: one version of the truth, no surprises, stale facts, sensitive content, questions answered
+- [ ] Plain-language rewrite suggestions from a local model (version 1 suggests from the jargon list and glossary)
+- [ ] Message editor: per-audience length targets, and side-by-side version compare
 - [ ] Fact snapshots from the toolkit over an `export:read` token
 - [ ] Deck builder, full: theme layouts, narrative templates and outline-first skeletons, headline check, fact-bound numbers and charts, custom HTML slide in a sandbox, speaker view and rehearsal log
 - [ ] Media players: control playback from the speaker view (players work on the slide in the prototype)
@@ -63,6 +69,8 @@ Nothing right now.
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-15: Comms studio version 1: messages with draft, review, ready, sent and archived states; versions on every body change; starter kit of nine templates, six audiences, placeholder channels and weekly rhythms; comms calendar with due items and start-drafting dates; sent log that keeps the exact text, channel, audiences and check results; checks for placeholders left (blocks ready), plain language with a glossary, long sentences and summary first; export by copy, Markdown download or print to PDF, each logged; drafts private, sent messages shareable; 54 tests
 
 - [x] 2026-10-15: Deck builder prototype: reveal.js 5.1.0 and lottie-web 5.12.2 (light player) bundled locally with checksums verified; decks, slides and a media library with uploads and seekable playback; one renderer for editor and present page; three-pane editor with drag-to-reorder, live canvas and inspector; 11 layouts (title, section, big number, points, quote, comparison, image, video, audio, animation, closing); video and audio players with trim, loop, poster, captions and play-on-enter or on-click; Lottie with loop, play-once, on-click, speed and segments; full-screen present page with speaker notes; placeholder deck with generated tone and animation; 43 tests
 
