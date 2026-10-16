@@ -30,3 +30,16 @@ table.raci td, table.raci th { white-space: nowrap; }
 .story-chip { display: flex; justify-content: space-between; gap: 8px; border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 4px 8px; margin-bottom: 4px; font-size: .85rem; }
 .story-chip b { color: var(--accent); }
 .milestones-row td { background: var(--panel-2); }
+
+.plan-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .plan-layout { grid-template-columns: 1fr; } }
+.plan-horizon h3 { margin: 14px 0 6px; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.plan-item { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; background: var(--panel-2); }
+.plan-item summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.plan-item summary::-webkit-details-marker { display: none; }
+.plan-item[open] summary { margin-bottom: 8px; }
+.plan-item.dropped summary span:first-child { text-decoration: line-through; color: var(--muted); }
+.plan-horizon .plan-add { margin-top: 10px; }
+.plan-settings { margin: 4px 0 10px; }
+.plan-settings summary { cursor: pointer; font-size: .85rem; }
+.plan-settings form { margin-top: 8px; }

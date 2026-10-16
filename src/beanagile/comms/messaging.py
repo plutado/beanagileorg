@@ -303,17 +303,64 @@ def put_connections(body: dict = Body(...), viewer: Viewer = Depends(require_ful
     return get_connections(viewer, conn)
 
 
-@router.get("/api/toolkit/status-draft")
-def toolkit_status_draft(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    """Pull the toolkit's weekly status draft. The toolkit token should have the export:read scope only."""
-    require_write(viewer)
+def _pull(conn, path: str) -> dict:
     url = _get_setting(conn, TOOLKIT_URL_KEY) or DEFAULT_TOOLKIT_URL
     token = _get_setting(conn, TOOLKIT_TOKEN_KEY)
     if not token:
         raise HTTPException(400, "Connect the toolkit first: add an export-only token under Connections.")
     try:
-        return fetch_toolkit(url, token, "/api/status/draft")
+        return fetch_toolkit(url, token, path)
     except urllib.error.HTTPError as exc:
         raise HTTPException(502, "The toolkit turned the token down. Create a new export:read token in the toolkit's Settings." if exc.code in (401, 403) else f"The toolkit answered with an error ({exc.code}).") from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise HTTPException(502, f"Couldn't reach the toolkit at {url}. Is it running?") from exc
+
+
+@router.get("/api/toolkit/status-draft")
+def toolkit_status_draft(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Pull the toolkit's weekly status draft. The toolkit token should have the export:read scope only."""
+    require_write(viewer)
+    return _pull(conn, "/api/status/draft")
+
+
+@router.get("/api/toolkit/plan-outline")
+def toolkit_plan_outline(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    return _pull(conn, "/api/plans/outline")
+
+
+def plan_slides(outline: dict) -> list[tuple[str, dict, str]]:
+    """Turn the toolkit's plan outline into (layout, content, notes) slides: one per stretch, plus what I heard and what stays."""
+    slides = [("title", {"heading": outline["title"], "subheading": f"Starting {outline['start_date']}" if outline.get("start_date") else "[Placeholder: date and audience]"}, "")]
+    heard = outline.get("heard") or {}
+    if heard.get("conversations"):
+        n = heard["conversations"]
+        slides.append(("bullets", {"heading": f"What I heard in {n} conversation{'' if n == 1 else 's'}", "items": [f"{t['theme']} ({t['count']} of {n})" for t in heard["themes"]], "step": True}, ""))
+    keep, measures = [], []
+    for h in outline["horizons"]:
+        g = h["groups"]
+        keep += [i["title"] for i in g.get("keep", [])]
+        measures += [i["title"] for i in g.get("measure", [])]
+        items = [i["title"] for i in g.get("outcome", []) + g.get("action", [])] or ["[Placeholder: add outcomes and actions in the toolkit]"]
+        notes = [f"{h['title']}: {h['start']} to {h['end']}" if h.get("start") else h["title"]]
+        for i in g.get("outcome", []) + g.get("action", []):
+            line = f"- {i['title']}" + (f" (by {i['due']})" if i.get("due") else "")
+            notes.append(line + (f": {i['detail']}" if i.get("detail") else ""))
+        slides.append(("bullets", {"heading": h.get("summary") or h["title"], "items": items, "step": True}, "\n".join(notes)))
+    if measures:
+        slides.append(("bullets", {"heading": "How we'll know it's working", "items": measures}, ""))
+    if keep:
+        slides.append(("bullets", {"heading": "What I won't change", "items": keep}, ""))
+    slides.append(("closing", {"heading": "Questions and feedback", "subheading": "[Placeholder: how to reach me]"}, ""))
+    return slides
+
+
+@router.post("/api/decks/from-toolkit-plan", status_code=201)
+def deck_from_plan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    outline = _pull(conn, "/api/plans/outline")
+    slides = plan_slides(outline)
+    deck = models.decks.create(conn, {"title": outline["title"]}, viewer.source)
+    for position, (layout, content, notes) in enumerate(slides):
+        models.slides.create(conn, {"deck_id": deck["id"], "position": position, "layout": layout, "content": content, "notes": notes or None}, viewer.source)
+    return {"deck_id": deck["id"], "slides": len(slides)}

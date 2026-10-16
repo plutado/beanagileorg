@@ -47,6 +47,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 **Reporting**
 
+- **30/60/90 plans:** one plan per month for the first six months (add more for a finer step or a longer view), with a headline each and dates from the start date. Items are outcomes, actions, measures or things you won't change, each tagged with the listening-tour themes behind it. A side panel shows which themes no item answers yet. Copy the outline as Markdown, or build a deck from it in the Comms studio.
 - **Weekly status:** a draft built only from exportable data (current sprint, milestones, risks, decisions, what shipped, next week, metrics and reportable learning goals) with a suggested overall color and the reason. Copy it as Markdown, or pull it into the Comms studio.
 
 **Knowledge**
@@ -71,7 +72,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Sent log:** the exact text, channel, audiences and check results of everything marked sent.
 - **Audiences and channels:** who needs what, at what level of detail, and where they usually hear it.
 - **Exports:** copy as text, download Markdown or print to PDF, each logged.
-- **Toolkit connection:** pull the toolkit's weekly status draft into a message over an export-only token.
+- **Toolkit connection:** pull the toolkit's weekly status draft into a message, or build a deck from its 30/60/90 plans, over an export-only token.
 - **Privacy:** drafts are private; sent messages are shareable.
 
 **Presentations**

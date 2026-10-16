@@ -552,6 +552,7 @@
         <section class="card"><form id="new-deck" class="row">
           <input name="title" placeholder="[Placeholder deck title]" required style="max-width:420px">
           <button class="btn primary" type="submit">New deck</button><span class="spacer"></span>
+          <button class="btn" type="button" id="from-plan" title="Build a deck from the toolkit's 30/60/90 plans">Deck from toolkit plans</button>
           <button class="btn" type="button" id="seed">Load placeholder deck</button></form></section>
         <div class="deck-cards">${
           decks.map((d) => `<div class="card deck-card" data-id="${d.id}"><h2>${esc(d.title)}</h2><p class="quiet">${d.slide_count} slides · ${esc(d.transition)} transition</p></div>`).join("") ||
@@ -563,6 +564,11 @@
         const deck = await BA.api("/api/decks", { method: "POST", body: { title: new FormData(e.target).get("title") } });
         await BA.api(`/api/decks/${deck.id}/slides`, { method: "POST", body: { layout: "title", content: { heading: deck.title } } });
         BA.go(`/decks/${deck.id}`);
+      });
+      main.querySelector("#from-plan").onclick = BA.guard(async () => {
+        const res = await BA.api("/api/decks/from-toolkit-plan", { method: "POST", body: {} });
+        BA.toast(`Built ${res.slides} slides from the plan outline.`);
+        BA.go(`/decks/${res.deck_id}`);
       });
       main.querySelector("#seed").onclick = BA.guard(async () => {
         const res = await BA.api("/api/comms/seed-placeholders", { method: "POST" });

@@ -12,13 +12,13 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Plan presentation (toolkit, then Comms):** the 30-, 60-, 90-day and six-month plans David committed to present after the listening tour, likely in week 1 or 2. One plan record per horizon with outcomes, actions, owners, measures of success and contract dates; each item traced to the listening-tour themes, gaps and "don't change" notes that support it; a draft built from the day-30 rollup data gathered so far; a reviewed and presented status with the date and audience; presentable on screen, and sent to the Comms studio as a deck outline
 - [ ] **Business landscape (toolkit):** products and services [employer] offers today (name, what it is, customers it serves, owning department, supporting systems and vendors, maturity); the organization by department (department, parent, leader, teams, people from People), shown as a hierarchy; an assessment per offering and per department: strengths, weaknesses, opportunities and threats, with evidence, source (listening tour, metrics, incidents, vendor) and a confidence level; opportunities can become roadmap items or risks; private by default because it holds [employer]'s confidential view
 - [ ] **QA resources (toolkit):** manual smoke test library (system, area, steps, expected result, owner, last run and result); test runs per release or sprint with pass, fail or blocked per case and failures turned into dev-sync items; automated test inventory (unit, integration, end-to-end and Apex suites, location, coverage, latest CI result); regression plans for each Salesforce release and peak-season freeze with named owners; ties to the definition of done and QA sign-off in the RACI
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
+- [ ] Plans: a version history of each plan as presented, so a later review can show what changed and why; a day-30/60/90 check-in that marks each item met, moved or dropped with a note
 - [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket or the release log
 - [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
 - [ ] Roadmap: drag to reorder, and a timeline view
@@ -77,6 +77,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: 30/60/90-day and six-month plans. Six plans, one per month (first 30 days, days 31 to 60, days 61 to 90, months 4, 5 and 6), created by the database upgrade; plans can be added (a finer check-in or a longer view such as month 9), renamed, re-dated or deleted; each with a headline, dates from the contract start date and a draft, reviewed or presented status with date and audience; items as outcomes, actions, measures or "what I won't change", with day, owner, status, listening-tour themes and private evidence; a flag for items outside their window; a "What I heard" panel showing which themes no item answers yet, plus the private one-on-one notes; an exportable outline copied as Markdown (logged); the Comms studio builds a deck from the outline over the export-only token (title, what I heard, one slide per stretch with details in the speaker notes, measures, what stays, closing). Fixed: each app now has its own session cookie, so signing in to one no longer signs you out of the other; 92 tests
 
 - [x] 2026-10-16: Retrospectives and PI planning. Retros: a shared record per sprint with format (went well / didn't / ideas, start / stop / continue, mad / sad / glad, 4 Ls), attendees and summary; points by column with votes and topic tags; commitments with owner, due date and status, tagged to the sprint where they came up; each retro opens with earlier open commitments to review; a running improvement backlog; recurring topics across retros, flagged when they match a listening-tour theme. PI planning: objectives (committed and stretch, planned and actual business value, predictability); epics, features and stories with priority, owner, acceptance criteria, points and ticket keys; a program board of features by sprint with capacity against planned points and a milestones row; dependencies with needed-by sprint; milestones and events; risks by ROAM with private notes; the fist-of-five confidence vote; 83 tests
 

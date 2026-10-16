@@ -38,6 +38,9 @@ OBJECTIVE_KINDS = ("committed", "stretch")
 DEPENDENCY_STATUS = ("open", "met", "at risk")
 MILESTONE_KINDS = ("release", "freeze", "demo", "innovation and planning", "other")
 ROAM = ("unroamed", "resolved", "owned", "accepted", "mitigated")
+PLAN_STATUS = ("draft", "reviewed", "presented")
+PLAN_ITEM_KINDS = ("outcome", "action", "measure", "keep")
+PLAN_ITEM_STATUS = ("planned", "in progress", "done", "dropped")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -411,6 +414,37 @@ MIGRATIONS = [
             roam TEXT NOT NULL DEFAULT 'unroamed',
             owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
             notes TEXT
+        );
+        """,
+    ),
+    (
+        6,
+        """
+        CREATE TABLE plans (
+            id INTEGER PRIMARY KEY,
+            horizon_days INTEGER NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            summary TEXT,
+            status TEXT NOT NULL DEFAULT 'draft',
+            presented_on DATE,
+            audience TEXT,
+            notes TEXT
+        );
+        INSERT INTO plans (horizon_days, title) VALUES
+            (30, 'First 30 days'), (60, 'Days 31 to 60'), (90, 'Days 61 to 90'),
+            (120, 'Month 4'), (150, 'Month 5'), (180, 'Month 6');
+        CREATE TABLE plan_items (
+            id INTEGER PRIMARY KEY,
+            plan_id INTEGER NOT NULL REFERENCES plans (id) ON DELETE CASCADE,
+            kind TEXT NOT NULL DEFAULT 'action',
+            title TEXT NOT NULL,
+            detail TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            due_day INTEGER,
+            status TEXT NOT NULL DEFAULT 'planned',
+            themes TEXT,
+            evidence TEXT,
+            position INTEGER NOT NULL DEFAULT 0
         );
         """,
     ),
@@ -1039,6 +1073,44 @@ pi_risks = Record(
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = pi_risks.owner_id)", S)},
 )
 
+# ---- 30/60/90-day and six-month plans: shared with leadership, so exportable; the evidence stays private ----
+
+plans = Record(
+    entity="plan",
+    table="plans",
+    path="/api/plans",
+    order_by="horizon_days",
+    fields={
+        "horizon_days": Field("int", E, required=True),
+        "title": Field("text", E, required=True),
+        "summary": Field("text", E),
+        "status": Field("text", S, choices=PLAN_STATUS, default="draft"),
+        "presented_on": Field("date", S),
+        "audience": Field("text", S),
+        "notes": Field("text", P),
+    },
+)
+
+plan_items = Record(
+    entity="plan_item",
+    table="plan_items",
+    path="/api/plan-items",
+    order_by="plan_id, position, id",
+    fields={
+        "plan_id": Field("int", E, required=True),
+        "kind": Field("text", E, choices=PLAN_ITEM_KINDS, default="action"),
+        "title": Field("text", E, required=True),
+        "detail": Field("text", E),
+        "owner_id": Field("int", S),
+        "due_day": Field("int", E),
+        "status": Field("text", E, choices=PLAN_ITEM_STATUS, default="planned"),
+        "themes": Field("list", S),
+        "evidence": Field("text", P),
+        "position": Field("int", S, default=0),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S)},
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1046,4 +1118,5 @@ RECORDS = [
     program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
+    plans, plan_items,
 ]

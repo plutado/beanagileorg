@@ -13,6 +13,7 @@
   } });
   BA.command({ label: "Run a retrospective", hint: "Retrospectives", icon: "refresh-ccw", run: () => BA.go("/retros") });
   BA.command({ label: "Open the PI planning board", hint: "PI planning", icon: "kanban", run: () => BA.go("/pi") });
+  BA.command({ label: "Work on the 30/60/90 plans", hint: "30/60/90 plans", icon: "flag", run: () => BA.go("/plans") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -1522,4 +1523,144 @@
       BA.rerender();
     })));
   }
+
+  // ---------------------------------------------------------------- 30/60/90-day and six-month plans
+
+  const PLAN_KINDS = ["outcome", "action", "measure", "keep"];
+  const PLAN_KIND_TITLES = { outcome: "Outcomes", action: "Actions", measure: "How we'll know", keep: "What I won't change" };
+  const PLAN_ITEM_STATUS = ["planned", "in progress", "done", "dropped"];
+  const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "good" };
+  const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change" };
+
+  BA.view("/plans", {
+    title: "30/60/90 plans",
+    async render(main) {
+      const [d, people] = await Promise.all([BA.api("/api/plans/overview"), BA.api("/api/people")]);
+      const ro = presenting();
+      const ev = d.evidence;
+      const themeNames = ev.themes.map((t) => t.theme);
+      const uncovered = ev.themes.filter((t) => !t.plan_items);
+      const dateRange = (h) => (h.start ? `${BA.fmtDate(h.start)} to ${BA.fmtDate(h.end)}` : `Days ${h.first_day} to ${h.last_day}`);
+      const itemRow = (i) => `<details class="plan-item${i.status === "dropped" ? " dropped" : ""}" data-item="${i.id}"><summary>
+          <span>${esc(i.title)}</span><span class="spacer"></span>
+          ${i.themes?.length ? BA.chips(i.themes) : ""}
+          ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">day ${i.due_day}</span>` : ""}
+          ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
+          ${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
+        ${i.detail ? BA.md(i.detail) : ""}
+        ${ro ? "" : `<form class="edit-item"><div class="grid2">
+          <label>Title<input name="title" value="${esc(i.title)}" required></label>
+          <label>Kind<select name="kind">${opts(PLAN_KINDS, i.kind)}</select></label>
+          <label>Day <span class="quiet">(day of the role)</span><input type="number" min="1" name="due_day" value="${esc(i.due_day ?? "")}"></label>
+          <label>Status<select name="status">${opts(PLAN_ITEM_STATUS, i.status)}</select></label>
+          <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
+          <label>Themes <span class="quiet">(comma separated)</span><input name="themes" value="${esc((i.themes || []).join(", "))}" list="plan-themes"></label></div>
+          <label>Detail<textarea name="detail">${esc(i.detail || "")}</textarea></label>
+          <label>Evidence <span class="quiet">(private: who said it, what you saw)</span><textarea name="evidence">${esc(i.evidence || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" data-del="${i.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+      const horizon = (h) => {
+        const groups = PLAN_KINDS.map((k) => [k, h.items.filter((i) => i.kind === k)]).filter(([, list]) => list.length);
+        return `<section class="card plan-horizon" data-plan="${h.id}">
+          <div class="row"><h2>${esc(h.title)}</h2><span class="quiet">${dateRange(h)}</span><span class="spacer"></span>
+            ${tonePill(h.status, PLAN_STATUS_TONES)}${h.presented_on ? `<span class="quiet">${BA.fmtDate(h.presented_on)}${h.audience ? ` · ${esc(h.audience)}` : ""}</span>` : ""}</div>
+          ${ro ? "" : `<details class="plan-settings"><summary class="quiet">Rename, change the last day, or delete</summary><form class="edit-plan row">
+            <input name="title" value="${esc(h.title)}" required style="max-width:240px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" value="${h.horizon_days}" required style="max-width:90px"></label>
+            <button class="btn" type="submit">Save</button><span class="spacer"></span><button class="btn danger" type="button" data-del-plan="${h.id}">Delete plan</button></form></details>`}
+          ${ro ? (h.summary ? `<p>${esc(h.summary)}</p>` : "") : `<label>The headline for this stretch<textarea name="summary" class="plan-summary" placeholder="What will be true by day ${h.last_day}?">${esc(h.summary || "")}</textarea></label>`}
+          ${groups.map(([k, list]) => `<h3>${PLAN_KIND_TITLES[k]}</h3>${list.map(itemRow).join("")}`).join("") || '<p class="quiet">Nothing here yet.</p>'}
+          ${ro ? "" : `<form class="plan-add row"><select name="kind" style="max-width:150px">${PLAN_KINDS.map((k) => `<option value="${k}">${k === "keep" ? "won't change" : k}</option>`).join("")}</select>
+            <input name="title" placeholder="Add to this plan" required style="max-width:340px"><input type="number" name="due_day" min="${h.first_day}" max="${h.last_day}" placeholder="Day" style="max-width:90px">
+            <input name="themes" placeholder="Themes" list="plan-themes" style="max-width:180px"><button class="btn" type="submit">Add</button></form>`}</section>`;
+      };
+      main.innerHTML = `
+        <datalist id="plan-themes">${themeNames.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
+        <section class="card"><div class="row"><h2>Plans for the first six months</h2><span class="spacer"></span>
+          ${ro ? "" : `<button class="btn" id="copy-outline">Copy outline as Markdown</button>`}</div>
+          <p class="quiet">${d.start_date ? `Starting ${BA.fmtDate(d.start_date)}.` : 'Set the contract start date in <a href="#/me">My development</a> to turn days into dates.'}
+            Built from the listening tour: ${ev.done} conversation${ev.done === 1 ? "" : "s"} done${ev.planned ? `, ${ev.planned} still planned` : ""}. The Comms studio can turn the outline into a deck.</p>
+          ${ro ? "" : `<form id="presented" class="row"><input type="date" name="presented_on" value="${BA.today()}" style="max-width:170px"><input name="audience" placeholder="Who you presented to" style="max-width:260px">
+            <button class="btn" type="submit">Mark all presented</button></form>`}</section>
+        <div class="plan-layout"><div class="plan-horizons">${d.horizons.map(horizon).join("")}
+          ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">For a finer step (a two-week check-in) or a longer view (month 9, month 12). Each plan runs from the day after the one before it.</p>
+            <form id="add-plan" class="row"><input name="title" placeholder="Name, such as Month 9" required style="max-width:260px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" required style="max-width:90px"></label><button class="btn primary" type="submit">Add plan</button></form></section>`}</div>
+          <aside><section class="card"><h2>What I heard</h2>${
+            ev.themes.length
+              ? `<p class="quiet">Themes from the listening tour, with how many plan items answer each.</p>${ev.themes
+                  .map((t) => `<div class="item"><span>${esc(t.theme)}</span><span class="quiet">${t.count} of ${ev.done}</span><span class="spacer"></span>${t.plan_items ? `<span class="pill good">${t.plan_items} in plan</span>` : '<span class="pill warn">not in plan yet</span>'}</div>`)
+                  .join("")}${uncovered.length && !ro ? `<p class="quiet">${uncovered.length} theme${uncovered.length === 1 ? "" : "s"} not answered yet. Address each one, or say why it waits.</p>` : ""}`
+              : '<p class="quiet">No themes yet. Tag themes on finished one-on-ones in the Listening tour.</p>'
+          }</section>
+          ${ev.notes ? `<section class="card"><h2>Notes to draw on</h2><p class="quiet">Private. From finished one-on-ones.</p>${Object.entries(NOTE_TITLES)
+            .filter(([k]) => ev.notes[k]?.length)
+            .map(([k, title]) => `<details><summary>${title} (${ev.notes[k].length})</summary>${ev.notes[k].map((n) => `<p><b>${esc(n.person || "")}</b> ${esc(n.text)}</p>`).join("")}</details>`)
+            .join("") || '<p class="quiet">Nothing yet.</p>'}</section>` : ""}</aside></div>`;
+      if (ro) return;
+      const num = (v) => (v === "" || v == null ? null : Number(v));
+      const themes = (v) => (v || "").split(",").map((s) => s.trim()).filter(Boolean);
+      main.querySelectorAll(".plan-horizon").forEach((sec) => {
+        const planId = Number(sec.dataset.plan);
+        sec.querySelector(".plan-summary").onchange = BA.guard(async (e) => {
+          await BA.api(`/api/plans/${planId}`, { method: "PATCH", body: { summary: e.target.value } });
+          BA.toast("Saved.");
+        });
+        const edit = sec.querySelector("form.edit-plan");
+        edit.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(edit);
+          await BA.api(`/api/plans/${planId}`, { method: "PATCH", body: { title: f.get("title"), horizon_days: Number(f.get("horizon_days")) } });
+          BA.rerender();
+        });
+        sec.querySelector("[data-del-plan]").onclick = BA.guard(async () => {
+          const n = d.horizons.find((h) => h.id === planId).items.length;
+          if (!confirm(n ? `Delete this plan and its ${n} item${n === 1 ? "" : "s"}?` : "Delete this plan?")) return;
+          await BA.api(`/api/plans/${planId}`, { method: "DELETE" });
+          BA.rerender();
+        });
+        const add = sec.querySelector("form.plan-add");
+        add.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(add);
+          await BA.api("/api/plan-items", { method: "POST", body: { plan_id: planId, kind: f.get("kind"), title: f.get("title"), due_day: num(f.get("due_day")), themes: themes(f.get("themes")) } });
+          BA.rerender();
+        });
+      });
+      main.querySelectorAll("details[data-item]").forEach((det) => {
+        const id = det.dataset.item;
+        const form = det.querySelector("form.edit-item");
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(form);
+          await BA.api(`/api/plan-items/${id}`, { method: "PATCH", body: {
+            title: f.get("title"), kind: f.get("kind"), due_day: num(f.get("due_day")), status: f.get("status"),
+            owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"),
+          } });
+          BA.rerender();
+        });
+        det.querySelector("[data-del]").onclick = BA.guard(async () => {
+          if (!confirm("Delete this plan item?")) return;
+          await BA.api(`/api/plan-items/${id}`, { method: "DELETE" });
+          BA.rerender();
+        });
+      });
+      const addPlan = main.querySelector("#add-plan");
+      addPlan.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(addPlan);
+        await BA.api("/api/plans", { method: "POST", body: { title: f.get("title"), horizon_days: Number(f.get("horizon_days")) } });
+        BA.rerender();
+      });
+      main.querySelector("#copy-outline").onclick = BA.guard(async () => {
+        const out = await BA.api("/api/plans/export", { method: "POST", body: {} });
+        await navigator.clipboard.writeText(out.markdown);
+        BA.toast("Outline copied. Only shareable fields are included.");
+      });
+      const presented = main.querySelector("#presented");
+      presented.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(presented);
+        for (const h of d.horizons) await BA.api(`/api/plans/${h.id}/presented`, { method: "POST", body: { presented_on: f.get("presented_on"), audience: f.get("audience") } });
+        BA.rerender();
+      });
+    },
+  });
 })();

@@ -149,6 +149,8 @@ def create_app(
         migrate(conn, "core", CORE_MIGRATIONS)
         migrate(conn, settings.app, list(migrations))
     app.state.settings = settings
+    # One cookie per app: browsers share cookies across ports, so a shared name would sign you out of the other app.
+    cookie_name = f"{SESSION_COOKIE}_{settings.app}"
     app.state.db = db
     app.state.nav = nav
     app.state.throttle = auth.LoginThrottle()
@@ -165,7 +167,7 @@ def create_app(
                 source=f"token:{found['name']}",
                 scopes=frozenset(found["scopes"]),
             )
-        cookie = request.cookies.get(SESSION_COOKIE)
+        cookie = request.cookies.get(cookie_name)
         if cookie:
             row = conn.execute(
                 "SELECT token_hash, presentation FROM sessions WHERE token_hash = ? AND expires_at > ?",
@@ -205,7 +207,7 @@ def create_app(
     def signed_in(token: str) -> RedirectResponse:
         response = RedirectResponse("/", status_code=303)
         response.set_cookie(
-            SESSION_COOKIE, token, httponly=True, samesite="strict", max_age=settings.session_days * 86400, path="/"
+            cookie_name, token, httponly=True, samesite="strict", max_age=settings.session_days * 86400, path="/"
         )
         return response
 
@@ -276,7 +278,7 @@ def create_app(
         if viewer.session_hash:
             conn.execute("DELETE FROM sessions WHERE token_hash = ?", (viewer.session_hash,))
         response = RedirectResponse("/login", status_code=303)
-        response.delete_cookie(SESSION_COOKIE, path="/")
+        response.delete_cookie(cookie_name, path="/")
         return response
 
     # ---- core API ----
