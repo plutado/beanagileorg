@@ -4,22 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}}</title>
-<link rel="stylesheet" href="/core-static/base.css">
+<script>try { const t = localStorage.getItem("ba-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="preload" href="/core-static/vendor/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/core-static/app.css">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <div class="shell">
-  <aside class="sidebar">
-    <div class="brand">{{TITLE}}</div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark">B</span><span>{{TITLE}}</span></div>
+    <button class="search-btn" id="open-palette" type="button"><svg class="icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/core-static/vendor/icons.svg#search"></use></svg>Jump to…<kbd>⌘K</kbd></button>
     <nav id="nav" aria-label="Main"></nav>
-    <form method="post" action="/logout" class="signout"><button type="submit" class="link">Sign out</button></form>
+    <div class="sidebar-foot">
+      <button class="icon-btn" id="theme-toggle" type="button" title="Theme"></button>
+      <button class="icon-btn" id="shortcuts-btn" type="button" title="Keyboard shortcuts (?)"><svg class="icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/core-static/vendor/icons.svg#keyboard"></use></svg></button>
+      <form method="post" action="/logout" class="signout"><button type="submit" class="icon-btn" title="Sign out"><svg class="icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/core-static/vendor/icons.svg#log-out"></use></svg></button></form>
+    </div>
   </aside>
   <div class="main-col">
     <header class="topbar">
-      <h1 id="view-title"></h1>
+      <div class="row">
+        <button class="icon-btn mobile-only" id="nav-toggle" type="button" title="Menu"><svg class="icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/core-static/vendor/icons.svg#panel-left"></use></svg></button>
+        <h1 id="view-title"></h1>
+      </div>
       <div class="topbar-actions">
-        <span id="present-badge" class="present-badge" hidden>Presentation mode: private fields hidden</span>
-        <button id="present-toggle" class="btn" type="button" title="Hide private fields before sharing your screen">Presentation mode</button>
+        <span id="present-badge" class="present-badge" hidden>Private fields hidden</span>
+        <button id="present-toggle" class="btn" type="button" title="Hide private fields before sharing your screen (Shift+P)">Presentation mode</button>
       </div>
     </header>
     <main id="view" tabindex="-1"></main>

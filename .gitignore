@@ -16,3 +16,5 @@ secret.key
 themes/
 *.pptx
 *.key
+# Local build tools (Tailwind standalone CLI)
+.tools/

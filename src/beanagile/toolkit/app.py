@@ -8,20 +8,20 @@ from . import models
 from .routes import router
 
 NAV = [
-    {"path": "/today", "label": "Today"},
+    {"path": "/today", "icon": "sun", "label": "Today"},
     {"group": "Team"},
-    {"path": "/people", "label": "People"},
-    {"path": "/skills", "label": "Skills and learning"},
-    {"path": "/listening", "label": "Listening tour"},
-    {"path": "/rollup", "label": "Day-30 rollup"},
+    {"path": "/people", "icon": "users", "label": "People"},
+    {"path": "/skills", "icon": "graduation-cap", "label": "Skills and learning"},
+    {"path": "/listening", "icon": "messages-square", "label": "Listening tour"},
+    {"path": "/rollup", "icon": "chart-column", "label": "Day-30 rollup"},
     {"group": "Delivery"},
-    {"path": "/dev-sync", "label": "Dev-sync log"},
-    {"path": "/learning", "label": "Group learning"},
+    {"path": "/dev-sync", "icon": "list-checks", "label": "Dev-sync log"},
+    {"path": "/learning", "icon": "presentation", "label": "Group learning"},
     {"group": "Knowledge"},
-    {"path": "/escalation", "label": "Escalation playbook"},
+    {"path": "/escalation", "icon": "siren", "label": "Escalation playbook"},
     {"group": "Me"},
-    {"path": "/me", "label": "My development"},
-    {"path": "/settings", "label": "Settings"},
+    {"path": "/me", "icon": "user-round", "label": "My development"},
+    {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
 
 # Write scope for agents that update delivery records; it reads presentable fields.

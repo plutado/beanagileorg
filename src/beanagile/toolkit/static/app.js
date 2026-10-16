@@ -3,6 +3,11 @@
   const { esc } = BA;
   const presenting = () => BA.session.presentation;
 
+  BA.command({ label: "Add a dev-sync item", hint: "Dev-sync log", icon: "plus", run: () => BA.go("/dev-sync") });
+  BA.command({ label: "Plan a one-on-one", hint: "Listening tour", icon: "plus", run: () => BA.go("/listening") });
+  BA.command({ label: "Add a person", hint: "People", icon: "plus", run: () => BA.go("/people") });
+  BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
+
   const RELATIONSHIPS = ["employee", "contractor", "peer", "stakeholder", "manager", "vendor"];
   const GOAL_STATUS = ["not started", "in progress", "done", "at risk"];
   const CADENCES = ["weekly", "every two weeks", "monthly", "quarterly", "once"];

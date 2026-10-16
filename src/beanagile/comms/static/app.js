@@ -52,6 +52,10 @@
   const CHANNEL_KINDS = ["chat", "email", "meeting", "document", "other"];
   const RHYTHMS = ["weekly", "every two weeks", "monthly", "quarterly"];
   const presenting = () => BA.session.presentation;
+
+  BA.command({ label: "New message", hint: "Messages", icon: "plus", run: () => BA.go("/messages") });
+  BA.command({ label: "New deck", hint: "Decks", icon: "plus", run: () => BA.go("/decks") });
+  BA.command({ label: "Upload media", hint: "Media library", icon: "film", run: () => BA.go("/media") });
   const stateClass = { draft: "", "in review": "warn", ready: "good", sent: "good", archived: "", overdue: "bad", "start drafting": "warn", drafted: "warn", upcoming: "" };
   const pill = (s) => `<span class="pill ${stateClass[s] || ""}">${esc(s)}</span>`;
 

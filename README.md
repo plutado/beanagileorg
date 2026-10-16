@@ -30,6 +30,16 @@ For development, `uv run beanagile toolkit --reload` restarts on code changes.
 | Exports | One path that filters to exportable fields and logs what went out |
 | UI shell | Navigation, routing, presentation toggle and a Settings screen for sign-in, tokens and history |
 
+## Design system
+
+Styles come from one Tailwind CSS v4 source, `src/beanagile/core/static/app.src.css`: design tokens (light and dark), base styles and the shared components. The built `app.css` is committed, so running the apps needs no build step. After editing the source, rebuild with:
+
+```bash
+./scripts/build-css.sh
+```
+
+The script uses Tailwind's standalone CLI from `.tools/` (not committed). Icons are a Lucide subset (`scripts/build_icons.py`), and the font is Inter; both are vendored with their licenses. Press ⌘K in either app for the command palette, or ? for keyboard shortcuts.
+
 ## Data
 
 Data lives in `~/.beanagile/<app>/` (override with `BEANAGILE_DATA`). Nothing in this repository is real data; examples and samples are always marked `[Placeholder]`.

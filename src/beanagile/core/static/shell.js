@@ -21,6 +21,9 @@
     return res.status === 204 ? null : res.json();
   };
 
+  BA.icon = (name, cls = "") =>
+    `<svg class="icon ${cls}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/core-static/vendor/icons.svg#${name}"></use></svg>`;
+
   BA.toast = (message) => {
     const el = document.getElementById("toast");
     el.textContent = message;
@@ -142,7 +145,7 @@
       .map((item) =>
         item.group
           ? `<div class="group">${BA.esc(item.group)}</div>`
-          : `<a href="#${BA.esc(item.path)}" class="${current === item.path ? "on" : ""}">${BA.esc(item.label)}</a>`
+          : `<a href="#${BA.esc(item.path)}" class="${current === item.path ? "on" : ""}">${BA.icon(item.icon || "chevron-right")}${BA.esc(item.label)}</a>`
       )
       .join("");
   }
@@ -152,7 +155,7 @@
     document.body.classList.toggle("presenting", on);
     document.getElementById("present-badge").hidden = !on;
     const btn = document.getElementById("present-toggle");
-    btn.textContent = on ? "Stop presentation mode" : "Presentation mode";
+    btn.innerHTML = `${BA.icon(on ? "eye" : "eye-off")}${on ? "Stop presentation mode" : "Presentation mode"}`;
     btn.classList.toggle("primary", on);
   }
 
@@ -173,20 +176,31 @@
     main.removeAttribute("data-layout");
     document.getElementById("view-title").textContent = def ? def.title : "Not found";
     document.title = `${def ? def.title + " · " : ""}${BA.session.title}`;
-    main.innerHTML = "";
+    closeOverlay();
+    main.innerHTML = '<div class="skeleton"><div></div><div></div><div></div><div></div></div>';
+    main.classList.remove("entering");
+    document.body.classList.remove("nav-open");
     if (!def) {
       main.innerHTML = '<p class="empty">There is no screen here.</p>';
       return;
     }
     try {
-      await def.render(main, path.slice(key.length).replace(/^\//, ""));
+      const rendering = def.render(main, path.slice(key.length).replace(/^\//, ""));
+      await rendering;
+      void main.offsetWidth;
+      main.classList.add("entering");
     } catch (err) {
       main.innerHTML = `<p class="error">${BA.esc(err.message)}</p>`;
     }
   }
 
   async function togglePresentation() {
-    BA.session = await BA.api("/api/session/presentation", { method: "POST", body: { on: !BA.session.presentation } });
+    try {
+      BA.session = await BA.api("/api/session/presentation", { method: "POST", body: { on: !BA.session.presentation } });
+    } catch (err) {
+      BA.toast(`Couldn't change presentation mode: ${err.message}`);
+      return;
+    }
     renderPresentation();
     route();
   }
@@ -332,10 +346,143 @@
     };
   }
 
+  // ---- command palette, keyboard shortcuts, theme ----
+
+  BA.commands = [];
+  BA.command = (cmd) => BA.commands.push(cmd);
+
+  const THEMES = ["system", "light", "dark"];
+  const themeIcon = { system: "monitor", light: "sun", dark: "moon" };
+  function currentTheme() {
+    try {
+      return localStorage.getItem("ba-theme") || "system";
+    } catch (e) {
+      return "system";
+    }
+  }
+  function applyTheme(theme) {
+    if (theme === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("ba-theme", theme);
+    } catch (e) {}
+    const btn = document.getElementById("theme-toggle");
+    btn.innerHTML = BA.icon(themeIcon[theme]);
+    btn.title = `Theme: ${theme} (click to change)`;
+  }
+  const cycleTheme = () => applyTheme(THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length]);
+
+  const typing = (e) => {
+    const el = e.target;
+    return el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+  };
+
+  function closeOverlay() {
+    document.querySelectorAll(".overlay").forEach((o) => o.remove());
+  }
+
+  function openPalette() {
+    closeOverlay();
+    const navItems = BA.session.nav
+      .filter((i) => i.path)
+      .map((i) => ({ label: i.label, hint: "Go to", icon: i.icon || "chevron-right", run: () => BA.go(i.path) }));
+    const items = [
+      ...navItems,
+      ...BA.commands,
+      { label: BA.session.presentation ? "Stop presentation mode" : "Turn on presentation mode", hint: "Shift+P", icon: "eye-off", run: togglePresentation },
+      { label: "Change theme", hint: "light, dark or system", icon: "moon", run: cycleTheme },
+      { label: "Keyboard shortcuts", hint: "?", icon: "keyboard", run: openShortcuts },
+      { label: "Sign out", icon: "log-out", run: () => document.querySelector(".signout").submit() },
+    ];
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
+    overlay.innerHTML = `<div class="palette" role="dialog" aria-label="Command palette">
+      <div class="palette-search">${BA.icon("search", "quiet")}<input id="palette-input" placeholder="Jump to a screen or run an action…" autocomplete="off"></div>
+      <ul id="palette-list" role="listbox"></ul>
+      <div class="palette-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div></div>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector("input");
+    const list = overlay.querySelector("ul");
+    let shown = items;
+    let active = 0;
+    const score = (label, q) => {
+      const l = label.toLowerCase();
+      if (!q) return 1;
+      if (l.startsWith(q)) return 3;
+      if (l.includes(q)) return 2;
+      const initials = l.split(/\s+/).map((w) => w[0]).join("");
+      return initials.startsWith(q) ? 1.5 : 0;
+    };
+    const draw = () => {
+      const q = input.value.trim().toLowerCase();
+      shown = items.map((i) => [i, score(i.label, q)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([i]) => i);
+      active = Math.min(active, Math.max(0, shown.length - 1));
+      list.innerHTML =
+        shown.map((i, n) => `<li role="option" data-n="${n}" class="${n === active ? "active" : ""}">${BA.icon(i.icon || "chevron-right")}${BA.esc(i.label)}${i.hint ? `<span class="hint">${BA.esc(i.hint)}</span>` : ""}</li>`).join("") ||
+        '<li class="quiet">No matches</li>';
+      list.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+    };
+    const run = (i) => {
+      closeOverlay();
+      if (i) i.run();
+    };
+    input.oninput = () => {
+      active = 0;
+      draw();
+    };
+    input.onkeydown = (e) => {
+      if (e.key === "ArrowDown") (active = Math.min(active + 1, shown.length - 1)), draw(), e.preventDefault();
+      else if (e.key === "ArrowUp") (active = Math.max(active - 1, 0)), draw(), e.preventDefault();
+      else if (e.key === "Enter") run(shown[active]);
+      else if (e.key === "Escape") closeOverlay();
+    };
+    list.onclick = (e) => {
+      const li = e.target.closest("li[data-n]");
+      if (li) run(shown[Number(li.dataset.n)]);
+    };
+    overlay.onclick = (e) => e.target === overlay && closeOverlay();
+    draw();
+    input.focus();
+  }
+
+  function openShortcuts() {
+    closeOverlay();
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
+    overlay.innerHTML = `<div class="dialog" role="dialog" aria-label="Keyboard shortcuts"><h2>Keyboard shortcuts</h2><dl>
+      <dt><kbd>⌘</kbd> <kbd>K</kbd> or <kbd>/</kbd></dt><dd>Jump to a screen or run an action</dd>
+      <dt><kbd>Shift</kbd> <kbd>P</kbd></dt><dd>Presentation mode on or off</dd>
+      <dt><kbd>Shift</kbd> <kbd>T</kbd></dt><dd>Change theme</dd>
+      <dt><kbd>?</kbd></dt><dd>This list</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close a dialog</dd></dl>
+      <div class="actions"><button class="btn" type="button">Close</button></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e) => (e.target === overlay || e.target.closest("button")) && closeOverlay();
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      document.querySelector(".palette") ? closeOverlay() : openPalette();
+      return;
+    }
+    if (e.key === "Escape") return closeOverlay();
+    if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "/") (e.preventDefault(), openPalette());
+    else if (e.key === "?") openShortcuts();
+    else if (e.key === "P" && e.shiftKey) togglePresentation();
+    else if (e.key === "T" && e.shiftKey) cycleTheme();
+  });
+
   async function boot() {
     BA.session = await BA.api("/api/session");
     renderPresentation();
     document.getElementById("present-toggle").onclick = togglePresentation;
+    document.getElementById("open-palette").onclick = openPalette;
+    document.getElementById("shortcuts-btn").onclick = openShortcuts;
+    document.getElementById("theme-toggle").onclick = cycleTheme;
+    document.getElementById("nav-toggle").onclick = () => document.body.classList.toggle("nav-open");
+    applyTheme(currentTheme());
     window.addEventListener("hashchange", route);
     route();
   }

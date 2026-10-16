@@ -12,7 +12,6 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Design system pass (both apps):** Tailwind CSS v4 via its standalone CLI (no Node toolchain), shared design tokens (color, type scale, spacing, radius, shadow) also used by deck themes, a rebuilt component set (buttons, inputs, tables, cards, pills, nav, dialogs, toasts), Inter and Lucide icons, command palette (Cmd+K), keyboard shortcuts, skeleton loading, empty states, subtle motion, responsive grid
 - [ ] **Vendor relationships (toolkit):** vendors with type, account contacts (from People), support process, contract and renewal dates, service promise and private commercial terms; a communication log (date, vendor, people, channel, summary, concerns, follow-ups that become dev-sync items); open concerns per vendor; renewals on Today; escalation systems linked to their vendor
 - [ ] **Toolkit, day-45 batch:** sprint notebook, Agile roadmap items, RACI, risks and decisions, weekly status draft that feeds the Comms studio
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
@@ -34,7 +33,18 @@ In the order the 90-day plan needs them:
 - [ ] Delivery dashboard
 - [ ] Scrum of Scrums board from imported team status packs
 
+## Design follow-ups
+
+- [ ] Guided tours with Driver.js (MIT; pin a version at least two weeks old, bundled locally): a first-run tour per app (sidebar, command palette, presentation mode, main screens), per-screen tours from a "Take the tour" item in the command palette, tours defined as data next to each screen, styled to the design system. Shepherd.js and Intro.js ruled out: both AGPL-3.0.
+
+- [ ] Per-screen polish: richer empty states with illustrations, inline editing patterns, and a consistent page header with actions on every screen
+- [ ] Accessibility pass: contrast check of every token pair, screen reader labels, focus order in dialogs
+
 ## Comms studio, later versions
+
+- [ ] Generators layer (Comms studio): one connector per outside creative service, all delivering into the media library with provenance recorded (service, model, prompt, date, plan terms) and a "generated" label; prompts never carry confidential detail
+- [ ] Higgsfield connector: generate b-roll, motion backgrounds, animated title cards and short explainer clips from a prompt or still, straight into the media library
+- [ ] Canva integration (Canva Connect API, signed in with David's Canva Pro account): browse designs from the media library, pull exports (PDF, PNG, MP4) straight in, send deck slides or images to Canva for polish, "open in Canva" links. Only exportable or presentable content ever goes to Canva. Confirm which API features the Pro plan includes before building. Until then, export from Canva and upload.
 
 - [ ] Deck builder: undo and redo, keyboard shortcuts in the slide list, and real slide thumbnails
 - [ ] Deck builder: image positioning and sizing controls, and a second image layout (full-bleed)
@@ -68,6 +78,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-15: Design system pass: Tailwind CSS v4.3.3 (standalone CLI, checksum verified) building one shared stylesheet; light and dark tokens with a theme switch (system, light, dark); Inter and a Lucide icon subset vendored with licenses; new shell with icon navigation, command palette (Cmd+K or /) with app actions, keyboard shortcuts (?, Shift+P, Shift+T), loading skeletons, view transitions, mobile menu; restyled buttons, inputs, cards, tables, pills, dialogs, toasts and sign-in pages
 
 - [x] 2026-10-15: Toolkit day-30 batch: dev-sync action log (owners, due dates, overdue view, filters, private notes, group-learning flag that proposes a session); group learning schedule (from dev sync or proposed from teach/learn matches); escalation playbook (systems with owner, first responder and backup, business-hours and out-of-hours chains, severity levels, incident log with follow-ups that become dev-sync items; vendor lines private); Today shows overdue dev-sync items; placeholder data fills only empty parts; 61 tests
 

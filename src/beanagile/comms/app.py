@@ -8,19 +8,19 @@ from .messaging import router as messaging_router
 from .routes import router
 
 NAV = [
-    {"path": "/this-week", "label": "This week"},
+    {"path": "/this-week", "icon": "calendar-clock", "label": "This week"},
     {"group": "Messages"},
-    {"path": "/messages", "label": "Messages"},
-    {"path": "/templates", "label": "Templates"},
-    {"path": "/calendar", "label": "Comms calendar"},
-    {"path": "/sent", "label": "Sent log"},
-    {"path": "/audiences", "label": "Audiences and channels"},
-    {"path": "/plain-language", "label": "Plain language"},
+    {"path": "/messages", "icon": "mail", "label": "Messages"},
+    {"path": "/templates", "icon": "layout-template", "label": "Templates"},
+    {"path": "/calendar", "icon": "calendar-days", "label": "Comms calendar"},
+    {"path": "/sent", "icon": "send", "label": "Sent log"},
+    {"path": "/audiences", "icon": "users", "label": "Audiences and channels"},
+    {"path": "/plain-language", "icon": "spell-check", "label": "Plain language"},
     {"group": "Presentations"},
-    {"path": "/decks", "label": "Decks"},
-    {"path": "/media", "label": "Media library"},
+    {"path": "/decks", "icon": "presentation", "label": "Decks"},
+    {"path": "/media", "icon": "film", "label": "Media library"},
     {"group": "Me"},
-    {"path": "/settings", "label": "Settings"},
+    {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
 
 

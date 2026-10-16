@@ -90,8 +90,10 @@ def _page(title: str, body: str) -> HTMLResponse:
     return HTMLResponse(
         f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(title)}</title><link rel="stylesheet" href="/core-static/base.css"></head>
-<body class="auth-page"><main class="auth-card">{body}</main></body></html>"""
+<title>{html.escape(title)}</title>
+<script>try {{ const t = localStorage.getItem("ba-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; }} catch (e) {{}}</script>
+<link rel="stylesheet" href="/core-static/app.css"></head>
+<body class="auth-page"><main class="auth-card"><div class="auth-brand"><span class="brand-mark">B</span>beanagile</div>{body}</main></body></html>"""
     )
 
 
