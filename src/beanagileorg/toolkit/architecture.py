@@ -122,5 +122,7 @@ def system_detail(system_id: int, viewer: Viewer = Depends(get_viewer), conn=Dep
         "offerings": [{"id": o["id"], "name": o["name"]} for o in offerings],
         "decisions": [{"id": d["id"], "number": d["number"], "title": d["title"], "status": d["status"]} for d in decisions],
         "guides": [{"id": g["id"], "title": g["title"]} for g in guides],
+        "debt": [{"id": d["id"], "title": d["title"], "status": d["status"], "categories": d["categories"]}
+                 for d in models.tech_debt.fetch_all(conn) if system_id in d["system_ids"] and d["status"] not in ("done", "won't fix")],
         "testing": {"manual_cases": cases, "suites": [{"id": s["id"], "name": s["name"], "kind": s["kind"], "last_result": s["last_result"], "coverage": s["coverage"]} for s in suites]},
     }

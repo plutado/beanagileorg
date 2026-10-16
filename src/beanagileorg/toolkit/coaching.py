@@ -29,26 +29,34 @@ def _guide_row(g: dict, origin: str) -> dict:
             "minutes": g.get("minutes"), "origin": origin}
 
 
+VERSION_KEY = "coaching.starter_version"
+
+
 def seed_once(conn) -> bool:
-    """Copy the starter content in the first time the toolkit runs. Never again, so deletions stick."""
-    if conn.execute("SELECT 1 FROM settings WHERE key = ?", (SEEDED_KEY,)).fetchone():
+    """Copy the starter content in on first run. Later versions add only what's new, so anything deleted stays deleted."""
+    seeded = conn.execute("SELECT 1 FROM settings WHERE key = ?", (SEEDED_KEY,)).fetchone()
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (VERSION_KEY,)).fetchone()
+    have = int(row["value"]) if row else (1 if seeded else 0)
+    if have >= starter.STARTER_VERSION:
         return False
+    newer = lambda since: since > have
     for g in starter.GUIDES:
-        models.coaching_guides.create(conn, _guide_row(g, "built-in"), "starter")
-    pos = 0
-    for route, tips in starter.TIPS.items():
-        for text, slug in tips:
+        if newer(g.get("since", 1)) and not conn.execute("SELECT 1 FROM coaching_guides WHERE slug = ?", (g["slug"],)).fetchone():
+            models.coaching_guides.create(conn, _guide_row(g, "built-in"), "starter")
+    for pos, (route, text, slug, since) in enumerate(starter.tip_entries()):
+        if newer(since):
             models.coaching_tips.create(conn, {"route": route, "text": text, "guide_slug": slug, "position": pos}, "starter")
+    if not have:
+        pos = 0
+        for name, _, _, prompts in starter.REFLECTION_PHASES:
+            for text in prompts:
+                models.coaching_prompts.create(conn, {"phase": name, "text": text, "position": pos}, "starter")
+                pos += 1
+        for text in starter.ANYTIME_PROMPTS:
+            models.coaching_prompts.create(conn, {"phase": "Any time", "text": text, "position": pos}, "starter")
             pos += 1
-    pos = 0
-    for name, _, _, prompts in starter.REFLECTION_PHASES:
-        for text in prompts:
-            models.coaching_prompts.create(conn, {"phase": name, "text": text, "position": pos}, "starter")
-            pos += 1
-    for text in starter.ANYTIME_PROMPTS:
-        models.coaching_prompts.create(conn, {"phase": "Any time", "text": text, "position": pos}, "starter")
-        pos += 1
-    conn.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (SEEDED_KEY, date.today().isoformat()))
+        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (SEEDED_KEY, date.today().isoformat()))
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (VERSION_KEY, str(starter.STARTER_VERSION)))
     return True
 
 

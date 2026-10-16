@@ -17,6 +17,7 @@ from .db import transaction
 from .privacy import Level, Viewer, filter_record, register
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+ISSUE_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,19}-\d+$")  # Jira-style keys such as ABC-123
 
 
 @dataclass(frozen=True)
@@ -56,7 +57,7 @@ class Record:
     def _decode(self, row: sqlite3.Row) -> dict:
         rec = dict(row)
         for name, f in self.fields.items():
-            if f.type in ("list", "ids"):
+            if f.type in ("list", "ids", "keys"):
                 rec[name] = json.loads(rec[name]) if rec[name] else []
             elif f.type == "json":
                 rec[name] = json.loads(rec[name]) if rec[name] else {}
@@ -108,7 +109,7 @@ class Record:
         if value is None or value == "":
             if f.required:
                 raise HTTPException(400, f"{name} is required.")
-            return {"list": [], "ids": [], "json": {}, "bool": False}.get(f.type)
+            return {"list": [], "ids": [], "keys": [], "json": {}, "bool": False}.get(f.type)
         if f.type in ("text", "date"):
             if not isinstance(value, str):
                 raise HTTPException(400, f"{name} must be text.")
@@ -138,6 +139,20 @@ class Record:
             if not isinstance(value, dict):
                 raise HTTPException(400, f"{name} must be an object.")
             return value
+        if f.type in ("key", "keys"):
+            # One issue key, or several (a list, or text split on commas and spaces); stored upper case, no repeats.
+            parts = value if isinstance(value, list) else re.split(r"[\s,;]+", value) if isinstance(value, str) else None
+            if parts is None or not all(isinstance(v, str) for v in parts):
+                raise HTTPException(400, f"{name} must be issue keys such as ABC-123.")
+            keys = list(dict.fromkeys(v.strip().upper() for v in parts if v.strip()))
+            bad = [k for k in keys if not ISSUE_KEY_RE.match(k)]
+            if bad:
+                raise HTTPException(400, f"{', '.join(bad)} doesn't look like an issue key such as ABC-123.")
+            if f.type == "key":
+                if len(keys) > 1:
+                    raise HTTPException(400, f"{name} takes one issue key.")
+                return keys[0] if keys else None
+            return keys
         if f.type == "list":
             if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
                 raise HTTPException(400, f"{name} must be a list of text.")
@@ -148,7 +163,7 @@ class Record:
         out = {}
         for name, value in values.items():
             f = self.fields[name]
-            if f.type in ("list", "ids", "json"):
+            if f.type in ("list", "ids", "keys", "json"):
                 out[name] = json.dumps(value)
             else:
                 out[name] = int(value) if f.type == "bool" else value

@@ -644,6 +644,37 @@ GUIDES = [
         ],
         "related": ["/vendors", "/escalation"], "reading": [],
     },
+    # ---------------------------------------------------------------- added in starter version 2
+    {
+        "slug": "tech-debt-case", "theme": "stakeholders", "minutes": 7, "since": 2,
+        "title": "Making the case for technical debt",
+        "summary": "Talk about debt in terms leadership already cares about: risk, speed, customers and money, and agree a steady share of capacity instead of fighting for every item.",
+        "why": "\"Technical debt\" means little to people outside engineering, so it loses to feature work every time it's argued in the abstract. Framed as what it costs the business today, and what it will cost if left, it becomes an ordinary trade-off leaders can weigh.",
+        "practices": [
+            "Classify each item by what fixing it buys: stability, performance, revenue, security, speed of delivery, lower cost, better visibility, easier change or less clutter.",
+            "Describe the cost of leaving it in business terms: incidents, hours lost, slower releases, lost conversions, audit findings.",
+            "Score value and effort simply, so the reasoning fits on one slide, and lead with the quick wins.",
+            "Agree a standing share of each sprint for debt with your manager and product, and report against it, so you don't negotiate every item from scratch.",
+            "Tie debt to dates that force the issue: a platform release, peak season, a contract renewal, an end-of-support date.",
+            "When debt is accepted, record who decided, why, and when you'll look again. Accepting debt on purpose is fine; forgetting it isn't.",
+        ],
+        "pitfalls": [
+            "Asking for a \"cleanup sprint\" with no business reason attached.",
+            "Treating every item as urgent, which makes none of them credible.",
+            "Hiding debt work inside feature estimates without saying so.",
+            "Letting accepted debt drift with no date to revisit it.",
+        ],
+        "questions": [
+            "Which three debt items would leadership care about most, and why?",
+            "What did debt cost us last quarter in incidents, hours or lost sales?",
+            "Have we agreed how much capacity goes to debt, and are we keeping to it?",
+        ],
+        "try": [
+            "Pick your top three debt items and write one sentence each on what leaving them costs the business.",
+            "Propose a capacity share for debt at your next one-on-one with your manager.",
+        ],
+        "related": ["/debt", "/risks", "/architecture"], "reading": [MEA],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -666,6 +697,8 @@ TIPS = {
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
     "/raci": [("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager")],
+    "/debt": [("Describe each debt item by what leaving it costs the business, not by how ugly the code is.", "tech-debt-case", 2),
+              ("Agree a standing share of each sprint for debt, then report against it, instead of arguing every item.", "tech-debt-case", 2)],
     "/metrics": [("Measure the system, never individuals. Set a baseline before a target.", "metrics-without-blame")],
     "/qa": [("Bring QA into refinement. Quality built in costs less than quality tested in.", "quality-culture")],
     "/dev-sync": [("Follow up on every item, even when the answer is no. Closed loops build trust.", "earning-trust")],
@@ -742,5 +775,20 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
+STARTER_VERSION = 2  # bump when adding guides or tips, and mark the new ones with "since"
+
+
+def tip_entries():
+    """(route, text, slug, since) for every starter tip."""
+    for route, tips in TIPS.items():
+        for tip in tips:
+            text, slug, since = (*tip, 1)[:3]
+            yield route, text, slug, since
+
+
 def builtin_tips(paths: set[str]) -> dict:
-    return {route: [{"text": text, "guide": slug, "title": guide(slug)["title"]} for text, slug in tips] for route, tips in TIPS.items() if route in paths}
+    out = {}
+    for route, text, slug, _ in tip_entries():
+        if route in paths:
+            out.setdefault(route, []).append({"text": text, "guide": slug, "title": guide(slug)["title"]})
+    return out

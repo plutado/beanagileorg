@@ -2,6 +2,8 @@
 (function () {
   const { esc } = BA;
   const presenting = () => BA.session.presentation;
+  // Before sign-in finishes there's nothing on screen yet, so just remember the address; redraw only an open screen.
+  BA.api("/api/toolkit/settings").then((s) => { if (s && s.jira_url && s.jira_url !== BA.jiraUrl) { BA.jiraUrl = s.jira_url; if (BA.session) BA.rerender(); } }).catch(() => {});
 
   BA.command({ label: "Add a dev-sync item", hint: "Dev-sync log", icon: "plus", run: () => BA.go("/dev-sync") });
   BA.command({ label: "Plan a one-on-one", hint: "Listening tour", icon: "plus", run: () => BA.go("/listening") });
@@ -21,6 +23,8 @@
   BA.command({ label: "Open our SDLC", hint: "SDLC", icon: "git-branch", run: () => BA.go("/sdlc") });
   BA.command({ label: "Write a reflection", hint: "Coaching", icon: "notebook", run: () => BA.go("/coaching/reflect") });
   BA.command({ label: "Browse coaching guides", hint: "Coaching", icon: "compass", run: () => BA.go("/coaching") });
+  BA.command({ label: "Log technical debt", hint: "Tech debt", icon: "wrench", run: () => BA.go("/debt") });
+  BA.command({ label: "Find a Jira key", hint: "Search everything that references it", icon: "search", run: () => { const k = prompt("Jira key, such as ABC-123"); if (k) BA.go(`/jira/${k.trim().toUpperCase()}`); } });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -97,6 +101,7 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
+        ${d.debt_due && d.debt_due.length ? `<section class="card"><h2>Technical debt</h2>${d.debt_due.map((x) => `<div class="item"><span class="pill ${x.kind === "deadline" ? "warn" : ""}">${x.kind === "deadline" ? "needed by" : "revisit"}</span><a href="#/debt">${esc(x.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.when)}</span></div>`).join("")}</section>` : ""}
         ${d.onboarding_due.length ? `<section class="card"><h2>Onboarding</h2>${d.onboarding_due.map((o) => `<div class="item">${o.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/onboarding/${o.onboarding_id}">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${esc(o.person_name)} · ${esc(o.owner_role)} · ${BA.fmtDate(o.due)}</span></div>`).join("")}</section>` : ""}
         <section class="card"><h2>Due in the next 7 days</h2>${d.tasks_due_soon.map(taskRow).join("") || empty("Nothing due this week.")}</section>
         <section class="card"><h2>Obligations</h2>${
@@ -375,6 +380,9 @@
         <section class="card"><h2>Contract start date</h2>
           <form id="start" class="row"><input type="date" name="start_date" value="${esc(start || "")}" style="max-width:200px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every "Day N" into a real date.</span></form></section>
+        <section class="card"><h2>Jira</h2>
+          <form id="jira" class="row"><input name="jira_url" value="${esc(settings.jira_url || "")}" placeholder="https://[your-site].atlassian.net" style="max-width:360px">
+          <button class="btn" type="submit">Save</button><span class="quiet">Turns every Jira key in the toolkit into a link. Use <b>Find a Jira key</b> (⌘K) to see everywhere a key is mentioned.</span></form></section>
 
         <section class="card"><h2>Learning goals</h2>
           <p class="quiet">Goals marked "Report" are the ones Brian sees in status reports and presentation mode.</p>
@@ -428,6 +436,12 @@
         e.preventDefault();
         await BA.api("/api/toolkit/settings", { method: "PUT", body: { start_date: new FormData(e.target).get("start_date") || null } });
         BA.rerender();
+      });
+      main.querySelector("#jira").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const s = await BA.api("/api/toolkit/settings", { method: "PUT", body: { jira_url: new FormData(e.target).get("jira_url") } });
+        BA.jiraUrl = s.jira_url || null;
+        BA.toast(s.jira_url ? "Jira keys now link to " + s.jira_url : "Jira links turned off.");
       });
       on("[data-goal-status]", (el) => (el.onchange = BA.guard(() => BA.api(`/api/learning-goals/${el.dataset.goalStatus}`, { method: "PATCH", body: { status: el.value } }))));
       on("[data-goal-report]", (el) => (el.onchange = BA.guard(() => BA.api(`/api/learning-goals/${el.dataset.goalReport}`, { method: "PATCH", body: { show_in_report: el.checked } }))));
@@ -496,6 +510,7 @@
     { name: "status", label: "Status", type: "select", blank: false, options: ACTION_STATUS },
     { name: "origin", label: "Came from", type: "select", blank: false, options: ACTION_ORIGINS },
     { name: "learning", label: "Group learning: worth a short team presentation", type: "checkbox" },
+    { name: "jira_keys", label: "Jira keys", type: "keys", placeholder: "ABC-123, ABC-124" },
     { name: "notes", label: "My notes (private)", type: "textarea" },
   ];
 
@@ -530,7 +545,7 @@
         </div>
         <div class="tablewrap"><table class="data"><thead><tr><th>Question or concern</th><th>Raised by</th><th>Owner</th><th>Next action</th><th>Due</th><th>Status</th><th>Learning</th></tr></thead><tbody>${
           shown
-            .map((i) => `<tr class="clickable" data-id="${i.id}"><td>${esc(i.concern)}</td><td>${esc(i.raised_by_name || "")}</td><td>${esc(i.owner_name || "")}</td>
+            .map((i) => `<tr class="clickable" data-id="${i.id}"><td>${esc(i.concern)} ${BA.issueKeys(i.jira_keys)}</td><td>${esc(i.raised_by_name || "")}</td><td>${esc(i.owner_name || "")}</td>
               <td>${esc(i.next_action)}</td><td${late(i) ? ' class="late"' : ""}>${BA.fmtDate(i.due)}</td>
               <td>${late(i) ? '<span class="pill bad">overdue</span>' : BA.statusPill(i.status)}</td><td>${i.learning ? '<span class="pill">yes</span>' : ""}</td></tr>`)
             .join("") || '<tr><td colspan="7" class="empty">Nothing matches.</td></tr>'
@@ -649,7 +664,7 @@
           ])}<div class="actions"><button class="btn primary" type="submit">Add level</button></div></form>`}</section>
         <section class="card"><h2>Incident log</h2><div class="tablewrap"><table class="data"><thead><tr><th>Date</th><th>System</th><th>Severity</th><th>Summary</th><th>Resolved</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${
           incidents
-            .map((i) => `<tr><td>${BA.fmtDate(i.date)}</td><td>${esc(i.system_name || "")}</td><td>${esc(i.severity_level || "")}</td><td>${esc(i.summary)}</td>
+            .map((i) => `<tr><td>${BA.fmtDate(i.date)}</td><td>${esc(i.system_name || "")}</td><td>${esc(i.severity_level || "")}</td><td>${esc(i.summary)} ${BA.keysEditor(`/api/incidents/${i.id}`, i.jira_keys)}</td>
               <td>${i.resolved_at ? BA.fmtDate(i.resolved_at) : '<span class="pill bad">open</span>'}</td>
               ${presenting() ? "" : `<td><button class="btn" data-follow="${i.id}">Add follow-up</button>${i.resolved_at ? "" : ` <button class="btn" data-resolve="${i.id}">Resolved</button>`}</td>`}</tr>`)
             .join("") || '<tr><td colspan="6" class="empty">No incidents logged.</td></tr>'
@@ -805,7 +820,7 @@
     const concerns = `<section class="card"><h2>Open concerns</h2>${
       d.concerns
         .map((c) => `<div class="item">${tonePill(c.status, CONCERN_TONES)}
-          <span>${esc(c.title)}</span><span class="spacer"></span><span class="quiet">${esc(c.owner_name || "")} ${BA.fmtDate(c.due)}</span>
+          <span>${esc(c.title)}</span>${BA.keysEditor(`/api/vendor-concerns/${c.id}`, c.jira_keys)}<span class="spacer"></span><span class="quiet">${esc(c.owner_name || "")} ${BA.fmtDate(c.due)}</span>
           ${presenting() || c.status === "resolved" ? "" : `<button class="btn" data-resolve="${c.id}">Resolved</button>`}</div>`)
         .join("") || '<p class="quiet">No concerns logged.</p>'
     }${presenting() ? "" : `<form id="add-concern" class="row" style="margin-top:10px">
@@ -1059,8 +1074,8 @@
       main.innerHTML = `<p class="quiet">${done} of ${items.length} done. ${settings.start_date ? "" : 'Set the contract start date under <a href="#/me">My development</a> to turn days into dates.'}</p>
         <div class="tablewrap"><table class="data"><thead><tr><th>Item</th><th>Kind</th><th>Target</th><th>Status</th><th>Owner</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${items
           .map((i) => presenting()
-            ? `<tr><td><b>${esc(i.title)}</b><div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td><td>${dayDateOf(settings.start_date, i.target_day)}</td><td>${BA.statusPill(i.status)}</td><td>${esc(i.owner_name || "")}</td></tr>`
-            : `<tr data-id="${i.id}"><td><b>${esc(i.title)}</b><div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
+            ? `<tr><td><b>${esc(i.title)}</b> ${BA.issueKeys(i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td><td>${dayDateOf(settings.start_date, i.target_day)}</td><td>${BA.statusPill(i.status)}</td><td>${esc(i.owner_name || "")}</td></tr>`
+            : `<tr data-id="${i.id}"><td><b>${esc(i.title)}</b> ${BA.keysEditor(`/api/roadmap/${i.id}`, i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
               <td><input type="number" name="target_day" value="${esc(i.target_day ?? "")}" style="max-width:90px"> <span class="quiet">${dayDateOf(settings.start_date, i.target_day).replace(/^Day \d+ · /, "")}</span></td>
               <td><select name="status">${ROADMAP_STATUS.map((s) => `<option${s === i.status ? " selected" : ""}>${s}</option>`).join("")}</select></td>
               <td><select name="owner_id">${personOptions(people, i.owner_id)}</select></td><td><button class="btn danger" data-del="${i.id}">Delete</button></td></tr>`)
@@ -1150,7 +1165,7 @@
       const ro = presenting();
       main.innerHTML = `
         <section class="card"><h2>Risks and issues</h2><div class="tablewrap"><table class="data"><thead><tr><th>Level</th><th>Risk or issue</th><th>Impact</th><th>Owner</th><th>Next step</th><th>Due</th><th>Status</th></tr></thead><tbody>${
-          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b></td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
+          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b> ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
             <td>${esc(r.next_step || "")}</td><td>${BA.fmtDate(r.due)}</td>
             <td>${ro ? esc(r.status) : `<select name="status">${["open", "watching", "closed"].map((s) => `<option${s === r.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`).join("") ||
           '<tr><td colspan="7" class="empty">No risks logged.</td></tr>'
@@ -1162,7 +1177,7 @@
           <label>Next step<input name="next_step"></label><label>Due<input type="date" name="due"></label>
           <div class="actions"><button class="btn primary" type="submit">Add risk</button></div></form>`}</section>
         <section class="card"><h2>Decisions needed</h2><div class="tablewrap"><table class="data"><thead><tr><th>Decision</th><th>From whom</th><th>Needed by</th><th>Status</th><th>Outcome</th></tr></thead><tbody>${
-          decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b></td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
+          decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b> ${BA.keysEditor(`/api/decisions-needed/${d.id}`, d.jira_keys)}</td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
             <td>${ro ? esc(d.status) : `<select name="status">${["open", "decided"].map((s) => `<option${s === d.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td>
             <td>${ro ? esc(d.outcome || "") : `<input name="outcome" value="${esc(d.outcome || "")}">`}</td></tr>`).join("") ||
           '<tr><td colspan="5" class="empty">No decisions pending.</td></tr>'
@@ -1321,7 +1336,7 @@
         ${r.summary ? `<p>${esc(r.summary)}</p>` : ""}
         ${ro ? "" : `<p class="quiet">Your private impressions belong in the <a href="#/sprints${r.sprint_id ? "/" + r.sprint_id : ""}">sprint notebook</a>'s retro note.</p>`}</section>
       ${d.carried_forward.length ? `<section class="card"><h2>Did we do what we said?</h2><p class="quiet">Open commitments from earlier retros.</p>${d.carried_forward
-        .map((c) => `<div class="item" data-carry="${c.id}"><span>${esc(c.commitment)}</span><span class="quiet">${c.sprint_number ? `sprint ${c.sprint_number}` : ""} ${esc(c.owner_name || "")}</span><span class="spacer"></span>
+        .map((c) => `<div class="item" data-carry="${c.id}"><span>${esc(c.commitment)}</span>${BA.keysEditor(`/api/retro-commitments/${c.id}`, c.jira_keys)}<span class="quiet">${c.sprint_number ? `sprint ${c.sprint_number}` : ""} ${esc(c.owner_name || "")}</span><span class="spacer"></span>
           ${ro ? tonePill(c.status, COMMIT_TONES) : `<select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>
           <input name="outcome" placeholder="Outcome" value="${esc(c.outcome || "")}" style="max-width:220px">`}</div>`)
         .join("")}</section>` : ""}
@@ -1330,7 +1345,7 @@
           ${ro ? "" : `<form class="add-item" data-col="${esc(col)}"><input name="text" placeholder="Add a point" required><input name="topic" placeholder="Topic tag (optional)"><button class="btn" type="submit">Add</button></form>`}</section>`)
         .join("")}</div>
       <section class="card"><h2>What we're committing to</h2>${
-        d.commitments.map((c) => `<div class="item" data-cm="${c.id}"><span>${esc(c.commitment)}</span><span class="spacer"></span>
+        d.commitments.map((c) => `<div class="item" data-cm="${c.id}"><span>${esc(c.commitment)}</span>${BA.keysEditor(`/api/retro-commitments/${c.id}`, c.jira_keys)}<span class="spacer"></span>
           ${ro ? `${esc(c.owner_name || "")} ${BA.fmtDate(c.due)} ${tonePill(c.status, COMMIT_TONES)}` : `<select name="owner_id" style="max-width:200px">${personOptions(people, c.owner_id)}</select>
           <input type="date" name="due" value="${esc(c.due || "")}" style="max-width:160px">
           <select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</div>`).join("") ||
@@ -1432,7 +1447,7 @@
     const board = `<div class="tablewrap"><table class="data pi-board"><thead><tr><th>Feature</th>${sprintCols
       .map((s) => `<th>${s.id ? `Sprint ${s.number}${s.kind === "innovation and planning" ? " (IP)" : ""}` : "Unscheduled"}<div>${capacity(s)}</div></th>`).join("")}</tr></thead><tbody>
       <tr class="milestones-row"><td><b>Milestones</b></td>${sprintCols.map((s) => `<td>${s.id ? d.milestones.filter((m) => m.date && s.start_date && m.date >= s.start_date && m.date <= (s.end_date || m.date)).map((m) => `<span class="pill warn">${esc(m.title)}</span>`).join(" ") : d.milestones.filter((m) => !m.date).map((m) => `<span class="pill">${esc(m.title)}</span>`).join(" ")}</td>`).join("")}</tr>
-      ${d.features.map((f) => `<tr><td><b>${esc(f.title)}</b> ${tonePill(f.priority, PRIORITY_TONES)}<div class="quiet">${[f.epic_title, f.ticket_key, `${f.points} pts`].filter(Boolean).map(esc).join(" · ")}</div></td>${sprintCols.map((s) => `<td>${cellStories(f.id, s.id)}</td>`).join("")}</tr>`).join("") ||
+      ${d.features.map((f) => `<tr><td><b>${esc(f.title)}</b> ${tonePill(f.priority, PRIORITY_TONES)}<div class="quiet">${[f.epic_title, `${f.points} pts`].filter(Boolean).map(esc).join(" · ")} ${BA.keysEditor(`/api/features/${f.id}`, f.ticket_key, "ticket_key")}</div></td>${sprintCols.map((s) => `<td>${cellStories(f.id, s.id)}</td>`).join("")}</tr>`).join("") ||
         `<tr><td colspan="${sprintCols.length + 1}" class="empty">No features yet.</td></tr>`}
       </tbody></table></div>`;
     main.innerHTML = `<p><a href="#/pi">All PIs</a></p>
@@ -1458,7 +1473,7 @@
           <label>Feature<input name="title" required></label>
           <div class="grid2"><label>Epic<select name="epic_id"><option value=""></option>${epics.map((e) => `<option value="${e.id}">${esc(e.title)}</option>`).join("")}</select></label>
           <label>Priority<select name="priority">${opts(PRIORITIES, "medium")}</select></label>
-          <label>Owner<select name="owner_id">${personOptions(people)}</select></label><label>Ticket key<input name="ticket_key" placeholder="Optional"></label></div>
+          <label>Owner<select name="owner_id">${personOptions(people)}</select></label><label>Jira key<input name="ticket_key" placeholder="ABC-123"></label></div>
           <label>Acceptance criteria<textarea name="acceptance"></textarea></label>
           <div class="actions"><button class="btn primary" type="submit">Add feature</button></div></form></section>
         <section class="card"><h2>Add a story</h2><form id="add-story">
@@ -1473,7 +1488,7 @@
       </div>`}
 
       <section class="card"><h2>Stories</h2><div class="tablewrap"><table class="data"><thead><tr><th>Story</th><th>Feature</th><th>Sprint</th><th>Points</th><th>Priority</th><th>Status</th></tr></thead><tbody>${
-        d.stories.map((s) => `<tr data-story="${s.id}"><td>${esc(s.title)}${s.ticket_key ? ` <span class="quiet">${esc(s.ticket_key)}</span>` : ""}</td><td>${esc(d.features.find((f) => f.id === s.feature_id)?.title || "")}</td>
+        d.stories.map((s) => `<tr data-story="${s.id}"><td>${esc(s.title)} ${BA.keysEditor(`/api/stories/${s.id}`, s.ticket_key, "ticket_key")}</td><td>${esc(d.features.find((f) => f.id === s.feature_id)?.title || "")}</td>
           <td>${ro ? (d.sprints.find((x) => x.id === s.sprint_id)?.number ?? "") : `<select name="sprint_id"><option value="">Unscheduled</option>${d.sprints.map((x) => `<option value="${x.id}"${x.id === s.sprint_id ? " selected" : ""}>Sprint ${x.number}</option>`).join("")}</select>`}</td>
           <td>${ro ? (s.points ?? "") : `<input type="number" name="points" value="${esc(s.points ?? "")}" style="max-width:80px">`}</td>
           <td>${tonePill(s.priority, PRIORITY_TONES)}</td><td>${ro ? esc(s.status) : `<select name="status">${opts(WORK_STATUS, s.status)}</select>`}</td></tr>`).join("") ||
@@ -1912,13 +1927,14 @@
     const groups = {};
     shown.forEach((c) => (groups[c.system_name || "No system"] ??= []).push(c));
     const caseRow = (c) => `<details class="plan-item${c.active ? "" : " dropped"}" data-case="${c.id}"><summary><span>${esc(c.title)}</span><span class="spacer"></span>
-        ${c.area ? `<span class="quiet">${esc(c.area)}</span>` : ""}<span class="pill">${esc(c.kind)}</span>${tonePill(c.priority, PRIORITY_TONES)}
+        ${BA.issueKeys(c.jira_keys)}${c.area ? `<span class="quiet">${esc(c.area)}</span>` : ""}<span class="pill">${esc(c.kind)}</span>${tonePill(c.priority, PRIORITY_TONES)}
         ${c.last_result ? `${tonePill(c.last_result, RESULT_TONES)}<span class="quiet">${BA.fmtDate(c.last_run)}</span>` : '<span class="quiet">never run</span>'}</summary>
         ${c.preconditions ? `<h4>Before you start</h4>${BA.md(c.preconditions)}` : ""}${c.steps ? `<h4>Steps</h4>${BA.md(c.steps)}` : ""}${c.expected ? `<h4>Expected result</h4>${BA.md(c.expected)}` : ""}
         ${ro ? "" : `<form class="edit-case"><div class="grid2">
           <label>Title<input name="title" value="${esc(c.title)}" required></label><label>System<select name="system_id">${sysOptions(systems, c.system_id)}</select></label>
           <label>Area<input name="area" value="${esc(c.area || "")}"></label><label>Kind<select name="kind">${opts(TEST_KINDS, c.kind)}</select></label>
-          <label>Priority<select name="priority">${opts(PRIORITIES, c.priority)}</select></label><label>Owner<select name="owner_id">${personOptions(people, c.owner_id)}</select></label></div>
+          <label>Priority<select name="priority">${opts(PRIORITIES, c.priority)}</select></label><label>Owner<select name="owner_id">${personOptions(people, c.owner_id)}</select></label>
+          <label>Jira keys <span class="quiet">(the test, or stories it covers)</span><input name="jira_keys" value="${esc((c.jira_keys || []).join(", "))}" placeholder="ABC-123"></label></div>
           <label>Before you start <span class="quiet">(data, accounts, environment)</span><textarea name="preconditions">${esc(c.preconditions || "")}</textarea></label>
           <label>Steps <span class="quiet">(a numbered list works best)</span><textarea name="steps" rows="5">${esc(c.steps || "")}</textarea></label>
           <label>Expected result<textarea name="expected">${esc(c.expected || "")}</textarea></label>
@@ -1954,7 +1970,7 @@
         e.preventDefault();
         const f = new FormData(form);
         await BA.api(`/api/test-cases/${id}`, { method: "PATCH", body: { title: f.get("title"), system_id: numOrNull(f.get("system_id")), area: f.get("area"), kind: f.get("kind"), priority: f.get("priority"),
-          owner_id: numOrNull(f.get("owner_id")), preconditions: f.get("preconditions"), steps: f.get("steps"), expected: f.get("expected"), active: form.elements.active.checked } });
+          owner_id: numOrNull(f.get("owner_id")), preconditions: f.get("preconditions"), steps: f.get("steps"), expected: f.get("expected"), active: form.elements.active.checked, jira_keys: f.get("jira_keys") } });
         BA.rerender();
       });
       det.querySelector("[data-del-case]").onclick = BA.guard(async () => {
@@ -2008,6 +2024,7 @@
           ${x.case.preconditions ? `<h4>Before you start</h4>${BA.md(x.case.preconditions)}` : ""}${x.case.steps ? `<h4>Steps</h4>${BA.md(x.case.steps)}` : '<p class="quiet">No steps written yet.</p>'}${x.case.expected ? `<h4>Expected result</h4>${BA.md(x.case.expected)}` : ""}</details>
         <div class="row">${ro ? tonePill(x.result, RESULT_TONES) : `<div class="seg">${RESULTS.map((v) => `<button type="button" class="${x.result === v ? "on " + (RESULT_TONES[v] || "") : ""}" data-set="${v}">${v}</button>`).join("")}</div>
           <input name="notes" placeholder="What happened" value="${esc(x.notes || "")}" style="max-width:340px">
+          ${BA.keysEditor(`/api/test-results/${x.id}`, x.jira_keys)}
           ${x.action_item_id ? '<a href="#/dev-sync">In the dev-sync log</a>' : (x.result === "fail" || x.result === "blocked") ? '<button class="btn" type="button" data-follow>Send to dev-sync</button>' : ""}`}</div></div>`;
     main.innerHTML = `<p><a href="#/qa/runs">All runs</a></p>
       <section class="card"><div class="row"><h2>${esc(r.name)}</h2><span class="quiet">${BA.fmtDate(r.date)} · ${esc(r.kind)}${r.environment ? " · " + esc(r.environment) : ""}${r.tester_name ? " · " + esc(r.tester_name) : ""}</span><span class="spacer"></span>${tally(r)}</div>
@@ -2326,6 +2343,7 @@
         ${d.carries.length ? `<section class="card"><h2>Carries</h2>${intList(d.carries, "")}</section>` : ""}
         <section class="card"><h2>Testing</h2><p>${d.testing.manual_cases} manual test case${d.testing.manual_cases === 1 ? "" : "s"} in use. <a href="#/qa/library">Test library</a></p>
           ${d.testing.suites.map((x) => `<div class="item"><span>${esc(x.name)}</span><span class="pill">${esc(x.kind)}</span><span class="spacer"></span>${x.coverage != null ? `<span class="quiet">${x.coverage}%</span>` : ""}${tonePill(x.last_result, SUITE_TONES)}</div>`).join("")}</section>
+        ${d.debt && d.debt.length ? `<section class="card"><h2>Technical debt</h2>${d.debt.map((x) => `<div class="item"><a href="#/debt">${esc(x.title)}</a><span class="spacer"></span>${BA.chips(x.categories)}${BA.statusPill(x.status)}</div>`).join("")}</section>` : ""}
         <section class="card"><h2>Decisions and guides</h2>${[...d.decisions.map((x) => `<div class="item"><a href="#/architecture/decisions">${adrLabel(x.number)} ${esc(x.title)}</a><span class="spacer"></span>${tonePill(x.status, ADR_TONES)}</div>`),
           ...d.guides.map((g) => `<div class="item"><a href="#/architecture/g-${g.id}">${esc(g.title)}</a><span class="spacer"></span><span class="quiet">guide</span></div>`)].join("") || '<p class="quiet">None linked yet.</p>'}</section>
       </div>
@@ -2410,11 +2428,12 @@
       <p class="quiet">Architecture decision records: one page per significant technical decision, with the context, what was decided, what it costs, and what else was considered. Numbers never change; a replaced decision is marked superseded.</p>
       <section class="card">${adrs.map((a) => `<details class="plan-item${a.status === "superseded" || a.status === "rejected" ? " dropped" : ""}" data-adr="${a.id}"><summary><b>${adrLabel(a.number)}</b><span>${esc(a.title)}</span><span class="spacer"></span>
           ${a.date ? `<span class="quiet">${BA.fmtDate(a.date)}</span>` : ""}${tonePill(a.status, ADR_TONES)}${a.superseded_by_number ? `<span class="quiet">by ${adrLabel(a.superseded_by_number)}</span>` : ""}</summary>
-          ${a.system_ids.length ? `<p>${BA.chips(a.system_ids.map((x) => sysName[x]).filter(Boolean))}</p>` : ""}
+          ${a.system_ids.length || a.jira_keys.length ? `<p>${BA.issueKeys(a.jira_keys)} ${BA.chips(a.system_ids.map((x) => sysName[x]).filter(Boolean))}</p>` : ""}
           ${section("Context", a.context)}${section("Decision", a.decision)}${section("Consequences", a.consequences)}${section("Alternatives considered", a.alternatives)}
           ${a.decided_by_name ? `<p class="quiet">Decided by ${esc(a.decided_by_name)}</p>` : ""}
           ${ro ? "" : `<form class="edit-adr"><div class="grid2"><label>Title<input name="title" value="${esc(a.title)}" required></label><label>Status<select name="status">${opts(ADR_STATUS, a.status)}</select></label>
             <label>Date<input type="date" name="date" value="${esc(a.date || "")}"></label><label>Decided by<select name="decided_by_id">${personOptions(people, a.decided_by_id)}</select></label>
+            <label>Jira keys<input name="jira_keys" value="${esc((a.jira_keys || []).join(", "))}" placeholder="ABC-123"></label>
             <label>Superseded by<select name="superseded_by_id"><option value=""></option>${adrs.filter((x) => x.id !== a.id).map((x) => `<option value="${x.id}"${x.id === a.superseded_by_id ? " selected" : ""}>${adrLabel(x.number)} ${esc(x.title)}</option>`).join("")}</select></label></div>
             <label>Context <span class="quiet">(the problem and the forces at play)</span><textarea name="context">${esc(a.context || "")}</textarea></label>
             <label>Decision<textarea name="decision">${esc(a.decision || "")}</textarea></label>
@@ -2438,7 +2457,7 @@
         const f = new FormData(form);
         await BA.api(`/api/arch-decisions/${id}`, { method: "PATCH", body: { title: f.get("title"), status: f.get("status"), date: f.get("date") || null, decided_by_id: numOrNull(f.get("decided_by_id")),
           superseded_by_id: numOrNull(f.get("superseded_by_id")), context: f.get("context"), decision: f.get("decision"), consequences: f.get("consequences"), alternatives: f.get("alternatives"),
-          system_ids: f.getAll("system_ids").map(Number) } });
+          system_ids: f.getAll("system_ids").map(Number), jira_keys: f.get("jira_keys") } });
         BA.rerender();
       });
       det.querySelector("[data-del-adr]").onclick = BA.guard(async () => {
@@ -2555,7 +2574,7 @@
     const task = (t) => `<div class="ob-task${t.done ? " done" : ""}" data-task="${t.id}">
         <label class="check"><input type="checkbox" data-done${t.done ? " checked" : ""}${ro ? " disabled" : ""}> <span>${esc(t.title)}</span></label>
         <span class="spacer"></span>${t.owner_role !== "new member" ? `<span class="pill ${OWNER_TONES[t.owner_role] || ""}">${esc(t.owner_role)}</span>` : ""}
-        ${t.due ? `<span class="${t.overdue ? "pill bad" : "quiet"}">${BA.fmtDate(t.due)}</span>` : `<span class="quiet">${dayLabel(t.due_day)}</span>`}${openLink(t.link)}
+        ${t.due ? `<span class="${t.overdue ? "pill bad" : "quiet"}">${BA.fmtDate(t.due)}</span>` : `<span class="quiet">${dayLabel(t.due_day)}</span>`}${openLink(t.link)}${BA.keysEditor(`/api/onboarding-tasks/${t.id}`, t.jira_keys)}
         ${t.description || !ro ? `<details><summary class="quiet">More</summary>${t.description ? BA.md(t.description) : ""}
           ${ro ? "" : `<label>Notes <span class="quiet">(private)</span><textarea data-notes>${esc(t.notes || "")}</textarea></label><button class="btn danger" type="button" data-del>Remove from this checklist</button>`}</details>` : ""}</div>`;
     main.innerHTML = `<p><a href="#/onboarding">All new members</a></p>
@@ -3012,4 +3031,167 @@
       main.querySelector("#pack-result").innerHTML = `<p><span class="pill good">imported</span> ${r.guides_added} guides added, ${r.guides_replaced} replaced, ${r.guides_skipped} skipped; ${r.tips_added} tips and ${r.prompts_added} prompts added.</p>`;
     });
   }
+
+  // ---------------------------------------------------------------- Technical debt
+
+  const DEBT_CATS = ["maintainability", "stability", "performance", "cleanup", "revenue and conversion", "observability", "security", "delivery speed", "cost"];
+  const DEBT_STATUS = ["identified", "accepted", "planned", "in progress", "done", "won't fix"];
+  const DEBT_DECISIONS = ["fix now", "schedule", "accept for now", "won't fix"];
+  const QUAD_TONES = { "quick win": "good", "big bet": "accent", "fill-in": "", "money pit": "bad", "not scored": "warn" };
+  const debtTabs = (active) => `<nav class="tabs">${[["", "Register"], ["matrix", "Value and effort"], ["summary", "Leadership summary"], ["policy", "Policy"]]
+    .map(([k, label]) => `<a href="#/debt${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+  BA.view("/debt", {
+    title: "Tech debt",
+    async render(main, param) {
+      const d = await BA.api("/api/debt/overview");
+      if (param === "matrix") return renderDebtMatrix(main, d);
+      if (param === "summary") return renderDebtSummary(main, d);
+      if (param === "policy") return renderDebtPolicy(main, d);
+      const [systems, people, sprints] = await Promise.all([BA.api("/api/systems"), BA.api("/api/people"), BA.api("/api/sprints")]);
+      const ro = presenting();
+      const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-debt-filter") || "{}"); } catch { return {}; } })();
+      const shown = d.items.filter((i) => (!f.cat || (i.categories || []).includes(f.cat)) && (!f.quad || i.quadrant === f.quad) && (f.closed || !["done", "won't fix"].includes(i.status)))
+        .sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+      const scale = (name, v) => `<select name="${name}"><option value=""></option>${[1, 2, 3, 4, 5].map((n) => `<option${n === v ? " selected" : ""}>${n}</option>`).join("")}</select>`;
+      const fields = (i = {}) => `<div class="grid2"><label>Title<input name="title" value="${esc(i.title || "")}" required></label>
+          <label>Status<select name="status">${opts(DEBT_STATUS, i.status || "identified")}</select></label>
+          <label>Impact if fixed <span class="quiet">(1 to 5)</span>${scale("impact", i.impact)}</label><label>Risk if left <span class="quiet">(1 to 5)</span>${scale("risk", i.risk)}</label>
+          <label>Effort<select name="effort"><option value=""></option>${opts(["S", "M", "L", "XL"], i.effort)}</select></label><label>Points<input type="number" name="points" value="${esc(i.points ?? "")}"></label>
+          <label>Needed by <span class="quiet">(a date that forces it)</span><input type="date" name="trigger_date" value="${esc(i.trigger_date || "")}"></label><label>Because<input name="trigger_reason" value="${esc(i.trigger_reason || "")}" placeholder="Such as: platform release, peak season, end of support"></label>
+          <label>Sprint<select name="sprint_id"><option value=""></option>${sprints.map((s) => `<option value="${s.id}"${s.id === i.sprint_id ? " selected" : ""}>Sprint ${s.number}</option>`).join("")}</select></label>
+          <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label><label>Jira key<input name="ticket_key" value="${esc(i.ticket_key || "")}" placeholder="ABC-123"></label>
+          <label>Raised by<input name="raised_by" value="${esc(i.raised_by || "")}"></label></div>
+        <label>Categories <span class="quiet">(what fixing it buys; pick all that apply)</span></label><div class="row">${DEBT_CATS.map((c) => `<label class="check" title="${esc((d.categories.find((x) => x.key === c) || {}).help || "")}"><input type="checkbox" name="categories" value="${c}"${(i.categories || []).includes(c) ? " checked" : ""}> ${c}</label>`).join("")}</div>
+        <label>What it is<textarea name="description" rows="2">${esc(i.description || "")}</textarea></label>
+        <label>What leaving it costs <span class="quiet">(in business terms: incidents, hours, slower releases, lost sales)</span><textarea name="cost_of_delay" rows="2">${esc(i.cost_of_delay || "")}</textarea></label>
+        <label>Evidence <span class="quiet">(incidents, metrics, tickets)</span><textarea name="evidence" rows="2">${esc(i.evidence || "")}</textarea></label>
+        <label>Systems</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${(i.system_ids || []).includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("") || '<span class="quiet">Add systems under Architecture to link them.</span>'}</div>
+        <label>Private notes<textarea name="notes" rows="2">${esc(i.notes || "")}</textarea></label>`;
+      const read = (form) => { const fd = new FormData(form); return { title: fd.get("title"), status: fd.get("status"), impact: numOrNull(fd.get("impact")), risk: numOrNull(fd.get("risk")), effort: fd.get("effort") || null,
+        points: numOrNull(fd.get("points")), trigger_date: fd.get("trigger_date") || null, trigger_reason: fd.get("trigger_reason"), sprint_id: numOrNull(fd.get("sprint_id")), owner_id: numOrNull(fd.get("owner_id")),
+        ticket_key: fd.get("ticket_key"), raised_by: fd.get("raised_by"), categories: fd.getAll("categories"), description: fd.get("description"), cost_of_delay: fd.get("cost_of_delay"), evidence: fd.get("evidence"),
+        system_ids: fd.getAll("system_ids").map(Number), notes: fd.get("notes") }; };
+      const item = (i) => `<details class="plan-item${["done", "won't fix"].includes(i.status) ? " dropped" : ""}" data-debt="${i.id}"><summary><b>${esc(i.title)}</b><span class="spacer"></span>
+          ${BA.issueKeys(i.ticket_key)}${BA.chips(i.categories)}${tonePill(i.quadrant, QUAD_TONES)}${i.value ? `<span class="quiet">value ${i.value} · ${esc(i.effort)}</span>` : ""}${i.trigger_date ? `<span class="pill warn">by ${BA.fmtDate(i.trigger_date)}</span>` : ""}${BA.statusPill(i.status)}</summary>
+          ${i.description ? `<p>${esc(i.description)}</p>` : ""}${i.cost_of_delay ? `<p><b>Cost of leaving it:</b> ${esc(i.cost_of_delay)}</p>` : ""}
+          <p class="quiet">${[i.systems.length ? `Systems: ${i.systems.map(esc).join(", ")}` : "", i.owner_name ? `Owner: ${esc(i.owner_name)}` : "", i.sprint_number ? `Sprint ${i.sprint_number}` : "", i.points ? `${i.points} points` : "",
+            i.revisit_on ? `Revisit ${BA.fmtDate(i.revisit_on)}` : ""].filter(Boolean).join(" · ")} ${BA.keysEditor(`/api/tech-debt/${i.id}`, i.ticket_key, "ticket_key")}</p>
+          <div class="decisions" data-decisions="${i.id}"></div>
+          ${ro ? "" : `<form class="decide row"><select name="decision" style="max-width:160px">${opts(DEBT_DECISIONS, "schedule")}</select><input name="decided_by" placeholder="Decided by" style="max-width:180px">
+            <input type="date" name="revisit_on" title="Revisit on (needed when accepting)" style="max-width:160px"><input name="rationale" placeholder="Why" style="flex:1;min-width:200px"><button class="btn" type="submit">Record decision</button></form>
+            <details><summary class="quiet">Edit</summary><form class="edit-debt">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
+      main.innerHTML = `${debtTabs("")}
+        <div class="stats">${d.categories.filter((c) => c.open).map((c) => `<section class="card stat" title="${esc(c.help)}"><div class="stat-n">${c.open}</div><div class="quiet">${esc(cap(c.key))}${c.points ? ` · ${c.points} pts` : ""}</div></section>`).join("") ||
+          '<section class="card stat"><div class="stat-n">0</div><div class="quiet">open items</div></section>'}</div>
+        ${d.capacity && d.policy.allocation != null ? `<p class="quiet">Sprint ${d.capacity.sprint_number}: ${d.capacity.planned_points} points of debt planned${d.capacity.capacity ? ` of ${d.capacity.capacity} (${d.capacity.share}%), against an agreed ${d.policy.allocation}%` : ""}. <a href="#/debt/policy">Policy</a></p>` : ""}
+        <div class="row"><select id="df-cat" style="max-width:220px"><option value="">Every category</option>${DEBT_CATS.map((c) => `<option value="${c}"${c === f.cat ? " selected" : ""}>${cap(c)}</option>`).join("")}</select>
+          <select id="df-quad" style="max-width:180px"><option value="">Any quadrant</option>${opts(["quick win", "big bet", "fill-in", "money pit", "not scored"], f.quad)}</select>
+          <label class="check"><input type="checkbox" id="df-closed"${f.closed ? " checked" : ""}> Show done and won't fix</label><span class="spacer"></span><span class="quiet">Sorted by value for the effort</span></div>
+        <section class="card">${shown.map(item).join("") || '<p class="quiet">No debt logged yet, or none matches.</p>'}</section>
+        ${ro ? "" : `<form id="add-debt" class="card"><h2>Log technical debt</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
+      const saveF = () => { sessionStorage.setItem("ba-debt-filter", JSON.stringify({ cat: main.querySelector("#df-cat").value, quad: main.querySelector("#df-quad").value, closed: main.querySelector("#df-closed").checked })); BA.rerender(); };
+      ["#df-cat", "#df-quad", "#df-closed"].forEach((s) => (main.querySelector(s).onchange = saveF));
+      main.querySelectorAll("[data-debt]").forEach((det) => det.addEventListener("toggle", async () => {
+        const box = det.querySelector("[data-decisions]");
+        if (!det.open || box.dataset.loaded) return;
+        const ds = await BA.api(`/api/tech-debt/${det.dataset.debt}/decisions`);
+        box.dataset.loaded = "1";
+        box.innerHTML = ds.length ? `<h4>Decisions</h4>${ds.map((x) => `<div class="item"><span class="pill">${esc(x.decision)}</span><span>${esc(x.rationale || "")}</span><span class="spacer"></span><span class="quiet">${[x.decided_by, BA.fmtDate(x.date), x.revisit_on ? "revisit " + BA.fmtDate(x.revisit_on) : ""].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("")}` : "";
+      }));
+      if (ro) return;
+      const add = main.querySelector("#add-debt");
+      add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/tech-debt", { method: "POST", body: { ...read(add), identified_on: BA.today() } }); BA.rerender(); });
+      main.querySelectorAll("[data-debt]").forEach((det) => {
+        const id = det.dataset.debt;
+        const dec = det.querySelector("form.decide");
+        dec.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const fd = new FormData(dec);
+          await BA.api(`/api/tech-debt/${id}/decide`, { method: "POST", body: { decision: fd.get("decision"), decided_by: fd.get("decided_by"), revisit_on: fd.get("revisit_on") || null, rationale: fd.get("rationale") } });
+          BA.toast("Decision recorded.");
+          BA.rerender();
+        });
+        const form = det.querySelector("form.edit-debt");
+        form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/tech-debt/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+        det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this debt item and its decisions? Marking it won't fix keeps the record.")) return; await BA.api(`/api/tech-debt/${id}`, { method: "DELETE" }); BA.rerender(); });
+      });
+    },
+  });
+
+  function renderDebtMatrix(main, d) {
+    const items = d.items.filter((i) => i.value && !["done", "won't fix"].includes(i.status));
+    const W = 640, H = 400, L = 56, B = 40, T = 16, R = 16;
+    const xs = { S: 0, M: 1, L: 2, XL: 3 };
+    const x = (e) => L + ((xs[e] + 0.5) * (W - L - R)) / 4;
+    const y = (v) => T + ((10 - v) * (H - T - B)) / 8;
+    const seen = {};
+    const dots = items.map((i) => {
+      const k = `${i.effort}-${i.value}`;
+      const n = (seen[k] = (seen[k] || 0) + 1) - 1;
+      const cx = x(i.effort) + ((n % 3) - 1) * 16, cy = y(i.value) + Math.floor(n / 3) * 16;
+      return `<g class="dot q-${i.quadrant.replace(" ", "-")}"><circle cx="${cx}" cy="${cy}" r="7"></circle><title>${esc(i.title)}: value ${i.value}, effort ${i.effort}, ${i.quadrant}</title></g>`;
+    }).join("");
+    const midX = L + (W - L - R) / 2, midY = y(6.5);
+    const label = (tx, ty, text, anchor) => `<text x="${tx}" y="${ty}" class="q-label" text-anchor="${anchor}">${text}</text>`;
+    main.innerHTML = `${debtTabs("matrix")}
+      <section class="card"><h2>Value against effort</h2><p class="quiet">Value is impact if fixed plus risk if left (2 to 10). Hover a dot for the item. Quick wins first; big bets need a plan and a sponsor; money pits need a very good reason.</p>
+        ${items.length ? `<div class="map-scroll"><svg class="debt-matrix" viewBox="0 0 ${W} ${H}" role="img" aria-label="Technical debt by value and effort">
+          <rect x="${L}" y="${T}" width="${midX - L}" height="${midY - T}" class="quad qw"></rect><rect x="${midX}" y="${T}" width="${W - R - midX}" height="${midY - T}" class="quad bb"></rect>
+          <rect x="${L}" y="${midY}" width="${midX - L}" height="${H - B - midY}" class="quad fi"></rect><rect x="${midX}" y="${midY}" width="${W - R - midX}" height="${H - B - midY}" class="quad mp"></rect>
+          ${label(L + 8, T + 16, "QUICK WINS", "start")}${label(W - R - 8, T + 16, "BIG BETS", "end")}${label(L + 8, H - B - 8, "FILL-INS", "start")}${label(W - R - 8, H - B - 8, "MONEY PITS", "end")}
+          ${["S", "M", "L", "XL"].map((e) => `<text x="${x(e)}" y="${H - B + 22}" class="axis" text-anchor="middle">${e}</text>`).join("")}
+          ${[2, 4, 6, 8, 10].map((v) => `<text x="${L - 10}" y="${y(v) + 4}" class="axis" text-anchor="end">${v}</text>`).join("")}
+          <text x="${(L + W - R) / 2}" y="${H - 4}" class="axis-title" text-anchor="middle">Effort</text><text x="14" y="${(T + H - B) / 2}" class="axis-title" text-anchor="middle" transform="rotate(-90 14 ${(T + H - B) / 2})">Value</text>
+          ${dots}</svg></div>` : '<p class="quiet">Score items with impact, risk and effort to see them here.</p>'}</section>
+      <div class="stats">${["quick win", "big bet", "fill-in", "money pit", "not scored"].map((q) => `<section class="card stat"><div class="stat-n">${d.quadrants[q]}</div><div class="quiet">${q}${q === "not scored" ? "" : "s"}</div></section>`).join("")}</div>`;
+  }
+
+  async function renderDebtSummary(main, d) {
+    const s = await BA.api("/api/debt/summary");
+    main.innerHTML = `${debtTabs("summary")}
+      <section class="card"><div class="row"><h2>For leadership and stakeholders</h2><span class="spacer"></span>${presenting() ? "" : `<button class="btn primary" id="copy-debt">${BA.icon("copy")} Copy as Markdown</button>`}</div>
+        <p class="quiet">Built only from shareable fields: what's open by category, the highest value for the effort, what's been accepted and when it will be revisited, and the capacity policy.</p>
+        <div class="msg-preview">${BA.md(s.markdown)}</div></section>`;
+    const c = main.querySelector("#copy-debt");
+    if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/debt/summary/export", { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Summary copied."); });
+  }
+
+  function renderDebtPolicy(main, d) {
+    const p = d.policy;
+    const ro = presenting();
+    main.innerHTML = `${debtTabs("policy")}
+      <section class="card"><h2>Capacity for debt</h2><p class="quiet">Agree a standing share of each sprint for technical debt with your manager and product. Then the conversation is about which items, not whether to do any.</p>
+        ${ro ? `<p>${p.allocation != null ? `${p.allocation}% of each sprint${p.agreed_with ? `, agreed with ${esc(p.agreed_with)}` : ""}${p.agreed_on ? ` on ${BA.fmtDate(p.agreed_on)}` : ""}.` : "Not agreed yet."}</p>${p.approach ? BA.md(p.approach) : ""}`
+          : `<form id="debt-policy"><div class="grid2"><label>Share of each sprint (%)<input type="number" min="0" max="100" name="allocation" value="${esc(p.allocation ?? "")}"></label>
+            <label>Agreed with<input name="agreed_with" value="${esc(p.agreed_with || "")}"></label><label>Agreed on<input type="date" name="agreed_on" value="${esc(p.agreed_on || "")}"></label></div>
+            <label>How we decide <span class="quiet">(Markdown: when debt jumps the queue, who decides, how often we review)</span><textarea name="approach" rows="5">${esc(p.approach || "")}</textarea></label>
+            <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`}
+        ${d.capacity ? `<p class="quiet">This sprint (${d.capacity.sprint_number}): ${d.capacity.planned_points} points of debt planned${d.capacity.capacity ? ` of ${d.capacity.capacity}` : ""}${d.capacity.target_points != null ? `, target ${d.capacity.target_points}` : ""}. Set sprint capacity in PI planning or the sprint notebook.</p>` : ""}</section>
+      <section class="card"><h2>Categories</h2><p class="quiet">Classify each item by what fixing it buys. An item can sit in more than one.</p>
+        ${d.categories.map((c) => `<div class="item"><b>${esc(cap(c.key))}</b><span>${esc(c.help)}</span></div>`).join("")}</section>
+      <section class="card"><h2>How items are scored</h2><ul class="checklist"><li><b>Impact if fixed</b>, 1 to 5: how much better things get.</li><li><b>Risk if left</b>, 1 to 5: how likely and how bad the harm is if nothing changes.</li>
+        <li><b>Value</b> is the two added together, 2 to 10. <b>Effort</b> is S, M, L or XL.</li><li>Value of 7 or more with effort S or M is a <b>quick win</b>; with L or XL a <b>big bet</b>. Lower value with S or M is a <b>fill-in</b>; with L or XL a <b>money pit</b>.</li></ul>
+        <p class="quiet">The score starts a conversation; it doesn't end one. A date that forces the issue, such as a platform release or peak season, can move anything up.</p></section>`;
+    const form = main.querySelector("#debt-policy");
+    if (form) form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(form); await BA.api("/api/debt/policy", { method: "PUT", body: { allocation: fd.get("allocation") === "" ? null : Number(fd.get("allocation")), agreed_with: fd.get("agreed_with"), agreed_on: fd.get("agreed_on") || null, approach: fd.get("approach") } }); BA.toast("Saved."); BA.rerender(); });
+  }
+
+  // ---------------------------------------------------------------- Find a Jira key
+
+  BA.view("/jira", {
+    title: "Find a Jira key",
+    async render(main, param) {
+      const key = (param || "").toUpperCase();
+      main.innerHTML = `<section class="card"><form id="jira-find" class="row"><input name="key" value="${esc(key)}" placeholder="ABC-123" required style="max-width:220px"><button class="btn primary" type="submit">${BA.icon("search")} Find</button>
+          <span class="quiet">Everything in the toolkit that mentions this key.${BA.jiraUrl ? "" : ' Set your Jira address in <a href="#/me">My development</a> to turn keys into links.'}</span></form></section><div id="jira-results"></div>`;
+      main.querySelector("#jira-find").onsubmit = (e) => { e.preventDefault(); BA.go(`/jira/${new FormData(e.target).get("key").trim().toUpperCase()}`); };
+      if (!key) return;
+      const r = await BA.api(`/api/jira/${encodeURIComponent(key)}`);
+      document.getElementById("view-title").textContent = key;
+      main.querySelector("#jira-results").innerHTML = `<section class="card"><h2>${BA.issueKeys([r.key])} <span class="quiet">${r.found.length} mention${r.found.length === 1 ? "" : "s"}</span></h2>${
+        r.found.map((f) => `<div class="item"><span class="pill">${esc(f.kind)}</span><a href="#${esc(f.route)}">${esc(f.title)}</a></div>`).join("") || '<p class="quiet">Nothing in the toolkit mentions this key yet.</p>'}</section>`;
+    },
+  });
 })();

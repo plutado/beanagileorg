@@ -117,6 +117,12 @@ def skills(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 # ---- Today ----
 
 
+def _debt_due(conn):
+    from .debt import debt_due
+
+    return debt_due(conn)
+
+
 def onboarding_due(conn, t, week):
     from .onboarding import onboarding_due as due
 
@@ -144,6 +150,7 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "vendor_renewals": renewals_due(conn),
         "vendor_concerns": models.vendor_concerns.fetch_all(conn, "status != 'resolved' AND due IS NOT NULL AND due <= ?", (week,)),
         "onboarding_due": onboarding_due(conn, t, week),
+        "debt_due": _debt_due(conn),
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
 
@@ -318,24 +325,40 @@ def obligation_done(obligation_id: int, viewer: Viewer = Depends(get_viewer), co
 # ---- settings ----
 
 
+JIRA_URL_KEY = "toolkit.jira_url"
+
+
+def _setting(conn, key):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
 @router.get("/api/toolkit/settings")
 def get_settings(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    row = conn.execute("SELECT value FROM settings WHERE key = ?", (START_DATE_KEY,)).fetchone()
-    return {"start_date": row["value"] if row else None}
+    return {"start_date": _setting(conn, START_DATE_KEY), "jira_url": _setting(conn, JIRA_URL_KEY)}
 
 
 @router.put("/api/toolkit/settings")
 def put_settings(body: dict = Body(...), viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
-    start = body.get("start_date") or None
-    if start is not None:
-        try:
-            date.fromisoformat(start)
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(400, "start_date must be a date like 2026-11-02.") from exc
-        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (START_DATE_KEY, start))
-    else:
-        conn.execute("DELETE FROM settings WHERE key = ?", (START_DATE_KEY,))
-    return {"start_date": start}
+    if "start_date" in body:
+        start = body.get("start_date") or None
+        if start is not None:
+            try:
+                date.fromisoformat(start)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(400, "start_date must be a date like 2026-11-02.") from exc
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (START_DATE_KEY, start))
+        else:
+            conn.execute("DELETE FROM settings WHERE key = ?", (START_DATE_KEY,))
+    if "jira_url" in body:
+        url = (body.get("jira_url") or "").strip().rstrip("/")
+        if url and not url.startswith(("https://", "http://")):
+            raise HTTPException(400, "The Jira address starts with https://, such as https://[your-site].atlassian.net.")
+        if url:
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (JIRA_URL_KEY, url))
+        else:
+            conn.execute("DELETE FROM settings WHERE key = ?", (JIRA_URL_KEY,))
+    return get_settings(viewer, conn)
 
 
 # ---- placeholder data ----

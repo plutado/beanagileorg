@@ -26,7 +26,7 @@ def client(tmp_path):
 def test_starter_content_is_consistent():
     slugs = {g["slug"] for g in starter.GUIDES}
     assert len(slugs) == len(starter.GUIDES)
-    assert all(slug in slugs for tips in starter.TIPS.values() for _, slug in tips)
+    assert all(slug in slugs for _, _, slug, _ in starter.tip_entries())
     themes = {k for k, _, _ in starter.THEMES}
     assert all(g["theme"] in themes for g in starter.GUIDES)
     toolkit_paths = {n["path"] for n in NAV if "path" in n}

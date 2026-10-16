@@ -17,7 +17,7 @@ PHASES = [("Before day 1", None, 0), ("Week 1", 1, 7), ("Weeks 2 to 4", 8, 30), 
 SD, MD, QA, EMP, CON = "Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor"
 # (day, owner, category, title, description, link, tracks). Generic practice only; anything company-specific is a [Placeholder].
 STARTER = [
-    (-7, "IT or admin", "accounts and access", "Request accounts: email, chat, Bitbucket and the issue tracker", "Also [Placeholder: sign-in system and any other tools]. Ask early; access is the most common day-one blocker.", "", []),
+    (-7, "IT or admin", "accounts and access", "Request accounts: email, chat, Bitbucket and Jira", "Also [Placeholder: sign-in system and any other tools]. Ask early; access is the most common day-one blocker.", "", []),
     (-7, "manager", "accounts and access", "Request a Salesforce sandbox user with the right permission sets", "Which sandbox and permission sets: [Placeholder].", "", [SD, QA]),
     (-7, "manager", "accounts and access", "Request Anypoint Platform access for the right business groups and environments", "", "", [MD]),
     (-5, "manager", "people", "Pick a buddy and brief them", "The buddy answers the small questions, pairs on the first story and checks in daily in week 1.", "", []),
@@ -29,6 +29,7 @@ STARTER = [
     (1, "new member", "admin and compliance", "Complete required company training", "[Placeholder: where the training lives and what's required].", "", [EMP]),
     (2, "new member", "ways of working", "Read our SDLC: how work moves from idea to production", "Note anything that's unclear and bring it to your buddy.", "#/sdlc", []),
     (2, "new member", "ways of working", "Read the definition of done", "", "#/qa/dod", []),
+    (2, "new member", "tools and setup", "Learn the team's Jira board: how stories move, the workflow states and how to pick up work", "[Placeholder: board name and project key].", "", []),
     (3, "new member", "systems and architecture", "Tour the system map and the systems we own", "", "#/architecture", []),
     (3, "new member", "systems and architecture", "Read the architecture guides for your area", "", "#/architecture/guides", []),
     (3, "new member", "tools and setup", "Clone the Salesforce project from Bitbucket and deploy it to your sandbox", "", "", [SD]),

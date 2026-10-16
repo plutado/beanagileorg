@@ -70,7 +70,7 @@ TOOLKIT = {
     },
     "/pi": {
         "purpose": "Plan a Program Increment if your organization runs SAFe: objectives, features, stories, dependencies, milestones and risks on one board.",
-        "steps": ["Create the PI and assign its sprints in the sprint notebook.", "Add objectives with business value, then features and stories in each sprint.",
+        "steps": ["Create the PI and assign its sprints in the sprint notebook.", "Add objectives with business value, then features and stories in each sprint, each with its Jira key.",
                   "Check capacity per sprint, log dependencies and risks, and record the confidence vote."],
         "privacy": "Built to present; only risk notes are private.",
         "related": ["/sprints", "/roadmap", "/coaching/scrum-of-scrums"],
@@ -86,6 +86,14 @@ TOOLKIT = {
         "steps": ["Load the five common decisions or add your own.", "Edit the roles to match your organization.", "Fill each cell; aim for exactly one accountable person per decision, then confirm each row with the people in it."],
         "privacy": "Shareable.",
         "related": ["/sdlc", "/qa", "/coaching/saying-no-to-scope"],
+    },
+    "/debt": {
+        "purpose": "A register of technical debt, classified by what fixing it buys (stability, performance, revenue, observability and more), so you can weigh it against business priorities with leadership.",
+        "steps": ["Log each item with its categories, what leaving it costs the business, and impact, risk and effort.", "Use Value and effort to find quick wins and to question money pits.",
+                  "Agree a standing share of sprint capacity under Policy, and record each fix-now, schedule or accept decision with a date to revisit.",
+                  "Copy the Leadership summary for priority conversations."],
+        "privacy": "The register and summary are shareable; private notes and evidence stay private.",
+        "related": ["/architecture", "/risks", "/coaching/tech-debt-case"],
     },
     "/risks": {
         "purpose": "Keep risks and pending decisions visible, with an owner, a next step and a date.",
@@ -108,7 +116,7 @@ TOOLKIT = {
     },
     "/dev-sync": {
         "purpose": "Track every question and problem raised after standup until it's resolved, with an owner, a next action and a date.",
-        "steps": ["Add an item when something comes up in standup or anywhere else.", "Give it an owner, next action and due date.", "Close it when it's done; overdue items show on Today."],
+        "steps": ["Add an item when something comes up in standup or anywhere else.", "Give it an owner, next action and due date, and the Jira keys it relates to.", "Close it when it's done; overdue items show on Today."],
         "privacy": "Items are presentable; private notes stay private.",
         "related": ["/today", "/learning", "/coaching/earning-trust"],
     },
@@ -166,7 +174,7 @@ TOOLKIT = {
     },
     "/me": {
         "purpose": "Your own development and workload: learning goals with time logged, ad hoc tasks, recurring obligations and your contract start date.",
-        "steps": ["Set your start date; it turns day numbers into dates across the toolkit.", "Add learning goals and log time; tick 'show in report' for goals leadership should see.",
+        "steps": ["Set your start date; it turns day numbers into dates across the toolkit.", "Set your Jira address, so every Jira key in the toolkit becomes a link.", "Add learning goals and log time; tick 'show in report' for goals leadership should see.",
                   "Track tasks and obligations; they show on Today."],
         "privacy": "Private, except learning goals you choose to report.",
         "related": ["/today", "/coaching"],

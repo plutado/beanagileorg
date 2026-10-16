@@ -293,3 +293,12 @@
   .help-item > * + * { margin-top: 6px; }
   kbd { font-family: ui-monospace, Menlo, monospace; font-size: 0.8em; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel-2); }
 }
+
+/* Jira keys */
+@layer components {
+  .pill.issue { font-family: ui-monospace, Menlo, monospace; font-weight: 600; background: var(--panel-2); color: var(--ink); border: 1px solid var(--line-strong); text-decoration: none; }
+  a.pill.issue:hover { border-color: var(--accent); color: var(--accent); }
+  .issue-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .link-btn { background: none; border: 0; padding: 0 2px; color: var(--accent); font: inherit; font-size: 0.8rem; cursor: pointer; }
+  .link-btn:hover { text-decoration: underline; }
+}

@@ -13,6 +13,8 @@ from .architecture import router as architecture_router
 from .onboarding import router as onboarding_router
 from .sdlc import router as sdlc_router
 from .coaching import router as coaching_router, seed_once
+from .debt import router as debt_router
+from .jira import router as jira_router
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -31,6 +33,7 @@ NAV = [
     {"path": "/pi", "icon": "kanban", "label": "PI planning"},
     {"path": "/roadmap", "icon": "map", "label": "Roadmap"},
     {"path": "/raci", "icon": "grid-3x3", "label": "RACI"},
+    {"path": "/debt", "icon": "wrench", "label": "Tech debt"},
     {"path": "/risks", "icon": "triangle-alert", "label": "Risks and decisions"},
     {"path": "/metrics", "icon": "gauge", "label": "Metrics"},
     {"path": "/qa", "icon": "flask-conical", "label": "QA resources"},
@@ -61,7 +64,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

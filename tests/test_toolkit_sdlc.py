@@ -28,7 +28,7 @@ def test_starter_loads_once_and_policies_start_as_drafts(client):
 
 def test_starter_invents_nothing_specific():
     text = repr(sdlc.STARTER_STAGES) + repr(sdlc.STARTER_ENVIRONMENTS) + repr(sdlc.STARTER_POLICIES)
-    for word in ("Jira", "Copado", "Gearset", "GitHub", "Jenkins", "ServiceNow", "Okta"):
+    for word in ("Copado", "Gearset", "GitHub", "Jenkins", "ServiceNow", "Okta"):
         assert word not in text
 
 

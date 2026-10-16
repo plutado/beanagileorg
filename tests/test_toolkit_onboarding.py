@@ -30,7 +30,7 @@ def test_starter_invents_nothing_specific():
     """Company-specific details stay as [Placeholder] for David to fill in."""
     for day, owner, cat, title, desc, link, tracks in onboarding.STARTER:
         assert link == "" or link.startswith("#/")
-        for word in ("Jira", "Okta", "Slack", "Teams", "Workday", "Confluence"):
+        for word in ("Okta", "Slack", "Teams", "Workday", "Confluence"):
             assert word not in title + desc
 
 

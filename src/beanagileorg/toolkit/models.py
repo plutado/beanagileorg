@@ -74,6 +74,10 @@ POLICY_STATUS = ("draft", "agreed", "retired")
 GUIDE_STATUS = ("draft", "published")
 GUIDE_FOCUS = ("want to work on", "practicing", "comfortable")
 GUIDE_ORIGINS = ("built-in", "mine", "imported")
+DEBT_CATEGORIES = ("maintainability", "stability", "performance", "cleanup", "revenue and conversion", "observability", "security", "delivery speed", "cost")
+DEBT_EFFORT = ("S", "M", "L", "XL")
+DEBT_STATUS = ("identified", "accepted", "planned", "in progress", "done", "won't fix")
+DEBT_DECISIONS = ("fix now", "schedule", "accept for now", "won't fix")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -783,6 +787,59 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        13,
+        """
+        CREATE TABLE tech_debt (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            categories TEXT,
+            system_ids TEXT,
+            impact INTEGER,
+            risk INTEGER,
+            effort TEXT,
+            points INTEGER,
+            cost_of_delay TEXT,
+            evidence TEXT,
+            trigger_date DATE,
+            trigger_reason TEXT,
+            status TEXT NOT NULL DEFAULT 'identified',
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            ticket_key TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            revisit_on DATE,
+            identified_on DATE,
+            raised_by TEXT,
+            notes TEXT
+        );
+        CREATE TABLE debt_decisions (
+            id INTEGER PRIMARY KEY,
+            debt_id INTEGER NOT NULL REFERENCES tech_debt (id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            decision TEXT NOT NULL,
+            rationale TEXT,
+            decided_by TEXT,
+            revisit_on DATE
+        );
+        """,
+    ),
+    (
+        14,
+        """
+        ALTER TABLE action_items ADD COLUMN jira_keys TEXT;
+        ALTER TABLE retro_commitments ADD COLUMN jira_keys TEXT;
+        ALTER TABLE risks ADD COLUMN jira_keys TEXT;
+        ALTER TABLE decisions_needed ADD COLUMN jira_keys TEXT;
+        ALTER TABLE roadmap_items ADD COLUMN jira_keys TEXT;
+        ALTER TABLE test_cases ADD COLUMN jira_keys TEXT;
+        ALTER TABLE test_results ADD COLUMN jira_keys TEXT;
+        ALTER TABLE incidents ADD COLUMN jira_keys TEXT;
+        ALTER TABLE onboarding_tasks ADD COLUMN jira_keys TEXT;
+        ALTER TABLE vendor_concerns ADD COLUMN jira_keys TEXT;
+        ALTER TABLE arch_decisions ADD COLUMN jira_keys TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -920,6 +977,7 @@ action_items = Record(
         "sprint_id": Field("int", S),
         "note_id": Field("int", P),
         "notes": Field("text", P),
+        "jira_keys": Field("keys", S),
     },
     computed={
         "vendor_name": ("(SELECT name FROM vendors v WHERE v.id = action_items.vendor_id)", S),
@@ -1024,6 +1082,7 @@ incidents = Record(
         "people_ids": Field("ids", S),
         "resolved_at": Field("date", S),
         "notes": Field("text", P),
+        "jira_keys": Field("keys", S),
     },
     computed={
         "system_name": ("(SELECT name FROM systems s WHERE s.id = incidents.system_id)", S),
@@ -1089,6 +1148,7 @@ vendor_concerns = Record(
         "status": Field("text", S, choices=CONCERN_STATUS, default="open"),
         "resolution": Field("text", P),
         "interaction_id": Field("int", P),
+        "jira_keys": Field("keys", S),
     },
     computed={
         "owner_name": ("(SELECT name FROM people p WHERE p.id = vendor_concerns.owner_id)", S),
@@ -1163,6 +1223,7 @@ roadmap_items = Record(
         "status": Field("text", E, choices=ROADMAP_STATUS, default="not started"),
         "owner_id": Field("int", S),
         "position": Field("int", S, default=0),
+        "jira_keys": Field("keys", E),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = roadmap_items.owner_id)", S)},
 )
@@ -1193,6 +1254,7 @@ risks = Record(
         "due": Field("date", E),
         "status": Field("text", E, choices=RISK_STATUS, default="open"),
         "notes": Field("text", P),
+        "jira_keys": Field("keys", E),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = risks.owner_id)", E)},
 )
@@ -1208,6 +1270,7 @@ decisions_needed = Record(
         "needed_by": Field("date", E),
         "status": Field("text", E, choices=DECISION_STATUS, default="open"),
         "outcome": Field("text", E),
+        "jira_keys": Field("keys", E),
     },
     computed={"from_name": ("(SELECT name FROM people p WHERE p.id = decisions_needed.from_id)", E)},
 )
@@ -1289,6 +1352,7 @@ retro_commitments = Record(
         "status": Field("text", S, choices=COMMITMENT_STATUS, default="committed"),
         "outcome": Field("text", S),
         "reviewed_in_id": Field("int", S),
+        "jira_keys": Field("keys", S),
     },
     computed={
         "owner_name": ("(SELECT name FROM people p WHERE p.id = retro_commitments.owner_id)", S),
@@ -1326,7 +1390,7 @@ epics = Record(
         "priority": Field("text", S, choices=PRIORITIES, default="medium"),
         "owner_id": Field("int", S),
         "status": Field("text", S, choices=WORK_STATUS, default="not started"),
-        "ticket_key": Field("text", S),
+        "ticket_key": Field("key", S),
     },
 )
 
@@ -1344,7 +1408,7 @@ features = Record(
         "priority": Field("text", S, choices=PRIORITIES, default="medium"),
         "owner_id": Field("int", S),
         "status": Field("text", S, choices=WORK_STATUS, default="not started"),
-        "ticket_key": Field("text", S),
+        "ticket_key": Field("key", S),
         "position": Field("int", S, default=0),
     },
     computed={
@@ -1369,7 +1433,7 @@ stories = Record(
         "priority": Field("text", S, choices=PRIORITIES, default="medium"),
         "owner_id": Field("int", S),
         "status": Field("text", S, choices=WORK_STATUS, default="not started"),
-        "ticket_key": Field("text", S),
+        "ticket_key": Field("key", S),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = stories.owner_id)", S)},
 )
@@ -1545,6 +1609,7 @@ test_cases = Record(
         "expected": Field("text", S),
         "owner_id": Field("int", S),
         "active": Field("bool", S, default=True),
+        "jira_keys": Field("keys", S),
     },
     computed={
         "system_name": ("(SELECT name FROM systems s WHERE s.id = test_cases.system_id)", S),
@@ -1620,6 +1685,7 @@ test_results = Record(
         "result": Field("text", S, choices=RESULTS, default="not run"),
         "notes": Field("text", S),
         "action_item_id": Field("int", S),
+        "jira_keys": Field("keys", S),
     },
 )
 
@@ -1695,6 +1761,7 @@ arch_decisions = Record(
         "system_ids": Field("ids", S),
         "decided_by_id": Field("int", S),
         "superseded_by_id": Field("int", S),
+        "jira_keys": Field("keys", S),
     },
     computed={
         "decided_by_name": ("(SELECT name FROM people p WHERE p.id = arch_decisions.decided_by_id)", S),
@@ -1778,6 +1845,7 @@ onboarding_tasks = Record(
         "done": Field("bool", S, default=False),
         "done_on": Field("date", S),
         "notes": Field("text", P),
+        "jira_keys": Field("keys", S),
     },
 )
 
@@ -1912,6 +1980,56 @@ reflections = Record(
     hide_when_empty=True,
 )
 
+# ---- technical debt: the register is shareable with leadership; notes stay private ----
+
+tech_debt = Record(
+    entity="tech_debt",
+    table="tech_debt",
+    path="/api/tech-debt",
+    order_by="status IN ('done', 'won''t fix'), id DESC",
+    fields={
+        "title": Field("text", E, required=True),
+        "description": Field("text", E),
+        "categories": Field("list", E),
+        "system_ids": Field("ids", E),
+        "impact": Field("int", E),
+        "risk": Field("int", E),
+        "effort": Field("text", E, choices=DEBT_EFFORT),
+        "points": Field("int", E),
+        "cost_of_delay": Field("text", E),
+        "evidence": Field("text", S),
+        "trigger_date": Field("date", E),
+        "trigger_reason": Field("text", E),
+        "status": Field("text", E, choices=DEBT_STATUS, default="identified"),
+        "sprint_id": Field("int", E),
+        "ticket_key": Field("key", E),
+        "owner_id": Field("int", S),
+        "revisit_on": Field("date", E),
+        "identified_on": Field("date", E),
+        "raised_by": Field("text", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = tech_debt.owner_id)", S),
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = tech_debt.sprint_id)", E),
+    },
+)
+
+debt_decisions = Record(
+    entity="debt_decision",
+    table="debt_decisions",
+    path="/api/debt-decisions",
+    order_by="date DESC, id DESC",
+    fields={
+        "debt_id": Field("int", E, required=True),
+        "date": Field("date", E, required=True),
+        "decision": Field("text", E, choices=DEBT_DECISIONS, required=True),
+        "rationale": Field("text", E),
+        "decided_by": Field("text", E),
+        "revisit_on": Field("date", E),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1926,4 +2044,5 @@ RECORDS = [
     onboarding_items, onboardings, onboarding_tasks,
     sdlc_stages, sdlc_environments, sdlc_policies,
     coaching_guides, coaching_tips, coaching_prompts, reflections,
+    tech_debt, debt_decisions,
 ]

@@ -109,7 +109,7 @@ def build_summary(conn, run_id: int) -> dict:
     run = _run_or_404(conn, run_id)
     cases = {c["id"]: c for c in models.test_cases.fetch_all(conn)}
     results = models.test_results.fetch_all(conn, "run_id = ?", (run_id,))
-    label = lambda r: cases[r["case_id"]]["title"] + (f" ({cases[r['case_id']]['system_name']})" if cases[r["case_id"]]["system_name"] else "")
+    label = lambda r: cases[r["case_id"]]["title"] + (f" ({cases[r['case_id']]['system_name']})" if cases[r["case_id"]]["system_name"] else "") + (f" [{', '.join(r['jira_keys'])}]" if r.get("jira_keys") else "")
     lines = [f"# {run['name']}", "", f"{run['date'] or ''} · {run['kind']}" + (f" · {run['environment']}" if run["environment"] else "") + (f" · release {run['release']}" if run["release"] else ""), "",
              f"**{run['passed']} passed, {run['failed']} failed, {run['blocked']} blocked, {run['not_run']} not run** of {run['total']}.", ""]
     for result, title in (("fail", "Failed"), ("blocked", "Blocked"), ("not run", "Not run")):

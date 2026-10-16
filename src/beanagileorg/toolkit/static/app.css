@@ -136,3 +136,12 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .trend .t-energy { stroke: var(--accent); }
 .trend .t-confidence { stroke: var(--good); stroke-dasharray: 5 4; }
 .tip-row, .add-tip { margin: 6px 0; }
+
+.debt-matrix { display: block; max-width: none; font-family: inherit; }
+.debt-matrix .quad { stroke: var(--line); }
+.debt-matrix .qw { fill: var(--good-soft); } .debt-matrix .bb { fill: var(--panel-2); } .debt-matrix .fi { fill: var(--panel); } .debt-matrix .mp { fill: var(--bad-soft); }
+.debt-matrix .q-label { fill: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+.debt-matrix .axis { fill: var(--muted); font-size: 12px; } .debt-matrix .axis-title { fill: var(--ink); font-size: 12px; font-weight: 600; }
+.debt-matrix .dot circle { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.debt-matrix .q-quick-win circle { fill: var(--good); } .debt-matrix .q-money-pit circle { fill: var(--bad); }
+.decisions h4 { margin: 8px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }

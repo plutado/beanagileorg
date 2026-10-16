@@ -73,6 +73,7 @@
           .join("")}</select>`;
         break;
       case "list":
+      case "keys":
         control = `<input ${attrs} value="${BA.esc(v.join(", "))}">`;
         break;
       case "checkbox":
@@ -98,6 +99,7 @@
       const el = form.elements[f.name];
       if (!el) continue;
       if (f.type === "list") out[f.name] = el.value.split(",").map((s) => s.trim()).filter(Boolean);
+      else if (f.type === "keys") out[f.name] = el.value;
       else if (f.type === "checkbox") out[f.name] = el.checked;
       else if (f.type === "number" || f.numeric) out[f.name] = el.value === "" ? null : Number(el.value);
       else out[f.name] = el.value;
@@ -271,6 +273,34 @@
       main.querySelector("#intros-reset").onclick = () => { store.set(INTRO_SEEN, []); BA.toast("Each section's intro will open again on your next visit."); };
     },
   });
+
+  // Jira keys: shown as links when the toolkit knows the Jira address, with a small inline editor.
+  BA.jiraUrl = null;
+  BA.issueKeys = (keys) =>
+    (Array.isArray(keys) ? keys : keys ? [keys] : [])
+      .map((k) => (BA.jiraUrl ? `<a class="pill issue" href="${BA.esc(BA.jiraUrl)}/browse/${encodeURIComponent(k)}" target="_blank" rel="noopener" title="Open in Jira">${BA.esc(k)}</a>` : `<span class="pill issue">${BA.esc(k)}</span>`))
+      .join(" ");
+  BA.keysEditor = (path, keys, field = "jira_keys") => {
+    const list = Array.isArray(keys) ? keys : keys ? [keys] : [];
+    const edit = BA.session.presentation ? "" : ` <button type="button" class="link-btn" data-keys-edit="${BA.esc(path)}" data-keys-field="${field}" data-keys="${BA.esc(list.join(", "))}" title="${field === "ticket_key" ? "Jira key" : "Jira keys"}">${list.length ? "edit" : "+ Jira"}</button>`;
+    return `<span class="issue-keys">${BA.issueKeys(list)}${edit}</span>`;
+  };
+  // Capture phase, so the click doesn't also open a clickable row underneath.
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest && e.target.closest("[data-keys-edit]");
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const single = b.dataset.keysField === "ticket_key";
+    const value = prompt(single ? "Jira key, such as ABC-123. Leave empty to clear." : "Jira keys, separated by commas, such as ABC-123, ABC-124. Leave empty to clear.", b.dataset.keys);
+    if (value === null) return;
+    try {
+      await BA.api(b.dataset.keysEdit, { method: "PATCH", body: { [b.dataset.keysField]: value } });
+      BA.rerender();
+    } catch (err) {
+      BA.toast(err.message);
+    }
+  }, true);
 
   BA.guard = (fn) => async (...args) => {
     try {
