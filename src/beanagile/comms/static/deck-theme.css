@@ -1,0 +1,41 @@
+/* Default deck theme ("beanagile"). Envato-based themes will supply their own colors, fonts and layouts later. */
+.reveal.ba-theme {
+  --ba-bg: #fbfaf7;
+  --ba-panel: #f0eee8;
+  --ba-ink: #16181d;
+  --ba-muted: #6b6f78;
+  --ba-accent: #2f6fdf;
+  background: var(--ba-bg);
+  color: var(--ba-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 34px;
+  line-height: 1.35;
+}
+.reveal.ba-theme .slides { text-align: left; }
+.reveal.ba-theme .slides > section { height: 100%; padding: 56px 72px; box-sizing: border-box; }
+.reveal.ba-theme h1 { font-size: 2.3em; line-height: 1.08; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.reveal.ba-theme h2.ba-headline { font-size: 1.3em; line-height: 1.2; font-weight: 700; margin: 0 0 0.8em; letter-spacing: -0.01em; }
+.reveal.ba-theme h3 { font-size: 0.85em; color: var(--ba-accent); margin: 0 0 0.4em; text-transform: uppercase; letter-spacing: 0.04em; }
+.reveal.ba-theme ul { margin: 0; padding-left: 1.1em; }
+.reveal.ba-theme li { margin: 0.35em 0; }
+.reveal.ba-theme li::marker { color: var(--ba-accent); }
+
+.reveal.ba-theme .ba-center { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+.reveal.ba-theme .ba-sub { color: var(--ba-muted); font-size: 1em; margin: 0.6em 0 0; }
+.reveal.ba-theme .ba-rule { width: 3em; height: 0.18em; background: var(--ba-accent); border-radius: 0.1em; margin-bottom: 0.6em; }
+.reveal.ba-theme .ba-number { font-size: 4.6em; font-weight: 800; color: var(--ba-accent); line-height: 1; letter-spacing: -0.03em; }
+.reveal.ba-theme .ba-caption { color: var(--ba-muted); font-size: 0.7em; margin: 0.6em 0 0; }
+.reveal.ba-theme .ba-quote { font-size: 1.5em; font-weight: 600; line-height: 1.3; border-left: 0.14em solid var(--ba-accent); padding: 0 0 0 0.8em; margin: 0; width: auto; box-shadow: none; background: none; font-style: normal; }
+.reveal.ba-theme .ba-attrib { color: var(--ba-muted); margin: 0.8em 0 0 1em; font-size: 0.8em; }
+.reveal.ba-theme .ba-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+.reveal.ba-theme .ba-columns > div { background: var(--ba-panel); border-radius: 0.35em; padding: 0.8em 1em; }
+.reveal.ba-theme .ba-closing h1 { color: var(--ba-accent); }
+
+.reveal.ba-theme .ba-image,
+.reveal.ba-theme .ba-video { display: block; max-width: 100%; max-height: 430px; border-radius: 0.25em; margin: 0 auto; background: #000; }
+.reveal.ba-theme .ba-audio-wrap { background: var(--ba-panel); border-radius: 0.35em; padding: 1em; }
+.reveal.ba-theme .ba-audio { width: 100%; }
+.reveal.ba-theme .ba-lottie { height: 420px; max-width: 100%; aspect-ratio: 1; margin: 0 auto; }
+.reveal.ba-theme .ba-missing { border: 3px dashed var(--ba-muted); color: var(--ba-muted); border-radius: 0.35em; padding: 1.4em; text-align: center; font-size: 0.75em; }
+.reveal.ba-theme .ba-trigger { display: none; }
+.reveal.ba-theme .controls { color: var(--ba-accent); }

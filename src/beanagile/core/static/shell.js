@@ -152,7 +152,7 @@
     document.body.classList.toggle("presenting", on);
     document.getElementById("present-badge").hidden = !on;
     const btn = document.getElementById("present-toggle");
-    btn.textContent = on ? "Stop presenting" : "Present";
+    btn.textContent = on ? "Stop presentation mode" : "Presentation mode";
     btn.classList.toggle("primary", on);
   }
 
@@ -162,6 +162,15 @@
     const def = key ? BA.views[key] : null;
     renderNav(key);
     const main = document.getElementById("view");
+    if (BA.cleanup) {
+      try {
+        BA.cleanup();
+      } catch (err) {
+        console.error(err);
+      }
+      BA.cleanup = null;
+    }
+    main.removeAttribute("data-layout");
     document.getElementById("view-title").textContent = def ? def.title : "Not found";
     document.title = `${def ? def.title + " · " : ""}${BA.session.title}`;
     main.innerHTML = "";
@@ -200,7 +209,7 @@
       main.innerHTML = `
         <section class="card">
           <h2>Presentation mode</h2>
-          <p class="quiet">Use <b>Present</b> before sharing your screen. The server then hides every private field, whatever screen you open.</p>
+          <p class="quiet">Turn on <b>Presentation mode</b> before sharing your screen. The server then hides every private field, whatever screen you open.</p>
           <p>Odysseus link: <span class="pill">${BA.esc(BA.session.odysseus)}</span></p>
         </section>
         <section class="card">

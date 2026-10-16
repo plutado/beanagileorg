@@ -11,7 +11,6 @@ Nothing right now.
 ## Next up
 
 - [ ] **Comms studio version 1:** messages, templates, audiences and channels, comms calendar, sent log, plain-language check
-- [ ] **Deck builder prototype (Comms studio):** reveal.js and lottie-web bundled locally, three-pane editor (slide list, live canvas, inspector), a first set of layouts, placeholder content
 
 ## Toolkit, later versions
 
@@ -34,11 +33,16 @@ Nothing right now.
 
 ## Comms studio, later versions
 
+- [ ] Deck builder: undo and redo, keyboard shortcuts in the slide list, and real slide thumbnails
+- [ ] Deck builder: image positioning and sizing controls, and a second image layout (full-bleed)
+- [ ] Deck builder: per-element reveal order in the inspector (version 1 reveals points in order)
+- [ ] Present page: rehearsal timer and rehearsal log
+
 - [ ] Writing checks: placeholders left, one version of the truth, no surprises, stale facts, sensitive content, summary first, questions answered
 - [ ] Fact snapshots from the toolkit over an `export:read` token
 - [ ] Deck builder, full: theme layouts, narrative templates and outline-first skeletons, headline check, fact-bound numbers and charts, custom HTML slide in a sandbox, speaker view and rehearsal log
-- [ ] **Media players in slides:** video and audio elements with play, pause, scrub and volume; trim start and end; play on entering the slide or on a click step; loop; poster frame; captions track; controllable from the speaker view
-- [ ] Lottie animation library with play triggers, speed and segments
+- [ ] Media players: control playback from the speaker view (players work on the slide in the prototype)
+- [ ] Lottie: preview segments by frame in the inspector
 - [ ] Themes from Envato Elements: template folder outside the repo, layouts mapped to slide types
 - [ ] Export: single-file HTML deck, PDF, PowerPoint on the template
 - [ ] Media production board: script, storyboard, shot list, recording, edit, captions, review, publish
@@ -59,6 +63,8 @@ Nothing right now.
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-15: Deck builder prototype: reveal.js 5.1.0 and lottie-web 5.12.2 (light player) bundled locally with checksums verified; decks, slides and a media library with uploads and seekable playback; one renderer for editor and present page; three-pane editor with drag-to-reorder, live canvas and inspector; 11 layouts (title, section, big number, points, quote, comparison, image, video, audio, animation, closing); video and audio players with trim, loop, poster, captions and play-on-enter or on-click; Lottie with loop, play-once, on-click, speed and segments; full-screen present page with speaker notes; placeholder deck with generated tone and animation; 43 tests
 
 - [x] 2026-10-15: Toolkit version 1: people and team profiles, skills and learning matrix with teach/learn matches, listening tour, day-30 rollup with Markdown copy, my development (learning goals and log, tasks, obligations, contract start date), Today, placeholder data loader, reusable records layer in the base, 36 tests
 - [x] 2026-10-15: Shared base (sign-in, sessions, privacy levels, presentation mode, scoped tokens, change and export logs, UI shell) and toolkit and Comms studio skeletons

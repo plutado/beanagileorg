@@ -21,7 +21,7 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 @dataclass(frozen=True)
 class Field:
-    type: str  # text | date | int | bool | list
+    type: str  # text | date | int | bool | list | json (an object)
     level: Level = Level.PRIVATE
     required: bool = False
     choices: tuple[str, ...] | None = None
@@ -58,6 +58,8 @@ class Record:
         for name, f in self.fields.items():
             if f.type == "list":
                 rec[name] = json.loads(rec[name]) if rec[name] else []
+            elif f.type == "json":
+                rec[name] = json.loads(rec[name]) if rec[name] else {}
             elif f.type == "bool":
                 rec[name] = bool(rec[name])
         return rec
@@ -106,7 +108,7 @@ class Record:
         if value is None or value == "":
             if f.required:
                 raise HTTPException(400, f"{name} is required.")
-            return [] if f.type == "list" else (False if f.type == "bool" else None)
+            return {"list": [], "json": {}, "bool": False}.get(f.type)
         if f.type in ("text", "date"):
             if not isinstance(value, str):
                 raise HTTPException(400, f"{name} must be text.")
@@ -124,6 +126,10 @@ class Record:
             if not isinstance(value, bool):
                 raise HTTPException(400, f"{name} must be true or false.")
             return value
+        if f.type == "json":
+            if not isinstance(value, dict):
+                raise HTTPException(400, f"{name} must be an object.")
+            return value
         if f.type == "list":
             if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
                 raise HTTPException(400, f"{name} must be a list of text.")
@@ -134,7 +140,10 @@ class Record:
         out = {}
         for name, value in values.items():
             f = self.fields[name]
-            out[name] = json.dumps(value) if f.type == "list" else (int(value) if f.type == "bool" else value)
+            if f.type in ("list", "json"):
+                out[name] = json.dumps(value)
+            else:
+                out[name] = int(value) if f.type == "bool" else value
         return out
 
     def _plain(self, rec: dict | None) -> dict | None:
