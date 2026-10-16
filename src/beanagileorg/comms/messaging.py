@@ -364,3 +364,20 @@ def deck_from_plan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn))
     for position, (layout, content, notes) in enumerate(slides):
         models.slides.create(conn, {"deck_id": deck["id"], "position": position, "layout": layout, "content": content, "notes": notes or None}, viewer.source)
     return {"deck_id": deck["id"], "slides": len(slides)}
+
+
+COMMS_PATHS = {"/this-week", "/messages", "/templates", "/calendar", "/sent", "/audiences", "/plain-language", "/decks", "/media"}
+
+
+@router.get("/api/coaching/tips")
+def coaching_tips(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Your coaching tips live in the toolkit. Read them from there when connected; otherwise use the built-in ones."""
+    from beanagileorg.core import coaching
+
+    url = (_get_setting(conn, TOOLKIT_URL_KEY) or DEFAULT_TOOLKIT_URL).rstrip("/")
+    try:
+        tips = {r: t for r, t in _pull(conn, "/api/coaching/tips").items() if r in COMMS_PATHS}
+        source = "toolkit"
+    except HTTPException:
+        tips, source = coaching.builtin_tips(COMMS_PATHS), "built-in"
+    return {"tips": tips, "source": source, "guide_base": f"{url}/#/coaching/"}

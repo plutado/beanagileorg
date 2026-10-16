@@ -185,6 +185,46 @@
     });
   }
 
+  // Coaching tips: a short nudge at the top of each landing page, pointing to a guide. Hidden while presenting.
+  const COACH_OFF = "ba-coach-off", COACH_HIDDEN = "ba-coach-hidden";
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private window: tips just reappear */ } },
+  };
+  BA.coachTips = null;
+  BA.coachIndex = {};
+  async function loadTips() {
+    if (!BA.coachTips) {
+      BA.coachTips = BA.api("/api/coaching/tips").then((r) => (r && r.tips ? r : { tips: r || {}, guide_base: "#/coaching/" })).catch(() => ({ tips: {}, guide_base: "#/coaching/" }));
+    }
+    return BA.coachTips;
+  }
+  BA.coachingOn = () => !store.get(COACH_OFF, false);
+  BA.setCoaching = (on) => { store.set(COACH_OFF, !on); if (on) store.set(COACH_HIDDEN, []); };
+  async function showCoachTip(main, key) {
+    if (BA.session.presentation || main.hasAttribute("data-layout") || !BA.coachingOn() || store.get(COACH_HIDDEN, []).includes(key)) return;
+    const { tips, guide_base } = await loadTips();
+    const list = tips[key] || [];
+    if (!list.length || location.hash.slice(1).replace(/\/$/, "") !== key && location.hash) return;
+    const i = (BA.coachIndex[key] || 0) % list.length;
+    const tip = list[i];
+    const external = !guide_base.startsWith("#");
+    const el = document.createElement("aside");
+    el.className = "coach-tip";
+    el.innerHTML = `${BA.icon("lightbulb")}<div class="coach-text"><span>${BA.esc(tip.text)}</span>
+      ${tip.guide ? ` <a href="${BA.esc(guide_base + tip.guide)}"${external ? ' target="_blank" rel="noopener"' : ""}>${BA.esc(tip.title || "Read the guide")}</a>` : ""}</div>
+      <div class="coach-actions">${list.length > 1 ? `<button class="icon-btn" title="Next tip" data-next>${i + 1}/${list.length}</button>` : ""}
+      <button class="icon-btn" title="Hide tips on this page" data-hide>${BA.icon("x")}</button></div>`;
+    main.prepend(el);
+    const next = el.querySelector("[data-next]");
+    if (next) next.onclick = () => { BA.coachIndex[key] = i + 1; el.remove(); showCoachTip(main, key); };
+    el.querySelector("[data-hide]").onclick = () => {
+      store.set(COACH_HIDDEN, [...store.get(COACH_HIDDEN, []), key]);
+      el.remove();
+      BA.toast("Tips hidden on this page. Turn them back on in Settings.");
+    };
+  }
+
   BA.guard = (fn) => async (...args) => {
     try {
       await fn(...args);
@@ -254,8 +294,10 @@
       return;
     }
     try {
-      const rendering = def.render(main, path.slice(key.length).replace(/^\//, ""));
+      const param = path.slice(key.length).replace(/^\//, "");
+      const rendering = def.render(main, param);
       await rendering;
+      if (!param) await showCoachTip(main, key);
       void main.offsetWidth;
       main.classList.add("entering");
     } catch (err) {
@@ -327,6 +369,8 @@
             <button class="btn primary" type="submit">Create token</button>
           </form>
         </section>
+        <section class="card"><h2>Coaching tips</h2><p class="quiet">A short tip at the top of each screen, linking to a coaching guide. Tips never show while presenting.</p>
+          <label class="check"><input type="checkbox" id="coach-on"${BA.coachingOn() ? " checked" : ""}> Show coaching tips</label> <span class="quiet">(turning them on also brings back tips you hid on single pages)</span></section>
         <section class="card" id="backups"><h2>Backups</h2><p class="quiet">Loading…</p></section>
         <section class="card">
           <h2>Recent changes</h2>
@@ -345,6 +389,7 @@
 
       renderTotp(main.querySelector("#totp"));
       renderBackups(main.querySelector("#backups"));
+      main.querySelector("#coach-on").onchange = (e) => { BA.setCoaching(e.target.checked); BA.toast(e.target.checked ? "Coaching tips on." : "Coaching tips off."); };
 
       main.querySelector("#pw-form").onsubmit = async (e) => {
         e.preventDefault();

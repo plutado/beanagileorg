@@ -12,6 +12,7 @@ from .qa import router as qa_router
 from .architecture import router as architecture_router
 from .onboarding import router as onboarding_router
 from .sdlc import router as sdlc_router
+from .coaching import router as coaching_router, seed_once
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -44,6 +45,7 @@ NAV = [
     {"path": "/landscape", "icon": "building-2", "label": "Business landscape"},
     {"path": "/escalation", "icon": "siren", "label": "Escalation playbook"},
     {"group": "Me"},
+    {"path": "/coaching", "icon": "compass", "label": "Coaching"},
     {"path": "/me", "icon": "user-round", "label": "My development"},
     {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
@@ -54,11 +56,14 @@ SCOPES = {"delivery:write": Level.PRESENTABLE}
 
 def build(settings: Settings | None = None):
     settings = settings or Settings(app="toolkit", title="Toolkit", port=8801)
-    return create_app(
+    app = create_app(
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )
+    with app.state.db.session() as conn:
+        seed_once(conn)
+    return app

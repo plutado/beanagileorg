@@ -125,3 +125,14 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .env-path { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
 .env-box { border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 12px; background: var(--panel-2); font-weight: 600; font-size: .9rem; }
 .env-arrow { color: var(--muted); }
+
+.coaching-guide .lead { font-size: 1.05rem; }
+.coaching-guide h3 { margin: 16px 0 6px; font-size: .95rem; }
+.prompt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.chip-btn { border: 1px solid var(--line-strong); background: var(--panel-2); color: var(--ink); border-radius: 99px; padding: 5px 12px; font: inherit; font-size: .85rem; cursor: pointer; text-align: left; }
+.chip-btn:hover { border-color: var(--accent); }
+.trend { width: 100%; max-width: 420px; height: 80px; }
+.trend polyline { fill: none; stroke-width: 2; }
+.trend .t-energy { stroke: var(--accent); }
+.trend .t-confidence { stroke: var(--good); stroke-dasharray: 5 4; }
+.tip-row, .add-tip { margin: 6px 0; }

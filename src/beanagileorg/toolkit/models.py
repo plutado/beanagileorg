@@ -71,6 +71,9 @@ ONBOARDING_TRACKS = ("Salesforce developer", "MuleSoft developer", "QA", "employ
 ONBOARDING_STATUS = ("not started", "in progress", "done")
 POLICY_CATEGORIES = ("branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "other")
 POLICY_STATUS = ("draft", "agreed", "retired")
+GUIDE_STATUS = ("draft", "published")
+GUIDE_FOCUS = ("want to work on", "practicing", "comfortable")
+GUIDE_ORIGINS = ("built-in", "mine", "imported")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -727,6 +730,56 @@ MIGRATIONS = [
             status TEXT NOT NULL DEFAULT 'draft',
             agreed_on DATE,
             owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL
+        );
+        """,
+    ),
+    (
+        12,
+        """
+        CREATE TABLE coaching_guides (
+            id INTEGER PRIMARY KEY,
+            slug TEXT NOT NULL UNIQUE,
+            theme TEXT NOT NULL DEFAULT 'transition',
+            title TEXT NOT NULL,
+            summary TEXT,
+            why TEXT,
+            practices TEXT,
+            pitfalls TEXT,
+            questions TEXT,
+            try_this TEXT,
+            body TEXT,
+            related TEXT,
+            reading TEXT,
+            inspired_by TEXT,
+            minutes INTEGER,
+            origin TEXT NOT NULL DEFAULT 'mine',
+            status TEXT NOT NULL DEFAULT 'published',
+            focus TEXT,
+            my_notes TEXT
+        );
+        CREATE TABLE coaching_tips (
+            id INTEGER PRIMARY KEY,
+            route TEXT NOT NULL,
+            text TEXT NOT NULL,
+            guide_slug TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE coaching_prompts (
+            id INTEGER PRIMARY KEY,
+            phase TEXT NOT NULL DEFAULT 'Any time',
+            text TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE reflections (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            prompt TEXT,
+            entry TEXT,
+            energy INTEGER,
+            confidence INTEGER,
+            tags TEXT
         );
         """,
     ),
@@ -1787,6 +1840,78 @@ sdlc_policies = Record(
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = sdlc_policies.owner_id)", S)},
 )
 
+# ---- coaching: guides, tips and prompts are shareable with other leaders; your notes and reflections are private ----
+
+coaching_guides = Record(
+    entity="coaching_guide",
+    table="coaching_guides",
+    path="/api/coaching-guides",
+    order_by="theme, title",
+    fields={
+        "slug": Field("text", E, required=True),
+        "theme": Field("text", E, default="transition"),
+        "title": Field("text", E, required=True),
+        "summary": Field("text", E),
+        "why": Field("text", E),
+        "practices": Field("list", E),
+        "pitfalls": Field("list", E),
+        "questions": Field("list", E),
+        "try_this": Field("list", E),
+        "body": Field("text", E),
+        "related": Field("list", E),
+        "reading": Field("list", E),
+        "inspired_by": Field("text", E),
+        "minutes": Field("int", E),
+        "origin": Field("text", E, choices=GUIDE_ORIGINS, default="mine"),
+        "status": Field("text", E, choices=GUIDE_STATUS, default="published"),
+        "focus": Field("text", P, choices=GUIDE_FOCUS),
+        "my_notes": Field("text", P),
+    },
+)
+
+coaching_tips = Record(
+    entity="coaching_tip",
+    table="coaching_tips",
+    path="/api/coaching-tips",
+    order_by="route, position, id",
+    fields={
+        "route": Field("text", E, required=True),
+        "text": Field("text", E, required=True),
+        "guide_slug": Field("text", E),
+        "active": Field("bool", E, default=True),
+        "position": Field("int", E, default=0),
+    },
+)
+
+coaching_prompts = Record(
+    entity="coaching_prompt",
+    table="coaching_prompts",
+    path="/api/coaching-prompts",
+    order_by="position, id",
+    fields={
+        "phase": Field("text", E, default="Any time"),
+        "text": Field("text", E, required=True),
+        "active": Field("bool", E, default=True),
+        "position": Field("int", E, default=0),
+    },
+)
+
+reflections = Record(
+    entity="reflection",
+    table="reflections",
+    path="/api/reflections",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "prompt": Field("text", P),
+        "entry": Field("text", P),
+        "energy": Field("int", P),
+        "confidence": Field("int", P),
+        "tags": Field("list", P),
+    },
+    hide_when_empty=True,
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1800,4 +1925,5 @@ RECORDS = [
     integrations, arch_decisions, guides,
     onboarding_items, onboardings, onboarding_tasks,
     sdlc_stages, sdlc_environments, sdlc_policies,
+    coaching_guides, coaching_tips, coaching_prompts, reflections,
 ]

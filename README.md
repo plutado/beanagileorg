@@ -61,6 +61,13 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Business landscape:** the products, services and internal platforms [employer] offers, with owner, customers, systems, vendors and maturity; the organization as a tree of divisions, departments and teams with leaders and people; a private strengths, weaknesses, opportunities and threats assessment for each, with evidence, source and confidence, and a combined matrix. Any point can become a roadmap item or a risk.
 - **Escalation playbook:** systems with owner, first responder, backup and linked vendor, business-hours and out-of-hours escalation chains, severity levels, and an incident log whose follow-ups become dev-sync items.
 
+**Coaching**
+
+- **Guides:** an editable library for engineering leaders in six themes, with a strong focus on the transition into a new role: mindset, assertiveness, learning fast, the manager relationship, early wins, managing yourself and earning trust, plus team leadership, agile practice, stakeholders, leading leaders and vendors. Each guide has what to do, what to watch out for, questions to ask yourself and things to try this week. Rewrite, delete or add guides, and note what inspired them.
+- **Tips on every screen:** a short coaching tip at the top of each landing page in both apps, linking to a guide, edited per screen, hidden while presenting.
+- **Reflection journal:** private prompts for each stage of the role, with energy and confidence over time.
+- **Coaching packs:** share your guides, tips and prompts with other leaders (never your notes or reflections) and import theirs.
+
 **Me**
 
 - **My development:** learning goals with time logged and a report toggle that controls what reaches status reports, plus tasks, recurring obligations and the contract start date.

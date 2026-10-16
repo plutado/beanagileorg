@@ -19,6 +19,8 @@
   BA.command({ label: "Open the system map", hint: "Architecture and tools", icon: "network", run: () => BA.go("/architecture") });
   BA.command({ label: "Start onboarding a new team member", hint: "Onboarding", icon: "list-checks", run: () => BA.go("/onboarding") });
   BA.command({ label: "Open our SDLC", hint: "SDLC", icon: "git-branch", run: () => BA.go("/sdlc") });
+  BA.command({ label: "Write a reflection", hint: "Coaching", icon: "notebook", run: () => BA.go("/coaching/reflect") });
+  BA.command({ label: "Browse coaching guides", hint: "Coaching", icon: "compass", run: () => BA.go("/coaching") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -2791,6 +2793,223 @@
       const out = await BA.api("/api/sdlc/document/export", { method: "POST", body: {} });
       await navigator.clipboard.writeText(out.markdown);
       BA.toast("SDLC copied as Markdown.");
+    });
+  }
+
+  // ---------------------------------------------------------------- Coaching
+
+  const FOCUS = ["want to work on", "practicing", "comfortable"];
+  const FOCUS_TONES = { "want to work on": "warn", practicing: "accent", comfortable: "good" };
+  const ORIGIN_TONES = { "built-in": "", mine: "good", imported: "accent" };
+  const COMMS_SCREENS = [["/this-week", "Comms: This week"], ["/messages", "Comms: Messages"], ["/templates", "Comms: Templates"], ["/calendar", "Comms: Calendar"],
+    ["/audiences", "Comms: Audiences"], ["/plain-language", "Comms: Plain language"], ["/decks", "Comms: Decks"], ["/media", "Comms: Media"]];
+  const screenLabel = (route) => (BA.session.nav.find((n) => n.path === route) || {}).label || (COMMS_SCREENS.find(([r]) => r === route) || [, route])[1];
+  const coachTabs = (active) => `<nav class="tabs">${[["", "Guides"], ["reflect", "Reflect"], ["tips", "Tips and prompts"], ["share", "Share"]]
+    .map(([k, label]) => `<a href="#/coaching${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const asLines = (v) => (v || "").split("\n").map((x) => x.trim()).filter(Boolean);
+
+  BA.view("/coaching", {
+    title: "Coaching",
+    async render(main, param) {
+      if (param === "reflect") return renderReflect(main);
+      if (param === "tips") return renderCoachTips(main);
+      if (param === "share") return renderCoachShare(main);
+      if (param) return renderGuide(main, param);
+      const lib = await BA.api("/api/coaching/library");
+      const ro = presenting();
+      const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-coach-filter") || "{}"); } catch { return {}; } })();
+      const q = (f.q || "").toLowerCase();
+      const shown = lib.guides.filter((g) => (!f.theme || g.theme === f.theme) && (!f.focus || g.focus === f.focus) && (!q || `${g.title} ${g.summary || ""} ${g.inspired_by || ""}`.toLowerCase().includes(q)));
+      const working = lib.guides.filter((g) => g.focus === "want to work on" || g.focus === "practicing");
+      const card = (g) => `<a class="sys-card" href="#/coaching/${esc(g.slug)}"><div class="row"><b>${esc(g.title)}</b><span class="spacer"></span>
+          ${g.status === "draft" ? '<span class="pill warn">draft</span>' : ""}${g.focus ? tonePill(g.focus, FOCUS_TONES) : ""}</div>
+          ${g.summary ? `<p class="clamp">${esc(g.summary)}</p>` : ""}
+          <div class="quiet">${[g.minutes ? `${g.minutes} min` : "", g.origin, g.inspired_by ? `inspired by ${g.inspired_by}` : ""].filter(Boolean).map(esc).join(" · ")}</div></a>`;
+      main.innerHTML = `${coachTabs("")}
+        <p class="quiet">Guides for the mindset, habits and practices of leading an engineering team, especially through a new or growing role. Every guide is yours to edit: rewrite the built-in ones, delete what doesn't fit, and add your own as you read.</p>
+        ${working.length ? `<section class="card"><h2>What I'm working on</h2>${working.map((g) => `<div class="item"><a href="#/coaching/${esc(g.slug)}">${esc(g.title)}</a><span class="spacer"></span>${tonePill(g.focus, FOCUS_TONES)}</div>`).join("")}</section>` : ""}
+        <div class="row"><input id="cf-q" placeholder="Search guides" value="${esc(f.q || "")}" style="max-width:260px">
+          <select id="cf-theme" style="max-width:240px"><option value="">Every theme</option>${lib.themes.map((th) => `<option value="${esc(th.key)}"${th.key === f.theme ? " selected" : ""}>${esc(th.title)}</option>`).join("")}</select>
+          <select id="cf-focus" style="max-width:200px"><option value="">Any focus</option>${opts(FOCUS, f.focus)}</select></div>
+        ${lib.themes.map((th) => [th, shown.filter((g) => g.theme === th.key)]).filter(([, l]) => l.length).map(([th, l]) => `<section class="card"><h2>${esc(th.title)}</h2>${th.summary ? `<p class="quiet">${esc(th.summary)}</p>` : ""}<div class="sys-grid">${l.map(card).join("")}</div></section>`).join("") ||
+          '<p class="empty">No guides match.</p>'}
+        ${ro ? "" : `<section class="card"><h2>Write a guide</h2><form id="add-guide" class="row"><input name="title" required placeholder="Title" style="max-width:340px">
+          <input name="theme" list="coach-themes" placeholder="Theme" style="max-width:200px"><datalist id="coach-themes">${lib.themes.map((th) => `<option value="${esc(th.key)}">${esc(th.title)}</option>`).join("")}</datalist>
+          <input name="inspired_by" placeholder="Inspired by (book, chapter)" style="max-width:280px"><button class="btn primary" type="submit">Start writing</button></form>
+          ${lib.restorable.length ? `<details><summary class="quiet">Restore a built-in guide you deleted (${lib.restorable.length})</summary>${lib.restorable.map((r) => `<div class="item"><span>${esc(r.title)}</span><span class="spacer"></span><button class="btn" data-restore="${esc(r.slug)}">Restore</button></div>`).join("")}</details>` : ""}</section>`}`;
+      const save = () => { sessionStorage.setItem("ba-coach-filter", JSON.stringify({ q: main.querySelector("#cf-q").value, theme: main.querySelector("#cf-theme").value, focus: main.querySelector("#cf-focus").value })); BA.rerender(); };
+      main.querySelector("#cf-theme").onchange = save;
+      main.querySelector("#cf-focus").onchange = save;
+      main.querySelector("#cf-q").onchange = save;
+      if (ro) return;
+      main.querySelector("#add-guide").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const g = await BA.api("/api/coaching-guides", { method: "POST", body: { title: fd.get("title"), theme: fd.get("theme") || "transition", inspired_by: fd.get("inspired_by") || null, status: "draft" } });
+        BA.go(`/coaching/${g.slug}`);
+      });
+      main.querySelectorAll("[data-restore]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/coaching/restore/${b.dataset.restore}`, { method: "POST" }); BA.rerender(); })));
+    },
+  });
+
+  async function renderGuide(main, slug) {
+    const d = await BA.api(`/api/coaching/guide/${encodeURIComponent(slug)}`);
+    const g = d.guide;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = g.title;
+    const list = (title, items, cls = "") => (items && items.length ? `<h3>${title}</h3><ul class="checklist ${cls}">${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
+    const theme = d.themes.find((th) => th.key === g.theme);
+    main.innerHTML = `<p><a href="#/coaching">All guides</a></p>
+      <article class="card guide coaching-guide"><div class="row"><span class="quiet">${esc(theme ? theme.title : g.theme)}</span><span class="spacer"></span>
+          ${g.status === "draft" ? '<span class="pill warn">draft</span>' : ""}${tonePill(g.origin, ORIGIN_TONES)}${g.minutes ? `<span class="quiet">${g.minutes} min</span>` : ""}</div>
+        <h2>${esc(g.title)}</h2>${g.summary ? `<p class="lead">${esc(g.summary)}</p>` : ""}
+        ${g.why ? `<h3>Why it matters</h3><p>${esc(g.why)}</p>` : ""}
+        ${list("What to do", g.practices)}${list("Watch out for", g.pitfalls)}${list("Ask yourself", g.questions)}
+        ${g.try_this && g.try_this.length ? `<h3>Try this week</h3>${g.try_this.map((x, i) => `<div class="item"><span>${esc(x)}</span><span class="spacer"></span>${ro ? "" : `<button class="btn" data-task="${i}">Add as a task</button>`}</div>`).join("")}` : ""}
+        ${g.body ? `<h3>More</h3>${BA.md(g.body)}` : ""}
+        ${g.related && g.related.length ? `<p class="quiet">Where this shows up: ${g.related.map((r) => `<a href="#${esc(r)}">${esc(screenLabel(r.split("/").slice(0, 2).join("/")) || r)}</a>`).join(", ")}</p>` : ""}
+        ${g.reading && g.reading.length ? `<p class="quiet">Further reading: ${esc(g.reading.join("; "))}</p>` : ""}
+        ${g.inspired_by ? `<p class="quiet">Inspired by ${esc(g.inspired_by)}</p>` : ""}</article>
+      ${ro ? "" : `<section class="card"><h2>For me <span class="quiet">(private)</span></h2><div class="row"><label class="check">My focus <select id="g-focus" style="max-width:200px"><option value=""></option>${opts(FOCUS, g.focus)}</select></label>
+          <span class="spacer"></span><a class="btn" href="#/coaching/reflect" id="g-reflect">${BA.icon("notebook")} Reflect on this</a></div>
+        <label>My notes<textarea id="g-notes" rows="4">${esc(g.my_notes || "")}</textarea></label></section>
+      ${d.tips.length ? `<section class="card"><h2>Tips that point here</h2>${d.tips.map((tp) => `<div class="item"><span>${esc(tp.text)}</span><span class="spacer"></span><span class="quiet">${esc(screenLabel(tp.route))}</span></div>`).join("")}<p class="quiet"><a href="#/coaching/tips">Edit tips</a></p></section>` : ""}
+      <details class="card"><summary><b>Edit this guide</b></summary><form id="edit-guide"><div class="grid2">
+        <label>Title<input name="title" value="${esc(g.title)}" required></label><label>Theme<input name="theme" value="${esc(g.theme)}" list="coach-themes-e"><datalist id="coach-themes-e">${d.themes.map((th) => `<option value="${esc(th.key)}">${esc(th.title)}</option>`).join("")}</datalist></label>
+        <label>Status<select name="status">${opts(["draft", "published"], g.status)}</select></label><label>Reading time (minutes)<input type="number" name="minutes" value="${esc(g.minutes ?? "")}"></label>
+        <label>Inspired by <span class="quiet">(book and chapter, talk, article)</span><input name="inspired_by" value="${esc(g.inspired_by || "")}"></label>
+        <label>Further reading <span class="quiet">(one per line)</span><textarea name="reading" rows="2">${esc((g.reading || []).join("\n"))}</textarea></label></div>
+        <label>Summary<textarea name="summary" rows="2">${esc(g.summary || "")}</textarea></label>
+        <label>Why it matters<textarea name="why" rows="3">${esc(g.why || "")}</textarea></label>
+        <div class="grid2"><label>What to do <span class="quiet">(one per line)</span><textarea name="practices" rows="6">${esc((g.practices || []).join("\n"))}</textarea></label>
+          <label>Watch out for <span class="quiet">(one per line)</span><textarea name="pitfalls" rows="6">${esc((g.pitfalls || []).join("\n"))}</textarea></label>
+          <label>Ask yourself <span class="quiet">(one per line)</span><textarea name="questions" rows="4">${esc((g.questions || []).join("\n"))}</textarea></label>
+          <label>Try this week <span class="quiet">(one per line)</span><textarea name="try_this" rows="4">${esc((g.try_this || []).join("\n"))}</textarea></label></div>
+        <label>More <span class="quiet">(Markdown: anything else, such as your own reading notes)</span><textarea name="body" rows="6" class="mono">${esc(g.body || "")}</textarea></label>
+        <label>Screens it relates to <span class="quiet">(one per line, such as /retros)</span><textarea name="related" rows="2">${esc((g.related || []).join("\n"))}</textarea></label>
+        <div class="actions"><button class="btn danger left" type="button" id="del-guide">Delete guide</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+    if (ro) return;
+    main.querySelector("#g-focus").onchange = BA.guard(async (e) => { await BA.api(`/api/coaching-guides/${g.id}`, { method: "PATCH", body: { focus: e.target.value || null } }); BA.toast("Saved."); });
+    main.querySelector("#g-notes").onchange = BA.guard(async (e) => { await BA.api(`/api/coaching-guides/${g.id}`, { method: "PATCH", body: { my_notes: e.target.value } }); BA.toast("Saved."); });
+    main.querySelector("#g-reflect").onclick = () => sessionStorage.setItem("ba-reflect-prompt", `On "${g.title}": ${(g.questions && g.questions[0]) || "what am I taking from this?"}`);
+    main.querySelectorAll("[data-task]").forEach((b) => (b.onclick = BA.guard(async () => {
+      await BA.api("/api/tasks", { method: "POST", body: { title: g.try_this[Number(b.dataset.task)], requested_by: `Coaching: ${g.title}` } });
+      b.disabled = true;
+      b.textContent = "Added";
+    })));
+    const form = main.querySelector("#edit-guide");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      await BA.api(`/api/coaching-guides/${g.id}`, { method: "PATCH", body: { title: fd.get("title"), theme: fd.get("theme") || "transition", status: fd.get("status"), minutes: numOrNull(fd.get("minutes")),
+        inspired_by: fd.get("inspired_by") || null, reading: asLines(fd.get("reading")), summary: fd.get("summary"), why: fd.get("why"), practices: asLines(fd.get("practices")), pitfalls: asLines(fd.get("pitfalls")),
+        questions: asLines(fd.get("questions")), try_this: asLines(fd.get("try_this")), body: fd.get("body"), related: asLines(fd.get("related")) } });
+      BA.coachTips = null;
+      BA.rerender();
+    });
+    main.querySelector("#del-guide").onclick = BA.guard(async () => {
+      if (!confirm(g.origin === "built-in" ? "Delete this guide? You can restore the original later from the guides page." : "Delete this guide? This can't be undone.")) return;
+      await BA.api(`/api/coaching-guides/${g.id}`, { method: "DELETE" });
+      BA.coachTips = null;
+      BA.go("/coaching");
+    });
+  }
+
+  async function renderReflect(main) {
+    const d = await BA.api("/api/coaching/reflect");
+    if (d.hidden) { main.innerHTML = `${coachTabs("reflect")}<p class="empty">Reflections are private, so they're hidden while presenting.</p>`; return; }
+    const pre = sessionStorage.getItem("ba-reflect-prompt") || "";
+    sessionStorage.removeItem("ba-reflect-prompt");
+    const scale = (name) => `<select name="${name}" style="max-width:90px"><option value=""></option>${[1, 2, 3, 4, 5].map((n) => `<option>${n}</option>`).join("")}</select>`;
+    const W = 320, H = 70, pts = d.trend.filter((x) => x.energy || x.confidence);
+    const line = (key) => pts.map((x, i) => (x[key] ? `${(i * W) / Math.max(1, pts.length - 1)},${H - ((x[key] - 1) / 4) * (H - 10) - 5}` : null)).filter(Boolean).join(" ");
+    const chart = pts.length > 1 ? `<svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Energy and confidence over recent reflections"><polyline points="${line("energy")}" class="t-energy"></polyline><polyline points="${line("confidence")}" class="t-confidence"></polyline></svg>
+      <p class="quiet legend"><span class="key solid"></span> energy <span class="key dashed"></span> confidence, from 1 to 5, last ${pts.length} entries</p>` : "";
+    main.innerHTML = `${coachTabs("reflect")}
+      <section class="card"><h2>${d.day ? `Day ${d.day}` : "Reflect"} <span class="quiet">${esc(d.phase)}</span></h2>
+        <p class="quiet">A few minutes a week on how it's going: what you're learning, where you were assertive, what's draining you. Private, never exported.${d.day ? "" : ' Set your start date in <a href="#/me">My development</a> to get prompts for each stage of the role.'}</p>
+        <div class="prompt-chips">${[...d.prompts, ...d.anytime].map((p) => `<button type="button" class="chip-btn" data-prompt="${esc(p.text)}">${esc(p.text)}</button>`).join("")}</div>
+        <form id="add-reflection"><label>Prompt<input name="prompt" value="${esc(pre)}" placeholder="Pick one above or write your own"></label>
+          <label>Reflection<textarea name="entry" rows="6" required></textarea></label>
+          <div class="row"><label class="check">Energy ${scale("energy")}</label><label class="check">Confidence ${scale("confidence")}</label>
+            <input type="date" name="date" value="${BA.today()}" style="max-width:170px"><input name="tags" placeholder="Tags, comma separated" style="max-width:220px"><span class="spacer"></span><button class="btn primary" type="submit">Save</button></div></form></section>
+      <div class="cards">${chart ? `<section class="card"><h2>How I've been</h2>${chart}</section>` : ""}
+        ${d.focus.length ? `<section class="card"><h2>Guides I'm working on</h2>${d.focus.map((x) => `<div class="item"><a href="#/coaching/${esc(x.slug)}">${esc(x.title)}</a><span class="spacer"></span>${tonePill(x.focus, FOCUS_TONES)}</div>`).join("")}</section>` : ""}</div>
+      <section class="card"><h2>Past reflections</h2>${d.entries.map((e) => `<details class="plan-item" data-r="${e.id}"><summary><span class="quiet">${BA.fmtDate(e.date)}</span><span>${esc(e.prompt || (e.entry || "").slice(0, 80))}</span><span class="spacer"></span>
+          ${e.energy ? `<span class="quiet">energy ${e.energy}</span>` : ""}${e.confidence ? `<span class="quiet">confidence ${e.confidence}</span>` : ""}${(e.tags || []).length ? BA.chips(e.tags) : ""}</summary>${BA.md(e.entry || "")}
+          <div class="actions"><button class="btn danger" type="button" data-del>Delete</button></div></details>`).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
+    const form = main.querySelector("#add-reflection");
+    main.querySelectorAll("[data-prompt]").forEach((b) => (b.onclick = () => { form.elements.prompt.value = b.dataset.prompt; form.elements.entry.focus(); }));
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      await BA.api("/api/reflections", { method: "POST", body: { date: fd.get("date"), prompt: fd.get("prompt") || null, entry: fd.get("entry"), energy: numOrNull(fd.get("energy")), confidence: numOrNull(fd.get("confidence")), tags: asLines((fd.get("tags") || "").replace(/,/g, "\n")) } });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+    main.querySelectorAll("[data-r]").forEach((det) => (det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this reflection?")) return; await BA.api(`/api/reflections/${det.dataset.r}`, { method: "DELETE" }); BA.rerender(); })));
+  }
+
+  async function renderCoachTips(main) {
+    const [tips, prompts, lib, reflect] = await Promise.all([BA.api("/api/coaching-tips"), BA.api("/api/coaching-prompts"), BA.api("/api/coaching/library"), BA.api("/api/coaching/reflect")]);
+    const ro = presenting();
+    const screens = [...BA.session.nav.filter((n) => n.path && n.path !== "/settings" && n.path !== "/coaching").map((n) => [n.path, n.label]), ...COMMS_SCREENS];
+    const guideOpts = (sel) => `<option value="">No guide</option>${lib.guides.map((g) => `<option value="${esc(g.slug)}"${g.slug === sel ? " selected" : ""}>${esc(g.title)}</option>`).join("")}`;
+    const byRoute = screens.map(([r, label]) => [r, label, tips.filter((t) => t.route === r)]);
+    const phases = reflect.phases || ["Any time"];
+    main.innerHTML = `${coachTabs("tips")}
+      <p class="quiet">Tips appear at the top of each screen, one at a time, linking to a guide. Prompts feed the reflection journal at each stage of the role.</p>
+      <section class="card"><h2>Tips by screen</h2>${byRoute.map(([r, label, list]) => `<details class="plan-item"${list.length ? "" : ' data-empty="1"'}><summary><b>${esc(label)}</b><span class="spacer"></span><span class="quiet">${list.length} tip${list.length === 1 ? "" : "s"}</span></summary>
+          ${list.map((t) => `<form class="tip-row row" data-tip="${t.id}"><input name="text" value="${esc(t.text)}" style="flex:1;min-width:220px"${ro ? " disabled" : ""}><select name="guide_slug" style="max-width:240px"${ro ? " disabled" : ""}>${guideOpts(t.guide_slug)}</select>
+            <label class="check"><input type="checkbox" name="active"${t.active ? " checked" : ""}${ro ? " disabled" : ""}> on</label>${ro ? "" : '<button class="btn" type="submit">Save</button><button class="icon-btn" type="button" title="Delete" data-del>' + BA.icon("x") + "</button>"}</form>`).join("")}
+          ${ro ? "" : `<form class="add-tip row" data-route="${esc(r)}"><input name="text" required placeholder="A new tip for this screen" style="flex:1;min-width:220px"><select name="guide_slug" style="max-width:240px">${guideOpts("")}</select><button class="btn" type="submit">Add</button></form>`}</details>`).join("")}</section>
+      <section class="card"><h2>Reflection prompts</h2>${phases.map((ph) => `<h3>${esc(ph)}</h3>${prompts.filter((p) => p.phase === ph).map((p) => `<form class="row" data-prompt="${p.id}"><input name="text" value="${esc(p.text)}" style="flex:1;min-width:220px"${ro ? " disabled" : ""}>
+          <label class="check"><input type="checkbox" name="active"${p.active ? " checked" : ""}${ro ? " disabled" : ""}> on</label>${ro ? "" : '<button class="btn" type="submit">Save</button><button class="icon-btn" type="button" title="Delete" data-del>' + BA.icon("x") + "</button>"}</form>`).join("")}
+        ${ro ? "" : `<form class="add-prompt row" data-phase="${esc(ph)}"><input name="text" required placeholder="A new prompt" style="flex:1;min-width:220px"><button class="btn" type="submit">Add</button></form>`}`).join("")}</section>`;
+    if (ro) return;
+    const done = () => { BA.coachTips = null; BA.rerender(); };
+    main.querySelectorAll("[data-tip]").forEach((f) => {
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/coaching-tips/${f.dataset.tip}`, { method: "PATCH", body: { text: f.elements.text.value, guide_slug: f.elements.guide_slug.value || null, active: f.elements.active.checked } }); BA.coachTips = null; BA.toast("Saved."); });
+      f.querySelector("[data-del]").onclick = BA.guard(async () => { await BA.api(`/api/coaching-tips/${f.dataset.tip}`, { method: "DELETE" }); done(); });
+    });
+    main.querySelectorAll(".add-tip").forEach((f) => (f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/coaching-tips", { method: "POST", body: { route: f.dataset.route, text: f.elements.text.value, guide_slug: f.elements.guide_slug.value || null } }); done(); })));
+    main.querySelectorAll("[data-prompt]").forEach((f) => {
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/coaching-prompts/${f.dataset.prompt}`, { method: "PATCH", body: { text: f.elements.text.value, active: f.elements.active.checked } }); BA.toast("Saved."); });
+      f.querySelector("[data-del]").onclick = BA.guard(async () => { await BA.api(`/api/coaching-prompts/${f.dataset.prompt}`, { method: "DELETE" }); done(); });
+    });
+    main.querySelectorAll(".add-prompt").forEach((f) => (f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/coaching-prompts", { method: "POST", body: { phase: f.dataset.phase, text: f.elements.text.value } }); done(); })));
+  }
+
+  async function renderCoachShare(main) {
+    const ro = presenting();
+    main.innerHTML = `${coachTabs("share")}
+      <section class="card"><h2>Share your coaching with other leaders</h2>
+        <p class="quiet">A coaching pack holds your published guides, tips and reflection prompts. It never includes your notes, focus or reflections. Another leader can import it into their own copy.</p>
+        ${ro ? "" : `<div class="row"><button class="btn primary" id="pack-download">Download pack</button><button class="btn" id="pack-copy">${BA.icon("copy")} Copy pack</button></div>`}</section>
+      ${ro ? "" : `<section class="card"><h2>Import a pack</h2><p class="quiet">New guides, tips and prompts are added. A guide you already have (same short name) is skipped, unless you choose to replace it; your notes on it are kept either way.</p>
+        <form id="pack-import"><label>Pack file<input type="file" name="file" accept=".json,application/json"></label><label>Or paste it<textarea name="text" rows="5" class="mono"></textarea></label>
+          <label class="check"><input type="checkbox" name="replace"> Replace guides I already have</label><div class="actions"><button class="btn primary" type="submit">Import</button></div></form><div id="pack-result"></div></section>`}`;
+    if (ro) return;
+    const getPack = () => BA.api("/api/coaching/pack/export", { method: "POST", body: {} });
+    main.querySelector("#pack-download").onclick = BA.guard(async () => {
+      const pack = await getPack();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(pack, null, 2)], { type: "application/json" }));
+      a.download = `coaching-pack-${pack.exported}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    main.querySelector("#pack-copy").onclick = BA.guard(async () => { await navigator.clipboard.writeText(JSON.stringify(await getPack(), null, 2)); BA.toast("Pack copied."); });
+    const form = main.querySelector("#pack-import");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const file = form.elements.file.files[0];
+      const raw = file ? await file.text() : form.elements.text.value;
+      let pack;
+      try { pack = JSON.parse(raw); } catch { throw new Error("That isn't valid JSON."); }
+      const r = await BA.api("/api/coaching/pack/import", { method: "POST", body: { pack, replace: form.elements.replace.checked } });
+      BA.coachTips = null;
+      main.querySelector("#pack-result").innerHTML = `<p><span class="pill good">imported</span> ${r.guides_added} guides added, ${r.guides_replaced} replaced, ${r.guides_skipped} skipped; ${r.tips_added} tips and ${r.prompts_added} prompts added.</p>`;
     });
   }
 })();
