@@ -12,21 +12,20 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Toolkit, day-45 batch:** sprint notebook, Agile roadmap items, RACI, risks and decisions, weekly status draft that feeds the Comms studio
+- [ ] **Retrospectives (toolkit):** a shared retro record per sprint (date, format such as start/stop/continue, mad/sad/glad or the 4 Ls, attendees); discussion items by column with optional votes; commitments to change or improve, each with owner, due date and status, tagged to the sprint where the topic surfaced; the next retro opens with last time's commitments, and unfinished ones stay on a running improvement backlog; recurring topics flagged and linked to listening-tour themes; presentable for showing on screen during the retro, linked to the private retro note in the sprint notebook
+- [ ] **PI planning (toolkit):** PI objectives (committed and stretch, planned and actual business value, predictability at PI end); epics and features with priority, owner, acceptance criteria and status; stories with points, priority and acceptance criteria placed in the PI's sprints, with a capacity check per sprint; a program board of features and milestones across sprints with cross-team dependencies; milestones and events (releases, freezes, demos, innovation and planning sprint); risks sorted by ROAM (resolved, owned, accepted, mitigated); the end-of-planning confidence vote; optional ticket keys linking to Jira or another system of record; presentable throughout
+- [ ] **QA resources (toolkit):** manual smoke test library (system, area, steps, expected result, owner, last run and result); test runs per release or sprint with pass, fail or blocked per case and failures turned into dev-sync items; automated test inventory (unit, integration, end-to-end and Apex suites, location, coverage, latest CI result); regression plans for each Salesforce release and peak-season freeze with named owners; ties to the definition of done and QA sign-off in the RACI
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
+- [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket or the release log
+- [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
+- [ ] Roadmap: drag to reorder, and a timeline view
+
 - [ ] Vendors: attach documents (contracts, statements of work) from the docs library, and a vendor scorecard reviewed at renewal
 - [ ] Themes as their own records (version 1 stores them as tags on each one-on-one)
-- [ ] Sprint notebook: sprints, a private note per ceremony, follow-ups that carry into the next planning note
-- [ ] SAFe support: optional Program Increments, innovation and planning sprints, PI planning and end-of-PI demo notes
-- [ ] Agile roadmap items with target days and status
-- [ ] RACI matrix with confirm status per row
-- [ ] Risks, decisions needed, metrics and metric readings
-- [ ] Weekly status draft (`/api/status/draft`) and the filtered export with preview
-- [ ] Escalation playbook: reorder steps by dragging, and link incidents to sprints once sprints exist
-- [ ] Dev-sync log: link items to a sprint once the sprint notebook exists
+- [ ] Escalation playbook: reorder steps by dragging, and link incidents to sprints
 - [ ] Documentation library: links to Odysseus documents with owner and last-reviewed date
 - [ ] Decision log
 - [ ] Meeting decks: saved sequences of live views, presented like slides
@@ -54,7 +53,7 @@ In the order the 90-day plan needs them:
 - [ ] Writing checks, remaining: one version of the truth, no surprises, stale facts, sensitive content, questions answered
 - [ ] Plain-language rewrite suggestions from a local model (version 1 suggests from the jargon list and glossary)
 - [ ] Message editor: per-audience length targets, and side-by-side version compare
-- [ ] Fact snapshots from the toolkit over an `export:read` token
+- [ ] Fact snapshots from the toolkit over an `export:read` token (the status draft pull is done; snapshots per message are next)
 - [ ] Deck builder, full: theme layouts, narrative templates and outline-first skeletons, headline check, fact-bound numbers and charts, custom HTML slide in a sandbox, speaker view and rehearsal log
 - [ ] Media players: control playback from the speaker view (players work on the slide in the prototype)
 - [ ] Lottie: preview segments by frame in the inspector
@@ -78,6 +77,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: Toolkit day-45 batch: sprint notebook (sprints, start-next-sprint, private ceremony notes per sprint with prompts, follow-ups that become dev-sync items and carry into the next sprint), optional SAFe Program Increments and innovation and planning sprints; Agile roadmap with target days turned into dates; RACI matrix with editable roles and a one-accountable check; risks, decisions needed, metrics and readings; starter content (roadmap, RACI decisions, delivery metrics); weekly status draft built only from exportable data with a suggested overall color; Comms studio pulls the draft over an export-only token from a Connections screen; 78 tests
 
 - [x] 2026-10-15: Vendor relationships: vendors (type, status, account contacts from People, support process, service promise, contract dates, renewal notice, private commercial terms and notes); private conversation log with who was involved; open concerns with owners and due dates; follow-ups from a conversation become dev-sync items tagged with the vendor; renewals and due concerns on Today; escalation systems link to their vendor; database upgrade tested; 67 tests
 

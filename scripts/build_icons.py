@@ -12,7 +12,8 @@ ICONS = [
     # navigation
     "sun", "calendar-check", "users", "graduation-cap", "messages-square", "chart-column", "list-checks",
     "presentation", "siren", "user-round", "settings", "calendar-clock", "mail", "layout-template",
-    "calendar-days", "send", "spell-check", "film", "handshake",
+    "calendar-days", "send", "spell-check", "film", "handshake", "map", "grid-3x3", "triangle-alert", "gauge",
+    "file-text", "notebook-pen",
     # interface
     "search", "command", "moon", "monitor", "x", "plus", "chevron-down", "chevron-right", "log-out",
     "eye-off", "eye", "keyboard", "check", "circle-alert", "sparkles", "inbox", "panel-left",

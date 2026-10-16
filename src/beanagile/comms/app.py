@@ -20,6 +20,7 @@ NAV = [
     {"path": "/decks", "icon": "presentation", "label": "Decks"},
     {"path": "/media", "icon": "film", "label": "Media library"},
     {"group": "Me"},
+    {"path": "/connections", "icon": "send", "label": "Connections"},
     {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
 

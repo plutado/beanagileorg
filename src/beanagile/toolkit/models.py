@@ -16,6 +16,15 @@ VENDOR_TYPES = ("platform vendor", "consulting partner", "contractor agency", "t
 VENDOR_STATUS = ("active", "onboarding", "under review", "ended")
 INTERACTION_CHANNELS = ("call", "meeting", "email", "chat", "other")
 CONCERN_STATUS = ("open", "in progress", "resolved")
+SPRINT_KINDS = ("development", "innovation and planning")
+CEREMONY_TYPES = ("planning", "refinement", "review", "retro", "dev sync", "ad hoc", "pi planning", "pi demo")
+ROADMAP_KINDS = ("ceremony", "agreement", "metric", "milestone")
+ROADMAP_STATUS = ("not started", "in progress", "done", "at risk")
+RACI_STATUS = ("to confirm", "confirmed", "changed")
+RACI_LETTERS = ("R", "A", "C", "I")
+RISK_STATUS = ("open", "watching", "closed")
+RISK_LEVELS = ("high", "medium", "low")
+DECISION_STATUS = ("open", "decided")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -195,6 +204,98 @@ MIGRATIONS = [
         ALTER TABLE systems ADD COLUMN vendor_id INTEGER REFERENCES vendors (id) ON DELETE SET NULL;
         """,
     ),
+    (
+        4,
+        """
+        CREATE TABLE program_increments (
+            id INTEGER PRIMARY KEY,
+            number INTEGER NOT NULL,
+            start_date TEXT,
+            end_date TEXT,
+            objectives TEXT,
+            objectives_met TEXT
+        );
+        CREATE TABLE sprints (
+            id INTEGER PRIMARY KEY,
+            number INTEGER NOT NULL,
+            start_date TEXT,
+            end_date TEXT,
+            goal TEXT,
+            kind TEXT NOT NULL DEFAULT 'development',
+            pi_id INTEGER REFERENCES program_increments (id) ON DELETE SET NULL
+        );
+        CREATE TABLE ceremony_notes (
+            id INTEGER PRIMARY KEY,
+            sprint_id INTEGER NOT NULL REFERENCES sprints (id) ON DELETE CASCADE,
+            type TEXT NOT NULL DEFAULT 'planning',
+            date TEXT,
+            happened TEXT,
+            noticed TEXT,
+            thoughts TEXT,
+            follow_ups TEXT,
+            tags TEXT
+        );
+        ALTER TABLE action_items ADD COLUMN sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL;
+        ALTER TABLE action_items ADD COLUMN note_id INTEGER REFERENCES ceremony_notes (id) ON DELETE SET NULL;
+        CREATE TABLE roadmap_items (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            kind TEXT NOT NULL DEFAULT 'milestone',
+            target_day INTEGER,
+            status TEXT NOT NULL DEFAULT 'not started',
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE raci_decisions (
+            id INTEGER PRIMARY KEY,
+            decision TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'to confirm',
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE raci_assignments (
+            id INTEGER PRIMARY KEY,
+            decision_id INTEGER NOT NULL REFERENCES raci_decisions (id) ON DELETE CASCADE,
+            role TEXT NOT NULL,
+            letter TEXT NOT NULL,
+            UNIQUE (decision_id, role)
+        );
+        CREATE TABLE risks (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            impact TEXT,
+            level TEXT NOT NULL DEFAULT 'medium',
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            next_step TEXT,
+            due TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            notes TEXT
+        );
+        CREATE TABLE decisions_needed (
+            id INTEGER PRIMARY KEY,
+            decision TEXT NOT NULL,
+            from_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            needed_by TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            outcome TEXT
+        );
+        CREATE TABLE metrics (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            unit TEXT,
+            baseline REAL,
+            target REAL,
+            method TEXT,
+            higher_is_better INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE metric_readings (
+            id INTEGER PRIMARY KEY,
+            metric_id INTEGER NOT NULL REFERENCES metrics (id) ON DELETE CASCADE,
+            date TEXT,
+            value REAL NOT NULL
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -328,6 +429,8 @@ action_items = Record(
         "learning": Field("bool", S, default=False),
         "incident_id": Field("int", S),
         "vendor_id": Field("int", S),
+        "sprint_id": Field("int", S),
+        "note_id": Field("int", P),
         "notes": Field("text", P),
     },
     computed={
@@ -491,8 +594,149 @@ vendor_concerns = Record(
     },
 )
 
+# ---- day-45 batch: sprints, roadmap, RACI, risks, decisions, metrics ----
+
+program_increments = Record(
+    entity="program_increment",
+    table="program_increments",
+    path="/api/program-increments",
+    order_by="number DESC",
+    fields={
+        "number": Field("int", E, required=True),
+        "start_date": Field("date", E),
+        "end_date": Field("date", E),
+        "objectives": Field("text", E),
+        "objectives_met": Field("text", E),
+    },
+)
+
+# Sprint dates and goals are exportable; the notebook entries are private.
+sprints = Record(
+    entity="sprint",
+    table="sprints",
+    path="/api/sprints",
+    order_by="number DESC",
+    fields={
+        "number": Field("int", E, required=True),
+        "start_date": Field("date", E),
+        "end_date": Field("date", E),
+        "goal": Field("text", E),
+        "kind": Field("text", E, choices=SPRINT_KINDS, default="development"),
+        "pi_id": Field("int", E),
+    },
+    computed={"note_count": ("(SELECT COUNT(*) FROM ceremony_notes n WHERE n.sprint_id = sprints.id)", P)},
+)
+
+ceremony_notes = Record(
+    entity="ceremony_note",
+    table="ceremony_notes",
+    path="/api/ceremony-notes",
+    order_by="date IS NULL, date, id",
+    hide_when_empty=True,
+    fields={
+        "sprint_id": Field("int", P, required=True),
+        "type": Field("text", P, choices=CEREMONY_TYPES, default="planning"),
+        "date": Field("date", P),
+        "happened": Field("text", P),
+        "noticed": Field("text", P),
+        "thoughts": Field("text", P),
+        "follow_ups": Field("text", P),
+        "tags": Field("list", P),
+    },
+)
+
+roadmap_items = Record(
+    entity="roadmap_item",
+    table="roadmap_items",
+    path="/api/roadmap",
+    order_by="target_day IS NULL, target_day, position, id",
+    fields={
+        "title": Field("text", E, required=True),
+        "description": Field("text", E),
+        "kind": Field("text", E, choices=ROADMAP_KINDS, default="milestone"),
+        "target_day": Field("int", E),
+        "status": Field("text", E, choices=ROADMAP_STATUS, default="not started"),
+        "owner_id": Field("int", S),
+        "position": Field("int", S, default=0),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = roadmap_items.owner_id)", S)},
+)
+
+raci_decisions = Record(
+    entity="raci_decision",
+    table="raci_decisions",
+    path="/api/raci-decisions",
+    order_by="position, id",
+    fields={
+        "decision": Field("text", S, required=True),
+        "status": Field("text", S, choices=RACI_STATUS, default="to confirm"),
+        "position": Field("int", S, default=0),
+    },
+)
+
+risks = Record(
+    entity="risk",
+    table="risks",
+    path="/api/risks",
+    order_by="status = 'closed', CASE level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, due IS NULL, due",
+    fields={
+        "title": Field("text", E, required=True),
+        "impact": Field("text", E),
+        "level": Field("text", E, choices=RISK_LEVELS, default="medium"),
+        "owner_id": Field("int", E),
+        "next_step": Field("text", E),
+        "due": Field("date", E),
+        "status": Field("text", E, choices=RISK_STATUS, default="open"),
+        "notes": Field("text", P),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = risks.owner_id)", E)},
+)
+
+decisions_needed = Record(
+    entity="decision_needed",
+    table="decisions_needed",
+    path="/api/decisions-needed",
+    order_by="status = 'decided', needed_by IS NULL, needed_by",
+    fields={
+        "decision": Field("text", E, required=True),
+        "from_id": Field("int", E),
+        "needed_by": Field("date", E),
+        "status": Field("text", E, choices=DECISION_STATUS, default="open"),
+        "outcome": Field("text", E),
+    },
+    computed={"from_name": ("(SELECT name FROM people p WHERE p.id = decisions_needed.from_id)", E)},
+)
+
+metrics = Record(
+    entity="metric",
+    table="metrics",
+    path="/api/metrics",
+    order_by="name",
+    fields={
+        "name": Field("text", E, required=True),
+        "unit": Field("text", E),
+        "baseline": Field("number", E),
+        "target": Field("number", E),
+        "method": Field("text", E),
+        "higher_is_better": Field("bool", E, default=True),
+    },
+    computed={
+        "latest": ("(SELECT value FROM metric_readings r WHERE r.metric_id = metrics.id ORDER BY date DESC, id DESC LIMIT 1)", E),
+        "latest_date": ("(SELECT date FROM metric_readings r WHERE r.metric_id = metrics.id ORDER BY date DESC, id DESC LIMIT 1)", E),
+    },
+)
+
+metric_readings = Record(
+    entity="metric_reading",
+    table="metric_readings",
+    path="/api/metric-readings",
+    order_by="metric_id, date, id",
+    fields={"metric_id": Field("int", E, required=True), "date": Field("date", E), "value": Field("number", E, required=True)},
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
+    program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
 ]

@@ -204,6 +204,7 @@
           <label>Message <span class="quiet">Markdown: # headings, - lists, | tables |, **bold**</span>
             <textarea name="body" class="msg-body"${locked ? " readonly" : ""}>${esc(m.body)}</textarea></label>
           <div class="actions"><button class="btn left" type="button" id="dup">Duplicate</button>
+            ${locked ? "" : '<button class="btn" type="button" id="pull-status" hidden>Insert toolkit status draft</button>'}
             <button class="btn" type="button" data-export="text">Copy text</button>
             <button class="btn" type="button" data-export="markdown">Download .md</button>
             <button class="btn" type="button" data-export="print">Print or save PDF</button></div>
@@ -278,6 +279,18 @@
         BA.rerender();
       });
     });
+    const pull = main.querySelector("#pull-status");
+    if (pull) {
+      BA.api("/api/connections").then((c) => (pull.hidden = !c.token_set)).catch(() => {});
+      pull.onclick = BA.guard(async () => {
+        const draft = await BA.api("/api/toolkit/status-draft");
+        if (form.elements.body.value.trim() && !confirm("Replace the message text with the toolkit's status draft?")) return;
+        form.elements.body.value = draft.markdown;
+        await save();
+        refresh();
+        BA.toast(`Inserted the draft for the week of ${BA.fmtDate(draft.week_of)}. Placeholders still need your words.`);
+      });
+    }
     main.querySelector("#dup").onclick = BA.guard(async () => {
       const copy = await BA.api(`/api/messages/${id}/duplicate`, { method: "POST" });
       BA.go(`/messages/${copy.id}`);
@@ -858,6 +871,46 @@
           BA.rerender();
         });
       });
+    },
+  });
+
+  // ---------------------------------------------------------------- Connections
+
+  BA.view("/connections", {
+    title: "Connections",
+    async render(main) {
+      if (presenting()) {
+        main.innerHTML = '<p class="empty">Connections are hidden while presenting.</p>';
+        return;
+      }
+      const c = await BA.api("/api/connections");
+      main.innerHTML = `<section class="card"><h2>Toolkit</h2>
+        <p class="quiet">Lets a message pull the weekly status draft from the toolkit. In the toolkit, open Settings and create a token with only the <b>export:read</b> scope, so the studio can never read anything private.</p>
+        <p>${c.token_set ? '<span class="pill good">connected</span>' : '<span class="pill warn">not connected</span>'}</p>
+        <form id="conn" class="grid2">
+          <label>Toolkit address<input name="toolkit_url" value="${esc(c.toolkit_url)}"></label>
+          <label>Export-only token<input name="toolkit_token" type="password" placeholder="${c.token_set ? "Saved. Paste a new one to replace it." : "Paste the token"}"></label>
+          <div class="actions">${c.token_set ? '<button class="btn danger left" type="button" id="clear">Remove token</button>' : ""}
+            <button class="btn" type="button" id="test">Test</button><button class="btn primary" type="submit">Save</button></div></form>
+        <div id="result"></div></section>`;
+      const form = main.querySelector("#conn");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        await BA.api("/api/connections", { method: "PUT", body: { toolkit_url: f.get("toolkit_url"), toolkit_token: f.get("toolkit_token") } });
+        BA.toast("Saved.");
+        BA.rerender();
+      });
+      main.querySelector("#test").onclick = BA.guard(async () => {
+        const d = await BA.api("/api/toolkit/status-draft");
+        main.querySelector("#result").innerHTML = `<p><span class="pill good">works</span> Draft for the week of ${BA.fmtDate(d.week_of)}: overall ${esc(d.overall)}.</p>`;
+      });
+      const clear = main.querySelector("#clear");
+      if (clear)
+        clear.onclick = BA.guard(async () => {
+          await BA.api("/api/connections", { method: "PUT", body: { toolkit_url: form.elements.toolkit_url.value, clear_token: true } });
+          BA.rerender();
+        });
     },
   });
 })();

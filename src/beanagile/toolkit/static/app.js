@@ -7,6 +7,11 @@
   BA.command({ label: "Plan a one-on-one", hint: "Listening tour", icon: "plus", run: () => BA.go("/listening") });
   BA.command({ label: "Add a person", hint: "People", icon: "plus", run: () => BA.go("/people") });
   BA.command({ label: "Log a vendor conversation", hint: "Vendors", icon: "handshake", run: () => BA.go("/vendors") });
+  BA.command({ label: "Write a ceremony note", hint: "Sprint notebook", icon: "notebook-pen", run: async () => {
+    const s = await BA.api("/api/sprints/current");
+    BA.go(s ? `/sprints/${s.id}` : "/sprints");
+  } });
+  BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
   const RELATIONSHIPS = ["employee", "contractor", "peer", "stakeholder", "manager", "vendor"];
@@ -892,4 +897,356 @@
       BA.go("/vendors");
     });
   }
+
+  // ---------------------------------------------------------------- Sprint notebook
+
+  const CEREMONIES = ["planning", "refinement", "review", "retro", "dev sync", "ad hoc", "pi planning", "pi demo"];
+  const ceremonyLabel = { "pi planning": "PI planning", "pi demo": "End-of-PI demo", "dev sync": "Dev sync", "ad hoc": "Ad hoc" };
+  const cLabel = (c) => ceremonyLabel[c] || c[0].toUpperCase() + c.slice(1);
+  const sprintRange = (s) => `${BA.fmtDate(s.start_date)} to ${BA.fmtDate(s.end_date)}`;
+
+  BA.view("/sprints", {
+    title: "Sprint notebook",
+    async render(main, param) {
+      const people = await BA.api("/api/people");
+      if (param) return renderSprint(main, Number(param), people);
+      const [sprints, current, pis] = await Promise.all([BA.api("/api/sprints"), BA.api("/api/sprints/current"), BA.api("/api/program-increments")]);
+      const piName = (id) => pis.find((p) => p.id === id)?.number;
+      main.innerHTML = `
+        <section class="card"><div class="row"><h2>${current ? `Sprint ${current.number}` : "No sprints yet"}</h2><span class="spacer"></span>
+          ${presenting() ? "" : '<button class="btn primary" id="next">Start the next sprint</button>'}</div>
+          ${current ? `<p>${esc(current.goal || "")}</p><p class="quiet">${sprintRange(current)} · ${esc(current.kind)}${current.pi_id ? ` · PI ${piName(current.pi_id)}` : ""}</p>
+            <div class="actions"><a class="btn" href="#/sprints/${current.id}">Open the notebook</a></div>` : '<p class="quiet">Start the first sprint to begin taking ceremony notes.</p>'}</section>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Sprint</th><th>Dates</th><th>Goal</th><th>Kind</th><th>PI</th>${presenting() ? "" : "<th>Notes</th>"}</tr></thead><tbody>${
+          sprints.map((s) => `<tr class="clickable" data-id="${s.id}"><td><b>${s.number}</b></td><td>${sprintRange(s)}</td><td>${esc(s.goal || "")}</td><td>${esc(s.kind)}</td><td>${s.pi_id ? piName(s.pi_id) : ""}</td>${presenting() ? "" : `<td>${s.note_count}</td>`}</tr>`).join("") ||
+          '<tr><td colspan="6" class="empty">No sprints yet.</td></tr>'
+        }</tbody></table></div>
+        <section class="card" style="margin-top:16px"><h2>Program Increments</h2><p class="quiet">Only if the organization runs SAFe: several development sprints, then an innovation and planning sprint.</p>${
+          pis.map((p) => `<div class="item"><b>PI ${p.number}</b><span class="quiet">${BA.fmtDate(p.start_date)} to ${BA.fmtDate(p.end_date)}</span><span>${esc(p.objectives || "")}</span></div>`).join("") || '<p class="quiet">None.</p>'
+        }${presenting() ? "" : `<form id="add-pi" class="row" style="margin-top:8px"><input type="number" name="number" placeholder="PI number" required style="max-width:130px">
+          <input type="date" name="start_date" style="max-width:170px"><input type="date" name="end_date" style="max-width:170px">
+          <input name="objectives" placeholder="Objectives" style="max-width:320px"><button class="btn" type="submit">Add PI</button></form>`}</section>`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/sprints/${tr.dataset.id}`)));
+      const next = main.querySelector("#next");
+      if (next)
+        next.onclick = BA.guard(async () => {
+          const s = await BA.api("/api/sprints/next", { method: "POST", body: {} });
+          BA.go(`/sprints/${s.id}`);
+        });
+      const addPi = main.querySelector("#add-pi");
+      if (addPi)
+        addPi.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(addPi);
+          await BA.api("/api/program-increments", { method: "POST", body: { number: Number(f.get("number")), start_date: f.get("start_date"), end_date: f.get("end_date"), objectives: f.get("objectives") } });
+          BA.rerender();
+        });
+    },
+  });
+
+  async function renderSprint(main, id, people) {
+    const [d, pis] = await Promise.all([BA.api(`/api/sprints/${id}/notebook`), BA.api("/api/program-increments")]);
+    const s = d.sprint;
+    document.getElementById("view-title").textContent = `Sprint ${s.number}`;
+    const itemRow = (i) => `<div class="item">${BA.statusPill(i.status)}<a href="#/dev-sync/${i.id}">${esc(i.concern)}</a><span class="spacer"></span><span class="quiet">${esc(i.owner_name || "")} ${BA.fmtDate(i.due)}</span></div>`;
+    const head = `<section class="card"><h2>${esc(s.goal || "[No goal set]")}</h2><p class="quiet">${sprintRange(s)} · ${esc(s.kind)}${d.pi ? ` · PI ${d.pi.number}` : ""}</p></section>`;
+    if (presenting()) {
+      main.innerHTML = `<p><a href="#/sprints">All sprints</a></p>${head}<p class="quiet">Ceremony notes are private, so they're hidden while presenting.</p>`;
+      return;
+    }
+    const noteCard = (n) => `<form class="card note" data-note="${n.id}"><div class="row"><h2>${cLabel(n.type)}</h2><span class="quiet">${BA.fmtDate(n.date)}</span><span class="spacer"></span>
+        <select name="type" style="max-width:170px">${CEREMONIES.map((c) => `<option value="${c}"${c === n.type ? " selected" : ""}>${cLabel(c)}</option>`).join("")}</select>
+        <input type="date" name="date" value="${esc(n.date || "")}" style="max-width:170px"></div>
+      <div class="grid2">
+        <label>What happened<textarea name="happened">${esc(n.happened || "")}</textarea></label>
+        <label>What I noticed <span class="quiet">energy, who spoke and who didn't</span><textarea name="noticed">${esc(n.noticed || "")}</textarea></label>
+        <label>Implementation thoughts<textarea name="thoughts">${esc(n.thoughts || "")}</textarea></label>
+        <label>Follow-ups <span class="quiet">one per line</span><textarea name="follow_ups">${esc(n.follow_ups || "")}</textarea></label></div>
+      <div class="actions"><button class="btn danger left" type="button" data-del-note="${n.id}">Delete</button>
+        <button class="btn" type="button" data-follow-note="${n.id}">First follow-up to dev-sync log</button><button class="btn primary" type="submit">Save</button></div></form>`;
+    main.innerHTML = `<p><a href="#/sprints">All sprints</a></p>${head}
+      ${d.carry_over.length ? `<section class="card"><h2>Still open from the last sprint</h2>${d.carry_over.map(itemRow).join("")}</section>` : ""}
+      <section class="card"><h2>Add a ceremony note</h2><form id="add-note" class="row">
+        <select name="type" style="max-width:200px">${CEREMONIES.map((c) => `<option value="${c}">${cLabel(c)}</option>`).join("")}</select>
+        <input type="date" name="date" value="${BA.today()}" style="max-width:170px"><button class="btn primary" type="submit">Add note</button></form></section>
+      ${d.notes.map(noteCard).join("") || '<p class="quiet">No notes in this sprint yet.</p>'}
+      <section class="card"><h2>Dev-sync items from this sprint</h2>${d.items.map(itemRow).join("") || '<p class="quiet">None yet.</p>'}</section>
+      <form id="edit-sprint" class="card"><h2>Sprint details</h2><div class="grid2">
+        <label>Goal<input name="goal" value="${esc(s.goal || "")}"></label>
+        <label>Kind<select name="kind">${["development", "innovation and planning"].map((k) => `<option${k === s.kind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
+        <label>Start<input type="date" name="start_date" value="${esc(s.start_date || "")}"></label>
+        <label>End<input type="date" name="end_date" value="${esc(s.end_date || "")}"></label>
+        <label>Program Increment<select name="pi_id"><option value=""></option>${pis.map((p) => `<option value="${p.id}"${p.id === s.pi_id ? " selected" : ""}>PI ${p.number}</option>`).join("")}</select></label></div>
+        <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`;
+    const addNote = main.querySelector("#add-note");
+    addNote.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(addNote);
+      await BA.api("/api/ceremony-notes", { method: "POST", body: { sprint_id: id, type: f.get("type"), date: f.get("date") } });
+      BA.rerender();
+    });
+    main.querySelectorAll("form.note").forEach((form) => {
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        await BA.api(`/api/ceremony-notes/${form.dataset.note}`, { method: "PATCH", body: Object.fromEntries(f) });
+        BA.toast("Saved.");
+      });
+    });
+    main.querySelectorAll("[data-del-note]").forEach((b) => (b.onclick = BA.guard(async () => {
+      if (!confirm("Delete this note?")) return;
+      await BA.api(`/api/ceremony-notes/${b.dataset.delNote}`, { method: "DELETE" });
+      BA.rerender();
+    })));
+    main.querySelectorAll("[data-follow-note]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const form = b.closest("form");
+      await BA.api(`/api/ceremony-notes/${b.dataset.followNote}`, { method: "PATCH", body: Object.fromEntries(new FormData(form)) });
+      const item = await BA.api(`/api/ceremony-notes/${b.dataset.followNote}/follow-up`, { method: "POST", body: {} });
+      BA.go(`/dev-sync/${item.id}`);
+    })));
+    const edit = main.querySelector("#edit-sprint");
+    edit.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(edit);
+      await BA.api(`/api/sprints/${id}`, {
+        method: "PATCH",
+        body: { goal: f.get("goal"), kind: f.get("kind"), start_date: f.get("start_date"), end_date: f.get("end_date"), pi_id: f.get("pi_id") ? Number(f.get("pi_id")) : null },
+      });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+  }
+
+  // ---------------------------------------------------------------- Roadmap
+
+  const ROADMAP_STATUS = ["not started", "in progress", "done", "at risk"];
+  const ROADMAP_KINDS = ["ceremony", "agreement", "metric", "milestone"];
+  const dayDateOf = (start, n) => {
+    if (n == null) return "";
+    if (!start) return `Day ${n}`;
+    const d = new Date(start + "T12:00:00");
+    d.setDate(d.getDate() + n - 1);
+    return `Day ${n} · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  };
+  const starterButton = (what) =>
+    presenting() ? "" : `<section class="card"><p class="quiet">Load the starter ${what}: the Agile adoption roadmap, the five RACI decisions and the four delivery metrics. Edit any of it afterwards.</p><button class="btn primary" data-starter>Load starter content</button></section>`;
+  const wireStarter = (main) => {
+    const b = main.querySelector("[data-starter]");
+    if (b) b.onclick = BA.guard(async () => (await BA.api("/api/delivery/starter", { method: "POST" }), BA.rerender()));
+  };
+
+  BA.view("/roadmap", {
+    title: "Roadmap",
+    async render(main) {
+      const [items, settings, people] = await Promise.all([BA.api("/api/roadmap"), BA.api("/api/toolkit/settings"), BA.api("/api/people")]);
+      if (!items.length) {
+        main.innerHTML = starterButton("roadmap");
+        wireStarter(main);
+        return;
+      }
+      const done = items.filter((i) => i.status === "done").length;
+      main.innerHTML = `<p class="quiet">${done} of ${items.length} done. ${settings.start_date ? "" : 'Set the contract start date under <a href="#/me">My development</a> to turn days into dates.'}</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Item</th><th>Kind</th><th>Target</th><th>Status</th><th>Owner</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${items
+          .map((i) => presenting()
+            ? `<tr><td><b>${esc(i.title)}</b><div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td><td>${dayDateOf(settings.start_date, i.target_day)}</td><td>${BA.statusPill(i.status)}</td><td>${esc(i.owner_name || "")}</td></tr>`
+            : `<tr data-id="${i.id}"><td><b>${esc(i.title)}</b><div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
+              <td><input type="number" name="target_day" value="${esc(i.target_day ?? "")}" style="max-width:90px"> <span class="quiet">${dayDateOf(settings.start_date, i.target_day).replace(/^Day \d+ · /, "")}</span></td>
+              <td><select name="status">${ROADMAP_STATUS.map((s) => `<option${s === i.status ? " selected" : ""}>${s}</option>`).join("")}</select></td>
+              <td><select name="owner_id">${personOptions(people, i.owner_id)}</select></td><td><button class="btn danger" data-del="${i.id}">Delete</button></td></tr>`)
+          .join("")}</tbody></table></div>
+        ${presenting() ? "" : `<section class="card" style="margin-top:16px"><form id="add" class="row"><input name="title" placeholder="New roadmap item" required style="max-width:300px">
+          <select name="kind" style="max-width:150px">${ROADMAP_KINDS.map((k) => `<option>${k}</option>`).join("")}</select>
+          <input type="number" name="target_day" placeholder="Target day" style="max-width:120px"><button class="btn primary" type="submit">Add</button></form></section>`}`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
+        const el = e.target;
+        const value = el.name === "status" ? el.value : el.value === "" ? null : Number(el.value);
+        await BA.api(`/api/roadmap/${tr.dataset.id}`, { method: "PATCH", body: { [el.name]: value } });
+        if (el.name !== "owner_id") BA.rerender();
+        else BA.toast("Saved.");
+      })));
+      main.querySelectorAll("[data-del]").forEach((b) => (b.onclick = BA.guard(async () => {
+        if (!confirm("Delete this roadmap item?")) return;
+        await BA.api(`/api/roadmap/${b.dataset.del}`, { method: "DELETE" });
+        BA.rerender();
+      })));
+      const add = main.querySelector("#add");
+      if (add)
+        add.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(add);
+          await BA.api("/api/roadmap", { method: "POST", body: { title: f.get("title"), kind: f.get("kind"), target_day: f.get("target_day") ? Number(f.get("target_day")) : null } });
+          BA.rerender();
+        });
+    },
+  });
+
+  // ---------------------------------------------------------------- RACI
+
+  BA.view("/raci", {
+    title: "RACI",
+    async render(main) {
+      const d = await BA.api("/api/raci");
+      if (!d.decisions.length) {
+        main.innerHTML = starterButton("RACI");
+        wireStarter(main);
+        return;
+      }
+      const aCount = (dec) => Object.values(dec.cells).filter((l) => l === "A").length;
+      const cell = (dec, role) =>
+        presenting()
+          ? `<td class="raci-cell">${esc(dec.cells[role] || "")}</td>`
+          : `<td class="raci-cell"><select data-cell="${dec.id}" data-role="${esc(role)}"><option value=""></option>${["R", "A", "C", "I"].map((l) => `<option${dec.cells[role] === l ? " selected" : ""}>${l}</option>`).join("")}</select></td>`;
+      main.innerHTML = `<p class="quiet">R does the work. A makes the final call, exactly one per row. C is asked before. I is told after. Blank cells are still to learn.</p>
+        <div class="tablewrap"><table class="data raci"><thead><tr><th>Decision</th>${d.roles.map((r) => `<th>${esc(r)}</th>`).join("")}<th>Status</th></tr></thead><tbody>${d.decisions
+          .map((dec) => `<tr><td><b>${esc(dec.decision)}</b>${aCount(dec) === 1 ? "" : ` <span class="pill ${aCount(dec) ? "bad" : "warn"}">${aCount(dec) ? "more than one A" : "no A yet"}</span>`}</td>
+            ${d.roles.map((r) => cell(dec, r)).join("")}
+            <td>${presenting() ? esc(dec.status) : `<select data-status="${dec.id}">${["to confirm", "confirmed", "changed"].map((s) => `<option${s === dec.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`)
+          .join("")}</tbody></table></div>
+        ${presenting() ? "" : `<section class="card" style="margin-top:16px"><form id="add" class="row"><input name="decision" placeholder="New decision" required style="max-width:320px"><button class="btn primary" type="submit">Add decision</button></form>
+          <form id="roles" class="row" style="margin-top:10px"><input name="roles" value="${esc(d.roles.join(", "))}"><button class="btn" type="submit">Save roles</button></form>
+          <p class="quiet">Roles are generic on purpose; rename them to fit the organization.</p></section>`}`;
+      main.querySelectorAll("[data-cell]").forEach((sel) => (sel.onchange = BA.guard(async () => {
+        await BA.api(`/api/raci/${sel.dataset.cell}/cell`, { method: "PUT", body: { role: sel.dataset.role, letter: sel.value || null } });
+        BA.rerender();
+      })));
+      main.querySelectorAll("[data-status]").forEach((sel) => (sel.onchange = BA.guard(async () => {
+        await BA.api(`/api/raci-decisions/${sel.dataset.status}`, { method: "PATCH", body: { status: sel.value } });
+        BA.toast("Saved.");
+      })));
+      const add = main.querySelector("#add");
+      if (add) {
+        add.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          await BA.api("/api/raci-decisions", { method: "POST", body: { decision: new FormData(add).get("decision"), position: d.decisions.length } });
+          BA.rerender();
+        });
+        main.querySelector("#roles").onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          await BA.api("/api/raci/roles", { method: "PUT", body: { roles: new FormData(e.target).get("roles").split(",") } });
+          BA.rerender();
+        });
+      }
+    },
+  });
+
+  // ---------------------------------------------------------------- Risks and decisions
+
+  BA.view("/risks", {
+    title: "Risks and decisions",
+    async render(main) {
+      const [risks, decisions, people] = await Promise.all([BA.api("/api/risks"), BA.api("/api/decisions-needed"), BA.api("/api/people")]);
+      const levelPill = (l) => `<span class="pill ${l === "high" ? "bad" : l === "medium" ? "warn" : ""}">${esc(l)}</span>`;
+      const ro = presenting();
+      main.innerHTML = `
+        <section class="card"><h2>Risks and issues</h2><div class="tablewrap"><table class="data"><thead><tr><th>Level</th><th>Risk or issue</th><th>Impact</th><th>Owner</th><th>Next step</th><th>Due</th><th>Status</th></tr></thead><tbody>${
+          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b></td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
+            <td>${esc(r.next_step || "")}</td><td>${BA.fmtDate(r.due)}</td>
+            <td>${ro ? esc(r.status) : `<select name="status">${["open", "watching", "closed"].map((s) => `<option${s === r.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`).join("") ||
+          '<tr><td colspan="7" class="empty">No risks logged.</td></tr>'
+        }</tbody></table></div>
+        ${ro ? "" : `<form id="add-risk" class="grid2">
+          <label>Risk or issue<input name="title" required></label><label>Impact<input name="impact"></label>
+          <label>Level<select name="level"><option>high</option><option selected>medium</option><option>low</option></select></label>
+          <label>Owner<select name="owner_id">${personOptions(people)}</select></label>
+          <label>Next step<input name="next_step"></label><label>Due<input type="date" name="due"></label>
+          <div class="actions"><button class="btn primary" type="submit">Add risk</button></div></form>`}</section>
+        <section class="card"><h2>Decisions needed</h2><div class="tablewrap"><table class="data"><thead><tr><th>Decision</th><th>From whom</th><th>Needed by</th><th>Status</th><th>Outcome</th></tr></thead><tbody>${
+          decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b></td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
+            <td>${ro ? esc(d.status) : `<select name="status">${["open", "decided"].map((s) => `<option${s === d.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td>
+            <td>${ro ? esc(d.outcome || "") : `<input name="outcome" value="${esc(d.outcome || "")}">`}</td></tr>`).join("") ||
+          '<tr><td colspan="5" class="empty">No decisions pending.</td></tr>'
+        }</tbody></table></div>
+        ${ro ? "" : `<form id="add-dec" class="row" style="margin-top:10px"><input name="decision" placeholder="Decision needed" required style="max-width:320px">
+          <select name="from_id" style="max-width:220px">${personOptions(people)}</select><input type="date" name="needed_by" style="max-width:170px">
+          <button class="btn primary" type="submit">Add decision</button></form>`}</section>`;
+      const num = (v) => (v ? Number(v) : null);
+      main.querySelectorAll("tr[data-risk]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
+        await BA.api(`/api/risks/${tr.dataset.risk}`, { method: "PATCH", body: { [e.target.name]: e.target.value } });
+        BA.toast("Saved.");
+      })));
+      main.querySelectorAll("tr[data-dec]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
+        await BA.api(`/api/decisions-needed/${tr.dataset.dec}`, { method: "PATCH", body: { [e.target.name]: e.target.value } });
+        BA.toast("Saved.");
+      })));
+      const addRisk = main.querySelector("#add-risk");
+      if (addRisk) {
+        addRisk.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = Object.fromEntries(new FormData(addRisk));
+          f.owner_id = num(f.owner_id);
+          await BA.api("/api/risks", { method: "POST", body: f });
+          BA.rerender();
+        });
+        main.querySelector("#add-dec").onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = Object.fromEntries(new FormData(e.target));
+          f.from_id = num(f.from_id);
+          await BA.api("/api/decisions-needed", { method: "POST", body: f });
+          BA.rerender();
+        });
+      }
+    },
+  });
+
+  // ---------------------------------------------------------------- Metrics
+
+  BA.view("/metrics", {
+    title: "Metrics",
+    async render(main) {
+      const metrics = await BA.api("/api/metrics");
+      if (!metrics.length) {
+        main.innerHTML = starterButton("metrics");
+        wireStarter(main);
+        return;
+      }
+      const fmt = (v, u) => (v === null || v === undefined ? '<span class="quiet">not set</span>' : `${Number(v).toLocaleString()} ${esc(u || "")}`);
+      const onTrack = (m) => {
+        if (m.latest == null || m.target == null) return "";
+        const good = m.higher_is_better ? m.latest >= m.target : m.latest <= m.target;
+        return `<span class="pill ${good ? "good" : "warn"}">${good ? "on target" : "off target"}</span>`;
+      };
+      main.innerHTML = `<p class="quiet">A few measures the team agrees to watch. Baselines come first; targets are the team's choice.</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Metric</th><th>Baseline</th><th>Target</th><th>Latest</th><th></th>${presenting() ? "" : "<th>Add a reading</th>"}</tr></thead><tbody>${metrics
+          .map((m) => `<tr data-id="${m.id}"><td><b>${esc(m.name)}</b><div class="quiet">${esc(m.method || "")}</div></td>
+            <td>${presenting() ? fmt(m.baseline, m.unit) : `<input type="number" step="any" name="baseline" value="${esc(m.baseline ?? "")}" style="max-width:110px">`}</td>
+            <td>${presenting() ? fmt(m.target, m.unit) : `<input type="number" step="any" name="target" value="${esc(m.target ?? "")}" style="max-width:110px">`}</td>
+            <td>${fmt(m.latest, m.unit)}<div class="quiet">${BA.fmtDate(m.latest_date)}</div></td><td>${onTrack(m)}</td>
+            ${presenting() ? "" : `<td><span class="row"><input type="date" data-rdate="${m.id}" value="${BA.today()}" style="max-width:160px"><input type="number" step="any" data-rval="${m.id}" placeholder="Value" style="max-width:100px"><button class="btn" data-radd="${m.id}">Add</button></span></td>`}</tr>`)
+          .join("")}</tbody></table></div>`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
+        if (!["baseline", "target"].includes(e.target.name)) return;
+        await BA.api(`/api/metrics/${tr.dataset.id}`, { method: "PATCH", body: { [e.target.name]: e.target.value === "" ? null : Number(e.target.value) } });
+        BA.rerender();
+      })));
+      main.querySelectorAll("[data-radd]").forEach((b) => (b.onclick = BA.guard(async () => {
+        const id = b.dataset.radd;
+        const value = main.querySelector(`[data-rval="${id}"]`).value;
+        if (value === "") throw new Error("Enter a value first.");
+        await BA.api("/api/metric-readings", { method: "POST", body: { metric_id: Number(id), date: main.querySelector(`[data-rdate="${id}"]`).value, value: Number(value) } });
+        BA.rerender();
+      })));
+    },
+  });
+
+  // ---------------------------------------------------------------- Weekly status
+
+  BA.view("/status", {
+    title: "Weekly status",
+    async render(main) {
+      const d = await BA.api("/api/status/draft");
+      const tone = { Green: "good", Yellow: "warn", Red: "bad" }[d.overall];
+      main.innerHTML = `<section class="card"><div class="row"><h2>Week of ${BA.fmtDate(d.week_of)}</h2><span class="pill ${tone}">${esc(d.overall)}</span>
+          <span class="quiet">suggested because ${esc(d.reason)}</span><span class="spacer"></span>
+          ${presenting() ? "" : '<button class="btn" id="copy">Copy Markdown</button>'}</div>
+        <p class="quiet">Built only from exportable data: roadmap, risks, decisions, metrics and learning goals marked for reporting. The Comms studio can pull this draft straight into a message once it's connected with an export-only token.</p></section>
+        <section class="card msg-preview">${BA.md(d.markdown)}</section>`;
+      const copy = main.querySelector("#copy");
+      if (copy)
+        copy.onclick = BA.guard(async () => {
+          const res = await BA.api("/api/status/export", { method: "POST" });
+          await navigator.clipboard.writeText(res.markdown);
+          BA.toast("Copied. Logged as an export.");
+        });
+    },
+  });
 })();

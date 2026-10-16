@@ -116,6 +116,49 @@
       })
       .join("")}</dl>`;
 
+
+  // Minimal, safe Markdown for previews: headings, lists, tables, bold, italics, paragraphs.
+  BA.md = (text) => {
+    const esc = BA.esc;
+    const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\W)_(.+?)_(?=\W|$)/g, "$1<i>$2</i>");
+    const out = [];
+    const lines = (text || "").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^\s*$/.test(line)) continue;
+      const h = line.match(/^(#{1,3})\s+(.*)/);
+      if (h) {
+        out.push(`<h${h[1].length + 1}>${inline(h[2])}</h${h[1].length + 1}>`);
+        continue;
+      }
+      if (line.trim().startsWith("|")) {
+        const rows = [];
+        while (i < lines.length && lines[i].trim().startsWith("|")) rows.push(lines[i++].trim());
+        i--;
+        const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+        const body = rows.filter((r) => !/^\|[\s:|-]+\|$/.test(r));
+        out.push(`<div class="tablewrap"><table class="data"><thead><tr>${cells(body[0]).map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body
+          .slice(1)
+          .map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
+          .join("")}</tbody></table></div>`);
+        continue;
+      }
+      const li = line.match(/^\s*([-*]|\d+\.)\s+(.*)/);
+      if (li) {
+        const ordered = /\d/.test(li[1]);
+        const items = [];
+        while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*([-*]|\d+\.)\s+/, ""));
+        i--;
+        out.push(`<${ordered ? "ol" : "ul"}>${items.map((x) => `<li>${inline(x)}</li>`).join("")}</${ordered ? "ol" : "ul"}>`);
+        continue;
+      }
+      const para = [line];
+      while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#|\||\s*([-*]|\d+\.)\s)/.test(lines[i + 1])) para.push(lines[++i]);
+      out.push(`<p>${inline(para.join(" "))}</p>`);
+    }
+    return out.join("");
+  };
+
   BA.guard = (fn) => async (...args) => {
     try {
       await fn(...args);

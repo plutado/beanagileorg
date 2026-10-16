@@ -2,11 +2,13 @@
 
 import hashlib
 import json
+import urllib.error
+import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagile.core.app import get_conn, get_viewer
+from beanagile.core.app import get_conn, get_viewer, require_full
 from beanagile.core.dates import next_occurrence
 from beanagile.core.db import transaction
 from beanagile.core.export import log_export
@@ -262,3 +264,56 @@ def starter_kit(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if conn.execute("SELECT COUNT(*) FROM templates").fetchone()[0]:
         raise HTTPException(409, "The starter kit only loads when there are no templates yet.")
     return load_starter_kit(conn, viewer.source)
+
+
+# ---- connection to the toolkit (export-only token) ----
+
+TOOLKIT_URL_KEY = "comms.toolkit_url"
+TOOLKIT_TOKEN_KEY = "comms.toolkit_token"
+DEFAULT_TOOLKIT_URL = "http://127.0.0.1:8801"
+
+
+def _get_setting(conn, key):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
+def fetch_toolkit(url: str, token: str, path: str, timeout: float = 5.0) -> dict:
+    request = urllib.request.Request(f"{url.rstrip('/')}{path}", headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode())
+
+
+@router.get("/api/connections")
+def get_connections(viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
+    return {"toolkit_url": _get_setting(conn, TOOLKIT_URL_KEY) or DEFAULT_TOOLKIT_URL, "token_set": bool(_get_setting(conn, TOOLKIT_TOKEN_KEY))}
+
+
+@router.put("/api/connections")
+def put_connections(body: dict = Body(...), viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
+    url = (body.get("toolkit_url") or DEFAULT_TOOLKIT_URL).strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(400, "The toolkit address must start with http:// or https://.")
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (TOOLKIT_URL_KEY, url))
+    token = (body.get("toolkit_token") or "").strip()
+    if body.get("clear_token"):
+        conn.execute("DELETE FROM settings WHERE key = ?", (TOOLKIT_TOKEN_KEY,))
+    elif token:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (TOOLKIT_TOKEN_KEY, token))
+    return get_connections(viewer, conn)
+
+
+@router.get("/api/toolkit/status-draft")
+def toolkit_status_draft(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Pull the toolkit's weekly status draft. The toolkit token should have the export:read scope only."""
+    require_write(viewer)
+    url = _get_setting(conn, TOOLKIT_URL_KEY) or DEFAULT_TOOLKIT_URL
+    token = _get_setting(conn, TOOLKIT_TOKEN_KEY)
+    if not token:
+        raise HTTPException(400, "Connect the toolkit first: add an export-only token under Connections.")
+    try:
+        return fetch_toolkit(url, token, "/api/status/draft")
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(502, "The toolkit turned the token down. Create a new export:read token in the toolkit's Settings." if exc.code in (401, 403) else f"The toolkit answered with an error ({exc.code}).") from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise HTTPException(502, f"Couldn't reach the toolkit at {url}. Is it running?") from exc

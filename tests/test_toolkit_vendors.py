@@ -76,5 +76,5 @@ def test_migration_upgrades_an_existing_database(tmp_path):
     with db.session() as conn:
         migrate(conn, "toolkit", models.MIGRATIONS[:2])
         conn.execute("INSERT INTO action_items (concern) VALUES ('[Existing]')")
-        assert migrate(conn, "toolkit", models.MIGRATIONS) == [3]
+        assert migrate(conn, "toolkit", models.MIGRATIONS) == [v for v, _ in models.MIGRATIONS[2:]]
         assert conn.execute("SELECT vendor_id FROM action_items").fetchone()[0] is None

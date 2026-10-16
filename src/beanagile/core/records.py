@@ -21,7 +21,7 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 @dataclass(frozen=True)
 class Field:
-    type: str  # text | date | int | bool | list (of text) | ids (list of record ids) | json (an object)
+    type: str  # text | date | int | number | bool | list (of text) | ids (list of record ids) | json (an object)
     level: Level = Level.PRIVATE
     required: bool = False
     choices: tuple[str, ...] | None = None
@@ -122,6 +122,10 @@ class Record:
             if isinstance(value, bool) or not isinstance(value, int):
                 raise HTTPException(400, f"{name} must be a whole number.")
             return value
+        if f.type == "number":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise HTTPException(400, f"{name} must be a number.")
+            return float(value)
         if f.type == "bool":
             if not isinstance(value, bool):
                 raise HTTPException(400, f"{name} must be true or false.")

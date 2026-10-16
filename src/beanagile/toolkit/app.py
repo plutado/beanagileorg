@@ -5,6 +5,7 @@ from beanagile.core.config import Settings
 from beanagile.core.privacy import Level
 
 from . import models
+from .reporting import router as reporting_router
 from .routes import router
 
 NAV = [
@@ -15,9 +16,16 @@ NAV = [
     {"path": "/listening", "icon": "messages-square", "label": "Listening tour"},
     {"path": "/rollup", "icon": "chart-column", "label": "Day-30 rollup"},
     {"group": "Delivery"},
+    {"path": "/sprints", "icon": "notebook-pen", "label": "Sprint notebook"},
+    {"path": "/roadmap", "icon": "map", "label": "Roadmap"},
+    {"path": "/raci", "icon": "grid-3x3", "label": "RACI"},
+    {"path": "/risks", "icon": "triangle-alert", "label": "Risks and decisions"},
+    {"path": "/metrics", "icon": "gauge", "label": "Metrics"},
     {"path": "/dev-sync", "icon": "list-checks", "label": "Dev-sync log"},
     {"path": "/learning", "icon": "presentation", "label": "Group learning"},
     {"path": "/vendors", "icon": "handshake", "label": "Vendors"},
+    {"group": "Reporting"},
+    {"path": "/status", "icon": "file-text", "label": "Weekly status"},
     {"group": "Knowledge"},
     {"path": "/escalation", "icon": "siren", "label": "Escalation playbook"},
     {"group": "Me"},
@@ -35,7 +43,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

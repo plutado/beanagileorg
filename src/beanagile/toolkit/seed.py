@@ -27,6 +27,8 @@ def load_placeholders(conn, source: str) -> dict:
         loaded.update(_escalation(conn, source, person_ids))
     if person_ids and _empty(conn, "vendors"):
         loaded.update(_vendors(conn, source, person_ids))
+    if person_ids and _empty(conn, "sprints"):
+        loaded.update(_delivery(conn, source, person_ids))
     return loaded
 
 
@@ -202,3 +204,45 @@ def _vendors(conn, source: str, people: list[int]) -> dict:
     if first_system:
         models.systems.update(conn, first_system[0], {"vendor_id": vendors[0]["id"]}, source)
     return {"vendors": len(vendors), "vendor_interactions": len(vendors) * 2, "vendor_concerns": len(vendors)}
+
+
+def _delivery(conn, source: str, people: list[int]) -> dict:
+    from .starter import load_starter
+
+    pick = lambda i: people[i % len(people)]
+    loaded = load_starter(conn, source)
+    previous = models.sprints.create(
+        conn, {"number": 1, "start_date": _day(-17), "end_date": _day(-4), "goal": "[Placeholder sprint goal 1]"}, source
+    )
+    current = models.sprints.create(
+        conn, {"number": 2, "start_date": _day(-3), "end_date": _day(10), "goal": "[Placeholder sprint goal 2]"}, source
+    )
+    for sprint, kinds in ((previous, ("planning", "review", "retro")), (current, ("planning", "refinement"))):
+        for k, kind in enumerate(kinds):
+            note = models.ceremony_notes.create(
+                conn,
+                {"sprint_id": sprint["id"], "type": kind, "date": _day(-17 + k * 6) if sprint is previous else _day(-3 + k * 2),
+                 "happened": f"[Placeholder: what happened at {kind}]", "noticed": f"[Placeholder: what I noticed at {kind}]",
+                 "thoughts": f"[Placeholder: implementation thoughts from {kind}]",
+                 "follow_ups": f"[Placeholder follow-up from {kind}]"},
+                source,
+            )
+            if kind == "retro":
+                models.action_items.create(
+                    conn,
+                    {"concern": "[Placeholder follow-up from retro]", "owner_id": pick(1), "due": _day(4), "origin": "retro",
+                     "sprint_id": sprint["id"], "note_id": note["id"], "raised_on": _day(-5)},
+                    source,
+                )
+    for n, level in enumerate(("high", "medium", "low"), start=1):
+        models.risks.create(
+            conn,
+            {"title": f"[Placeholder risk {n}]", "impact": f"[Placeholder impact {n}]", "level": level, "owner_id": pick(n),
+             "next_step": f"[Placeholder next step {n}]", "due": _day(n * 4)},
+            source,
+        )
+    for n in (1, 2):
+        models.decisions_needed.create(
+            conn, {"decision": f"[Placeholder decision needed {n}]", "from_id": pick(n + 2), "needed_by": _day(n * 5)}, source
+        )
+    return {**loaded, "sprints": 2, "ceremony_notes": 5, "risks": 3, "decisions_needed": 2}
