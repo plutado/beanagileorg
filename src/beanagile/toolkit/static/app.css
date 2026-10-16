@@ -1,1 +1,15 @@
 /* Toolkit-specific styles. */
+
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stats-row .stat { margin: 0; padding: 10px 14px; }
+.stats-row .stat b { display: block; font-size: 1.6rem; }
+.stats-row .stat span { color: var(--muted); font-size: .85rem; }
+.stats-row .stat.bad b { color: var(--bad); }
+td.late { color: var(--bad); font-weight: 600; }
+.deck-like { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.sys-card { text-decoration: none; color: var(--ink); margin: 0; }
+.sys-card:hover { border-color: var(--accent); }
+ol.chain { margin: 0; padding-left: 20px; }
+ol.chain li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+ol.chain li:last-child { border-bottom: 0; }
+ol.chain .btn { margin-left: 8px; padding: 2px 8px; }

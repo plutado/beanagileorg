@@ -10,6 +10,10 @@ INTERVIEW_STATUS = ("planned", "done")
 GOAL_STATUS = ("not started", "in progress", "done", "at risk")
 TASK_STATUS = ("open", "done")
 CADENCES = ("weekly", "every two weeks", "monthly", "quarterly", "once")
+ACTION_STATUS = ("open", "in progress", "waiting", "done")
+ACTION_ORIGINS = ("dev sync", "retro", "incident", "one-on-one", "other")
+SESSION_STATUS = ("proposed", "scheduled", "done")
+STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
 MIGRATIONS = [
     (
@@ -77,6 +81,72 @@ MIGRATIONS = [
             cadence TEXT NOT NULL DEFAULT 'weekly',
             next_due TEXT,
             last_done TEXT
+        );
+        """,
+    ),
+    (
+        2,
+        """
+        CREATE TABLE action_items (
+            id INTEGER PRIMARY KEY,
+            concern TEXT NOT NULL,
+            raised_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            raised_on TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            next_action TEXT,
+            due TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            origin TEXT NOT NULL DEFAULT 'dev sync',
+            learning INTEGER NOT NULL DEFAULT 0,
+            incident_id INTEGER,
+            notes TEXT
+        );
+        CREATE TABLE learning_sessions (
+            id INTEGER PRIMARY KEY,
+            topic TEXT NOT NULL,
+            presenter_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            date TEXT,
+            status TEXT NOT NULL DEFAULT 'proposed',
+            action_item_id INTEGER REFERENCES action_items (id) ON DELETE SET NULL,
+            notes TEXT
+        );
+        CREATE TABLE systems (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            how_to_open_case TEXT,
+            vendor_support TEXT,
+            business_contacts TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            first_responder_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            backup_id INTEGER REFERENCES people (id) ON DELETE SET NULL
+        );
+        CREATE TABLE severities (
+            id INTEGER PRIMARY KEY,
+            level TEXT NOT NULL,
+            definition TEXT,
+            response_time TEXT,
+            who_is_paged TEXT,
+            who_is_told TEXT
+        );
+        CREATE TABLE escalation_steps (
+            id INTEGER PRIMARY KEY,
+            system_id INTEGER REFERENCES systems (id) ON DELETE CASCADE,
+            position INTEGER NOT NULL DEFAULT 0,
+            person_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            method TEXT NOT NULL DEFAULT 'call',
+            out_of_hours INTEGER NOT NULL DEFAULT 0,
+            note TEXT
+        );
+        CREATE TABLE incidents (
+            id INTEGER PRIMARY KEY,
+            date TEXT,
+            system_id INTEGER REFERENCES systems (id) ON DELETE SET NULL,
+            severity_id INTEGER REFERENCES severities (id) ON DELETE SET NULL,
+            summary TEXT NOT NULL,
+            people_ids TEXT,
+            resolved_at TEXT,
+            notes TEXT
         );
         """,
     ),
@@ -193,4 +263,121 @@ obligations = Record(
     },
 )
 
-RECORDS = [people, interviews, learning_goals, learning_log, tasks, obligations]
+# ---- day-30 batch: dev-sync log, group learning, escalation playbook ----
+
+# The dev-sync log can show on a shared screen; only my notes stay private.
+action_items = Record(
+    entity="action_item",
+    table="action_items",
+    path="/api/actions",
+    order_by="status = 'done', due IS NULL, due, id",
+    fields={
+        "concern": Field("text", S, required=True),
+        "raised_by_id": Field("int", S),
+        "raised_on": Field("date", S),
+        "owner_id": Field("int", S),
+        "next_action": Field("text", S),
+        "due": Field("date", S),
+        "status": Field("text", S, choices=ACTION_STATUS, default="open"),
+        "origin": Field("text", S, choices=ACTION_ORIGINS, default="dev sync"),
+        "learning": Field("bool", S, default=False),
+        "incident_id": Field("int", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = action_items.owner_id)", S),
+        "raised_by_name": ("(SELECT name FROM people p WHERE p.id = action_items.raised_by_id)", S),
+    },
+)
+
+learning_sessions = Record(
+    entity="learning_session",
+    table="learning_sessions",
+    path="/api/learning-sessions",
+    order_by="date IS NULL, date, id",
+    fields={
+        "topic": Field("text", S, required=True),
+        "presenter_id": Field("int", S),
+        "date": Field("date", S),
+        "status": Field("text", S, choices=SESSION_STATUS, default="proposed"),
+        "action_item_id": Field("int", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "presenter_name": ("(SELECT name FROM people p WHERE p.id = learning_sessions.presenter_id)", S),
+        "source_concern": ("(SELECT concern FROM action_items a WHERE a.id = learning_sessions.action_item_id)", S),
+    },
+)
+
+# Who to call is presentable; vendor phone lines and similar details stay private.
+systems = Record(
+    entity="system",
+    table="systems",
+    path="/api/systems",
+    order_by="name",
+    fields={
+        "name": Field("text", S, required=True),
+        "description": Field("text", S),
+        "how_to_open_case": Field("text", S),
+        "vendor_support": Field("text", P),
+        "business_contacts": Field("text", S),
+        "owner_id": Field("int", S),
+        "first_responder_id": Field("int", S),
+        "backup_id": Field("int", S),
+    },
+)
+
+severities = Record(
+    entity="severity",
+    table="severities",
+    path="/api/severities",
+    order_by="level",
+    fields={
+        "level": Field("text", S, required=True),
+        "definition": Field("text", S),
+        "response_time": Field("text", S),
+        "who_is_paged": Field("text", S),
+        "who_is_told": Field("text", S),
+    },
+)
+
+escalation_steps = Record(
+    entity="escalation_step",
+    table="escalation_steps",
+    path="/api/escalation-steps",
+    order_by="system_id, out_of_hours, position, id",
+    fields={
+        "system_id": Field("int", S, required=True),
+        "position": Field("int", S, default=0),
+        "person_id": Field("int", S),
+        "method": Field("text", S, choices=STEP_METHODS, default="call"),
+        "out_of_hours": Field("bool", S, default=False),
+        "note": Field("text", P),
+    },
+    computed={"person_name": ("(SELECT name FROM people p WHERE p.id = escalation_steps.person_id)", S)},
+)
+
+incidents = Record(
+    entity="incident",
+    table="incidents",
+    path="/api/incidents",
+    order_by="date IS NULL, date DESC, id DESC",
+    fields={
+        "date": Field("date", S),
+        "system_id": Field("int", S),
+        "severity_id": Field("int", S),
+        "summary": Field("text", S, required=True),
+        "people_ids": Field("ids", S),
+        "resolved_at": Field("date", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "system_name": ("(SELECT name FROM systems s WHERE s.id = incidents.system_id)", S),
+        "severity_level": ("(SELECT level FROM severities v WHERE v.id = incidents.severity_id)", S),
+    },
+)
+
+RECORDS = [
+    people, interviews, learning_goals, learning_log, tasks, obligations,
+    action_items, learning_sessions, systems, severities, escalation_steps, incidents,
+]

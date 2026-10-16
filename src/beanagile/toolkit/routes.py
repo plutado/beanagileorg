@@ -1,5 +1,6 @@
 """Toolkit endpoints beyond plain records: rollup, skills, Today, obligations, settings, placeholder data."""
 
+import sqlite3
 from collections import Counter
 from datetime import date, timedelta
 
@@ -133,8 +134,93 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "goals_at_risk": models.learning_goals.visible_all(
             models.learning_goals.fetch_all(conn, "status = 'at risk'"), viewer
         ),
+        "overdue_actions": models.action_items.fetch_all(conn, "status != 'done' AND due IS NOT NULL AND due < ?", (t,)),
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
+
+
+# ---- dev-sync log and group learning ----
+
+
+def propose_session(conn, item: dict, source: str) -> None:
+    """A dev-sync item flagged for group learning gets one proposed session, presented by its owner."""
+    if not item["learning"]:
+        return
+    if conn.execute("SELECT 1 FROM learning_sessions WHERE action_item_id = ?", (item["id"],)).fetchone():
+        return
+    models.learning_sessions.create(
+        conn, {"topic": item["concern"], "presenter_id": item["owner_id"], "action_item_id": item["id"]}, source
+    )
+
+
+@router.post("/api/actions", status_code=201)
+def create_action(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    body.setdefault("raised_on", today().isoformat())
+    try:
+        item = models.action_items.create(conn, body, viewer.source)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(400, "That refers to a person who doesn't exist.") from exc
+    propose_session(conn, item, viewer.source)
+    return models.action_items.visible(item, viewer)
+
+
+@router.patch("/api/actions/{item_id}")
+def update_action(item_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    try:
+        item = models.action_items.update(conn, item_id, body, viewer.source)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(400, "That refers to a person who doesn't exist.") from exc
+    if item is None:
+        raise HTTPException(404, "No action item with that id.")
+    propose_session(conn, item, viewer.source)
+    return models.action_items.visible(item, viewer)
+
+
+@router.get("/api/actions/summary")
+def action_summary(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    t, week = today().isoformat(), (today() + timedelta(days=7)).isoformat()
+    open_items = models.action_items.fetch_all(conn, "status != 'done'")
+    return {
+        "open": len(open_items),
+        "overdue": sum(1 for i in open_items if i["due"] and i["due"] < t),
+        "due_soon": sum(1 for i in open_items if i["due"] and t <= i["due"] <= week),
+        "learning": conn.execute("SELECT COUNT(*) FROM action_items WHERE learning = 1").fetchone()[0],
+    }
+
+
+# ---- escalation playbook ----
+
+
+@router.get("/api/escalation/{system_id}")
+def escalation(system_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    system = models.systems.fetch(conn, system_id)
+    if system is None:
+        raise HTTPException(404, "No system with that id.")
+    names = {p["id"]: p["name"] for p in models.people.fetch_all(conn)}
+    steps = models.escalation_steps.visible_all(models.escalation_steps.fetch_all(conn, "system_id = ?", (system_id,)), viewer)
+    shown = models.systems.visible(system, viewer)
+    for role in ("owner", "first_responder", "backup"):
+        shown[f"{role}_name"] = names.get(system[f"{role}_id"])
+    return {
+        "system": shown,
+        "business_hours": [s for s in steps if not s["out_of_hours"]],
+        "out_of_hours": [s for s in steps if s["out_of_hours"]],
+        "severities": models.severities.visible_all(models.severities.fetch_all(conn), viewer),
+        "recent_incidents": models.incidents.visible_all(models.incidents.fetch_all(conn, "system_id = ?", (system_id,)), viewer)[:5],
+    }
+
+
+@router.post("/api/incidents/{incident_id}/follow-up", status_code=201)
+def incident_follow_up(incident_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    incident = models.incidents.fetch(conn, incident_id)
+    if incident is None:
+        raise HTTPException(404, "No incident with that id.")
+    data = {**body, "origin": "incident", "incident_id": incident_id}
+    data.setdefault("concern", f"Follow-up: {incident['summary']}")
+    return create_action(data, viewer, conn)
 
 
 # ---- obligations ----
@@ -188,6 +274,7 @@ def put_settings(body: dict = Body(...), viewer: Viewer = Depends(require_full),
 
 @router.post("/api/seed-placeholders", status_code=201)
 def seed(viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
-    if conn.execute("SELECT COUNT(*) FROM people").fetchone()[0]:
-        raise HTTPException(409, "Placeholder data only loads into an empty toolkit.")
-    return load_placeholders(conn, viewer.source)
+    loaded = load_placeholders(conn, viewer.source)
+    if not loaded:
+        raise HTTPException(409, "Placeholder data only loads into empty parts of the toolkit, and none are empty.")
+    return loaded

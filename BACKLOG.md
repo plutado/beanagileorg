@@ -12,23 +12,22 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **Toolkit, day-30 batch:** dev-sync action log, group learning schedule, escalation playbook (details under Toolkit, later versions)
+- [ ] **Design system pass (both apps):** Tailwind CSS v4 via its standalone CLI (no Node toolchain), shared design tokens (color, type scale, spacing, radius, shadow) also used by deck themes, a rebuilt component set (buttons, inputs, tables, cards, pills, nav, dialogs, toasts), Inter and Lucide icons, command palette (Cmd+K), keyboard shortcuts, skeleton loading, empty states, subtle motion, responsive grid
+- [ ] **Vendor relationships (toolkit):** vendors with type, account contacts (from People), support process, contract and renewal dates, service promise and private commercial terms; a communication log (date, vendor, people, channel, summary, concerns, follow-ups that become dev-sync items); open concerns per vendor; renewals on Today; escalation systems linked to their vendor
 - [ ] **Toolkit, day-45 batch:** sprint notebook, Agile roadmap items, RACI, risks and decisions, weekly status draft that feeds the Comms studio
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
 - [ ] Themes as their own records (version 1 stores them as tags on each one-on-one)
-- [ ] Group learning: "propose a session" from a teach/learn match
-- [ ] Dev-sync action log, with overdue view and group-learning flag
-- [ ] Group learning schedule, with teach/learn matches from team profiles
 - [ ] Sprint notebook: sprints, a private note per ceremony, follow-ups that carry into the next planning note
 - [ ] SAFe support: optional Program Increments, innovation and planning sprints, PI planning and end-of-PI demo notes
 - [ ] Agile roadmap items with target days and status
 - [ ] RACI matrix with confirm status per row
 - [ ] Risks, decisions needed, metrics and metric readings
 - [ ] Weekly status draft (`/api/status/draft`) and the filtered export with preview
-- [ ] Escalation playbook: systems, severities, escalation steps, incident log
+- [ ] Escalation playbook: reorder steps by dragging, and link incidents to sprints once sprints exist
+- [ ] Dev-sync log: link items to a sprint once the sprint notebook exists
 - [ ] Documentation library: links to Odysseus documents with owner and last-reviewed date
 - [ ] Decision log
 - [ ] Meeting decks: saved sequences of live views, presented like slides
@@ -69,6 +68,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-15: Toolkit day-30 batch: dev-sync action log (owners, due dates, overdue view, filters, private notes, group-learning flag that proposes a session); group learning schedule (from dev sync or proposed from teach/learn matches); escalation playbook (systems with owner, first responder and backup, business-hours and out-of-hours chains, severity levels, incident log with follow-ups that become dev-sync items; vendor lines private); Today shows overdue dev-sync items; placeholder data fills only empty parts; 61 tests
 
 - [x] 2026-10-15: Comms studio version 1: messages with draft, review, ready, sent and archived states; versions on every body change; starter kit of nine templates, six audiences, placeholder channels and weekly rhythms; comms calendar with due items and start-drafting dates; sent log that keeps the exact text, channel, audiences and check results; checks for placeholders left (blocks ready), plain language with a glossary, long sentences and summary first; export by copy, Markdown download or print to PDF, each logged; drafts private, sent messages shareable; 54 tests
 

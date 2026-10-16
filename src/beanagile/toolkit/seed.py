@@ -11,7 +11,24 @@ def _day(offset: int) -> str:
     return (date.today() + timedelta(days=offset)).isoformat()
 
 
+def _empty(conn, table: str) -> bool:
+    return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+
+
 def load_placeholders(conn, source: str) -> dict:
+    """Fill each empty part of the toolkit with bracketed placeholders. Parts that already have data are left alone."""
+    loaded = {}
+    if _empty(conn, "people"):
+        loaded.update(_core(conn, source))
+    person_ids = [r[0] for r in conn.execute("SELECT id FROM people ORDER BY id LIMIT 6")]
+    if person_ids and _empty(conn, "action_items"):
+        loaded.update(_dev_sync(conn, source, person_ids))
+    if person_ids and _empty(conn, "systems"):
+        loaded.update(_escalation(conn, source, person_ids))
+    return loaded
+
+
+def _core(conn, source: str) -> dict:
     ids = []
     for n, relationship in enumerate(RELATIONSHIPS, start=1):
         person = models.people.create(
@@ -83,3 +100,67 @@ def load_placeholders(conn, source: str) -> dict:
             conn, {"title": f"[Placeholder obligation {n}]", "cadence": cadence, "next_due": _day(due)}, source
         )
     return {"people": len(ids), "interviews": 6, "learning_goals": len(goals), "tasks": 4, "obligations": 3}
+
+
+def _dev_sync(conn, source: str, people: list[int]) -> dict:
+    from .routes import propose_session
+
+    pick = lambda i: people[i % len(people)]
+    rows = [
+        (1, 0, 0, -9, 5, "in progress", True),
+        (2, 1, 2, -8, -2, "open", False),
+        (3, 2, 0, -6, 7, "open", True),
+        (4, 3, 1, -4, -1, "waiting", False),
+        (5, 2, 0, -3, 10, "open", True),
+        (6, 1, 2, -11, -4, "done", False),
+    ]
+    for n, raised, owner, raised_on, due, status, learning in rows:
+        item = models.action_items.create(
+            conn,
+            {"concern": f"[Placeholder concern {n}]", "raised_by_id": pick(raised), "owner_id": pick(owner),
+             "raised_on": _day(raised_on), "next_action": f"[Placeholder next action {n}]", "due": _day(due),
+             "status": status, "learning": learning},
+            source,
+        )
+        propose_session(conn, item, source)
+    first = conn.execute("SELECT id FROM learning_sessions ORDER BY id LIMIT 1").fetchone()
+    if first:
+        models.learning_sessions.update(conn, first[0], {"date": _day(12), "status": "scheduled"}, source)
+    return {"action_items": len(rows), "learning_sessions": conn.execute("SELECT COUNT(*) FROM learning_sessions").fetchone()[0]}
+
+
+def _escalation(conn, source: str, people: list[int]) -> dict:
+    pick = lambda i: people[i % len(people)]
+    severities = [
+        models.severities.create(
+            conn,
+            {"level": f"Sev {n}", "definition": f"[Placeholder definition for Sev {n}]", "response_time": f"[Placeholder response time {n}]",
+             "who_is_paged": f"[Placeholder who is paged at Sev {n}]", "who_is_told": f"[Placeholder who is told at Sev {n}]"},
+            source,
+        )
+        for n in (1, 2, 3)
+    ]
+    systems = []
+    for n in (1, 2, 3):
+        system = models.systems.create(
+            conn,
+            {"name": f"[Placeholder system {n}]", "description": f"[Placeholder description {n}]",
+             "how_to_open_case": f"[Placeholder: how to open a vendor case for system {n}]",
+             "vendor_support": f"[Placeholder vendor support line {n}]", "business_contacts": f"[Placeholder business contacts {n}]",
+             "owner_id": pick(n), "first_responder_id": pick(n + 1), "backup_id": pick(n + 2)},
+            source,
+        )
+        systems.append(system)
+        for position, (person, method, ooh) in enumerate([(n + 1, "chat", False), (n, "call", False), (n + 2, "page", True), (n, "call", True)]):
+            models.escalation_steps.create(
+                conn,
+                {"system_id": system["id"], "position": position, "person_id": pick(person), "method": method, "out_of_hours": ooh},
+                source,
+            )
+    models.incidents.create(
+        conn,
+        {"date": _day(-6), "system_id": systems[0]["id"], "severity_id": severities[1]["id"], "summary": "[Placeholder incident summary]",
+         "people_ids": [pick(1), pick(2)], "resolved_at": _day(-6)},
+        source,
+    )
+    return {"systems": len(systems), "severities": len(severities), "incidents": 1}
