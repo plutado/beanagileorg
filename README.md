@@ -35,6 +35,8 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 - **Sprint notebook:** sprints with goals and dates, a private note per ceremony (planning, refinement, review, retro, dev sync, ad hoc, PI planning, end-of-PI demo) with prompts for what happened, what you noticed, implementation thoughts and follow-ups. Follow-ups become dev-sync items tied to the sprint, and anything still open shows in the next sprint's notebook.
 - **SAFe-ready:** optional Program Increments and innovation and planning sprints.
+- **Retrospectives:** a shared board per sprint in four formats, with votes and topic tags; commitments with owner, due date and status, tagged to the sprint they came from; each retro opens by reviewing earlier commitments; a running improvement backlog and a list of topics that keep coming back.
+- **PI planning:** objectives with planned and actual business value and predictability; epics, features and stories with priority, acceptance criteria, points and ticket keys; a program board by sprint with capacity checks and milestones; dependencies, ROAM risks and the confidence vote. Presentable throughout.
 - **Roadmap:** Agile adoption items with target days that turn into real dates once the contract start date is set, plus status and owner.
 - **RACI:** decisions by role, with editable roles, a confirm status per row and a check for exactly one accountable person.
 - **Risks and decisions:** risks by level, owner, next step and due date, and decisions needed with who decides, when, and the outcome.

@@ -5,6 +5,7 @@ from beanagile.core.config import Settings
 from beanagile.core.privacy import Level
 
 from . import models
+from .planning import router as planning_router
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -17,6 +18,8 @@ NAV = [
     {"path": "/rollup", "icon": "chart-column", "label": "Day-30 rollup"},
     {"group": "Delivery"},
     {"path": "/sprints", "icon": "notebook-pen", "label": "Sprint notebook"},
+    {"path": "/retros", "icon": "refresh-ccw", "label": "Retrospectives"},
+    {"path": "/pi", "icon": "kanban", "label": "PI planning"},
     {"path": "/roadmap", "icon": "map", "label": "Roadmap"},
     {"path": "/raci", "icon": "grid-3x3", "label": "RACI"},
     {"path": "/risks", "icon": "triangle-alert", "label": "Risks and decisions"},
@@ -43,7 +46,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

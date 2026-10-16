@@ -25,6 +25,19 @@ RACI_LETTERS = ("R", "A", "C", "I")
 RISK_STATUS = ("open", "watching", "closed")
 RISK_LEVELS = ("high", "medium", "low")
 DECISION_STATUS = ("open", "decided")
+RETRO_FORMATS = {
+    "went well / didn't / ideas": ("Went well", "Didn't go well", "Ideas"),
+    "start / stop / continue": ("Start", "Stop", "Continue"),
+    "mad / sad / glad": ("Mad", "Sad", "Glad"),
+    "4 Ls": ("Liked", "Learned", "Lacked", "Longed for"),
+}
+COMMITMENT_STATUS = ("committed", "in progress", "done", "dropped")
+PRIORITIES = ("highest", "high", "medium", "low")
+WORK_STATUS = ("not started", "in progress", "done", "blocked")
+OBJECTIVE_KINDS = ("committed", "stretch")
+DEPENDENCY_STATUS = ("open", "met", "at risk")
+MILESTONE_KINDS = ("release", "freeze", "demo", "innovation and planning", "other")
+ROAM = ("unroamed", "resolved", "owned", "accepted", "mitigated")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -293,6 +306,111 @@ MIGRATIONS = [
             metric_id INTEGER NOT NULL REFERENCES metrics (id) ON DELETE CASCADE,
             date TEXT,
             value REAL NOT NULL
+        );
+        """,
+    ),
+    (
+        5,
+        """
+        CREATE TABLE retros (
+            id INTEGER PRIMARY KEY,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            date TEXT,
+            format TEXT NOT NULL DEFAULT 'went well / didn''t / ideas',
+            attendee_ids TEXT,
+            summary TEXT,
+            note_id INTEGER REFERENCES ceremony_notes (id) ON DELETE SET NULL
+        );
+        CREATE TABLE retro_items (
+            id INTEGER PRIMARY KEY,
+            retro_id INTEGER NOT NULL REFERENCES retros (id) ON DELETE CASCADE,
+            column_name TEXT NOT NULL,
+            text TEXT NOT NULL,
+            votes INTEGER NOT NULL DEFAULT 0,
+            topic TEXT
+        );
+        CREATE TABLE retro_commitments (
+            id INTEGER PRIMARY KEY,
+            retro_id INTEGER NOT NULL REFERENCES retros (id) ON DELETE CASCADE,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            commitment TEXT NOT NULL,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            due TEXT,
+            status TEXT NOT NULL DEFAULT 'committed',
+            outcome TEXT,
+            reviewed_in_id INTEGER REFERENCES retros (id) ON DELETE SET NULL
+        );
+        ALTER TABLE program_increments ADD COLUMN confidence REAL;
+        ALTER TABLE program_increments ADD COLUMN confidence_date TEXT;
+        ALTER TABLE sprints ADD COLUMN capacity INTEGER;
+        CREATE TABLE pi_objectives (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER NOT NULL REFERENCES program_increments (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'committed',
+            value_planned INTEGER,
+            value_actual INTEGER,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'not started'
+        );
+        CREATE TABLE epics (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            priority TEXT NOT NULL DEFAULT 'medium',
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'not started',
+            ticket_key TEXT
+        );
+        CREATE TABLE features (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER REFERENCES program_increments (id) ON DELETE SET NULL,
+            epic_id INTEGER REFERENCES epics (id) ON DELETE SET NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            acceptance TEXT,
+            priority TEXT NOT NULL DEFAULT 'medium',
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'not started',
+            ticket_key TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE stories (
+            id INTEGER PRIMARY KEY,
+            feature_id INTEGER REFERENCES features (id) ON DELETE SET NULL,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            title TEXT NOT NULL,
+            acceptance TEXT,
+            points INTEGER,
+            priority TEXT NOT NULL DEFAULT 'medium',
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'not started',
+            ticket_key TEXT
+        );
+        CREATE TABLE dependencies (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER NOT NULL REFERENCES program_increments (id) ON DELETE CASCADE,
+            feature_id INTEGER REFERENCES features (id) ON DELETE CASCADE,
+            depends_on_id INTEGER REFERENCES features (id) ON DELETE SET NULL,
+            team TEXT,
+            description TEXT NOT NULL,
+            needed_by_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'open'
+        );
+        CREATE TABLE pi_milestones (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER NOT NULL REFERENCES program_increments (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            date TEXT,
+            kind TEXT NOT NULL DEFAULT 'other'
+        );
+        CREATE TABLE pi_risks (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER NOT NULL REFERENCES program_increments (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            roam TEXT NOT NULL DEFAULT 'unroamed',
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            notes TEXT
         );
         """,
     ),
@@ -607,6 +725,8 @@ program_increments = Record(
         "end_date": Field("date", E),
         "objectives": Field("text", E),
         "objectives_met": Field("text", E),
+        "confidence": Field("number", S),
+        "confidence_date": Field("date", S),
     },
 )
 
@@ -623,6 +743,7 @@ sprints = Record(
         "goal": Field("text", E),
         "kind": Field("text", E, choices=SPRINT_KINDS, default="development"),
         "pi_id": Field("int", E),
+        "capacity": Field("int", S),
     },
     computed={"note_count": ("(SELECT COUNT(*) FROM ceremony_notes n WHERE n.sprint_id = sprints.id)", P)},
 )
@@ -734,9 +855,195 @@ metric_readings = Record(
     fields={"metric_id": Field("int", E, required=True), "date": Field("date", E), "value": Field("number", E, required=True)},
 )
 
+# ---- retrospectives: the team's shared record (my private impressions stay in the sprint notebook) ----
+
+retros = Record(
+    entity="retro",
+    table="retros",
+    path="/api/retros",
+    order_by="date IS NULL, date DESC, id DESC",
+    fields={
+        "sprint_id": Field("int", S),
+        "date": Field("date", S),
+        "format": Field("text", S, choices=tuple(RETRO_FORMATS), default="went well / didn't / ideas"),
+        "attendee_ids": Field("ids", S),
+        "summary": Field("text", S),
+        "note_id": Field("int", P),
+    },
+    computed={
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = retros.sprint_id)", S),
+        "item_count": ("(SELECT COUNT(*) FROM retro_items i WHERE i.retro_id = retros.id)", S),
+        "commitment_count": ("(SELECT COUNT(*) FROM retro_commitments c WHERE c.retro_id = retros.id)", S),
+    },
+)
+
+retro_items = Record(
+    entity="retro_item",
+    table="retro_items",
+    path="/api/retro-items",
+    order_by="votes DESC, id",
+    fields={
+        "retro_id": Field("int", S, required=True),
+        "column_name": Field("text", S, required=True),
+        "text": Field("text", S, required=True),
+        "votes": Field("int", S, default=0),
+        "topic": Field("text", S),
+    },
+)
+
+retro_commitments = Record(
+    entity="retro_commitment",
+    table="retro_commitments",
+    path="/api/retro-commitments",
+    order_by="status IN ('done', 'dropped'), due IS NULL, due, id",
+    fields={
+        "retro_id": Field("int", S, required=True),
+        "sprint_id": Field("int", S),
+        "commitment": Field("text", S, required=True),
+        "owner_id": Field("int", S),
+        "due": Field("date", S),
+        "status": Field("text", S, choices=COMMITMENT_STATUS, default="committed"),
+        "outcome": Field("text", S),
+        "reviewed_in_id": Field("int", S),
+    },
+    computed={
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = retro_commitments.owner_id)", S),
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = retro_commitments.sprint_id)", S),
+    },
+)
+
+# ---- PI planning: done in the room with everyone, so presentable throughout ----
+
+pi_objectives = Record(
+    entity="pi_objective",
+    table="pi_objectives",
+    path="/api/pi-objectives",
+    order_by="kind = 'stretch', value_planned IS NULL, value_planned DESC, id",
+    fields={
+        "pi_id": Field("int", E, required=True),
+        "title": Field("text", E, required=True),
+        "kind": Field("text", E, choices=OBJECTIVE_KINDS, default="committed"),
+        "value_planned": Field("int", E),
+        "value_actual": Field("int", E),
+        "owner_id": Field("int", S),
+        "status": Field("text", E, choices=WORK_STATUS, default="not started"),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = pi_objectives.owner_id)", S)},
+)
+
+epics = Record(
+    entity="epic",
+    table="epics",
+    path="/api/epics",
+    order_by="CASE priority WHEN 'highest' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, id",
+    fields={
+        "title": Field("text", S, required=True),
+        "description": Field("text", S),
+        "priority": Field("text", S, choices=PRIORITIES, default="medium"),
+        "owner_id": Field("int", S),
+        "status": Field("text", S, choices=WORK_STATUS, default="not started"),
+        "ticket_key": Field("text", S),
+    },
+)
+
+features = Record(
+    entity="feature",
+    table="features",
+    path="/api/features",
+    order_by="CASE priority WHEN 'highest' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, position, id",
+    fields={
+        "pi_id": Field("int", S),
+        "epic_id": Field("int", S),
+        "title": Field("text", S, required=True),
+        "description": Field("text", S),
+        "acceptance": Field("text", S),
+        "priority": Field("text", S, choices=PRIORITIES, default="medium"),
+        "owner_id": Field("int", S),
+        "status": Field("text", S, choices=WORK_STATUS, default="not started"),
+        "ticket_key": Field("text", S),
+        "position": Field("int", S, default=0),
+    },
+    computed={
+        "epic_title": ("(SELECT title FROM epics e WHERE e.id = features.epic_id)", S),
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = features.owner_id)", S),
+        "points": ("(SELECT COALESCE(SUM(points), 0) FROM stories s WHERE s.feature_id = features.id)", S),
+        "story_count": ("(SELECT COUNT(*) FROM stories s WHERE s.feature_id = features.id)", S),
+    },
+)
+
+stories = Record(
+    entity="story",
+    table="stories",
+    path="/api/stories",
+    order_by="CASE priority WHEN 'highest' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, id",
+    fields={
+        "feature_id": Field("int", S),
+        "sprint_id": Field("int", S),
+        "title": Field("text", S, required=True),
+        "acceptance": Field("text", S),
+        "points": Field("int", S),
+        "priority": Field("text", S, choices=PRIORITIES, default="medium"),
+        "owner_id": Field("int", S),
+        "status": Field("text", S, choices=WORK_STATUS, default="not started"),
+        "ticket_key": Field("text", S),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = stories.owner_id)", S)},
+)
+
+dependencies = Record(
+    entity="dependency",
+    table="dependencies",
+    path="/api/dependencies",
+    order_by="status = 'met', id",
+    fields={
+        "pi_id": Field("int", S, required=True),
+        "feature_id": Field("int", S),
+        "depends_on_id": Field("int", S),
+        "team": Field("text", S),
+        "description": Field("text", S, required=True),
+        "needed_by_id": Field("int", S),
+        "status": Field("text", S, choices=DEPENDENCY_STATUS, default="open"),
+    },
+    computed={
+        "feature_title": ("(SELECT title FROM features f WHERE f.id = dependencies.feature_id)", S),
+        "depends_on_title": ("(SELECT title FROM features f WHERE f.id = dependencies.depends_on_id)", S),
+        "needed_by_number": ("(SELECT number FROM sprints s WHERE s.id = dependencies.needed_by_id)", S),
+    },
+)
+
+pi_milestones = Record(
+    entity="pi_milestone",
+    table="pi_milestones",
+    path="/api/pi-milestones",
+    order_by="date IS NULL, date, id",
+    fields={
+        "pi_id": Field("int", E, required=True),
+        "title": Field("text", E, required=True),
+        "date": Field("date", E),
+        "kind": Field("text", E, choices=MILESTONE_KINDS, default="other"),
+    },
+)
+
+pi_risks = Record(
+    entity="pi_risk",
+    table="pi_risks",
+    path="/api/pi-risks",
+    order_by="roam != 'unroamed', id",
+    fields={
+        "pi_id": Field("int", S, required=True),
+        "title": Field("text", S, required=True),
+        "roam": Field("text", S, choices=ROAM, default="unroamed"),
+        "owner_id": Field("int", S),
+        "notes": Field("text", P),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = pi_risks.owner_id)", S)},
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
     program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    retros, retro_items, retro_commitments,
+    pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
 ]

@@ -11,6 +11,8 @@
     const s = await BA.api("/api/sprints/current");
     BA.go(s ? `/sprints/${s.id}` : "/sprints");
   } });
+  BA.command({ label: "Run a retrospective", hint: "Retrospectives", icon: "refresh-ccw", run: () => BA.go("/retros") });
+  BA.command({ label: "Open the PI planning board", hint: "PI planning", icon: "kanban", run: () => BA.go("/pi") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -1249,4 +1251,275 @@
         });
     },
   });
+
+  // ---------------------------------------------------------------- Retrospectives
+
+  const RETRO_FORMATS = ["went well / didn't / ideas", "start / stop / continue", "mad / sad / glad", "4 Ls"];
+  const COMMIT_STATUS = ["committed", "in progress", "done", "dropped"];
+  const COMMIT_TONES = { committed: "", "in progress": "warn", done: "good", dropped: "" };
+
+  BA.view("/retros", {
+    title: "Retrospectives",
+    async render(main, param) {
+      const people = await BA.api("/api/people");
+      if (param) return renderRetro(main, Number(param), people);
+      const [retros, sprints, current, improvements, patterns] = await Promise.all([
+        BA.api("/api/retros"), BA.api("/api/sprints"), BA.api("/api/sprints/current"), BA.api("/api/improvements"), BA.api("/api/retros/patterns"),
+      ]);
+      const open = improvements.filter((c) => c.status === "committed" || c.status === "in progress");
+      main.innerHTML = `
+        ${presenting() ? "" : `<section class="card"><h2>New retrospective</h2><form id="new" class="row">
+          <select name="sprint_id" style="max-width:200px"><option value="">No sprint</option>${sprints.map((s) => `<option value="${s.id}"${current && s.id === current.id ? " selected" : ""}>Sprint ${s.number}</option>`).join("")}</select>
+          <select name="format" style="max-width:240px">${RETRO_FORMATS.map((f) => `<option>${f}</option>`).join("")}</select>
+          <input type="date" name="date" value="${BA.today()}" style="max-width:170px"><button class="btn primary" type="submit">Start retro</button></form></section>`}
+        <div class="cards">
+          <section class="card"><h2>Improvement backlog</h2><p class="quiet">Every commitment still open, from whichever sprint it came up in.</p>${
+            open.map((c) => `<div class="item">${tonePill(c.status, COMMIT_TONES)}<span>${esc(c.commitment)}</span><span class="spacer"></span><span class="quiet">${c.sprint_number ? `sprint ${c.sprint_number}` : ""} ${esc(c.owner_name || "")}</span></div>`).join("") ||
+            '<p class="quiet">Nothing open. Every commitment is done or dropped.</p>'
+          }</section>
+          <section class="card"><h2>Recurring topics</h2><p class="quiet">Topics tagged in more than one retro.</p>${
+            patterns.map((p) => `<div class="item"><b>${esc(p.topic)}</b><span class="spacer"></span><span class="quiet">${p.retros} retros · sprints ${p.sprints.join(", ")}</span>${p.listening_theme ? '<span class="pill">also a listening-tour theme</span>' : ""}</div>`).join("") ||
+            '<p class="quiet">No repeats yet. Tag discussion items with a topic to spot them.</p>'
+          }</section></div>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Date</th><th>Sprint</th><th>Format</th><th>Items</th><th>Commitments</th></tr></thead><tbody>${
+          retros.map((r) => `<tr class="clickable" data-id="${r.id}"><td>${BA.fmtDate(r.date)}</td><td>${r.sprint_number ? `Sprint ${r.sprint_number}` : ""}</td><td>${esc(r.format)}</td><td>${r.item_count}</td><td>${r.commitment_count}</td></tr>`).join("") ||
+          '<tr><td colspan="5" class="empty">No retrospectives yet.</td></tr>'
+        }</tbody></table></div>`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/retros/${tr.dataset.id}`)));
+      const form = main.querySelector("#new");
+      if (form)
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(form);
+          const r = await BA.api("/api/retros", { method: "POST", body: { sprint_id: f.get("sprint_id") ? Number(f.get("sprint_id")) : null, format: f.get("format"), date: f.get("date") } });
+          BA.go(`/retros/${r.id}`);
+        });
+    },
+  });
+
+  async function renderRetro(main, id, people) {
+    const d = await BA.api(`/api/retros/${id}/board`);
+    const r = d.retro;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = `Retrospective${r.sprint_number ? `: sprint ${r.sprint_number}` : ""}`;
+    const itemCard = (i) => `<div class="retro-item"><div>${esc(i.text)}</div><div class="row">
+        ${i.topic ? `<span class="pill">${esc(i.topic)}</span>` : ""}<span class="spacer"></span>
+        <button class="icon-btn" title="Vote" data-vote="${i.id}">${BA.icon("thumbs-up")}</button><b>${i.votes}</b>
+        ${ro ? "" : `<button class="btn" data-commit="${i.id}" title="Make this a commitment">Commit</button>`}</div></div>`;
+    main.innerHTML = `<p><a href="#/retros">All retrospectives</a></p>
+      <section class="card"><div class="row"><h2>${r.date ? BA.fmtDate(r.date) : "No date set"}</h2><span class="pill">${esc(r.format)}</span><span class="spacer"></span>
+        <span class="quiet">${r.attendees.length ? "With " + esc(r.attendees.join(", ")) : ""}</span></div>
+        ${r.summary ? `<p>${esc(r.summary)}</p>` : ""}
+        ${ro ? "" : `<p class="quiet">Your private impressions belong in the <a href="#/sprints${r.sprint_id ? "/" + r.sprint_id : ""}">sprint notebook</a>'s retro note.</p>`}</section>
+      ${d.carried_forward.length ? `<section class="card"><h2>Did we do what we said?</h2><p class="quiet">Open commitments from earlier retros.</p>${d.carried_forward
+        .map((c) => `<div class="item" data-carry="${c.id}"><span>${esc(c.commitment)}</span><span class="quiet">${c.sprint_number ? `sprint ${c.sprint_number}` : ""} ${esc(c.owner_name || "")}</span><span class="spacer"></span>
+          ${ro ? tonePill(c.status, COMMIT_TONES) : `<select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>
+          <input name="outcome" placeholder="Outcome" value="${esc(c.outcome || "")}" style="max-width:220px">`}</div>`)
+        .join("")}</section>` : ""}
+      <div class="retro-board" style="grid-template-columns: repeat(${d.columns.length}, minmax(220px, 1fr))">${d.columns
+        .map((col) => `<section class="card retro-col"><h2>${esc(col)}</h2>${(d.items[col] || []).map(itemCard).join("") || '<p class="quiet">Nothing yet.</p>'}
+          ${ro ? "" : `<form class="add-item" data-col="${esc(col)}"><input name="text" placeholder="Add a point" required><input name="topic" placeholder="Topic tag (optional)"><button class="btn" type="submit">Add</button></form>`}</section>`)
+        .join("")}</div>
+      <section class="card"><h2>What we're committing to</h2>${
+        d.commitments.map((c) => `<div class="item" data-cm="${c.id}"><span>${esc(c.commitment)}</span><span class="spacer"></span>
+          ${ro ? `${esc(c.owner_name || "")} ${BA.fmtDate(c.due)} ${tonePill(c.status, COMMIT_TONES)}` : `<select name="owner_id" style="max-width:200px">${personOptions(people, c.owner_id)}</select>
+          <input type="date" name="due" value="${esc(c.due || "")}" style="max-width:160px">
+          <select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</div>`).join("") ||
+        '<p class="quiet">No commitments yet. Use "Commit" on a point, or add one here.</p>'
+      }${ro ? "" : `<form id="add-cm" class="row" style="margin-top:10px"><input name="commitment" placeholder="We will…" required style="max-width:380px">
+        <select name="owner_id" style="max-width:200px">${personOptions(people)}</select><input type="date" name="due" style="max-width:160px"><button class="btn primary" type="submit">Add commitment</button></form>`}</section>
+      ${ro ? "" : `<form id="retro-edit" class="card"><h2>Retro details</h2><div class="grid2">
+        <label>Format<select name="format">${RETRO_FORMATS.map((f) => `<option${f === r.format ? " selected" : ""}>${f}</option>`).join("")}</select></label>
+        <label>Date<input type="date" name="date" value="${esc(r.date || "")}"></label>
+        <label>Summary<textarea name="summary">${esc(r.summary || "")}</textarea></label>
+        <div><label>Who was there</label><div class="row">${people.map((p) => `<label class="check"><input type="checkbox" name="att" value="${p.id}"${r.attendee_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div></div>
+        <div class="actions"><button class="btn danger left" type="button" id="del">Delete retro</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+    main.querySelectorAll("[data-vote]").forEach((b) => (b.onclick = BA.guard(async () => (await BA.api(`/api/retro-items/${b.dataset.vote}/vote`, { method: "POST", body: {} }), BA.rerender()))));
+    if (ro) return;
+    main.querySelectorAll("form.add-item").forEach((form) => (form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      await BA.api("/api/retro-items", { method: "POST", body: { retro_id: id, column_name: form.dataset.col, text: f.get("text"), topic: f.get("topic") } });
+      BA.rerender();
+    })));
+    main.querySelectorAll("[data-commit]").forEach((b) => (b.onclick = BA.guard(async () => (await BA.api(`/api/retro-items/${b.dataset.commit}/commit`, { method: "POST", body: {} }), BA.rerender()))));
+    main.querySelectorAll("[data-carry]").forEach((row) => (row.onchange = BA.guard(async (e) => {
+      await BA.api(`/api/retro-commitments/${row.dataset.carry}/review`, { method: "POST", body: { [e.target.name]: e.target.value, reviewed_in_id: id } });
+      BA.toast("Recorded.");
+    })));
+    main.querySelectorAll("[data-cm]").forEach((row) => (row.onchange = BA.guard(async (e) => {
+      const el = e.target;
+      await BA.api(`/api/retro-commitments/${row.dataset.cm}`, { method: "PATCH", body: { [el.name]: el.name === "owner_id" ? (el.value ? Number(el.value) : null) : el.value } });
+      BA.toast("Saved.");
+    })));
+    main.querySelector("#add-cm").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      await BA.api("/api/retro-commitments", { method: "POST", body: { retro_id: id, sprint_id: r.sprint_id, commitment: f.get("commitment"), owner_id: f.get("owner_id") ? Number(f.get("owner_id")) : null, due: f.get("due") } });
+      BA.rerender();
+    });
+    const edit = main.querySelector("#retro-edit");
+    edit.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(edit);
+      await BA.api(`/api/retros/${id}`, { method: "PATCH", body: { format: f.get("format"), date: f.get("date"), summary: f.get("summary"), attendee_ids: [...edit.querySelectorAll('input[name="att"]:checked')].map((x) => Number(x.value)) } });
+      BA.rerender();
+    });
+    main.querySelector("#del").onclick = BA.guard(async () => {
+      if (!confirm("Delete this retro with its points and commitments?")) return;
+      await BA.api(`/api/retros/${id}`, { method: "DELETE" });
+      BA.go("/retros");
+    });
+  }
+
+  // ---------------------------------------------------------------- PI planning
+
+  const PRIORITIES = ["highest", "high", "medium", "low"];
+  const WORK_STATUS = ["not started", "in progress", "done", "blocked"];
+  const PRIORITY_TONES = { highest: "bad", high: "warn", medium: "", low: "" };
+  const ROAM = ["unroamed", "resolved", "owned", "accepted", "mitigated"];
+  const MILESTONE_KINDS = ["release", "freeze", "demo", "innovation and planning", "other"];
+  const opts = (list, sel) => list.map((x) => `<option${x === sel ? " selected" : ""}>${x}</option>`).join("");
+
+  BA.view("/pi", {
+    title: "PI planning",
+    async render(main, param) {
+      const people = await BA.api("/api/people");
+      if (param) return renderPi(main, Number(param), people);
+      const pis = await BA.api("/api/program-increments");
+      main.innerHTML = `<p class="quiet">For organizations running SAFe: plan a Program Increment's objectives, features, stories, dependencies and risks together, then present the board.</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th>PI</th><th>Dates</th><th>Objectives</th><th>Confidence</th></tr></thead><tbody>${
+          pis.map((p) => `<tr class="clickable" data-id="${p.id}"><td><b>PI ${p.number}</b></td><td>${BA.fmtDate(p.start_date)} to ${BA.fmtDate(p.end_date)}</td><td>${esc(p.objectives || "")}</td>
+            <td>${p.confidence != null ? `<span class="pill ${p.confidence >= 3 ? "good" : "warn"}">${p.confidence} of 5</span>` : '<span class="quiet">not voted</span>'}</td></tr>`).join("") ||
+          '<tr><td colspan="4" class="empty">No Program Increments yet.</td></tr>'
+        }</tbody></table></div>
+        ${presenting() ? "" : `<section class="card" style="margin-top:16px"><form id="add-pi" class="row"><input type="number" name="number" placeholder="PI number" value="${(pis[0]?.number || 0) + 1}" required style="max-width:120px">
+          <input type="date" name="start_date" style="max-width:170px"><input type="date" name="end_date" style="max-width:170px"><button class="btn primary" type="submit">New PI</button></form></section>`}`;
+      main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/pi/${tr.dataset.id}`)));
+      const add = main.querySelector("#add-pi");
+      if (add)
+        add.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(add);
+          const pi = await BA.api("/api/program-increments", { method: "POST", body: { number: Number(f.get("number")), start_date: f.get("start_date"), end_date: f.get("end_date") } });
+          BA.go(`/pi/${pi.id}`);
+        });
+    },
+  });
+
+  async function renderPi(main, id, people) {
+    const [d, epics, allSprints] = await Promise.all([BA.api(`/api/pis/${id}/board`), BA.api("/api/epics"), BA.api("/api/sprints")]);
+    const p = d.pi;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = `PI ${p.number}`;
+    const sprintCols = [...d.sprints, { id: null, number: null }];
+    const storyChip = (s) => `<div class="story-chip" title="${esc(s.acceptance || "")}"><span>${esc(s.title)}</span>${s.points != null ? `<b>${s.points}</b>` : ""}</div>`;
+    const cellStories = (fid, sid) => d.stories.filter((s) => s.feature_id === fid && (s.sprint_id ?? null) === sid).map(storyChip).join("");
+    const capacity = (s) => {
+      if (!s.id) return '<span class="quiet">not in a sprint</span>';
+      const over = s.capacity != null && s.planned_points > s.capacity;
+      return `<span class="pill ${over ? "bad" : "good"}">${s.planned_points}${s.capacity != null ? ` of ${s.capacity}` : ""} pts</span>`;
+    };
+    const board = `<div class="tablewrap"><table class="data pi-board"><thead><tr><th>Feature</th>${sprintCols
+      .map((s) => `<th>${s.id ? `Sprint ${s.number}${s.kind === "innovation and planning" ? " (IP)" : ""}` : "Unscheduled"}<div>${capacity(s)}</div></th>`).join("")}</tr></thead><tbody>
+      <tr class="milestones-row"><td><b>Milestones</b></td>${sprintCols.map((s) => `<td>${s.id ? d.milestones.filter((m) => m.date && s.start_date && m.date >= s.start_date && m.date <= (s.end_date || m.date)).map((m) => `<span class="pill warn">${esc(m.title)}</span>`).join(" ") : d.milestones.filter((m) => !m.date).map((m) => `<span class="pill">${esc(m.title)}</span>`).join(" ")}</td>`).join("")}</tr>
+      ${d.features.map((f) => `<tr><td><b>${esc(f.title)}</b> ${tonePill(f.priority, PRIORITY_TONES)}<div class="quiet">${[f.epic_title, f.ticket_key, `${f.points} pts`].filter(Boolean).map(esc).join(" · ")}</div></td>${sprintCols.map((s) => `<td>${cellStories(f.id, s.id)}</td>`).join("")}</tr>`).join("") ||
+        `<tr><td colspan="${sprintCols.length + 1}" class="empty">No features yet.</td></tr>`}
+      </tbody></table></div>`;
+    main.innerHTML = `<p><a href="#/pi">All PIs</a></p>
+      <section class="card"><div class="row"><h2>PI ${p.number}</h2><span class="quiet">${BA.fmtDate(p.start_date)} to ${BA.fmtDate(p.end_date)}</span><span class="spacer"></span>
+        ${p.confidence != null ? `<span class="pill ${p.confidence >= 3 ? "good" : "warn"}">confidence ${p.confidence} of 5 · ${BA.fmtDate(p.confidence_date)}</span>` : ""}
+        ${d.predictability != null ? `<span class="pill ${d.predictability >= 80 ? "good" : "warn"}">predictability ${d.predictability}%</span>` : ""}</div>
+        ${d.sprints.length ? "" : '<p class="quiet">Assign sprints to this PI from the sprint notebook (Sprint details, Program Increment) to build the board.</p>'}
+        ${ro ? "" : `<form id="vote" class="row"><input name="votes" placeholder="Confidence votes, e.g. 4, 4, 3, 5" style="max-width:300px"><button class="btn" type="submit">Record fist-of-five</button></form>`}</section>
+
+      <section class="card"><h2>PI objectives</h2><div class="tablewrap"><table class="data"><thead><tr><th>Objective</th><th>Kind</th><th>Business value planned</th><th>Actual</th><th>Status</th></tr></thead><tbody>${
+        d.objectives.map((o) => `<tr data-obj="${o.id}"><td><b>${esc(o.title)}</b></td><td>${esc(o.kind)}</td>
+          <td>${ro ? (o.value_planned ?? "") : `<input type="number" min="1" max="10" name="value_planned" value="${esc(o.value_planned ?? "")}" style="max-width:80px">`}</td>
+          <td>${ro ? (o.value_actual ?? "") : `<input type="number" min="0" max="10" name="value_actual" value="${esc(o.value_actual ?? "")}" style="max-width:80px">`}</td>
+          <td>${ro ? esc(o.status) : `<select name="status">${opts(WORK_STATUS, o.status)}</select>`}</td></tr>`).join("") || '<tr><td colspan="5" class="empty">No objectives yet.</td></tr>'
+      }</tbody></table></div>
+      ${ro ? "" : `<form id="add-obj" class="row" style="margin-top:10px"><input name="title" placeholder="Objective" required style="max-width:360px"><select name="kind" style="max-width:140px"><option>committed</option><option>stretch</option></select>
+        <input type="number" name="value_planned" min="1" max="10" placeholder="Value 1-10" style="max-width:120px"><button class="btn primary" type="submit">Add objective</button></form>`}</section>
+
+      <section class="card"><h2>Program board</h2>${board}</section>
+
+      ${ro ? "" : `<div class="cards">
+        <section class="card"><h2>Add a feature</h2><form id="add-feature">
+          <label>Feature<input name="title" required></label>
+          <div class="grid2"><label>Epic<select name="epic_id"><option value=""></option>${epics.map((e) => `<option value="${e.id}">${esc(e.title)}</option>`).join("")}</select></label>
+          <label>Priority<select name="priority">${opts(PRIORITIES, "medium")}</select></label>
+          <label>Owner<select name="owner_id">${personOptions(people)}</select></label><label>Ticket key<input name="ticket_key" placeholder="Optional"></label></div>
+          <label>Acceptance criteria<textarea name="acceptance"></textarea></label>
+          <div class="actions"><button class="btn primary" type="submit">Add feature</button></div></form></section>
+        <section class="card"><h2>Add a story</h2><form id="add-story">
+          <label>Story<input name="title" required></label>
+          <div class="grid2"><label>Feature<select name="feature_id">${d.features.map((f) => `<option value="${f.id}">${esc(f.title)}</option>`).join("")}</select></label>
+          <label>Sprint<select name="sprint_id"><option value="">Unscheduled</option>${d.sprints.map((s) => `<option value="${s.id}">Sprint ${s.number}</option>`).join("")}</select></label>
+          <label>Points<input type="number" name="points" min="0"></label><label>Priority<select name="priority">${opts(PRIORITIES, "medium")}</select></label></div>
+          <label>Acceptance criteria<textarea name="acceptance"></textarea></label>
+          <div class="actions"><button class="btn primary" type="submit">Add story</button></div></form></section>
+        <section class="card"><h2>Epics</h2>${epics.map((e) => `<div class="item"><b>${esc(e.title)}</b>${tonePill(e.priority, PRIORITY_TONES)}<span class="spacer"></span><span class="quiet">${esc(e.ticket_key || "")} ${esc(e.status)}</span></div>`).join("") || '<p class="quiet">No epics yet.</p>'}
+          <form id="add-epic" class="row" style="margin-top:8px"><input name="title" placeholder="Epic" required style="max-width:240px"><select name="priority" style="max-width:120px">${opts(PRIORITIES, "medium")}</select><button class="btn" type="submit">Add epic</button></form></section>
+      </div>`}
+
+      <section class="card"><h2>Stories</h2><div class="tablewrap"><table class="data"><thead><tr><th>Story</th><th>Feature</th><th>Sprint</th><th>Points</th><th>Priority</th><th>Status</th></tr></thead><tbody>${
+        d.stories.map((s) => `<tr data-story="${s.id}"><td>${esc(s.title)}${s.ticket_key ? ` <span class="quiet">${esc(s.ticket_key)}</span>` : ""}</td><td>${esc(d.features.find((f) => f.id === s.feature_id)?.title || "")}</td>
+          <td>${ro ? (d.sprints.find((x) => x.id === s.sprint_id)?.number ?? "") : `<select name="sprint_id"><option value="">Unscheduled</option>${d.sprints.map((x) => `<option value="${x.id}"${x.id === s.sprint_id ? " selected" : ""}>Sprint ${x.number}</option>`).join("")}</select>`}</td>
+          <td>${ro ? (s.points ?? "") : `<input type="number" name="points" value="${esc(s.points ?? "")}" style="max-width:80px">`}</td>
+          <td>${tonePill(s.priority, PRIORITY_TONES)}</td><td>${ro ? esc(s.status) : `<select name="status">${opts(WORK_STATUS, s.status)}</select>`}</td></tr>`).join("") ||
+        '<tr><td colspan="6" class="empty">No stories yet.</td></tr>'
+      }</tbody></table></div></section>
+
+      <div class="cards">
+        <section class="card"><h2>Dependencies</h2>${d.dependencies.map((x) => `<div class="item" data-dep="${x.id}"><span><b>${esc(x.feature_title || "")}</b> needs ${esc(x.depends_on_title || x.team || "")}: ${esc(x.description)}${x.needed_by_number ? ` <span class="quiet">by sprint ${x.needed_by_number}</span>` : ""}</span><span class="spacer"></span>
+            ${ro ? esc(x.status) : `<select name="status" style="max-width:120px">${opts(["open", "met", "at risk"], x.status)}</select>`}</div>`).join("") || '<p class="quiet">No dependencies logged.</p>'}
+          ${ro ? "" : `<form id="add-dep" style="margin-top:8px"><div class="grid2">
+            <label>Feature<select name="feature_id">${d.features.map((f) => `<option value="${f.id}">${esc(f.title)}</option>`).join("")}</select></label>
+            <label>Depends on feature<select name="depends_on_id"><option value=""></option>${d.features.map((f) => `<option value="${f.id}">${esc(f.title)}</option>`).join("")}</select></label>
+            <label>Or another team<input name="team"></label>
+            <label>Needed by<select name="needed_by_id"><option value=""></option>${d.sprints.map((s) => `<option value="${s.id}">Sprint ${s.number}</option>`).join("")}</select></label></div>
+            <label>What's needed<input name="description" required></label><div class="actions"><button class="btn" type="submit">Add dependency</button></div></form>`}</section>
+        <section class="card"><h2>Risks (ROAM)</h2>${d.risks.map((x) => `<div class="item" data-pirisk="${x.id}"><span>${esc(x.title)}</span><span class="quiet">${esc(x.owner_name || "")}</span><span class="spacer"></span>
+            ${ro ? `<span class="pill ${x.roam === "unroamed" ? "bad" : ""}">${esc(x.roam)}</span>` : `<select name="roam" style="max-width:130px">${opts(ROAM, x.roam)}</select>`}</div>`).join("") || '<p class="quiet">No risks logged.</p>'}
+          ${ro ? "" : `<form id="add-pirisk" class="row" style="margin-top:8px"><input name="title" placeholder="Risk" required style="max-width:220px"><select name="owner_id" style="max-width:180px">${personOptions(people)}</select><button class="btn" type="submit">Add risk</button></form>`}</section>
+        <section class="card"><h2>Milestones and events</h2>${d.milestones.map((m) => `<div class="item"><span class="pill">${esc(m.kind)}</span><span>${esc(m.title)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.date)}</span></div>`).join("") || '<p class="quiet">None yet.</p>'}
+          ${ro ? "" : `<form id="add-ms" class="row" style="margin-top:8px"><input name="title" placeholder="Milestone" required style="max-width:200px"><select name="kind" style="max-width:150px">${opts(MILESTONE_KINDS, "release")}</select><input type="date" name="date" style="max-width:160px"><button class="btn" type="submit">Add</button></form>`}</section>
+      </div>
+      ${ro ? "" : `<section class="card"><h2>Sprint capacity</h2><div class="row">${d.sprints.map((s) => `<label class="check">Sprint ${s.number} <input type="number" data-capacity="${s.id}" value="${esc(s.capacity ?? "")}" placeholder="points" style="max-width:100px"></label>`).join("") || '<span class="quiet">No sprints in this PI yet.</span>'}</div></section>`}`;
+    if (ro) return;
+    const num = (v) => (v === "" || v == null ? null : Number(v));
+    const post = (sel, path, shape) => {
+      const form = main.querySelector(sel);
+      if (form) form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(path, { method: "POST", body: shape(new FormData(form)) }); BA.rerender(); });
+    };
+    post("#add-obj", "/api/pi-objectives", (f) => ({ pi_id: id, title: f.get("title"), kind: f.get("kind"), value_planned: num(f.get("value_planned")) }));
+    post("#add-feature", "/api/features", (f) => ({ pi_id: id, title: f.get("title"), epic_id: num(f.get("epic_id")), priority: f.get("priority"), owner_id: num(f.get("owner_id")), ticket_key: f.get("ticket_key"), acceptance: f.get("acceptance"), position: d.features.length }));
+    post("#add-story", "/api/stories", (f) => ({ title: f.get("title"), feature_id: num(f.get("feature_id")), sprint_id: num(f.get("sprint_id")), points: num(f.get("points")), priority: f.get("priority"), acceptance: f.get("acceptance") }));
+    post("#add-epic", "/api/epics", (f) => ({ title: f.get("title"), priority: f.get("priority") }));
+    post("#add-dep", "/api/dependencies", (f) => ({ pi_id: id, feature_id: num(f.get("feature_id")), depends_on_id: num(f.get("depends_on_id")), team: f.get("team"), description: f.get("description"), needed_by_id: num(f.get("needed_by_id")) }));
+    post("#add-pirisk", "/api/pi-risks", (f) => ({ pi_id: id, title: f.get("title"), owner_id: num(f.get("owner_id")) }));
+    post("#add-ms", "/api/pi-milestones", (f) => ({ pi_id: id, title: f.get("title"), kind: f.get("kind"), date: f.get("date") }));
+    const vote = main.querySelector("#vote");
+    vote.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const votes = new FormData(vote).get("votes").split(/[\s,]+/).filter(Boolean).map(Number);
+      await BA.api(`/api/pis/${id}/confidence`, { method: "POST", body: { votes } });
+      BA.rerender();
+    });
+    const patchRows = (attr, path, numeric) =>
+      main.querySelectorAll(`[${attr}]`).forEach((row) => (row.onchange = BA.guard(async (e) => {
+        const el = e.target;
+        await BA.api(`${path}/${row.getAttribute(attr)}`, { method: "PATCH", body: { [el.name]: numeric.includes(el.name) ? num(el.value) : el.value } });
+        BA.rerender();
+      })));
+    patchRows("data-obj", "/api/pi-objectives", ["value_planned", "value_actual"]);
+    patchRows("data-story", "/api/stories", ["sprint_id", "points"]);
+    patchRows("data-dep", "/api/dependencies", []);
+    patchRows("data-pirisk", "/api/pi-risks", []);
+    main.querySelectorAll("[data-capacity]").forEach((el) => (el.onchange = BA.guard(async () => {
+      await BA.api(`/api/sprints/${el.dataset.capacity}`, { method: "PATCH", body: { capacity: num(el.value) } });
+      BA.rerender();
+    })));
+  }
 })();

@@ -19,3 +19,14 @@ ol.chain .btn { margin-left: 8px; padding: 2px 8px; }
 table.raci td, table.raci th { white-space: nowrap; }
 .msg-preview h2, .msg-preview h3, .msg-preview h4 { margin: 14px 0 6px; }
 .msg-preview .tablewrap { margin: 8px 0; box-shadow: none; }
+
+.retro-board { display: grid; gap: 16px; overflow-x: auto; margin-bottom: 16px; }
+.retro-col { margin: 0; }
+.retro-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: var(--panel-2); }
+.retro-item .row { margin-top: 6px; }
+.add-item { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pi-board td { min-width: 170px; vertical-align: top; }
+.pi-board th div { margin-top: 4px; text-transform: none; letter-spacing: 0; }
+.story-chip { display: flex; justify-content: space-between; gap: 8px; border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 4px 8px; margin-bottom: 4px; font-size: .85rem; }
+.story-chip b { color: var(--accent); }
+.milestones-row td { background: var(--panel-2); }
