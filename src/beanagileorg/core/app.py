@@ -94,7 +94,7 @@ def _page(title: str, body: str) -> HTMLResponse:
 <title>{html.escape(title)}</title>
 <script>try {{ const t = localStorage.getItem("ba-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; }} catch (e) {{}}</script>
 <link rel="stylesheet" href="/core-static/app.css"></head>
-<body class="auth-page"><main class="auth-card"><div class="auth-brand"><span class="brand-mark">B</span>beanagile</div>{body}</main></body></html>"""
+<body class="auth-page"><main class="auth-card"><div class="auth-brand"><span class="brand-mark">B</span>beanagileorg</div>{body}</main></body></html>"""
     )
 
 
@@ -337,7 +337,7 @@ def create_app(
     def totp_start(viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
         secret = auth.new_totp_secret()
         conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('pending_totp', ?)", (secret,))
-        return {"secret": secret, "uri": auth.totp_uri(secret, settings.app, f"beanagile {settings.title}")}
+        return {"secret": secret, "uri": auth.totp_uri(secret, settings.app, f"beanagileorg {settings.title}")}
 
     @app.post("/api/auth/totp/confirm")
     def totp_confirm(body: CodeIn, viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
@@ -376,7 +376,7 @@ def create_app(
         return recent_exports(conn)
 
     def backup_dest() -> Path:
-        return Path(os.environ.get("BEANAGILE_BACKUP_DIR") or settings.data_dir.parent / "backups")
+        return Path(os.environ.get("BEANAGILEORG_BACKUP_DIR") or settings.data_dir.parent / "backups")
 
     @app.get("/api/backups")
     def backups_list(viewer: Viewer = Depends(require_full)):

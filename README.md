@@ -1,9 +1,9 @@
-# beanagile
+# beanagileorg
 
 Local-first supporting apps for engineering leaders. Each app runs on your own machine, listens only on localhost, and keeps its data in a SQLite file outside this repository.
 
-- **Toolkit** (`beanagile toolkit`, port 8801): team, listening tour, sprints, roadmap, status and my development.
-- **Comms studio** (`beanagile comms`, port 8802): messages, templates, writing checks, presentations and media.
+- **Toolkit** (`beanagileorg toolkit`, port 8801): team, listening tour, sprints, roadmap, status and my development.
+- **Comms studio** (`beanagileorg comms`, port 8802): messages, templates, writing checks, presentations and media.
 
 Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) hub is optional: when configured, the apps use it for documents, local models and scheduled jobs.
 
@@ -19,7 +19,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Change log and export log.** Every data change records the field, old and new value and who made it (you or a named token), and every export records what went out.
 - **Design system.** Tailwind CSS v4 tokens with light and dark themes, Inter type, Lucide icons and responsive layouts.
 - **Command palette and shortcuts.** ⌘K or / jumps to any screen or runs an action; ? lists the shortcuts.
-- **Backups that are checked.** `beanagile backup all` snapshots each app's data and restores it to a scratch folder to prove it's good; `beanagile restore` puts one back without deleting what was there; `beanagile schedule` sets up nightly backups. See [docs/backups.md](docs/backups.md).
+- **Backups that are checked.** `beanagileorg backup all` snapshots each app's data and restores it to a scratch folder to prove it's good; `beanagileorg restore` puts one back without deleting what was there; `beanagileorg schedule` sets up nightly backups. See [docs/backups.md](docs/backups.md).
 - **Local domain.** Open the apps at https://toolkit.beanagile.org and https://comms.beanagile.org on your own machine, with Caddy and local certificates; requests addressed to any other name are refused. See [docs/local-domain.md](docs/local-domain.md).
 - **Placeholder data.** One click fills empty parts of an app with bracketed `[Placeholder]` values for trying things out.
 
@@ -95,14 +95,14 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 ```bash
 uv sync
-uv run beanagile toolkit
+uv run beanagileorg toolkit
 ```
 
 Then open http://127.0.0.1:8801. The first visit asks you to set a password.
 
-For development, `uv run beanagile toolkit --reload` restarts on code changes.
+For development, `uv run beanagileorg toolkit --reload` restarts on code changes.
 
-## Shared base (`src/beanagile/core`)
+## Shared base (`src/beanagileorg/core`)
 
 | Piece | What it does |
 | --- | --- |
@@ -116,7 +116,7 @@ For development, `uv run beanagile toolkit --reload` restarts on code changes.
 
 ## Design system
 
-Styles come from one Tailwind CSS v4 source, `src/beanagile/core/static/app.src.css`: design tokens (light and dark), base styles and the shared components. The built `app.css` is committed, so running the apps needs no build step. After editing the source, rebuild with:
+Styles come from one Tailwind CSS v4 source, `src/beanagileorg/core/static/app.src.css`: design tokens (light and dark), base styles and the shared components. The built `app.css` is committed, so running the apps needs no build step. After editing the source, rebuild with:
 
 ```bash
 ./scripts/build-css.sh
@@ -128,19 +128,19 @@ The script uses Tailwind's standalone CLI from `.tools/` (not committed). Icons 
 
 | Command | What it does |
 | --- | --- |
-| `beanagile toolkit` / `beanagile comms` | Run an app (localhost only) |
-| `beanagile backup all` | Back up every app and check each backup |
-| `beanagile backups toolkit` | List backups and their check results |
-| `beanagile verify FILE` | Check a backup without changing anything |
-| `beanagile restore FILE --app toolkit` | Put a backup back (stop the app first) |
-| `beanagile schedule [--write]` | Nightly backups with launchd |
-| `beanagile domain [--caddyfile]` | Local beanagile.org setup |
+| `beanagileorg toolkit` / `beanagileorg comms` | Run an app (localhost only) |
+| `beanagileorg backup all` | Back up every app and check each backup |
+| `beanagileorg backups toolkit` | List backups and their check results |
+| `beanagileorg verify FILE` | Check a backup without changing anything |
+| `beanagileorg restore FILE --app toolkit` | Put a backup back (stop the app first) |
+| `beanagileorg schedule [--write]` | Nightly backups with launchd |
+| `beanagileorg domain [--caddyfile]` | Local beanagile.org setup |
 
 ## Data
 
-Data lives in `~/.beanagile/<app>/` (override with `BEANAGILE_DATA`). Nothing in this repository is real data; examples and samples are always marked `[Placeholder]`.
+Data lives in `~/.beanagileorg/<app>/` (override with `BEANAGILEORG_DATA`). Nothing in this repository is real data; examples and samples are always marked `[Placeholder]`.
 
-Optional Odysseus link: set `BEANAGILE_ODYSSEUS_URL` and `BEANAGILE_ODYSSEUS_TOKEN`.
+Optional Odysseus link: set `BEANAGILEORG_ODYSSEUS_URL` and `BEANAGILEORG_ODYSSEUS_TOKEN`.
 
 ## Test
 

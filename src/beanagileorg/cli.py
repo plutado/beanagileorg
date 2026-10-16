@@ -1,12 +1,12 @@
-"""beanagile: run a supporting app (localhost only), and look after its data.
+"""beanagileorg: run a supporting app (localhost only), and look after its data.
 
-  beanagile toolkit | comms          run an app
-  beanagile backup toolkit|comms|all back up, then check the backup by restoring it to a scratch folder
-  beanagile backups toolkit|comms    list backups and their check results
-  beanagile verify FILE              check a backup without changing anything
-  beanagile restore FILE --app NAME  put a backup back (stop the app first); current data is set aside, not deleted
-  beanagile schedule                 print a launchd job for nightly backups (--write saves it to ~/Library/LaunchAgents)
-  beanagile domain [--caddyfile]     print the local beanagile.org setup: hosts lines and a Caddy config
+  beanagileorg toolkit | comms          run an app
+  beanagileorg backup toolkit|comms|all back up, then check the backup by restoring it to a scratch folder
+  beanagileorg backups toolkit|comms    list backups and their check results
+  beanagileorg verify FILE              check a backup without changing anything
+  beanagileorg restore FILE --app NAME  put a backup back (stop the app first); current data is set aside, not deleted
+  beanagileorg schedule                 print a launchd job for nightly backups (--write saves it to ~/Library/LaunchAgents)
+  beanagileorg domain [--caddyfile]     print the local beanagile.org setup: hosts lines and a Caddy config
 """
 
 import argparse
@@ -14,7 +14,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from beanagile.core.config import Settings
+from beanagileorg.core.config import Settings
 
 APPS = {
     "toolkit": ("Toolkit", 8801),
@@ -28,14 +28,14 @@ def build_app(name: str, port: int | None = None):
     title, default_port = APPS[name]
     settings = Settings(app=name, title=title, port=port or default_port)
     if name == "toolkit":
-        from beanagile.toolkit.app import build
+        from beanagileorg.toolkit.app import build
     else:
-        from beanagile.comms.app import build
+        from beanagileorg.comms.app import build
     return build(settings), settings
 
 
 def data_dir(app: str) -> Path:
-    from beanagile.core.backup import data_root
+    from beanagileorg.core.backup import data_root
 
     return data_root() / app
 
@@ -47,14 +47,14 @@ def _run(args, parser) -> None:
         parser.error("These apps only listen on localhost. Timed sharing is a separate feature.")
     port = args.port or APPS[args.command][1]
     if args.reload:
-        uvicorn.run(f"beanagile.cli:{args.command}_factory", factory=True, host=args.host, port=port, reload=True)
+        uvicorn.run(f"beanagileorg.cli:{args.command}_factory", factory=True, host=args.host, port=port, reload=True)
     else:
         app, _ = build_app(args.command, port)
         uvicorn.run(app, host=args.host, port=port)
 
 
 def _backup(args) -> int:
-    from beanagile.core import backup
+    from beanagileorg.core import backup
 
     failed = 0
     for app in sorted(APPS) if args.app == "all" else [args.app]:
@@ -71,7 +71,7 @@ def _backup(args) -> int:
 
 
 def _list(args) -> int:
-    from beanagile.core import backup
+    from beanagileorg.core import backup
 
     rows = backup.list_backups(args.app, args.dest)
     if not rows:
@@ -83,7 +83,7 @@ def _list(args) -> int:
 
 
 def _verify(args) -> int:
-    from beanagile.core import backup
+    from beanagileorg.core import backup
 
     r = backup.verify_backup(Path(args.file))
     if r["ok"]:
@@ -95,7 +95,7 @@ def _verify(args) -> int:
 
 
 def _restore(args) -> int:
-    from beanagile.core import backup
+    from beanagileorg.core import backup
 
     port = APPS[args.app][1]
     if backup.port_in_use(port) and not args.force:
@@ -111,9 +111,9 @@ def _restore(args) -> int:
 
 
 def _schedule(args) -> int:
-    from beanagile.core import backup
+    from beanagileorg.core import backup
 
-    exe = shutil.which("beanagile") or str(Path(sys.executable).parent / "beanagile")
+    exe = shutil.which("beanagileorg") or str(Path(sys.executable).parent / "beanagileorg")
     plist = backup.launchd_plist(exe, args.hour, args.minute)
     if not args.write:
         print(plist)
@@ -146,7 +146,7 @@ def domain_setup() -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="beanagile", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(prog="beanagileorg", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     for name, (title, port) in APPS.items():
         p = sub.add_parser(name, help=f"run the {title} (port {port})")
@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--reload", action="store_true", help="restart on code changes (development)")
     p = sub.add_parser("backup", help="back up and check")
     p.add_argument("app", choices=[*sorted(APPS), "all"])
-    p.add_argument("--dest", type=Path, help="backup folder (default ~/.beanagile/backups or BEANAGILE_BACKUP_DIR)")
+    p.add_argument("--dest", type=Path, help="backup folder (default ~/.beanagileorg/backups or BEANAGILEORG_BACKUP_DIR)")
     p.add_argument("--keep", type=int, default=30, help="how many backups to keep per app (default 30)")
     p = sub.add_parser("backups", help="list backups")
     p.add_argument("app", choices=sorted(APPS))

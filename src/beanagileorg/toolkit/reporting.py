@@ -9,10 +9,10 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagile.core.app import get_conn, get_viewer, require_full
-from beanagile.core.changelog import record_changes
-from beanagile.core.export import log_export
-from beanagile.core.privacy import Level, Viewer
+from beanagileorg.core.app import get_conn, get_viewer, require_full
+from beanagileorg.core.changelog import record_changes
+from beanagileorg.core.export import log_export
+from beanagileorg.core.privacy import Level, Viewer
 
 from . import models
 from .routes import START_DATE_KEY, create_action, require_write, today

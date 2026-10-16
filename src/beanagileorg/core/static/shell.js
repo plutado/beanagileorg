@@ -177,7 +177,7 @@
       ${d.backups.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Backup</th><th>Size</th><th>Rows</th><th>Check</th></tr></thead><tbody>${d.backups
         .map((b) => `<tr><td>${BA.esc(b.file)}</td><td>${kb(b.bytes)}</td><td>${b.rows ?? ""}</td><td>${b.ok ? '<span class="pill good">restores cleanly</span>' : b.ok === false ? `<span class="pill bad" title="${BA.esc((b.problems || []).join("; "))}">failed</span>` : '<span class="quiet">not checked</span>'}</td></tr>`)
         .join("")}</tbody></table></div>${d.count > d.backups.length ? `<p class="quiet">${d.count - d.backups.length} older backups not shown.</p>` : ""}` : ""}
-      <p class="quiet">Nightly backups and restores run from the terminal: <code>beanagile schedule --write</code> saves a nightly job, and <code>beanagile restore FILE --app ${BA.esc(BA.session.app)}</code> puts a backup back (stop the app first).</p>`;
+      <p class="quiet">Nightly backups and restores run from the terminal: <code>beanagileorg schedule --write</code> saves a nightly job, and <code>beanagileorg restore FILE --app ${BA.esc(BA.session.app)}</code> puts a backup back (stop the app first).</p>`;
     el.querySelector("#backup-now").onclick = BA.guard(async () => {
       const r = await BA.api("/api/backups", { method: "POST" });
       BA.toast(r.ok ? "Backed up and checked." : "The backup failed its check: " + r.problems.join("; "));

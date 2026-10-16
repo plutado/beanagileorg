@@ -1,5 +1,5 @@
 [project]
-name = "beanagile"
+name = "beanagileorg"
 version = "0.1.0"
 description = "Local-first supporting apps for engineering leaders: a delivery toolkit and a comms studio."
 readme = "README.md"
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-beanagile = "beanagile.cli:main"
+beanagileorg = "beanagileorg.cli:main"
 
 [dependency-groups]
 dev = [
@@ -25,7 +25,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/beanagile"]
+packages = ["src/beanagileorg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

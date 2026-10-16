@@ -1,7 +1,7 @@
 """Toolkit tables and their privacy-tagged records."""
 
-from beanagile.core.privacy import Level
-from beanagile.core.records import Field, Record
+from beanagileorg.core.privacy import Level
+from beanagileorg.core.records import Field, Record
 
 P, S, E = Level.PRIVATE, Level.PRESENTABLE, Level.EXPORTABLE
 

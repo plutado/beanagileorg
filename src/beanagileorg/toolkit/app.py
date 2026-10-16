@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from beanagile.core.app import create_app
-from beanagile.core.config import Settings
-from beanagile.core.privacy import Level
+from beanagileorg.core.app import create_app
+from beanagileorg.core.config import Settings
+from beanagileorg.core.privacy import Level
 
 from . import models
 from .planning import router as planning_router

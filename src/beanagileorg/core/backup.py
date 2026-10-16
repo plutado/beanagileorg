@@ -20,11 +20,11 @@ FILE_DIRS = ("media",)
 
 
 def data_root() -> Path:
-    return Path(os.environ.get("BEANAGILE_DATA", Path.home() / ".beanagile"))
+    return Path(os.environ.get("BEANAGILEORG_DATA", Path.home() / ".beanagileorg"))
 
 
 def backup_root() -> Path:
-    return Path(os.environ.get("BEANAGILE_BACKUP_DIR") or data_root() / "backups")
+    return Path(os.environ.get("BEANAGILEORG_BACKUP_DIR") or data_root() / "backups")
 
 
 def _counts(db: Path) -> dict[str, int]:
@@ -176,12 +176,12 @@ def restore_backup(archive: Path, data_dir: Path, app: str) -> dict:
     return {"restored": archive.name, "set_aside": str(aside), "rows": sum(check["manifest"]["tables"].values())}
 
 
-LAUNCHD_LABEL = "org.beanagile.backup"
+LAUNCHD_LABEL = "org.beanagileorg.backup"
 
 
 def launchd_plist(executable: str, hour: int = 2, minute: int = 0) -> str:
     """A launchd job that backs up every app nightly. launchd runs a missed job when the Mac wakes."""
-    env = "".join(f"<key>{k}</key><string>{os.environ[k]}</string>" for k in ("BEANAGILE_DATA", "BEANAGILE_BACKUP_DIR") if os.environ.get(k))
+    env = "".join(f"<key>{k}</key><string>{os.environ[k]}</string>" for k in ("BEANAGILEORG_DATA", "BEANAGILEORG_BACKUP_DIR") if os.environ.get(k))
     log = data_root() / "backups" / "launchd.log"
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

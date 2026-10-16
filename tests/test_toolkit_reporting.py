@@ -3,10 +3,10 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile.comms import messaging
-from beanagile.comms.app import build as build_comms
-from beanagile.core.config import Settings
-from beanagile.toolkit.app import build
+from beanagileorg.comms import messaging
+from beanagileorg.comms.app import build as build_comms
+from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
 

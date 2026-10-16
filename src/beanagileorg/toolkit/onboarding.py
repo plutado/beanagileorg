@@ -4,9 +4,9 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagile.core.app import get_conn, get_viewer
-from beanagile.core.export import log_export
-from beanagile.core.privacy import Viewer
+from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.export import log_export
+from beanagileorg.core.privacy import Viewer
 
 from . import models
 from .routes import require_write

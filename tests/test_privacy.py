@@ -1,5 +1,5 @@
-from beanagile.core import privacy
-from beanagile.core.privacy import Level, filter_record, filter_records, floor_for_scopes
+from beanagileorg.core import privacy
+from beanagileorg.core.privacy import Level, filter_record, filter_records, floor_for_scopes
 
 privacy.register("sample", {"title": Level.EXPORTABLE, "detail": Level.PRESENTABLE, "notes": Level.PRIVATE})
 

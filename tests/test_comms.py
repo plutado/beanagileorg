@@ -3,9 +3,9 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile.comms import mediafiles
-from beanagile.comms.app import build
-from beanagile.core.config import Settings
+from beanagileorg.comms import mediafiles
+from beanagileorg.comms.app import build
+from beanagileorg.core.config import Settings
 
 PASSWORD = "[placeholder-password]"
 

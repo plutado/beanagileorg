@@ -2,11 +2,11 @@ import pytest
 from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
-from beanagile.core import auth, privacy
-from beanagile.core.app import create_app, get_viewer
-from beanagile.core.config import Settings
-from beanagile.core.db import CORE_MIGRATIONS, Database, migrate
-from beanagile.core.privacy import Level, filter_records
+from beanagileorg.core import auth, privacy
+from beanagileorg.core.app import create_app, get_viewer
+from beanagileorg.core.config import Settings
+from beanagileorg.core.db import CORE_MIGRATIONS, Database, migrate
+from beanagileorg.core.privacy import Level, filter_records
 
 PASSWORD = "[placeholder-password]"
 
@@ -132,8 +132,8 @@ def test_migrations_are_idempotent(tmp_path):
 
 
 def test_real_apps_build(tmp_path):
-    from beanagile.comms.app import build as build_comms
-    from beanagile.toolkit.app import build as build_toolkit
+    from beanagileorg.comms.app import build as build_comms
+    from beanagileorg.toolkit.app import build as build_toolkit
 
     for build, name in ((build_toolkit, "toolkit"), (build_comms, "comms")):
         app = build(Settings(app=name, title=name, port=0, data_dir=tmp_path / name))
@@ -146,8 +146,8 @@ def test_real_apps_build(tmp_path):
 def test_static_files_are_revalidated(tmp_path):
     from fastapi.testclient import TestClient
 
-    from beanagile.core.config import Settings
-    from beanagile.toolkit.app import build
+    from beanagileorg.core.config import Settings
+    from beanagileorg.toolkit.app import build
 
     c = TestClient(build(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path)))
     assert c.get("/core-static/shell.js").headers["cache-control"] == "no-cache"
@@ -157,10 +157,10 @@ def test_static_files_are_revalidated(tmp_path):
 def test_unknown_hosts_are_refused(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from beanagile.core.config import Settings
-    from beanagile.toolkit.app import build
+    from beanagileorg.core.config import Settings
+    from beanagileorg.toolkit.app import build
 
-    monkeypatch.setenv("BEANAGILE_ALLOWED_HOSTS", "placeholder-host.test")
+    monkeypatch.setenv("BEANAGILEORG_ALLOWED_HOSTS", "placeholder-host.test")
     app = build(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path))
     for host, ok in (("127.0.0.1:8801", True), ("localhost", True), ("toolkit.beanagile.org", True), ("placeholder-host.test", True),
                      ("comms.beanagile.org", False), ("evil.example", False)):

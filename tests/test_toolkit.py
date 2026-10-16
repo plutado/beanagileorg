@@ -3,9 +3,9 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile.core.config import Settings
-from beanagile.toolkit.app import build
-from beanagile.core.dates import add_months, next_occurrence
+from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.app import build
+from beanagileorg.core.dates import add_months, next_occurrence
 
 PASSWORD = "[placeholder-password]"
 

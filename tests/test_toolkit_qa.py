@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile.core.config import Settings
-from beanagile.toolkit.app import build
+from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
 
@@ -106,7 +106,7 @@ def test_ui_origin_list_matches_the_model():
     import re
     from pathlib import Path
 
-    from beanagile.toolkit import models
+    from beanagileorg.toolkit import models
 
     js = (Path(models.__file__).parent / "static/app.js").read_text()
     listed = re.search(r"const ACTION_ORIGINS = \[(.*?)\];", js).group(1)

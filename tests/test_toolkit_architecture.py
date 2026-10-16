@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile.core.config import Settings
-from beanagile.core.db import Database, migrate
-from beanagile.toolkit import models
-from beanagile.toolkit.app import build
+from beanagileorg.core.config import Settings
+from beanagileorg.core.db import Database, migrate
+from beanagileorg.toolkit import models
+from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
 

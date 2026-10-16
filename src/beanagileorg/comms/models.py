@@ -1,7 +1,7 @@
 """Comms studio tables: decks, slides and the media library."""
 
-from beanagile.core.privacy import Level
-from beanagile.core.records import Field, Record
+from beanagileorg.core.privacy import Level
+from beanagileorg.core.records import Field, Record
 
 S, P, E = Level.PRESENTABLE, Level.PRIVATE, Level.EXPORTABLE
 
@@ -29,7 +29,7 @@ MIGRATIONS = [
         CREATE TABLE decks (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL,
-            theme TEXT NOT NULL DEFAULT 'beanagile',
+            theme TEXT NOT NULL DEFAULT 'beanagileorg',
             transition TEXT NOT NULL DEFAULT 'slide',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
@@ -148,7 +148,7 @@ decks = Record(
     order_by="id DESC",
     fields={
         "title": Field("text", S, required=True),
-        "theme": Field("text", S, default="beanagile"),
+        "theme": Field("text", S, default="beanagileorg"),
         "transition": Field("text", S, choices=TRANSITIONS, default="slide"),
     },
     computed={"slide_count": ("(SELECT COUNT(*) FROM slides s WHERE s.deck_id = decks.id)", S)},

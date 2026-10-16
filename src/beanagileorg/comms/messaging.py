@@ -8,11 +8,11 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagile.core.app import get_conn, get_viewer, require_full
-from beanagile.core.dates import next_occurrence
-from beanagile.core.db import transaction
-from beanagile.core.export import log_export
-from beanagile.core.privacy import Viewer
+from beanagileorg.core.app import get_conn, get_viewer, require_full
+from beanagileorg.core.dates import next_occurrence
+from beanagileorg.core.db import transaction
+from beanagileorg.core.export import log_export
+from beanagileorg.core.privacy import Viewer
 
 from . import checks, models
 from .starter import load_starter_kit

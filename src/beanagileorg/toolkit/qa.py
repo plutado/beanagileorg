@@ -5,8 +5,8 @@ from datetime import date
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagile.core.app import get_conn, get_viewer
-from beanagile.core.privacy import Level, Viewer
+from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.privacy import Level, Viewer
 
 from . import models
 from .routes import create_action, require_write

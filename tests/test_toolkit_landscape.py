@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile.core.config import Settings
-from beanagile.toolkit.app import build
+from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
 

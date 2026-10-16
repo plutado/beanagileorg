@@ -1,7 +1,7 @@
 """Build the icon sprite from a lucide-static package: only the icons the apps use.
 
 Usage: python3 scripts/build_icons.py <path to lucide-static/package/icons>
-Writes src/beanagile/core/static/vendor/icons.svg. Add a name to ICONS to make it available as BA.icon(name).
+Writes src/beanagileorg/core/static/vendor/icons.svg. Add a name to ICONS to make it available as BA.icon(name).
 """
 
 import re
@@ -19,7 +19,7 @@ ICONS = [
     "eye-off", "eye", "keyboard", "check", "circle-alert", "sparkles", "inbox", "panel-left",
 ]
 
-OUT = Path(__file__).resolve().parent.parent / "src/beanagile/core/static/vendor/icons.svg"
+OUT = Path(__file__).resolve().parent.parent / "src/beanagileorg/core/static/vendor/icons.svg"
 
 
 def main(icons_dir: str) -> None:

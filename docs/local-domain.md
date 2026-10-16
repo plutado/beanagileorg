@@ -27,7 +27,7 @@ Pick one.
 127.0.0.1  comms.beanagile.org
 ```
 
-`beanagile domain` prints these lines and the Caddy config below.
+`beanagileorg domain` prints these lines and the Caddy config below.
 
 ## 2. Install Caddy and trust its certificates
 
@@ -44,14 +44,14 @@ caddy trust
 ## 3. Save the config and start Caddy
 
 ```bash
-beanagile domain --caddyfile > ~/.beanagile/Caddyfile
+beanagileorg domain --caddyfile > ~/.beanagileorg/Caddyfile
 ```
 
 ```bash
-caddy run --config ~/.beanagile/Caddyfile
+caddy run --config ~/.beanagileorg/Caddyfile
 ```
 
-To keep it running in the background instead, use `caddy start --config ~/.beanagile/Caddyfile` (and `caddy stop` to end it).
+To keep it running in the background instead, use `caddy start --config ~/.beanagileorg/Caddyfile` (and `caddy stop` to end it).
 
 ## 4. Use the new addresses
 
@@ -63,10 +63,10 @@ Sign in again once at each new address, since sign-in is tied to the address you
 
 ## Other names
 
-To reach an app under another name (for example through Tailscale later), list it in `BEANAGILE_ALLOWED_HOSTS` before starting the app:
+To reach an app under another name (for example through Tailscale later), list it in `BEANAGILEORG_ALLOWED_HOSTS` before starting the app:
 
 ```bash
-export BEANAGILE_ALLOWED_HOSTS="[placeholder-machine-name].[placeholder-tailnet].ts.net"
+export BEANAGILEORG_ALLOWED_HOSTS="[placeholder-machine-name].[placeholder-tailnet].ts.net"
 ```
 
 ## The public site

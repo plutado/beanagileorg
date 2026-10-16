@@ -2,8 +2,8 @@ import base64
 
 from fastapi.testclient import TestClient
 
-from beanagile.core import auth
-from beanagile.core.config import Settings
+from beanagileorg.core import auth
+from beanagileorg.core.config import Settings
 
 
 def test_password_round_trip():
@@ -46,8 +46,8 @@ def test_throttle():
 
 def test_each_app_has_its_own_session_cookie(tmp_path):
     """Both apps run on 127.0.0.1, and browsers share cookies across ports."""
-    from beanagile.comms.app import build as build_comms
-    from beanagile.toolkit.app import build as build_toolkit
+    from beanagileorg.comms.app import build as build_comms
+    from beanagileorg.toolkit.app import build as build_toolkit
 
     toolkit = TestClient(build_toolkit(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path / "t")), follow_redirects=False)
     comms = TestClient(build_comms(Settings(app="comms", title="C", port=0, data_dir=tmp_path / "c")), follow_redirects=False)

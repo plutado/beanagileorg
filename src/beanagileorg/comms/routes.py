@@ -7,8 +7,8 @@ from pathlib import Path
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 
-from beanagile.core.app import get_conn, get_viewer
-from beanagile.core.privacy import Viewer
+from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.privacy import Viewer
 
 from . import mediafiles, models
 

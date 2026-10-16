@@ -5,18 +5,18 @@ import tarfile
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagile import cli
-from beanagile.core import backup
-from beanagile.core.config import Settings
-from beanagile.toolkit.app import build
+from beanagileorg import cli
+from beanagileorg.core import backup
+from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
 
 
 @pytest.fixture
 def data(tmp_path, monkeypatch):
-    monkeypatch.setenv("BEANAGILE_DATA", str(tmp_path / "data"))
-    monkeypatch.setenv("BEANAGILE_BACKUP_DIR", str(tmp_path / "backups"))
+    monkeypatch.setenv("BEANAGILEORG_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("BEANAGILEORG_BACKUP_DIR", str(tmp_path / "backups"))
     c = TestClient(build(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path / "data" / "toolkit")), follow_redirects=False)
     c.post("/setup", data={"password": PASSWORD, "confirm": PASSWORD})
     c.post("/api/people", json={"name": "[Person]"})
@@ -115,5 +115,5 @@ def test_cli_backup_list_verify_and_domain(data, capsys):
     assert cli.main(["domain"]) == 0
     text = capsys.readouterr().out
     assert "127.0.0.1  toolkit.beanagile.org" in text and "reverse_proxy 127.0.0.1:8802" in text
-    plist = backup.launchd_plist("/usr/local/bin/beanagile", 3, 15)
+    plist = backup.launchd_plist("/usr/local/bin/beanagileorg", 3, 15)
     assert "<integer>3</integer>" in plist and "<string>all</string>" in plist

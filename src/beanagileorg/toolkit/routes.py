@@ -6,9 +6,9 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagile.core.app import get_conn, get_viewer, require_full
-from beanagile.core.dates import next_occurrence
-from beanagile.core.privacy import Level, Viewer
+from beanagileorg.core.app import get_conn, get_viewer, require_full
+from beanagileorg.core.dates import next_occurrence
+from beanagileorg.core.privacy import Level, Viewer
 
 from . import models
 from .seed import load_placeholders

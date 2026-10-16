@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from beanagile.core.app import create_app
-from beanagile.core.config import Settings
+from beanagileorg.core.app import create_app
+from beanagileorg.core.config import Settings
 
 from . import models
 from .messaging import router as messaging_router
