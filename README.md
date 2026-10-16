@@ -53,6 +53,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 **Knowledge**
 
+- **Architecture and tools:** one catalog of the systems we run and the tools we build with (what each is, how we use it, environments, stack, docs, owner, lifecycle, criticality, private known issues); the integrations between them, including the middleware they pass through; a system map drawn from those integrations; numbered architecture decision records; and plain-language guides in Markdown.
 - **Business landscape:** the products, services and internal platforms [employer] offers, with owner, customers, systems, vendors and maturity; the organization as a tree of divisions, departments and teams with leaders and people; a private strengths, weaknesses, opportunities and threats assessment for each, with evidence, source and confidence, and a combined matrix. Any point can become a roadmap item or a risk.
 - **Escalation playbook:** systems with owner, first responder, backup and linked vendor, business-hours and out-of-hours escalation chains, severity levels, and an incident log whose follow-ups become dev-sync items.
 

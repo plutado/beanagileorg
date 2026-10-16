@@ -77,3 +77,31 @@ tr.muted td { opacity: .6; }
 .seg button.on.good { background: var(--good-soft); color: var(--good); } .seg button.on.bad { background: var(--bad-soft); color: var(--bad); } .seg button.on.warn { background: var(--warn-soft); color: var(--warn); }
 .case-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; max-height: 240px; overflow: auto; padding: 6px 0; }
 
+.map-card { padding: 12px; }
+.map-scroll { overflow-x: auto; }
+.system-map { display: block; max-width: none; font-family: inherit; }
+.system-map .lane-title { fill: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; }
+.system-map .node rect { fill: var(--panel-2); stroke: var(--line-strong); stroke-width: 1.2; }
+.system-map .node.critical rect { stroke: var(--bad); stroke-width: 2; }
+.system-map .node.faded { opacity: .55; }
+.system-map .node { cursor: pointer; }
+.system-map .node:hover rect, .system-map .node.lit rect { stroke: var(--accent); stroke-width: 2; }
+.system-map .node-name { fill: var(--ink); font-size: 13px; font-weight: 600; }
+.system-map .node-sub { fill: var(--muted); font-size: 11px; }
+.system-map .edge { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: .7; }
+.system-map .edge.planned { stroke-dasharray: 5 4; }
+.system-map .edge.critical { stroke: var(--bad); }
+.system-map marker path { fill: var(--accent); }
+.system-map.tracing .edge { opacity: .12; }
+.system-map.tracing .edge.lit { opacity: 1; stroke-width: 2.4; }
+.legend .key { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--accent); vertical-align: middle; margin: 0 4px 0 10px; }
+.legend .key.dashed { border-top-style: dashed; } .legend .key.red { border-top-color: var(--bad); }
+.sys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.sys-card { display: block; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--panel-2); color: inherit; text-decoration: none; }
+.sys-card:hover { border-color: var(--accent); }
+.sys-card p { margin: 6px 0; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; margin: 10px 0; }
+.facts .quiet { display: block; font-size: .78rem; }
+.guide { max-width: 760px; }
+textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88rem; }

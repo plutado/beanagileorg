@@ -196,7 +196,11 @@ def create_app(
             if path.startswith("/api/"):
                 return JSONResponse({"detail": "Not signed in."}, status_code=401)
             return RedirectResponse("/login" if has_user else "/setup", status_code=303)
-        return await call_next(request)
+        response = await call_next(request)
+        if path.startswith(PUBLIC_PREFIXES):
+            # Revalidate every load (a cheap 304 locally), so an update never leaves old screens in the browser.
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
     def start_session(conn) -> str:
         token = auth.new_token("bas")

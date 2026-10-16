@@ -9,6 +9,7 @@ from .planning import router as planning_router
 from .plans import router as plans_router
 from .landscape import router as landscape_router
 from .qa import router as qa_router
+from .architecture import router as architecture_router
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -35,6 +36,7 @@ NAV = [
     {"path": "/plans", "icon": "flag", "label": "30/60/90 plans"},
     {"path": "/status", "icon": "file-text", "label": "Weekly status"},
     {"group": "Knowledge"},
+    {"path": "/architecture", "icon": "network", "label": "Architecture and tools"},
     {"path": "/landscape", "icon": "building-2", "label": "Business landscape"},
     {"path": "/escalation", "icon": "siren", "label": "Escalation playbook"},
     {"group": "Me"},
@@ -52,7 +54,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

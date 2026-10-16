@@ -249,3 +249,16 @@
   }
   @media (min-width: 861px) { .mobile-only { display: none !important; } }
 }
+
+/* Rendered Markdown (BA.md): put back what the reset removes. */
+@layer components {
+  .md > * + * { margin-top: 0.6em; }
+  .md ol { list-style: decimal; padding-left: 1.5em; }
+  .md ul { list-style: disc; padding-left: 1.5em; }
+  .md li + li { margin-top: 0.2em; }
+  .md h2 { font-size: 1.15rem; font-weight: 650; margin-top: 1em; }
+  .md h3 { font-size: 1rem; font-weight: 650; margin-top: 0.9em; }
+  .md h4 { font-size: 0.92rem; font-weight: 650; margin-top: 0.8em; }
+  .md a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .md code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+}

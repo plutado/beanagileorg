@@ -58,6 +58,13 @@ SUITE_KINDS = ("unit", "integration", "end-to-end", "Apex", "MUnit", "performanc
 SUITE_RESULTS = ("unknown", "passing", "failing", "flaky")
 REGRESSION_KINDS = ("Salesforce release", "peak-season freeze", "major release", "other")
 REGRESSION_STATUS = ("planned", "in progress", "signed off", "done")
+SYSTEM_KINDS = ("platform", "application", "integration", "data store", "external service", "tool")
+LIFECYCLE = ("planned", "active", "retiring", "retired")
+CRITICALITY = ("high", "medium", "low")
+INTEGRATION_PATTERNS = ("API", "event", "batch", "file transfer", "database link", "manual")
+INTEGRATION_DIRECTIONS = ("one way", "two way")
+INTEGRATION_STATUS = ("planned", "live", "retiring", "retired")
+ADR_STATUS = ("proposed", "accepted", "superseded", "rejected")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -579,6 +586,60 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        9,
+        """
+        ALTER TABLE systems ADD COLUMN kind TEXT NOT NULL DEFAULT 'application';
+        ALTER TABLE systems ADD COLUMN category TEXT;
+        ALTER TABLE systems ADD COLUMN how_we_use TEXT;
+        ALTER TABLE systems ADD COLUMN environments TEXT;
+        ALTER TABLE systems ADD COLUMN tech TEXT;
+        ALTER TABLE systems ADD COLUMN docs_link TEXT;
+        ALTER TABLE systems ADD COLUMN admin_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        ALTER TABLE systems ADD COLUMN lifecycle TEXT NOT NULL DEFAULT 'active';
+        ALTER TABLE systems ADD COLUMN criticality TEXT;
+        ALTER TABLE systems ADD COLUMN known_issues TEXT;
+        CREATE TABLE integrations (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            from_id INTEGER NOT NULL REFERENCES systems (id) ON DELETE CASCADE,
+            to_id INTEGER NOT NULL REFERENCES systems (id) ON DELETE CASCADE,
+            via_id INTEGER REFERENCES systems (id) ON DELETE SET NULL,
+            pattern TEXT NOT NULL DEFAULT 'API',
+            direction TEXT NOT NULL DEFAULT 'one way',
+            data TEXT,
+            frequency TEXT,
+            protocol TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            criticality TEXT,
+            status TEXT NOT NULL DEFAULT 'live',
+            notes TEXT
+        );
+        CREATE TABLE arch_decisions (
+            id INTEGER PRIMARY KEY,
+            number INTEGER NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'proposed',
+            date DATE,
+            context TEXT,
+            decision TEXT,
+            consequences TEXT,
+            alternatives TEXT,
+            system_ids TEXT,
+            decided_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            superseded_by_id INTEGER REFERENCES arch_decisions (id) ON DELETE SET NULL
+        );
+        CREATE TABLE guides (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            summary TEXT,
+            body TEXT,
+            system_ids TEXT,
+            audience TEXT,
+            updated DATE
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -759,8 +820,22 @@ systems = Record(
         "first_responder_id": Field("int", S),
         "backup_id": Field("int", S),
         "vendor_id": Field("int", S),
+        "kind": Field("text", S, choices=SYSTEM_KINDS, default="application"),
+        "category": Field("text", S),
+        "how_we_use": Field("text", S),
+        "environments": Field("list", S),
+        "tech": Field("list", S),
+        "docs_link": Field("text", S),
+        "admin_id": Field("int", S),
+        "lifecycle": Field("text", S, choices=LIFECYCLE, default="active"),
+        "criticality": Field("text", S, choices=CRITICALITY),
+        "known_issues": Field("text", P),
     },
-    computed={"vendor_name": ("(SELECT name FROM vendors v WHERE v.id = systems.vendor_id)", S)},
+    computed={
+        "vendor_name": ("(SELECT name FROM vendors v WHERE v.id = systems.vendor_id)", S),
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = systems.owner_id)", S),
+        "admin_name": ("(SELECT name FROM people p WHERE p.id = systems.admin_id)", S),
+    },
 )
 
 severities = Record(
@@ -1430,6 +1505,75 @@ test_suites = Record(
     },
 )
 
+# ---- architecture: how the systems fit together; known weaknesses and integration notes stay private ----
+
+integrations = Record(
+    entity="integration",
+    table="integrations",
+    path="/api/integrations",
+    order_by="status = 'retired', name",
+    fields={
+        "name": Field("text", S, required=True),
+        "from_id": Field("int", S, required=True),
+        "to_id": Field("int", S, required=True),
+        "via_id": Field("int", S),
+        "pattern": Field("text", S, choices=INTEGRATION_PATTERNS, default="API"),
+        "direction": Field("text", S, choices=INTEGRATION_DIRECTIONS, default="one way"),
+        "data": Field("text", S),
+        "frequency": Field("text", S),
+        "protocol": Field("text", S),
+        "owner_id": Field("int", S),
+        "criticality": Field("text", S, choices=CRITICALITY),
+        "status": Field("text", S, choices=INTEGRATION_STATUS, default="live"),
+        "notes": Field("text", P),
+    },
+    computed={
+        "from_name": ("(SELECT name FROM systems s WHERE s.id = integrations.from_id)", S),
+        "to_name": ("(SELECT name FROM systems s WHERE s.id = integrations.to_id)", S),
+        "via_name": ("(SELECT name FROM systems s WHERE s.id = integrations.via_id)", S),
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = integrations.owner_id)", S),
+    },
+)
+
+arch_decisions = Record(
+    entity="arch_decision",
+    table="arch_decisions",
+    path="/api/arch-decisions",
+    order_by="number DESC",
+    fields={
+        "number": Field("int", S),
+        "title": Field("text", S, required=True),
+        "status": Field("text", S, choices=ADR_STATUS, default="proposed"),
+        "date": Field("date", S),
+        "context": Field("text", S),
+        "decision": Field("text", S),
+        "consequences": Field("text", S),
+        "alternatives": Field("text", S),
+        "system_ids": Field("ids", S),
+        "decided_by_id": Field("int", S),
+        "superseded_by_id": Field("int", S),
+    },
+    computed={
+        "decided_by_name": ("(SELECT name FROM people p WHERE p.id = arch_decisions.decided_by_id)", S),
+        "superseded_by_number": ("(SELECT number FROM arch_decisions d WHERE d.id = arch_decisions.superseded_by_id)", S),
+    },
+)
+
+guides = Record(
+    entity="guide",
+    table="guides",
+    path="/api/guides",
+    order_by="title",
+    fields={
+        "title": Field("text", S, required=True),
+        "summary": Field("text", S),
+        "body": Field("text", S),
+        "system_ids": Field("ids", S),
+        "audience": Field("text", S),
+        "updated": Field("date", S),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1440,4 +1584,5 @@ RECORDS = [
     plans, plan_items,
     departments, offerings, assessments,
     test_cases, regression_plans, test_runs, test_results, test_suites,
+    integrations, arch_decisions, guides,
 ]

@@ -16,6 +16,7 @@
   BA.command({ label: "Work on the 30/60/90 plans", hint: "30/60/90 plans", icon: "flag", run: () => BA.go("/plans") });
   BA.command({ label: "Assess a product, service or department", hint: "Business landscape", icon: "building-2", run: () => BA.go("/landscape/swot") });
   BA.command({ label: "Start a smoke test run", hint: "QA resources", icon: "flask-conical", run: () => BA.go("/qa/runs") });
+  BA.command({ label: "Open the system map", hint: "Architecture and tools", icon: "network", run: () => BA.go("/architecture") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -2168,4 +2169,328 @@
     if (starter) starter.onclick = BA.guard(async () => (await BA.api("/api/qa/definition-of-done/starter", { method: "POST", body: {} }), BA.rerender()));
   }
 
+  // ---------------------------------------------------------------- Architecture and tools
+
+  const SYSTEM_KINDS = ["platform", "application", "integration", "data store", "external service", "tool"];
+  const KIND_TITLES = { platform: "Platforms", application: "Applications", integration: "Integration layer", "data store": "Data stores", "external service": "External services", tool: "Tools" };
+  const LIFECYCLE = ["planned", "active", "retiring", "retired"];
+  const CRIT = ["high", "medium", "low"];
+  const CRIT_TONES = { high: "bad", medium: "warn", low: "" };
+  const PATTERNS = ["API", "event", "batch", "file transfer", "database link", "manual"];
+  const INT_STATUS = ["planned", "live", "retiring", "retired"];
+  const ADR_STATUS = ["proposed", "accepted", "superseded", "rejected"];
+  const ADR_TONES = { proposed: "warn", accepted: "good", superseded: "", rejected: "" };
+  const LANES = [["external service"], ["platform", "application"], ["integration"], ["data store"], ["tool"]];
+  const LANE_TITLES = ["External services", "Applications and platforms", "Integration layer", "Data stores", "Tools"];
+  const archTabs = (active) => `<nav class="tabs">${[["", "System map"], ["systems", "Systems and tools"], ["integrations", "Integrations"], ["decisions", "Decisions"], ["guides", "Guides"]]
+    .map(([k, label]) => `<a href="#/architecture${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const adrLabel = (n) => `ADR-${String(n).padStart(3, "0")}`;
+  const linkOut = (v) => (v && /^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\//, "").slice(0, 48))} ${BA.icon("external-link")}</a>` : esc(v || ""));
+  const flow = (i) => `${esc(i.from_name)} ${i.direction === "two way" ? "⇄" : "→"} ${i.via_name ? `${esc(i.via_name)} ${i.direction === "two way" ? "⇄" : "→"} ` : ""}${esc(i.to_name)}`;
+
+  // Lanes left to right, one box per system, a curve per hop. Built as SVG text, so it needs no drawing library.
+  function systemMapSvg(map) {
+    const W = 200, H = 46, GAPX = 90, GAPY = 22, TOP = 44, PAD = 16;
+    const lanes = LANES.map((kinds, i) => ({ title: LANE_TITLES[i], nodes: map.nodes.filter((n) => kinds.includes(n.kind)) })).filter((l) => l.nodes.length);
+    const pos = {};
+    lanes.forEach((lane, li) => lane.nodes.forEach((n, ni) => (pos[n.id] = { x: PAD + li * (W + GAPX), y: TOP + ni * (H + GAPY), n })));
+    const width = PAD * 2 + lanes.length * W + (lanes.length - 1) * GAPX;
+    const height = TOP + Math.max(...lanes.map((l) => l.nodes.length)) * (H + GAPY) + PAD;
+    const hop = (a, b, e, two) => {
+      const A = pos[a], B = pos[b];
+      if (!A || !B) return "";
+      let d;
+      if (A.x === B.x) {
+        const x = A.x + W, y1 = A.y + H / 2, y2 = B.y + H / 2;
+        d = `M${x},${y1} C${x + 60},${y1} ${x + 60},${y2} ${x},${y2}`;
+      } else {
+        const right = B.x > A.x;
+        const x1 = right ? A.x + W : A.x, x2 = right ? B.x : B.x + W, y1 = A.y + H / 2, y2 = B.y + H / 2, mid = (x1 + x2) / 2;
+        d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`;
+      }
+      return `<path d="${d}" class="edge${e.status === "planned" ? " planned" : ""}${e.criticality === "high" ? " critical" : ""}" data-ends="${a},${b}${e.via_id ? "," + e.via_id : ""}" marker-end="url(#arrow)"${two ? ' marker-start="url(#arrow-back)"' : ""}>
+        <title>${esc(e.name)} · ${esc(e.pattern)}${e.data ? " · " + esc(e.data) : ""}</title></path>`;
+    };
+    const edges = map.edges.map((e) => {
+      const two = e.direction === "two way";
+      return e.via_id && pos[e.via_id] ? hop(e.from_id, e.via_id, e, two) + hop(e.via_id, e.to_id, e, two) : hop(e.from_id, e.to_id, e, two);
+    }).join("");
+    const label = (s) => (s.length > 26 ? s.slice(0, 25) + "…" : s);
+    const nodes = Object.values(pos).map(({ x, y, n }) => `<g class="node${n.criticality === "high" ? " critical" : ""}${n.lifecycle !== "active" ? " faded" : ""}" data-node="${n.id}" transform="translate(${x},${y})">
+        <rect width="${W}" height="${H}" rx="8"></rect><text x="12" y="20" class="node-name">${esc(label(n.name))}</text>
+        <text x="12" y="36" class="node-sub">${esc(n.category || n.kind)}${n.lifecycle !== "active" ? " · " + esc(n.lifecycle) : ""}</text><title>${esc(n.name)}</title></g>`).join("");
+    const heads = lanes.map((l, i) => `<text x="${PAD + i * (W + GAPX)}" y="24" class="lane-title">${esc(l.title.toUpperCase())}</text>`).join("");
+    return `<svg class="system-map" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="System map">
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"></path></marker>
+      <marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10,0 L0,5 L10,10 z"></path></marker></defs>
+      ${heads}${edges}${nodes}</svg>`;
+  }
+
+  BA.view("/architecture", {
+    title: "Architecture and tools",
+    async render(main, param) {
+      if (param && /^s-\d+$/.test(param)) return renderSystem(main, Number(param.slice(2)));
+      if (param && /^g-\d+$/.test(param)) return renderGuide(main, Number(param.slice(2)));
+      const views = { systems: renderSystems, integrations: renderIntegrations, decisions: renderDecisions, guides: renderGuides };
+      if (views[param]) return views[param](main);
+      const [map, sum] = await Promise.all([BA.api("/api/architecture/map"), BA.api("/api/architecture/summary")]);
+      main.innerHTML = `${archTabs("")}
+        <div class="row">${Object.entries(sum.by_kind).filter(([, n]) => n).map(([k, n]) => `<span class="pill">${n} ${esc(k)}${n === 1 ? "" : "s"}</span>`).join(" ")}
+          <span class="pill">${sum.integrations} integration${sum.integrations === 1 ? "" : "s"}</span><span class="spacer"></span>
+          <span class="quiet">Hover a system to trace its connections; click to open it.</span></div>
+        <section class="card map-card">${map.nodes.length ? `<div class="map-scroll">${systemMapSvg(map)}</div>
+          <p class="quiet legend"><span class="key solid"></span> live <span class="key dashed"></span> planned <span class="key red"></span> high criticality · Tools show only when something connects to them.</p>`
+          : '<p class="quiet">No systems yet. Add them under Systems and tools, then connect them under Integrations.</p>'}</section>
+        <div class="cards">
+          <section class="card"><h2>Documentation gaps</h2>${sum.documentation_gaps.map((g) => `<div class="item"><a href="#/architecture/s-${g.id}">${esc(g.name)}</a>${g.criticality ? tonePill(g.criticality, CRIT_TONES) : ""}<span class="spacer"></span><span class="quiet">no ${g.missing.join(", no ")}</span></div>`).join("") || '<p class="quiet">Every system has an owner, a description and a docs link.</p>'}</section>
+          <section class="card"><h2>Integrations with no owner</h2>${sum.unowned_integrations.map((i) => `<div class="item"><a href="#/architecture/integrations">${esc(i.name)}</a></div>`).join("") || '<p class="quiet">None.</p>'}
+            ${Object.keys(sum.by_pattern).length ? `<p class="quiet">By pattern: ${Object.entries(sum.by_pattern).map(([p, n]) => `${esc(p)} ${n}`).join(" · ")}</p>` : ""}</section>
+          <section class="card"><h2>Decisions</h2><p>${ADR_STATUS.map((s) => `${tonePill(s, ADR_TONES)} ${sum.decisions[s]}`).join(" ")}</p><p><a href="#/architecture/decisions">Open the decision log</a></p></section>
+        </div>`;
+      const svg = main.querySelector(".system-map");
+      if (!svg) return;
+      svg.querySelectorAll("[data-node]").forEach((g) => {
+        const id = g.dataset.node;
+        g.onmouseenter = () => {
+          svg.classList.add("tracing");
+          svg.querySelectorAll(".edge").forEach((p) => p.classList.toggle("lit", p.dataset.ends.split(",").includes(id)));
+          g.classList.add("lit");
+        };
+        g.onmouseleave = () => {
+          svg.classList.remove("tracing");
+          svg.querySelectorAll(".lit").forEach((x) => x.classList.remove("lit"));
+        };
+        g.onclick = () => BA.go(`/architecture/s-${id}`);
+      });
+    },
+  });
+
+  async function renderSystems(main) {
+    const systems = await BA.api("/api/systems");
+    const ro = presenting();
+    const filter = sessionStorage.getItem("ba-arch-kind") || "";
+    const shown = systems.filter((s) => (!filter || (filter === "systems" ? s.kind !== "tool" : s.kind === filter)) && s.lifecycle !== "retired");
+    const groups = SYSTEM_KINDS.map((k) => [k, shown.filter((s) => s.kind === k)]).filter(([, l]) => l.length);
+    const retired = systems.filter((s) => s.lifecycle === "retired");
+    main.innerHTML = `${archTabs("systems")}
+      <div class="row"><p class="quiet">One list for the systems we run and the tools we build with. The escalation playbook, QA and the business landscape use the same list.</p><span class="spacer"></span>
+        <select id="kind-filter" style="max-width:200px"><option value="">Everything</option><option value="systems"${filter === "systems" ? " selected" : ""}>Systems only</option>${SYSTEM_KINDS.map((k) => `<option value="${k}"${k === filter ? " selected" : ""}>${KIND_TITLES[k]}</option>`).join("")}</select></div>
+      ${groups.map(([k, list]) => `<section class="card"><h2>${KIND_TITLES[k]} <span class="quiet">${list.length}</span></h2><div class="sys-grid">${list.map((s) => `<a class="sys-card" href="#/architecture/s-${s.id}">
+          <div class="row"><b>${esc(s.name)}</b><span class="spacer"></span>${s.criticality ? tonePill(s.criticality, CRIT_TONES) : ""}${s.lifecycle !== "active" ? `<span class="pill warn">${esc(s.lifecycle)}</span>` : ""}</div>
+          <div class="quiet">${esc(s.category || "")}${s.owner_name ? `${s.category ? " · " : ""}${esc(s.owner_name)}` : ""}</div>
+          ${s.description ? `<p class="clamp">${esc(s.description)}</p>` : ""}${s.tech?.length ? `<div>${BA.chips(s.tech)}</div>` : ""}</a>`).join("")}</div></section>`).join("") || '<p class="empty">Nothing here yet.</p>'}
+      ${retired.length ? `<p class="quiet">Retired: ${retired.map((s) => `<a href="#/architecture/s-${s.id}">${esc(s.name)}</a>`).join(", ")}</p>` : ""}
+      ${ro ? "" : `<section class="card"><h2>Add a system or tool</h2><form id="add-sys" class="row"><input name="name" placeholder="Name" required style="max-width:260px">
+        <select name="kind" style="max-width:180px">${opts(SYSTEM_KINDS, "application")}</select><input name="category" placeholder="Category, such as CRM or source control" style="max-width:280px">
+        <button class="btn primary" type="submit">Add</button></form></section>`}`;
+    main.querySelector("#kind-filter").onchange = (e) => {
+      sessionStorage.setItem("ba-arch-kind", e.target.value);
+      BA.rerender();
+    };
+    const add = main.querySelector("#add-sys");
+    if (add)
+      add.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(add);
+        const s = await BA.api("/api/systems", { method: "POST", body: { name: f.get("name"), kind: f.get("kind"), category: f.get("category") } });
+        BA.go(`/architecture/s-${s.id}`);
+      });
+  }
+
+  async function renderSystem(main, id) {
+    const [d, people, vendors] = await Promise.all([BA.api(`/api/architecture/system/${id}`), BA.api("/api/people"), BA.api("/api/vendors")]);
+    const s = d.system;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = s.name;
+    const intList = (list, empty) => list.map((i) => `<div class="item"><span>${flow(i)}</span><span class="spacer"></span><span class="pill">${esc(i.pattern)}</span>${i.data ? `<span class="quiet">${esc(i.data)}</span>` : ""}${i.status !== "live" ? `<span class="pill warn">${esc(i.status)}</span>` : ""}</div>`).join("") || `<p class="quiet">${empty}</p>`;
+    main.innerHTML = `<p><a href="#/architecture/systems">Systems and tools</a></p>
+      <section class="card"><div class="row"><h2>${esc(s.name)}</h2><span class="pill">${esc(s.kind)}</span>${s.category ? `<span class="quiet">${esc(s.category)}</span>` : ""}<span class="spacer"></span>
+          ${s.criticality ? tonePill(s.criticality, CRIT_TONES) : ""}<span class="pill${s.lifecycle === "active" ? " good" : " warn"}">${esc(s.lifecycle)}</span></div>
+        ${s.description ? BA.md(s.description) : '<p class="quiet">No description yet. What is it, in a sentence or two?</p>'}
+        ${s.how_we_use ? `<h3>How we use it</h3>${BA.md(s.how_we_use)}` : ""}
+        <div class="facts">
+          ${s.owner_name ? `<div><span class="quiet">Owner</span> ${esc(s.owner_name)}</div>` : ""}${s.admin_name ? `<div><span class="quiet">Admin</span> ${esc(s.admin_name)}</div>` : ""}
+          ${s.vendor_name ? `<div><span class="quiet">Vendor</span> ${esc(s.vendor_name)}</div>` : ""}${s.environments?.length ? `<div><span class="quiet">Environments</span> ${BA.chips(s.environments)}</div>` : ""}
+          ${s.tech?.length ? `<div><span class="quiet">Built with</span> ${BA.chips(s.tech)}</div>` : ""}${s.docs_link ? `<div><span class="quiet">Docs</span> ${linkOut(s.docs_link)}</div>` : ""}
+        </div>
+        ${s.known_issues ? `<h3>Known issues <span class="quiet">(private)</span></h3>${BA.md(s.known_issues)}` : ""}
+        <p class="quiet"><a href="#/escalation">Escalation playbook</a>${d.offerings.length ? ` · Supports: ${d.offerings.map((o) => `<a href="#/landscape/o-${o.id}">${esc(o.name)}</a>`).join(", ")}` : ""}</p></section>
+      <div class="cards">
+        <section class="card"><h2>Sends to</h2>${intList(d.outbound, "Nothing recorded.")}</section>
+        <section class="card"><h2>Receives from</h2>${intList(d.inbound, "Nothing recorded.")}</section>
+        ${d.carries.length ? `<section class="card"><h2>Carries</h2>${intList(d.carries, "")}</section>` : ""}
+        <section class="card"><h2>Testing</h2><p>${d.testing.manual_cases} manual test case${d.testing.manual_cases === 1 ? "" : "s"} in use. <a href="#/qa/library">Test library</a></p>
+          ${d.testing.suites.map((x) => `<div class="item"><span>${esc(x.name)}</span><span class="pill">${esc(x.kind)}</span><span class="spacer"></span>${x.coverage != null ? `<span class="quiet">${x.coverage}%</span>` : ""}${tonePill(x.last_result, SUITE_TONES)}</div>`).join("")}</section>
+        <section class="card"><h2>Decisions and guides</h2>${[...d.decisions.map((x) => `<div class="item"><a href="#/architecture/decisions">${adrLabel(x.number)} ${esc(x.title)}</a><span class="spacer"></span>${tonePill(x.status, ADR_TONES)}</div>`),
+          ...d.guides.map((g) => `<div class="item"><a href="#/architecture/g-${g.id}">${esc(g.title)}</a><span class="spacer"></span><span class="quiet">guide</span></div>`)].join("") || '<p class="quiet">None linked yet.</p>'}</section>
+      </div>
+      ${ro ? "" : `<form id="edit-sys" class="card"><h2>Details</h2><div class="grid2">
+        <label>Name<input name="name" value="${esc(s.name)}" required></label><label>Kind<select name="kind">${opts(SYSTEM_KINDS, s.kind)}</select></label>
+        <label>Category<input name="category" value="${esc(s.category || "")}" placeholder="Such as CRM, integration platform, source control"></label>
+        <label>Lifecycle<select name="lifecycle">${opts(LIFECYCLE, s.lifecycle)}</select></label>
+        <label>Criticality<select name="criticality"><option value=""></option>${opts(CRIT, s.criticality)}</select></label>
+        <label>Vendor<select name="vendor_id"><option value=""></option>${vendors.map((v) => `<option value="${v.id}"${v.id === s.vendor_id ? " selected" : ""}>${esc(v.name)}</option>`).join("")}</select></label>
+        <label>Owner<select name="owner_id">${personOptions(people, s.owner_id)}</select></label><label>Admin<select name="admin_id">${personOptions(people, s.admin_id)}</select></label>
+        <label>Environments <span class="quiet">(comma separated)</span><input name="environments" value="${esc((s.environments || []).join(", "))}"></label>
+        <label>Built with <span class="quiet">(comma separated)</span><input name="tech" value="${esc((s.tech || []).join(", "))}"></label>
+        <label>Docs link<input name="docs_link" value="${esc(s.docs_link || "")}"></label></div>
+        <label>What it is<textarea name="description">${esc(s.description || "")}</textarea></label>
+        <label>How we use it<textarea name="how_we_use">${esc(s.how_we_use || "")}</textarea></label>
+        <label>Known issues <span class="quiet">(private: weaknesses, tech debt, workarounds)</span><textarea name="known_issues">${esc(s.known_issues || "")}</textarea></label>
+        <div class="actions"><button class="btn danger left" type="button" id="del-sys">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+    if (ro) return;
+    const form = main.querySelector("#edit-sys");
+    const list = (v) => (v || "").split(",").map((x) => x.trim()).filter(Boolean);
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      await BA.api(`/api/systems/${id}`, { method: "PATCH", body: { name: f.get("name"), kind: f.get("kind"), category: f.get("category"), lifecycle: f.get("lifecycle"), criticality: f.get("criticality") || null,
+        vendor_id: numOrNull(f.get("vendor_id")), owner_id: numOrNull(f.get("owner_id")), admin_id: numOrNull(f.get("admin_id")), environments: list(f.get("environments")), tech: list(f.get("tech")),
+        docs_link: f.get("docs_link"), description: f.get("description"), how_we_use: f.get("how_we_use"), known_issues: f.get("known_issues") } });
+      BA.rerender();
+    });
+    main.querySelector("#del-sys").onclick = BA.guard(async () => {
+      if (!confirm("Delete this system? Its integrations go with it, and it's removed from the escalation playbook. Setting it to retired keeps the history.")) return;
+      await BA.api(`/api/systems/${id}`, { method: "DELETE" });
+      BA.go("/architecture/systems");
+    });
+  }
+
+  async function renderIntegrations(main) {
+    const [ints, systems, people] = await Promise.all([BA.api("/api/integrations"), BA.api("/api/systems"), BA.api("/api/people")]);
+    const ro = presenting();
+    const live = systems.filter((s) => s.lifecycle !== "retired");
+    const sysSel = (name, sel, blank) => `<select name="${name}"${blank ? "" : " required"}><option value="">${blank || ""}</option>${live.map((s) => `<option value="${s.id}"${s.id === sel ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`;
+    const fields = (i = {}) => `<div class="grid2">
+        <label>Name<input name="name" value="${esc(i.name || "")}" required placeholder="Such as: orders to fulfillment"></label><label>Pattern<select name="pattern">${opts(PATTERNS, i.pattern || "API")}</select></label>
+        <label>From${sysSel("from_id", i.from_id)}</label><label>To${sysSel("to_id", i.to_id)}</label>
+        <label>Through <span class="quiet">(middleware, such as MuleSoft)</span>${sysSel("via_id", i.via_id, "Direct")}</label><label>Direction<select name="direction">${opts(["one way", "two way"], i.direction || "one way")}</select></label>
+        <label>Data it carries<input name="data" value="${esc(i.data || "")}"></label><label>How often<input name="frequency" value="${esc(i.frequency || "")}" placeholder="Such as: real time, nightly"></label>
+        <label>Protocol<input name="protocol" value="${esc(i.protocol || "")}" placeholder="Such as: REST, SOAP, SFTP, platform events"></label><label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
+        <label>Criticality<select name="criticality"><option value=""></option>${opts(CRIT, i.criticality)}</select></label><label>Status<select name="status">${opts(INT_STATUS, i.status || "live")}</select></label></div>
+        <label>Private notes <span class="quiet">(failure modes, retries, quirks)</span><textarea name="notes">${esc(i.notes || "")}</textarea></label>`;
+    const read = (form) => {
+      const f = new FormData(form);
+      return { name: f.get("name"), pattern: f.get("pattern"), from_id: numOrNull(f.get("from_id")), to_id: numOrNull(f.get("to_id")), via_id: numOrNull(f.get("via_id")), direction: f.get("direction"),
+        data: f.get("data"), frequency: f.get("frequency"), protocol: f.get("protocol"), owner_id: numOrNull(f.get("owner_id")), criticality: f.get("criticality") || null, status: f.get("status"), notes: f.get("notes") };
+    };
+    main.innerHTML = `${archTabs("integrations")}
+      <p class="quiet">Every connection between systems: what moves, how, how often, and who owns it.</p>
+      <section class="card">${ints.map((i) => `<details class="plan-item${i.status === "retired" ? " dropped" : ""}" data-int="${i.id}"><summary><b>${esc(i.name)}</b><span class="quiet">${flow(i)}</span><span class="spacer"></span>
+          <span class="pill">${esc(i.pattern)}</span>${i.frequency ? `<span class="quiet">${esc(i.frequency)}</span>` : ""}${i.criticality ? tonePill(i.criticality, CRIT_TONES) : ""}${i.status !== "live" ? `<span class="pill warn">${esc(i.status)}</span>` : ""}</summary>
+          <p>${[i.data ? `Carries ${esc(i.data)}` : "", i.protocol ? esc(i.protocol) : "", i.owner_name ? `Owner: ${esc(i.owner_name)}` : "No owner yet"].filter(Boolean).join(" · ")}</p>
+          ${ro ? "" : `<form class="edit-int">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del-int>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No integrations yet.</p>'}</section>
+      ${ro ? "" : live.length < 2 ? '<p class="quiet">Add at least two systems first.</p>' : `<form id="add-int" class="card"><h2>Add an integration</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
+    if (ro) return;
+    const add = main.querySelector("#add-int");
+    if (add) add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/integrations", { method: "POST", body: read(add) }); BA.rerender(); });
+    main.querySelectorAll("[data-int]").forEach((det) => {
+      const id = det.dataset.int;
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/integrations/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del-int]").onclick = BA.guard(async () => {
+        if (!confirm("Delete this integration?")) return;
+        await BA.api(`/api/integrations/${id}`, { method: "DELETE" });
+        BA.rerender();
+      });
+    });
+  }
+
+  async function renderDecisions(main) {
+    const [adrs, systems, people] = await Promise.all([BA.api("/api/arch-decisions"), BA.api("/api/systems"), BA.api("/api/people")]);
+    const ro = presenting();
+    const sysName = Object.fromEntries(systems.map((s) => [s.id, s.name]));
+    const section = (title, text) => (text ? `<h4>${title}</h4>${BA.md(text)}` : "");
+    main.innerHTML = `${archTabs("decisions")}
+      <p class="quiet">Architecture decision records: one page per significant technical decision, with the context, what was decided, what it costs, and what else was considered. Numbers never change; a replaced decision is marked superseded.</p>
+      <section class="card">${adrs.map((a) => `<details class="plan-item${a.status === "superseded" || a.status === "rejected" ? " dropped" : ""}" data-adr="${a.id}"><summary><b>${adrLabel(a.number)}</b><span>${esc(a.title)}</span><span class="spacer"></span>
+          ${a.date ? `<span class="quiet">${BA.fmtDate(a.date)}</span>` : ""}${tonePill(a.status, ADR_TONES)}${a.superseded_by_number ? `<span class="quiet">by ${adrLabel(a.superseded_by_number)}</span>` : ""}</summary>
+          ${a.system_ids.length ? `<p>${BA.chips(a.system_ids.map((x) => sysName[x]).filter(Boolean))}</p>` : ""}
+          ${section("Context", a.context)}${section("Decision", a.decision)}${section("Consequences", a.consequences)}${section("Alternatives considered", a.alternatives)}
+          ${a.decided_by_name ? `<p class="quiet">Decided by ${esc(a.decided_by_name)}</p>` : ""}
+          ${ro ? "" : `<form class="edit-adr"><div class="grid2"><label>Title<input name="title" value="${esc(a.title)}" required></label><label>Status<select name="status">${opts(ADR_STATUS, a.status)}</select></label>
+            <label>Date<input type="date" name="date" value="${esc(a.date || "")}"></label><label>Decided by<select name="decided_by_id">${personOptions(people, a.decided_by_id)}</select></label>
+            <label>Superseded by<select name="superseded_by_id"><option value=""></option>${adrs.filter((x) => x.id !== a.id).map((x) => `<option value="${x.id}"${x.id === a.superseded_by_id ? " selected" : ""}>${adrLabel(x.number)} ${esc(x.title)}</option>`).join("")}</select></label></div>
+            <label>Context <span class="quiet">(the problem and the forces at play)</span><textarea name="context">${esc(a.context || "")}</textarea></label>
+            <label>Decision<textarea name="decision">${esc(a.decision || "")}</textarea></label>
+            <label>Consequences <span class="quiet">(what gets easier, what gets harder)</span><textarea name="consequences">${esc(a.consequences || "")}</textarea></label>
+            <label>Alternatives considered<textarea name="alternatives">${esc(a.alternatives || "")}</textarea></label>
+            <label>Systems</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${a.system_ids.includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("")}</div>
+            <div class="actions"><button class="btn danger left" type="button" data-del-adr>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No decisions recorded yet.</p>'}</section>
+      ${ro ? "" : `<section class="card"><h2>Record a decision</h2><form id="add-adr" class="row"><input name="title" placeholder="Such as: use platform events for order updates" required style="max-width:420px"><button class="btn primary" type="submit">Add</button></form>
+        <p class="quiet">It starts as proposed. Open it to write the context and options, then mark it accepted.</p></section>`}`;
+    if (ro) return;
+    main.querySelector("#add-adr").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      await BA.api("/api/arch-decisions", { method: "POST", body: { title: new FormData(e.target).get("title") } });
+      BA.rerender();
+    });
+    main.querySelectorAll("[data-adr]").forEach((det) => {
+      const id = det.dataset.adr;
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        await BA.api(`/api/arch-decisions/${id}`, { method: "PATCH", body: { title: f.get("title"), status: f.get("status"), date: f.get("date") || null, decided_by_id: numOrNull(f.get("decided_by_id")),
+          superseded_by_id: numOrNull(f.get("superseded_by_id")), context: f.get("context"), decision: f.get("decision"), consequences: f.get("consequences"), alternatives: f.get("alternatives"),
+          system_ids: f.getAll("system_ids").map(Number) } });
+        BA.rerender();
+      });
+      det.querySelector("[data-del-adr]").onclick = BA.guard(async () => {
+        if (!confirm("Delete this decision record? Marking it rejected or superseded keeps the history.")) return;
+        await BA.api(`/api/arch-decisions/${id}`, { method: "DELETE" });
+        BA.rerender();
+      });
+    });
+  }
+
+  async function renderGuides(main) {
+    const [guides, systems] = await Promise.all([BA.api("/api/guides"), BA.api("/api/systems")]);
+    const ro = presenting();
+    const sysName = Object.fromEntries(systems.map((s) => [s.id, s.name]));
+    main.innerHTML = `${archTabs("guides")}
+      <p class="quiet">Plain-language explainers: how a system works, how a flow runs end to end, how to set up a sandbox, how a release goes out. Written in Markdown.</p>
+      <div class="sys-grid">${guides.map((g) => `<a class="sys-card" href="#/architecture/g-${g.id}"><b>${esc(g.title)}</b>${g.summary ? `<p class="clamp">${esc(g.summary)}</p>` : ""}
+          <div class="quiet">${[g.audience, g.updated ? "updated " + BA.fmtDate(g.updated) : ""].filter(Boolean).map(esc).join(" · ")}</div>
+          ${g.system_ids.length ? `<div>${BA.chips(g.system_ids.map((x) => sysName[x]).filter(Boolean))}</div>` : ""}</a>`).join("") || '<p class="empty">No guides yet.</p>'}</div>
+      ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Write a guide</h2><form id="add-guide" class="row"><input name="title" placeholder="Such as: how an order reaches fulfillment" required style="max-width:420px"><button class="btn primary" type="submit">Start writing</button></form></section>`}`;
+    const add = main.querySelector("#add-guide");
+    if (add)
+      add.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const g = await BA.api("/api/guides", { method: "POST", body: { title: new FormData(add).get("title") } });
+        BA.go(`/architecture/g-${g.id}`);
+      });
+  }
+
+  async function renderGuide(main, id) {
+    const [g, systems] = await Promise.all([BA.api(`/api/guides/${id}`), BA.api("/api/systems")]);
+    const ro = presenting();
+    document.getElementById("view-title").textContent = g.title;
+    const linked = systems.filter((s) => g.system_ids.includes(s.id));
+    main.innerHTML = `<p><a href="#/architecture/guides">All guides</a></p>
+      <article class="card guide"><h2>${esc(g.title)}</h2>${g.summary ? `<p class="quiet">${esc(g.summary)}</p>` : ""}
+        ${g.body ? BA.md(g.body) : '<p class="quiet">Nothing written yet.</p>'}
+        <p class="quiet">${[g.audience ? "For " + esc(g.audience) : "", g.updated ? "Updated " + BA.fmtDate(g.updated) : ""].filter(Boolean).join(" · ")}
+          ${linked.length ? ` · ${linked.map((s) => `<a href="#/architecture/s-${s.id}">${esc(s.name)}</a>`).join(", ")}` : ""}</p></article>
+      ${ro ? "" : `<details class="card" ${g.body ? "" : "open"}><summary><b>Edit</b></summary><form id="edit-guide">
+        <div class="grid2"><label>Title<input name="title" value="${esc(g.title)}" required></label><label>For<input name="audience" value="${esc(g.audience || "")}" placeholder="Such as: new developers, product managers"></label></div>
+        <label>Summary<input name="summary" value="${esc(g.summary || "")}"></label>
+        <label>Guide <span class="quiet">(Markdown: # headings, lists, **bold**, links)</span><textarea name="body" rows="16" class="mono">${esc(g.body || "")}</textarea></label>
+        <label>Systems</label><div class="case-picks">${systems.map((s) => `<label class="check"><input type="checkbox" name="system_ids" value="${s.id}"${g.system_ids.includes(s.id) ? " checked" : ""}> ${esc(s.name)}</label>`).join("")}</div>
+        <div class="actions"><button class="btn danger left" type="button" id="del-guide">Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+    if (ro) return;
+    const form = main.querySelector("#edit-guide");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      await BA.api(`/api/guides/${id}`, { method: "PATCH", body: { title: f.get("title"), audience: f.get("audience"), summary: f.get("summary"), body: f.get("body"), system_ids: f.getAll("system_ids").map(Number) } });
+      BA.rerender();
+    });
+    main.querySelector("#del-guide").onclick = BA.guard(async () => {
+      if (!confirm("Delete this guide?")) return;
+      await BA.api(`/api/guides/${id}`, { method: "DELETE" });
+      BA.go("/architecture/guides");
+    });
+  }
 })();

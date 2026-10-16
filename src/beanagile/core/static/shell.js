@@ -120,7 +120,13 @@
   // Minimal, safe Markdown for previews: headings, lists, tables, bold, italics, paragraphs.
   BA.md = (text) => {
     const esc = BA.esc;
-    const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|\W)_(.+?)_(?=\W|$)/g, "$1<i>$2</i>");
+    // Escaped first, so only these patterns become markup; links must be http(s).
+    const inline = (s) =>
+      esc(s)
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+        .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+        .replace(/(^|\W)_(.+?)_(?=\W|$)/g, "$1<i>$2</i>");
     const out = [];
     const lines = (text || "").split("\n");
     for (let i = 0; i < lines.length; i++) {
@@ -156,7 +162,7 @@
       while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#|\||\s*([-*]|\d+\.)\s)/.test(lines[i + 1])) para.push(lines[++i]);
       out.push(`<p>${inline(para.join(" "))}</p>`);
     }
-    return out.join("");
+    return `<div class="md">${out.join("")}</div>`;
   };
 
   BA.guard = (fn) => async (...args) => {

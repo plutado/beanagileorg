@@ -141,3 +141,14 @@ def test_real_apps_build(tmp_path):
         assert c.get("/api/health").json()["app"] == name
         assert c.get("/static/app.js").status_code == 200
         assert c.get("/core-static/shell.js").status_code == 200
+
+
+def test_static_files_are_revalidated(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from beanagile.core.config import Settings
+    from beanagile.toolkit.app import build
+
+    c = TestClient(build(Settings(app="toolkit", title="T", port=0, data_dir=tmp_path)))
+    assert c.get("/core-static/shell.js").headers["cache-control"] == "no-cache"
+    assert c.get("/static/app.js").headers["cache-control"] == "no-cache"
