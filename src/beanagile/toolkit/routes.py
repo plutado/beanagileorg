@@ -117,6 +117,12 @@ def skills(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 # ---- Today ----
 
 
+def onboarding_due(conn, t, week):
+    from .onboarding import onboarding_due as due
+
+    return due(conn, t, week)
+
+
 @router.get("/api/today")
 def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor > Level.PRIVATE:
@@ -137,6 +143,7 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "overdue_actions": models.action_items.fetch_all(conn, "status != 'done' AND due IS NOT NULL AND due < ?", (t,)),
         "vendor_renewals": renewals_due(conn),
         "vendor_concerns": models.vendor_concerns.fetch_all(conn, "status != 'resolved' AND due IS NOT NULL AND due <= ?", (week,)),
+        "onboarding_due": onboarding_due(conn, t, week),
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
 

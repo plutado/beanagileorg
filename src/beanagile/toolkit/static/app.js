@@ -17,6 +17,7 @@
   BA.command({ label: "Assess a product, service or department", hint: "Business landscape", icon: "building-2", run: () => BA.go("/landscape/swot") });
   BA.command({ label: "Start a smoke test run", hint: "QA resources", icon: "flask-conical", run: () => BA.go("/qa/runs") });
   BA.command({ label: "Open the system map", hint: "Architecture and tools", icon: "network", run: () => BA.go("/architecture") });
+  BA.command({ label: "Start onboarding a new team member", hint: "Onboarding", icon: "list-checks", run: () => BA.go("/onboarding") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -93,6 +94,7 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
+        ${d.onboarding_due.length ? `<section class="card"><h2>Onboarding</h2>${d.onboarding_due.map((o) => `<div class="item">${o.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/onboarding/${o.onboarding_id}">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${esc(o.person_name)} · ${esc(o.owner_role)} · ${BA.fmtDate(o.due)}</span></div>`).join("")}</section>` : ""}
         <section class="card"><h2>Due in the next 7 days</h2>${d.tasks_due_soon.map(taskRow).join("") || empty("Nothing due this week.")}</section>
         <section class="card"><h2>Obligations</h2>${
           d.obligations_due
@@ -2493,4 +2495,162 @@
       BA.go("/architecture/guides");
     });
   }
+
+  // ---------------------------------------------------------------- Onboarding
+
+  const OB_CATEGORIES = ["accounts and access", "tools and setup", "people", "ways of working", "systems and architecture", "learning", "first work", "admin and compliance"];
+  const OB_OWNERS = ["new member", "manager", "buddy", "IT or admin"];
+  const OB_TRACKS = ["Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor"];
+  const OB_PHASES = [["Before day 1", null, 0], ["Week 1", 1, 7], ["Weeks 2 to 4", 8, 30], ["Days 31 to 90", 31, 90], ["After day 90", 91, null]];
+  const OWNER_TONES = { manager: "warn", buddy: "good", "IT or admin": "", "new member": "accent" };
+  const obPhase = (day) => (day == null ? "No date" : (OB_PHASES.find(([, lo, hi]) => (lo == null || day >= lo) && (hi == null || day <= hi)) || ["No date"])[0]);
+  const dayLabel = (n) => (n == null ? "" : n === 0 || n === -1 ? "the day before" : n < 0 ? `${-n} days before` : `day ${n}`);
+  const obTabs = (active) => `<nav class="tabs">${[["", "New members"], ["template", "Checklist template"], ["materials", "Materials"]]
+    .map(([k, label]) => `<a href="#/onboarding${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const openLink = (link) => (!link ? "" : link.startsWith("#/") ? `<a class="btn" href="${esc(link)}">Open</a>` : /^https?:\/\//.test(link) ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Open ${BA.icon("external-link")}</a>` : "");
+  const progress = (done, total) => `<div class="progress" title="${done} of ${total} done"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></div>`;
+
+  BA.view("/onboarding", {
+    title: "Onboarding",
+    async render(main, param) {
+      if (param === "template") return renderObTemplate(main);
+      if (param === "materials") return renderObMaterials(main);
+      if (param && /^\d+$/.test(param)) return renderOnboarding(main, Number(param));
+      const [obs, people, items] = await Promise.all([BA.api("/api/onboardings"), BA.api("/api/people"), BA.api("/api/onboarding-items")]);
+      const ro = presenting();
+      main.innerHTML = `${obTabs("")}
+        ${!items.length && !ro ? `<section class="card"><h2>Start with a checklist</h2><p class="quiet">The starter checklist covers access, setup, people, ways of working, systems, learning and first work, from the week before day 1 to day 90, with separate items for Salesforce developers, MuleSoft developers, QA, employees and contractors. Anything specific to [employer] is a [Placeholder] for you to fill in.</p>
+          <button class="btn primary" id="ob-starter">Load the starter checklist</button></section>` : ""}
+        <div class="sys-grid">${obs.map((o) => `<a class="sys-card" href="#/onboarding/${o.id}"><div class="row"><b>${esc(o.person_name)}</b><span class="spacer"></span>${BA.statusPill(o.status)}</div>
+            <div class="quiet">${esc(o.person_role || "")}${o.start_date ? ` · starts ${BA.fmtDate(o.start_date)}` : ""}${o.buddy_name ? ` · buddy ${esc(o.buddy_name)}` : ""}</div>
+            ${progress(o.done_count, o.total)}<div class="quiet">${o.done_count} of ${o.total} done</div>${o.tracks.length ? `<div>${BA.chips(o.tracks)}</div>` : ""}</a>`).join("") || '<p class="empty">Nobody being onboarded yet.</p>'}</div>
+        ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Someone's joining</h2><form id="start-ob"><div class="grid2">
+          <label>Who <span class="quiet">(add them under <a href="#/people">People</a> first)</span><select name="person_id" required>${personOptions(people)}</select></label>
+          <label>Start date<input type="date" name="start_date"></label>
+          <label>Buddy<select name="buddy_id">${personOptions(people)}</select></label></div>
+          <label>Tracks <span class="quiet">(items for every track are always included)</span></label><div class="row">${OB_TRACKS.map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"> ${t}</label>`).join("")}</div>
+          <div class="actions"><button class="btn primary" type="submit">Build their checklist</button></div></form></section>`}`;
+      const starter = main.querySelector("#ob-starter");
+      if (starter) starter.onclick = BA.guard(async () => { await BA.api("/api/onboarding/starter", { method: "POST", body: {} }); BA.rerender(); });
+      const form = main.querySelector("#start-ob");
+      if (form)
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const f = new FormData(form);
+          const ob = await BA.api("/api/onboardings", { method: "POST", body: { person_id: numOrNull(f.get("person_id")), start_date: f.get("start_date") || null, buddy_id: numOrNull(f.get("buddy_id")), tracks: f.getAll("tracks") } });
+          BA.toast(`${ob.copied} items copied from the checklist.`);
+          BA.go(`/onboarding/${ob.id}`);
+        });
+    },
+  });
+
+  async function renderOnboarding(main, id) {
+    const [d, people] = await Promise.all([BA.api(`/api/onboardings/${id}/board`), BA.api("/api/people")]);
+    const o = d.onboarding;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = `Onboarding: ${o.person_name}`;
+    const task = (t) => `<div class="ob-task${t.done ? " done" : ""}" data-task="${t.id}">
+        <label class="check"><input type="checkbox" data-done${t.done ? " checked" : ""}${ro ? " disabled" : ""}> <span>${esc(t.title)}</span></label>
+        <span class="spacer"></span>${t.owner_role !== "new member" ? `<span class="pill ${OWNER_TONES[t.owner_role] || ""}">${esc(t.owner_role)}</span>` : ""}
+        ${t.due ? `<span class="${t.overdue ? "pill bad" : "quiet"}">${BA.fmtDate(t.due)}</span>` : `<span class="quiet">${dayLabel(t.due_day)}</span>`}${openLink(t.link)}
+        ${t.description || !ro ? `<details><summary class="quiet">More</summary>${t.description ? BA.md(t.description) : ""}
+          ${ro ? "" : `<label>Notes <span class="quiet">(private)</span><textarea data-notes>${esc(t.notes || "")}</textarea></label><button class="btn danger" type="button" data-del>Remove from this checklist</button>`}</details>` : ""}</div>`;
+    main.innerHTML = `<p><a href="#/onboarding">All new members</a></p>
+      <section class="card"><div class="row"><h2>${esc(o.person_name)}</h2><span class="quiet">${esc(o.person_role || "")}</span><span class="spacer"></span>
+          ${ro ? BA.statusPill(o.status) : `<select id="ob-status" style="max-width:150px">${opts(["not started", "in progress", "done"], o.status)}</select>`}</div>
+        <p class="quiet">${o.start_date ? `Starts ${BA.fmtDate(o.start_date)}` : "No start date yet, so items show as days"}${o.buddy_name ? ` · Buddy: ${esc(o.buddy_name)}` : ""}</p>
+        ${progress(o.done_count, o.total)}<div class="row"><span class="quiet">${o.done_count} of ${o.total} done</span>${d.overdue ? `<span class="pill bad">${d.overdue} overdue</span>` : ""}
+          ${Object.entries(d.by_owner).filter(([, n]) => n).map(([who, n]) => `<span class="pill ${OWNER_TONES[who] || ""}">${n} open for ${esc(who === "new member" ? "them" : who)}</span>`).join(" ")}<span class="spacer"></span>
+          ${ro ? "" : `<button class="btn" id="copy-ob">${BA.icon("copy")} Copy checklist to send</button>`}</div>
+        ${o.tracks.length ? `<p>${BA.chips(o.tracks)}</p>` : ""}</section>
+      ${d.phases.map((p) => `<section class="card"><h2>${esc(p.name)} <span class="quiet">${p.tasks.filter((t) => t.done).length} of ${p.tasks.length}</span></h2>${p.tasks.map(task).join("")}</section>`).join("") || '<p class="empty">No items. Add some below, or load the checklist template first.</p>'}
+      ${ro ? "" : `<section class="card"><h2>Add an item just for ${esc(o.person_name)}</h2><form id="add-task" class="row"><input name="title" required placeholder="What needs doing" style="max-width:360px">
+          <input type="number" name="due_day" placeholder="Day" style="max-width:90px"><select name="owner_role" style="max-width:160px">${opts(OB_OWNERS, "new member")}</select><button class="btn" type="submit">Add</button></form></section>
+        <form id="edit-ob" class="card"><h2>Details</h2><div class="grid2"><label>Start date<input type="date" name="start_date" value="${esc(o.start_date || "")}"></label><label>Buddy<select name="buddy_id">${personOptions(people, o.buddy_id)}</select></label></div>
+          <label>Private notes <span class="quiet">(how it's going)</span><textarea name="notes">${esc(o.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" id="del-ob">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
+    if (ro) return;
+    main.querySelectorAll("[data-task]").forEach((row) => {
+      const tid = row.dataset.task;
+      row.querySelector("[data-done]").onchange = BA.guard(async (e) => { await BA.api(`/api/onboarding-tasks/${tid}`, { method: "PATCH", body: { done: e.target.checked } }); BA.rerender(); });
+      const notes = row.querySelector("[data-notes]");
+      if (notes) notes.onchange = BA.guard(async () => { await BA.api(`/api/onboarding-tasks/${tid}`, { method: "PATCH", body: { notes: notes.value } }); BA.toast("Saved."); });
+      const del = row.querySelector("[data-del]");
+      if (del) del.onclick = BA.guard(async () => { if (!confirm("Remove this item from their checklist? The template keeps it.")) return; await BA.api(`/api/onboarding-tasks/${tid}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    main.querySelector("#ob-status").onchange = BA.guard(async (e) => { await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { status: e.target.value } }); BA.toast("Saved."); });
+    main.querySelector("#copy-ob").onclick = BA.guard(async () => {
+      const out = await BA.api(`/api/onboardings/${id}/checklist/export`, { method: "POST", body: {} });
+      await navigator.clipboard.writeText(out.markdown);
+      BA.toast("Checklist copied. Private notes aren't included.");
+    });
+    main.querySelector("#add-task").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      await BA.api("/api/onboarding-tasks", { method: "POST", body: { onboarding_id: id, title: f.get("title"), due_day: numOrNull(f.get("due_day")), owner_role: f.get("owner_role") } });
+      BA.rerender();
+    });
+    const edit = main.querySelector("#edit-ob");
+    edit.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(edit);
+      await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { start_date: f.get("start_date") || null, buddy_id: numOrNull(f.get("buddy_id")), notes: f.get("notes") } });
+      BA.rerender();
+    });
+    main.querySelector("#del-ob").onclick = BA.guard(async () => {
+      if (!confirm("Delete this onboarding and its checklist?")) return;
+      await BA.api(`/api/onboardings/${id}`, { method: "DELETE" });
+      BA.go("/onboarding");
+    });
+  }
+
+  async function renderObTemplate(main) {
+    const items = await BA.api("/api/onboarding-items");
+    const ro = presenting();
+    const filter = sessionStorage.getItem("ba-ob-track") || "";
+    const shown = items.filter((i) => !filter || !i.tracks.length || i.tracks.includes(filter));
+    const groups = [...OB_PHASES.map(([n]) => n), "No date"].map((n) => [n, shown.filter((i) => obPhase(i.due_day) === n)]).filter(([, l]) => l.length);
+    const fields = (i = {}) => `<div class="grid2"><label>Title<input name="title" value="${esc(i.title || "")}" required></label><label>Category<select name="category">${opts(OB_CATEGORIES, i.category || "ways of working")}</select></label>
+        <label>Day <span class="quiet">(1 is the first day; -7 is a week before)</span><input type="number" name="due_day" value="${esc(i.due_day ?? "")}"></label><label>Who does it<select name="owner_role">${opts(OB_OWNERS, i.owner_role || "new member")}</select></label>
+        <label>Link <span class="quiet">(a toolkit page such as #/sdlc, or a web address)</span><input name="link" value="${esc(i.link || "")}"></label><label>Minutes <span class="quiet">(for reading or courses)</span><input type="number" name="minutes" value="${esc(i.minutes ?? "")}"></label></div>
+        <label>Tracks <span class="quiet">(none ticked means everyone)</span></label><div class="row">${OB_TRACKS.map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"${(i.tracks || []).includes(t) ? " checked" : ""}> ${t}</label>`).join("")}</div>
+        <label>Details<textarea name="description">${esc(i.description || "")}</textarea></label>
+        ${i.id ? `<label class="check"><input type="checkbox" name="active"${i.active ? " checked" : ""}> In use</label>` : ""}`;
+    const read = (form) => {
+      const f = new FormData(form);
+      const body = { title: f.get("title"), category: f.get("category"), due_day: numOrNull(f.get("due_day")), owner_role: f.get("owner_role"), link: f.get("link") || null, minutes: numOrNull(f.get("minutes")), tracks: f.getAll("tracks"), description: f.get("description") };
+      if (form.elements.active) body.active = form.elements.active.checked;
+      return body;
+    };
+    main.innerHTML = `${obTabs("template")}
+      <div class="row"><p class="quiet">The checklist every new member starts from. Changes here apply to the next person; checklists already started keep their own copy.</p><span class="spacer"></span>
+        <select id="ob-track" style="max-width:220px"><option value="">Every track</option>${OB_TRACKS.map((t) => `<option${t === filter ? " selected" : ""}>${t}</option>`).join("")}</select></div>
+      ${groups.map(([n, list]) => `<section class="card"><h2>${esc(n)} <span class="quiet">${list.length}</span></h2>${list.map((i) => `<details class="plan-item${i.active ? "" : " dropped"}" data-item="${i.id}"><summary><span>${esc(i.title)}</span><span class="spacer"></span>
+          ${i.tracks.length ? BA.chips(i.tracks) : ""}<span class="quiet">${esc(i.category)}</span>${i.owner_role !== "new member" ? `<span class="pill ${OWNER_TONES[i.owner_role] || ""}">${esc(i.owner_role)}</span>` : ""}<span class="quiet">${dayLabel(i.due_day)}</span></summary>
+          ${i.description ? BA.md(i.description) : ""}${ro ? "" : `<form class="edit-item">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") ||
+        '<p class="empty">No checklist yet. Load the starter checklist from the New members tab, or add items below.</p>'}
+      ${ro ? "" : `<form id="add-item" class="card"><h2>Add an item</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
+    main.querySelector("#ob-track").onchange = (e) => { sessionStorage.setItem("ba-ob-track", e.target.value); BA.rerender(); };
+    if (ro) return;
+    const add = main.querySelector("#add-item");
+    add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/onboarding-items", { method: "POST", body: read(add) }); BA.rerender(); });
+    main.querySelectorAll("details[data-item]").forEach((det) => {
+      const iid = det.dataset.item;
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/onboarding-items/${iid}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this item from the template? Checklists already started keep it. Unticking 'In use' hides it instead.")) return; await BA.api(`/api/onboarding-items/${iid}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderObMaterials(main) {
+    const items = (await BA.api("/api/onboarding-items")).filter((i) => i.active && (i.link || i.category === "learning" || i.minutes));
+    const groups = OB_CATEGORIES.map((c) => [c, items.filter((i) => i.category === c)]).filter(([, l]) => l.length);
+    const total = items.reduce((n, i) => n + (i.minutes || 0), 0);
+    main.innerHTML = `${obTabs("materials")}
+      <p class="quiet">Everything a new member reads, watches or works through, taken from the checklist template: toolkit pages such as the SDLC, definition of done and architecture guides, plus outside courses and documents.${total ? ` About ${Math.round(total / 60)} hours in all.` : ""}</p>
+      ${groups.map(([c, list]) => `<section class="card"><h2>${esc(c[0].toUpperCase() + c.slice(1))}</h2>${list.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span>
+          ${i.tracks.length ? BA.chips(i.tracks) : ""}${i.minutes ? `<span class="quiet">${i.minutes} min</span>` : ""}<span class="quiet">${dayLabel(i.due_day)}</span>${openLink(i.link)}</div>`).join("")}</section>`).join("") ||
+        '<p class="empty">No materials yet. Give checklist items a link or mark them as learning.</p>'}`;
+  }
+
 })();

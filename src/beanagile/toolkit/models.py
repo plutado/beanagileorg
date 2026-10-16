@@ -65,6 +65,10 @@ INTEGRATION_PATTERNS = ("API", "event", "batch", "file transfer", "database link
 INTEGRATION_DIRECTIONS = ("one way", "two way")
 INTEGRATION_STATUS = ("planned", "live", "retiring", "retired")
 ADR_STATUS = ("proposed", "accepted", "superseded", "rejected")
+ONBOARDING_CATEGORIES = ("accounts and access", "tools and setup", "people", "ways of working", "systems and architecture", "learning", "first work", "admin and compliance")
+ONBOARDING_OWNERS = ("new member", "manager", "buddy", "IT or admin")
+ONBOARDING_TRACKS = ("Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor")
+ONBOARDING_STATUS = ("not started", "in progress", "done")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -637,6 +641,48 @@ MIGRATIONS = [
             system_ids TEXT,
             audience TEXT,
             updated DATE
+        );
+        """,
+    ),
+    (
+        10,
+        """
+        CREATE TABLE onboarding_items (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            category TEXT NOT NULL DEFAULT 'ways of working',
+            due_day INTEGER,
+            owner_role TEXT NOT NULL DEFAULT 'new member',
+            tracks TEXT,
+            link TEXT,
+            minutes INTEGER,
+            active INTEGER NOT NULL DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE onboardings (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            start_date DATE,
+            tracks TEXT,
+            buddy_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'in progress',
+            notes TEXT
+        );
+        CREATE TABLE onboarding_tasks (
+            id INTEGER PRIMARY KEY,
+            onboarding_id INTEGER NOT NULL REFERENCES onboardings (id) ON DELETE CASCADE,
+            item_id INTEGER REFERENCES onboarding_items (id) ON DELETE SET NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            category TEXT NOT NULL DEFAULT 'ways of working',
+            due_day INTEGER,
+            owner_role TEXT NOT NULL DEFAULT 'new member',
+            link TEXT,
+            minutes INTEGER,
+            done INTEGER NOT NULL DEFAULT 0,
+            done_on DATE,
+            notes TEXT
         );
         """,
     ),
@@ -1574,6 +1620,70 @@ guides = Record(
     },
 )
 
+# ---- onboarding: the checklist and material for a new team member; how it went for them stays private ----
+
+onboarding_items = Record(
+    entity="onboarding_item",
+    table="onboarding_items",
+    path="/api/onboarding-items",
+    order_by="due_day IS NULL, due_day, position, id",
+    fields={
+        "title": Field("text", S, required=True),
+        "description": Field("text", S),
+        "category": Field("text", S, choices=ONBOARDING_CATEGORIES, default="ways of working"),
+        "due_day": Field("int", S),
+        "owner_role": Field("text", S, choices=ONBOARDING_OWNERS, default="new member"),
+        "tracks": Field("list", S),
+        "link": Field("text", S),
+        "minutes": Field("int", S),
+        "active": Field("bool", S, default=True),
+        "position": Field("int", S, default=0),
+    },
+)
+
+onboardings = Record(
+    entity="onboarding",
+    table="onboardings",
+    path="/api/onboardings",
+    order_by="status = 'done', start_date DESC, id DESC",
+    fields={
+        "person_id": Field("int", S, required=True),
+        "start_date": Field("date", S),
+        "tracks": Field("list", S),
+        "buddy_id": Field("int", S),
+        "status": Field("text", S, choices=ONBOARDING_STATUS, default="in progress"),
+        "notes": Field("text", P),
+    },
+    computed={
+        "person_name": ("(SELECT name FROM people p WHERE p.id = onboardings.person_id)", S),
+        "person_role": ("(SELECT role FROM people p WHERE p.id = onboardings.person_id)", S),
+        "buddy_name": ("(SELECT name FROM people p WHERE p.id = onboardings.buddy_id)", S),
+        "total": ("(SELECT COUNT(*) FROM onboarding_tasks t WHERE t.onboarding_id = onboardings.id)", S),
+        "done_count": ("(SELECT COUNT(*) FROM onboarding_tasks t WHERE t.onboarding_id = onboardings.id AND t.done = 1)", S),
+    },
+)
+
+onboarding_tasks = Record(
+    entity="onboarding_task",
+    table="onboarding_tasks",
+    path="/api/onboarding-tasks",
+    order_by="onboarding_id, due_day IS NULL, due_day, id",
+    fields={
+        "onboarding_id": Field("int", S, required=True),
+        "item_id": Field("int", S),
+        "title": Field("text", S, required=True),
+        "description": Field("text", S),
+        "category": Field("text", S, choices=ONBOARDING_CATEGORIES, default="ways of working"),
+        "due_day": Field("int", S),
+        "owner_role": Field("text", S, choices=ONBOARDING_OWNERS, default="new member"),
+        "link": Field("text", S),
+        "minutes": Field("int", S),
+        "done": Field("bool", S, default=False),
+        "done_on": Field("date", S),
+        "notes": Field("text", P),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1585,4 +1695,5 @@ RECORDS = [
     departments, offerings, assessments,
     test_cases, regression_plans, test_runs, test_results, test_suites,
     integrations, arch_decisions, guides,
+    onboarding_items, onboardings, onboarding_tasks,
 ]

@@ -29,6 +29,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 - **Today:** overdue tasks and dev-sync items, what's due this week, obligations, this week's one-on-ones, learning goals at risk, vendor renewals and vendor concerns.
 - **People and team profiles:** role, relationship, background, skills, certifications, goals, what each person wants to learn and can teach, working style and support notes. Only names, roles and departments show in presentation mode.
+- **Onboarding:** a checklist template by track (Salesforce, MuleSoft, QA, employee, contractor) from the week before day 1 to day 90, copied for each new member with real dates, progress, items for you, the buddy and IT, a materials list, and a Markdown checklist to send them. Items due for you show on Today.
 - **Skills and learning:** a skills matrix and matches between who can teach and who wants to learn, each one proposable as a group learning session.
 - **Listening tour:** one record per one-on-one with the same four questions every time (what's working, what's frustrating, what to change first, what not to change), plus systems mentioned, gaps, opportunities and themes. Private end to end.
 - **Day-30 rollup:** themes ranked by how often they come up, with supporting quotes, gaps, opportunities and "don't change" notes, copyable as Markdown for the written diagnosis.
