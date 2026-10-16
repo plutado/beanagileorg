@@ -1,0 +1,89 @@
+from datetime import date, timedelta
+
+import pytest
+from fastapi.testclient import TestClient
+
+from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.app import build
+
+PASSWORD = "[placeholder-password]"
+
+
+@pytest.fixture
+def client(tmp_path):
+    c = TestClient(build(Settings(app="toolkit", title="Toolkit", port=0, data_dir=tmp_path)), follow_redirects=False)
+    c.post("/setup", data={"password": PASSWORD, "confirm": PASSWORD})
+    return c
+
+
+def day(n):
+    return (date.today() + timedelta(days=n)).isoformat()
+
+
+def person(client, name, **kw):
+    return client.post("/api/people", json={"name": name, **kw}).json()["id"]
+
+
+def test_reporting_lines_and_org_chart(client):
+    boss = person(client, "[Boss]", role="[Director]")
+    mid = person(client, "[Manager]")
+    dev = person(client, "[Developer]")
+    client.patch(f"/api/people/{mid}", json={"manager_id": boss})
+    client.patch(f"/api/people/{dev}", json={"manager_id": mid})
+    assert client.patch(f"/api/people/{boss}", json={"manager_id": dev}).status_code == 400
+    assert client.patch(f"/api/people/{boss}", json={"manager_id": boss}).status_code == 400
+    assert client.patch(f"/api/people/{boss}", json={"manager_id": 999}).status_code == 400
+    chart = client.get("/api/people/org-chart").json()
+    root = chart["roots"][0]
+    assert root["name"] == "[Boss]" and root["children"][0]["name"] == "[Manager]" and root["children"][0]["children"][0]["name"] == "[Developer]"
+    assert client.get(f"/api/people/{dev}").json()["manager_name"] == "[Manager]"
+    assert [r["name"] for r in client.get(f"/api/people/{mid}/crm").json()["reports"]] == ["[Developer]"]
+
+
+def test_conversations_cadence_and_today(client):
+    a = person(client, "[A]", cadence_days=14)
+    b = person(client, "[B]", cadence_days=14)
+    person(client, "[C]")
+    client.post("/api/interactions", json={"date": day(-3), "kind": "one-on-one", "person_ids": [a], "takeaways": "[Remember this]"})
+    client.patch(f"/api/people/{b}", json={"next_meeting": day(2), "key_dates": {"dates": [{"label": "[Work anniversary]", "date": day(3)}, {"label": ""}]}})
+    o = {p["name"]: p for p in client.get("/api/people/overview").json()["people"]}
+    assert (o["[A]"]["days_since"], o["[A]"]["due"]) == (3, False)
+    assert (o["[B]"]["last_contact"], o["[B]"]["due"]) == (None, True) and o["[C]"]["due"] is False
+    assert client.get(f"/api/people/{b}").json()["key_dates"] == {"dates": [{"label": "[Work anniversary]", "date": day(3)}]}
+    t = client.get("/api/today").json()["people_due"]
+    assert [c["name"] for c in t["check_ins"]] == ["[B]"]
+    assert t["meetings"] == [{"id": b, "name": "[B]", "date": day(2)}]
+    assert t["key_dates"][0]["label"] == "[Work anniversary]" and t["key_dates"][0]["days"] == 3
+
+
+def test_prep_follow_ups_and_timeline(client):
+    a = person(client, "[A]")
+    team = client.get("/api/teams").json()[0]
+    client.patch(f"/api/teams/{team['id']}", json={"scrum_master_id": a})
+    i = client.post("/api/interactions", json={"date": day(-1), "kind": "one-on-one", "title": "[Weekly]", "person_ids": [a],
+                                              "notes": "[Notes]", "follow_ups": "- [Send the doc]\n[Book a demo]\n"}).json()
+    r = client.post(f"/api/interactions/{i['id']}/follow-up").json()
+    assert [x["concern"] for x in r["created"]] == ["[Send the doc]", "[Book a demo]"] and r["created"][0]["origin"] == "one-on-one"
+    assert client.post(f"/api/interactions/{i['id']}/follow-up").json()["created"] == []
+    crm = client.get(f"/api/people/{a}/crm").json()
+    assert crm["interactions"][0]["title"] == "[Weekly]" and len(crm["follow_ups"]) == 2
+    assert crm["teams"] == [{"id": team["id"], "name": team["name"], "as": ["Scrum Master"]}]
+    kinds = {e["kind"] for e in client.get(f"/api/people/{a}/timeline").json()["events"]}
+    assert {"one-on-one", "dev-sync"} <= kinds
+
+
+def test_field_choices(client):
+    l = client.put("/api/people/layout", json={"hidden": ["personal_context", "skills", "not-a-field"]}).json()
+    assert l["hidden"] == ["personal_context", "skills"] and "personal_context" in l["sensitive"]
+
+
+def test_private_while_presenting(client):
+    a = person(client, "[A]", role="[Title]", personal_context="[Sensitive]", location="[City]")
+    client.post("/api/interactions", json={"date": day(0), "person_ids": [a], "notes": "[Private notes]"})
+    client.post("/api/session/presentation", json={"on": True})
+    o = client.get("/api/people/overview").json()
+    assert o["private"] is False and "personal_context" not in o["people"][0] and "location" not in o["people"][0]
+    crm = client.get(f"/api/people/{a}/crm").json()
+    assert "interactions" not in crm and crm["person"]["role"] == "[Title]"
+    assert client.get("/api/interactions").json() == []
+    assert client.get(f"/api/people/{a}/timeline").json() == {"events": []}

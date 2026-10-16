@@ -29,6 +29,8 @@
   BA.command({ label: "Paste stories from Jira into the backlog", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning") });
   BA.command({ label: "Log a Scrum of Scrums item", hint: "Scrum of Scrums", icon: "network", run: () => BA.go("/sos") });
   BA.command({ label: "Update a team's status", hint: "Teams", icon: "users-round", run: () => BA.go("/teams") });
+  BA.command({ label: "Log a conversation with someone", hint: "People", icon: "users", run: () => BA.go("/people") });
+  BA.command({ label: "Open the org chart", hint: "People", icon: "users", run: () => BA.go("/people/org") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -105,6 +107,10 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
+        ${d.people_due && (d.people_due.check_ins.length || d.people_due.key_dates.length || d.people_due.meetings.length) ? `<section class="card"><h2>People</h2>
+          ${d.people_due.meetings.map((m) => `<div class="item"><span class="pill">meeting</span><a href="#/people/${m.id}">${esc(m.name)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.date)}</span></div>`).join("")}
+          ${d.people_due.check_ins.map((c) => `<div class="item"><span class="pill warn">check in</span><a href="#/people/${c.id}">${esc(c.name)}</a><span class="spacer"></span><span class="quiet">last ${c.days_since == null ? "never" : c.days_since + " days ago"} · every ${c.cadence_days}</span></div>`).join("")}
+          ${d.people_due.key_dates.map((k) => `<div class="item"><span class="pill">${esc(k.label)}</span><a href="#/people/${k.id}">${esc(k.name)}</a><span class="spacer"></span><span class="quiet">${k.days === 0 ? "today" : "in " + k.days + " days"}</span></div>`).join("")}</section>` : ""}
         ${d.sos_due && d.sos_due.length ? `<section class="card"><h2>Scrum of Scrums</h2>${d.sos_due.map((x) => `<div class="item">${x.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/sos">${esc(x.question)}</a><span class="spacer"></span><span class="quiet">${esc(x.owner || "no owner")} · ${BA.fmtDate(x.due)}</span></div>`).join("")}</section>` : ""}
         ${d.planning_due && d.planning_due.length ? `<section class="card"><h2>Sprint planning</h2>${d.planning_due.map((p) => `<div class="item"><a href="#/planning/${p.sprint_id}">Plan sprint ${p.number}</a><span class="spacer"></span><span class="quiet">starts ${BA.fmtDate(p.start_date)} · ${p.ready_stories} ready stories, ${p.ready_points} points</span></div>`).join("")}</section>` : ""}
         ${d.debt_due && d.debt_due.length ? `<section class="card"><h2>Technical debt</h2>${d.debt_due.map((x) => `<div class="item"><span class="pill ${x.kind === "deadline" ? "warn" : ""}">${x.kind === "deadline" ? "needed by" : "revisit"}</span><a href="#/debt">${esc(x.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.when)}</span></div>`).join("")}</section>` : ""}
@@ -141,59 +147,227 @@
 
   // ---------------------------------------------------------------- People
 
+  // ---- People: a private CRM ----
+
+  const INFLUENCE = ["low", "medium", "high"];
+  const STANCE = ["champion", "supporter", "neutral", "skeptic", "blocker"];
+  const STANCE_TONES = { champion: "good", supporter: "good", neutral: "", skeptic: "warn", blocker: "bad" };
+  const INTERACTION_KINDS = ["one-on-one", "meeting", "call", "message", "conversation", "other"];
+  const MOODS = ["great", "good", "mixed", "tense", "difficult"];
+  const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
+    wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
+    influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to" };
+  const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+  const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
+  const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
+      <button type="button" class="link-btn" data-reveal>${revealed(id) ? "Hide" : "Show"}</button></div><div class="sensitive-body">${html}</div></div>`;
+  const ago = (days) => (days == null ? "never" : days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`);
+
   BA.view("/people", {
     title: "People",
     async render(main, param) {
+      if (param === "org") return renderOrgChart(main);
+      if (param === "fields") return renderPeopleFields(main);
       if (param) return renderPerson(main, Number(param));
-      const people = await BA.api("/api/people");
-      main.innerHTML = `
-        ${presenting() ? "" : `<section class="card"><h2>Add a person</h2><form id="add" class="grid2">
-          ${BA.form(PERSON_FIELDS.slice(0, 3))}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form></section>`}
-        <div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Role</th><th>Relationship</th><th>Status</th></tr></thead><tbody>${
-          people
-            .map((p) => `<tr class="clickable" data-id="${p.id}"><td>${esc(p.name)}</td><td>${esc(p.role)}</td><td>${esc(p.relationship)}</td>
-              <td>${p.active ? "" : '<span class="pill">inactive</span>'}</td></tr>`)
-            .join("") || '<tr><td colspan="4" class="empty">No one yet.</td></tr>'
-        }</tbody></table></div>`;
+      const d = await BA.api("/api/people/overview");
+      const ro = presenting();
+      const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-people-filter") || "{}"); } catch { return {}; } })();
+      const tags = [...new Set(d.people.flatMap((p) => p.tags || []))].sort();
+      const shown = d.people.filter((p) => (f.inactive || p.active) && (!f.rel || p.relationship === f.rel) && (!f.tag || (p.tags || []).includes(f.tag)) && (!f.due || p.due));
+      main.innerHTML = `${peopleTabs("")}
+        ${d.private ? `<div class="row"><select id="pf-rel" style="max-width:180px"><option value="">Every relationship</option>${opts(RELATIONSHIPS, f.rel)}</select>
+          ${tags.length ? `<select id="pf-tag" style="max-width:180px"><option value="">Every tag</option>${opts(tags, f.tag)}</select>` : ""}
+          <label class="check"><input type="checkbox" id="pf-due"${f.due ? " checked" : ""}> Due for a check-in</label><label class="check"><input type="checkbox" id="pf-inactive"${f.inactive ? " checked" : ""}> Show inactive</label></div>` : ""}
+        <div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Role</th><th>Relationship</th>${d.private ? "<th>Last contact</th><th>Follow-ups</th>" : ""}</tr></thead><tbody>${
+          shown.map((p) => `<tr class="clickable" data-id="${p.id}"><td><b>${esc(p.name)}</b>${d.private && (p.tags || []).length ? ` ${BA.chips(p.tags)}` : ""}${p.active ? "" : ' <span class="pill">inactive</span>'}</td>
+            <td>${esc(p.role || "")}${p.manager_name ? `<div class="quiet">reports to ${esc(p.manager_name)}</div>` : ""}</td><td>${esc(p.relationship || "")}</td>
+            ${d.private ? `<td>${p.due ? '<span class="pill warn">due</span> ' : ""}${ago(p.days_since)}${p.next_meeting ? `<div class="quiet">next ${BA.fmtDate(p.next_meeting)}</div>` : ""}</td><td>${p.open_follow_ups || ""}</td>` : ""}</tr>`).join("") ||
+          '<tr><td colspan="5" class="empty">No one matches.</td></tr>'}</tbody></table></div>
+        ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Add a person</h2><form id="add" class="grid2">${BA.form(PERSON_FIELDS.slice(0, 3))}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form></section>`}`;
       main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/people/${tr.dataset.id}`)));
+      const save = () => { sessionStorage.setItem("ba-people-filter", JSON.stringify({ rel: main.querySelector("#pf-rel")?.value || "", tag: main.querySelector("#pf-tag")?.value || "", due: !!main.querySelector("#pf-due")?.checked, inactive: !!main.querySelector("#pf-inactive")?.checked })); BA.rerender(); };
+      main.querySelectorAll("#pf-rel, #pf-tag, #pf-due, #pf-inactive").forEach((el) => (el.onchange = save));
       const add = main.querySelector("#add");
-      if (add)
-        add.onsubmit = BA.guard(async (e) => {
-          e.preventDefault();
-          const rec = await BA.api("/api/people", { method: "POST", body: BA.readForm(add, PERSON_FIELDS.slice(0, 3)) });
-          BA.go(`/people/${rec.id}`);
-        });
+      if (add) add.onsubmit = BA.guard(async (e) => { e.preventDefault(); const rec = await BA.api("/api/people", { method: "POST", body: BA.readForm(add, PERSON_FIELDS.slice(0, 3)) }); BA.go(`/people/${rec.id}`); });
     },
   });
 
-  async function renderPerson(main, id) {
-    const rec = await BA.api(`/api/people/${id}`);
-    document.getElementById("view-title").textContent = rec.name;
-    if (presenting()) {
-      main.innerHTML = `<section class="card">${BA.readOnly(PERSON_FIELDS, rec)}</section><p><a href="#/people">All people</a></p>`;
+  async function renderOrgChart(main) {
+    const d = await BA.api("/api/people/org-chart");
+    const node = (n) => `<li><div class="org-node"><a href="#/people/${n.id}"><b>${esc(n.name)}</b></a>${n.role ? `<span class="quiet">${esc(n.role)}</span>` : ""}<span class="spacer"></span>
+        ${n.department ? `<span class="pill">${esc(n.department)}</span>` : ""}${n.children.length ? `<span class="quiet">${n.children.length} report${n.children.length === 1 ? "" : "s"}</span>` : ""}</div>
+        ${n.children.length ? `<ul>${n.children.map(node).join("")}</ul>` : ""}</li>`;
+    main.innerHTML = `${peopleTabs("org")}
+      <p class="quiet">Reporting lines, from each person's <b>Reports to</b>. Click anyone to open their page: title, location, contact details, conversations and follow-ups. Departments are in the <a href="#/landscape/org">business landscape</a>.</p>
+      <section class="card">${d.roots.length ? `<ul class="org-tree">${d.roots.map(node).join("")}</ul>` : '<p class="quiet">No one yet.</p>'}
+        ${d.with_manager ? "" : '<p class="quiet">Nobody has a manager set yet, so everyone sits at the top. Set <b>Reports to</b> on each person\'s Details tab.</p>'}</section>`;
+  }
+
+  async function renderPeopleFields(main) {
+    const l = await BA.api("/api/people/layout");
+    const ro = presenting();
+    main.innerHTML = `${peopleTabs("fields")}
+      <section class="card"><h2>Which fields to show</h2><p class="quiet">Untick the fields you don't use; they disappear from every person's page and form. Nothing already written is deleted, and you can turn a field back on any time. Sensitive fields (marked) are masked on the page until you choose to show them.</p>
+        <form id="layout"><div class="case-picks">${l.optional.map((f) => `<label class="check"><input type="checkbox" name="show" value="${f}"${l.hidden.includes(f) ? "" : " checked"}${ro ? " disabled" : ""}> ${esc(FIELD_LABELS[f] || f)}${l.sensitive.includes(f) ? ' <span class="pill warn">sensitive</span>' : ""}</label>`).join("")}</div>
+        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form></section>`;
+    const form = main.querySelector("#layout");
+    if (!ro) form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const showing = new FormData(form).getAll("show");
+      await BA.api("/api/people/layout", { method: "PUT", body: { hidden: l.optional.filter((f) => !showing.includes(f)) } });
+      BA.toast("Saved.");
+    });
+  }
+
+  async function renderPerson(main, id, tab) {
+    const [d, layout, people] = await Promise.all([BA.api(`/api/people/${id}/crm`), BA.api("/api/people/layout"), BA.api("/api/people")]);
+    const p = d.person;
+    document.getElementById("view-title").textContent = p.name;
+    const ro = presenting();
+    const show = (f) => !layout.hidden.includes(f);
+    const sens = (f) => layout.sensitive.includes(f);
+    const current = tab || sessionStorage.getItem("ba-person-tab") || "overview";
+    const tabs = `<nav class="tabs">${[["overview", "Overview"], ["conversations", "Conversations"], ["timeline", "Timeline"], ["details", "Details"]].filter(([k]) => !ro || k === "overview")
+      .map(([k, l]) => `<a href="#/people/${id}" data-ptab="${k}" class="${k === current ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+    const fact = (f, label, val) => (show(f) && val ? `<div><span class="quiet">${esc(label)}</span> ${val}</div>` : "");
+    const header = `<section class="card"><div class="row"><h2>${esc(p.name)}</h2>${p.active === false ? '<span class="pill">inactive</span>' : ""}<span class="spacer"></span>
+        ${p.stance && show("stance") ? tonePill(p.stance, STANCE_TONES) : ""}${p.influence && show("influence") ? `<span class="pill">${esc(p.influence)} influence</span>` : ""}</div>
+      <div class="facts">${p.role ? `<div><span class="quiet">Title</span> ${esc(p.role)}</div>` : ""}${p.relationship ? `<div><span class="quiet">Relationship</span> ${esc(p.relationship)}</div>` : ""}
+        ${p.manager_id && show("manager_id") ? `<div><span class="quiet">Reports to</span> <a href="#/people/${p.manager_id}">${esc(p.manager_name || "")}</a></div>` : ""}
+        ${p.department_name ? `<div><span class="quiet">Department</span> ${esc(p.department_name)}</div>` : ""}
+        ${fact("location", "Location", esc(p.location || ""))}${fact("timezone", "Time zone", esc(p.timezone || ""))}${fact("contact", "Contact", esc(p.contact || ""))}${fact("start_date", "Started", BA.fmtDate(p.start_date))}</div>
+      ${(p.tags || []).length && show("tags") ? `<p>${BA.chips(p.tags)}</p>` : ""}
+      ${d.reports.length ? `<p class="quiet">Reports: ${d.reports.map((r) => `<a href="#/people/${r.id}">${esc(r.name)}</a>`).join(", ")}</p>` : ""}
+      ${d.teams.length ? `<p class="quiet">Teams: ${d.teams.map((t) => `<a href="#/teams/${t.id}">${esc(t.name)}</a> (${t.as.join(", ")})`).join(" · ")}</p>` : ""}</section>`;
+    if (ro) {
+      main.innerHTML = `<p><a href="#/people">All people</a></p>${header}`;
       return;
     }
-    const interviews = (await BA.api("/api/interviews")).filter((i) => i.person_id === id);
-    main.innerHTML = `<p><a href="#/people">All people</a></p>
-      <form id="person" class="card"><div class="grid2">${BA.form(PERSON_FIELDS, rec)}</div>
+    main.innerHTML = `<p><a href="#/people">All people</a> · <a href="#/people/org">Org chart</a></p>${header}${tabs}<div id="ptab"></div>`;
+    main.querySelectorAll("[data-ptab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); sessionStorage.setItem("ba-person-tab", a.dataset.ptab); renderPerson(main, id, a.dataset.ptab); }));
+    const box = main.querySelector("#ptab");
+    const wireReveal = () => box.querySelectorAll("[data-reveal]").forEach((b) => (b.onclick = () => {
+      const on = !revealed(id);
+      try { sessionStorage.setItem(`ba-reveal-${id}`, on ? "1" : "0"); } catch {}
+      box.querySelectorAll(".sensitive").forEach((s) => s.classList.toggle("shown", on));
+      box.querySelectorAll("[data-reveal]").forEach((x) => (x.textContent = on ? "Hide" : "Show"));
+    }));
+
+    if (current === "overview") {
+      const h = d.health;
+      const md = (f) => (p[f] ? BA.md(p[f]) : "");
+      const block = (f) => (show(f) && p[f] ? (sens(f) ? masked(id, FIELD_LABELS[f] || f, md(f)) : `<h3>${esc(FIELD_LABELS[f] || f)}</h3>${md(f)}`) : "");
+      const keyDates = ((p.key_dates || {}).dates || []);
+      box.innerHTML = `<div class="cards">
+          <section class="card"><h2>Relationship</h2><p>Last contact: <b>${ago(h.days_since)}</b>${h.cadence_days ? ` · check in every ${h.cadence_days} days` : ""}${h.due ? ' <span class="pill warn">due for a check-in</span>' : ""}</p>
+            ${h.next_meeting ? `<p>Next meeting: ${BA.fmtDate(h.next_meeting)}</p>` : ""}
+            ${d.upcoming_dates.length ? `<p>${d.upcoming_dates.map((x) => `<span class="pill">${esc(x.label)} ${x.days === 0 ? "today" : "in " + x.days + " days"}</span>`).join(" ")}</p>` : ""}
+            <button class="btn primary" type="button" id="log-talk">${BA.icon("plus")} Log a conversation</button></section>
+          <section class="card"><h2>Before you meet</h2>
+            ${d.interactions[0] ? `<p class="quiet">Last time (${BA.fmtDate(d.interactions[0].date)}${d.interactions[0].title ? ", " + esc(d.interactions[0].title) : ""}):</p>${BA.md(d.interactions[0].takeaways || d.interactions[0].notes || "")}` : '<p class="quiet">No conversations logged yet.</p>'}
+            ${(p.things_to_remember || []).length && show("things_to_remember") ? `<h3>Things to remember</h3><ul class="checklist">${p.things_to_remember.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+            ${d.follow_ups.length ? `<h3>Open follow-ups</h3>${d.follow_ups.map((a) => `<div class="item"><a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span>${BA.statusPill(a.status)}</div>`).join("")}` : ""}
+            ${d.sos.length ? `<h3>Across teams</h3>${d.sos.map((s) => `<div class="item"><a href="#/sos">${esc(s.question)}</a><span class="spacer"></span><span class="quiet">${s.due ? BA.fmtDate(s.due) : ""}</span></div>`).join("")}` : ""}</section></div>
+        <section class="card"><h2>About ${esc(p.name.split(" ")[0])}</h2>
+          ${block("communication")}${block("working_style")}${block("goals")}${block("background")}
+          ${show("skills") && (p.skills || []).length ? `<h3>Skills</h3><p>${BA.chips(p.skills)}</p>` : ""}
+          ${block("motivations")}${block("support_notes")}${block("personal_context")}
+          ${show("key_dates") && keyDates.length ? masked(id, "Key dates", `<ul class="checklist">${keyDates.map((x) => `<li>${esc(x.label)}: ${BA.fmtDate(x.date)}</li>`).join("")}</ul>`) : ""}
+          <p class="quiet">Edit any of this on the Details tab. Choose which fields appear under <a href="#/people/fields">Fields</a>.</p></section>`;
+      wireReveal();
+      box.querySelector("#log-talk").onclick = () => { sessionStorage.setItem("ba-person-tab", "conversations"); renderPerson(main, id, "conversations"); };
+      return;
+    }
+
+    if (current === "conversations") {
+      const pname = Object.fromEntries(people.map((x) => [x.id, x.name]));
+      const others = (ids) => ids.filter((x) => x !== id).map((x) => pname[x]).filter(Boolean);
+      box.innerHTML = `<form id="talk" class="card"><h2>Log a conversation</h2><div class="grid2">
+          <label>Date<input type="date" name="date" value="${BA.today()}" required></label><label>Kind<select name="kind">${opts(INTERACTION_KINDS, "one-on-one")}</select></label>
+          <label>Topic<input name="title" placeholder="What it was about"></label><label>How it went<select name="mood"><option value=""></option>${opts(MOODS)}</select></label></div>
+          <label>Also there</label><div class="case-picks">${people.filter((x) => x.id !== id).map((x) => `<label class="check"><input type="checkbox" name="with" value="${x.id}"> ${esc(x.name)}</label>`).join("")}</div>
+          <label>Notes <span class="quiet">(Markdown; private)</span><textarea name="notes" rows="6"></textarea></label>
+          <label>Takeaways <span class="quiet">(what you'll want to remember next time)</span><textarea name="takeaways" rows="2"></textarea></label>
+          <label>Follow-ups <span class="quiet">(one per line; each can become a dev-sync item)</span><textarea name="follow_ups" rows="3"></textarea></label>
+          <label class="check">Next meeting <input type="date" name="next_meeting" value="${esc(p.next_meeting || "")}" style="max-width:170px"></label>
+          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>
+        <section class="card"><h2>Conversations</h2>${d.interactions.map((i) => `<details class="plan-item" data-talk="${i.id}"><summary><span class="quiet">${BA.fmtDate(i.date)}</span><span class="pill">${esc(i.kind)}</span><b>${esc(i.title || "")}</b>
+            <span class="spacer"></span>${i.mood ? `<span class="quiet">${esc(i.mood)}</span>` : ""}${others(i.person_ids).length ? `<span class="quiet">with ${esc(others(i.person_ids).join(", "))}</span>` : ""}</summary>
+            ${i.notes ? BA.md(i.notes) : ""}${i.takeaways ? `<h4>Takeaways</h4>${BA.md(i.takeaways)}` : ""}${i.follow_ups ? `<h4>Follow-ups</h4>${BA.md(i.follow_ups.split("\n").filter(Boolean).map((x) => "- " + x.replace(/^[-*•]\s*/, "")).join("\n"))}
+              <button class="btn" type="button" data-follow>Send follow-ups to the dev-sync log</button>` : ""}
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("interaction", i.id)}</div></details>`).join("") || '<p class="quiet">Nothing logged yet.</p>'}</section>`;
+      const form = box.querySelector("#talk");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        await BA.api("/api/interactions", { method: "POST", body: { date: fd.get("date"), kind: fd.get("kind"), title: fd.get("title") || null, mood: fd.get("mood") || null,
+          person_ids: [id, ...fd.getAll("with").map(Number)], notes: fd.get("notes"), takeaways: fd.get("takeaways"), follow_ups: fd.get("follow_ups") } });
+        if ((fd.get("next_meeting") || null) !== (p.next_meeting || null)) await BA.api(`/api/people/${id}`, { method: "PATCH", body: { next_meeting: fd.get("next_meeting") || null } });
+        BA.toast("Saved.");
+        renderPerson(main, id, "conversations");
+      });
+      box.querySelectorAll("[data-talk]").forEach((det) => {
+        const tid = det.dataset.talk;
+        const fb = det.querySelector("[data-follow]");
+        if (fb) fb.onclick = BA.guard(async () => { const r = await BA.api(`/api/interactions/${tid}/follow-up`, { method: "POST" }); BA.toast(r.created.length ? `${r.created.length} added to the dev-sync log.` : "Those are already in the dev-sync log."); });
+        det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this conversation?")) return; await BA.api(`/api/interactions/${tid}`, { method: "DELETE" }); renderPerson(main, id, "conversations"); });
+      });
+      return;
+    }
+
+    if (current === "timeline") {
+      const tl = await BA.api(`/api/people/${id}/timeline`);
+      box.innerHTML = `<section class="card"><h2>Timeline</h2><p class="quiet">Everything in the toolkit involving ${esc(p.name)}: conversations, listening-tour notes, dev-sync items, Scrum of Scrums items and retros.</p>
+        ${tl.events.map((ev) => `<div class="item"><span class="quiet tl-date">${BA.fmtDate(ev.date) || "no date"}</span><span class="pill">${esc(ev.kind)}</span><a href="#${esc(ev.route)}">${esc(ev.title)}</a><span class="spacer"></span><span class="quiet">${esc(ev.detail || "")}</span></div>`).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
+      return;
+    }
+
+    // details
+    const base = PERSON_FIELDS.filter((f) => ["name", "role", "relationship", "active"].includes(f.name) || show(f.name));
+    const extra = (f, html) => (show(f) ? html : "");
+    const keyDates = ((p.key_dates || {}).dates || []);
+    const field = (f, inner) => (sens(f) ? masked(id, FIELD_LABELS[f], inner) : `<label>${esc(FIELD_LABELS[f])}${inner}</label>`);
+    box.innerHTML = `<form id="person" class="card"><div class="grid2">${BA.form(base.filter((f) => !layout.sensitive.includes(f.name)), p)}
+        ${extra("manager_id", `<label>Reports to<select name="manager_id">${personOptions(people.filter((x) => x.id !== id), p.manager_id)}</select></label>`)}
+        ${extra("tags", `<label>Tags <span class="quiet">(comma separated)</span><input name="tags" value="${esc((p.tags || []).join(", "))}"></label>`)}
+        ${extra("cadence_days", `<label>Check in every <span class="quiet">(days)</span><input type="number" min="1" name="cadence_days" value="${esc(p.cadence_days ?? "")}"></label>`)}
+        ${extra("next_meeting", `<label>Next meeting<input type="date" name="next_meeting" value="${esc(p.next_meeting || "")}"></label>`)}
+        ${extra("influence", `<label>Influence<select name="influence"><option value=""></option>${opts(INFLUENCE, p.influence)}</select></label>`)}
+        ${extra("stance", `<label>Stance<select name="stance"><option value=""></option>${opts(STANCE, p.stance)}</select></label>`)}</div>
+        ${extra("communication", `<label>How they like to communicate<textarea name="communication" rows="2">${esc(p.communication || "")}</textarea></label>`)}
+        ${extra("things_to_remember", `<label>Things to remember <span class="quiet">(one per line)</span><textarea name="things_to_remember" rows="3">${esc((p.things_to_remember || []).join("\n"))}</textarea></label>`)}
+        ${["motivations", "support_notes", "personal_context"].filter(show).map((f) => field(f, `<textarea name="${f}" rows="3">${esc(p[f] || "")}</textarea>`)).join("")}
+        ${extra("key_dates", field("key_dates", `<div id="key-dates">${[...keyDates, { label: "", date: "" }].map((x) => `<div class="row kd"><input name="kd_label" value="${esc(x.label)}" placeholder="Such as: work anniversary" style="max-width:240px"><input type="date" name="kd_date" value="${esc(x.date)}" style="max-width:170px"></div>`).join("")}</div>`))}
         <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("person", id)}<button class="btn primary" type="submit">Save</button></div></form>
-      <section class="card"><div class="row"><h2>One-on-ones</h2><span class="spacer"></span><button class="btn" id="plan">Plan a one-on-one</button></div>${
-        interviews.map((i) => `<div class="item"><a href="#/listening/${i.id}">${BA.fmtDate(i.date) || "[No date]"}</a> ${BA.statusPill(i.status)} ${BA.chips(i.themes)}</div>`).join("") ||
-        '<p class="quiet">None yet.</p>'
-      }</section>`;
-    const form = main.querySelector("#person");
+      <section class="card"><div class="row"><h2>Listening tour</h2><span class="spacer"></span><button class="btn" id="plan">Plan a listening-tour one-on-one</button></div><p class="quiet">The four standard questions, kept separately in the Listening tour.</p></section>`;
+    wireReveal();
+    const form = box.querySelector("#person");
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
-      await BA.api(`/api/people/${id}`, { method: "PATCH", body: BA.readForm(form, PERSON_FIELDS) });
+      const fd = new FormData(form);
+      const body = BA.readForm(form, base.filter((f) => !layout.sensitive.includes(f.name)));
+      if (form.elements.manager_id) body.manager_id = numOrNull(fd.get("manager_id"));
+      if (form.elements.tags) body.tags = fd.get("tags").split(",").map((x) => x.trim()).filter(Boolean);
+      if (form.elements.cadence_days) body.cadence_days = numOrNull(fd.get("cadence_days"));
+      if (form.elements.next_meeting) body.next_meeting = fd.get("next_meeting") || null;
+      for (const f of ["influence", "stance"]) if (form.elements[f]) body[f] = fd.get(f) || null;
+      for (const f of ["communication", "motivations", "support_notes", "personal_context"]) if (form.elements[f]) body[f] = fd.get(f);
+      if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
+      if (form.querySelector("#key-dates")) {
+        const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");
+        body.key_dates = { dates: labels.map((l, i) => ({ label: l.trim(), date: dates[i] })).filter((x) => x.label && x.date) };
+      }
+      await BA.api(`/api/people/${id}`, { method: "PATCH", body });
       BA.toast("Saved.");
-      BA.rerender();
+      renderPerson(main, id, "details");
     });
-    main.querySelector("#del").onclick = BA.guard(async () => {
-      if (!confirm(`Delete ${rec.name}? Their one-on-ones stay, without a person.`)) return;
+    box.querySelector("#del").onclick = BA.guard(async () => {
+      if (!confirm(`Delete ${p.name}? Their conversations and one-on-ones stay, without this person.`)) return;
       await BA.api(`/api/people/${id}`, { method: "DELETE" });
       BA.go("/people");
     });
-    main.querySelector("#plan").onclick = BA.guard(async () => {
+    box.querySelector("#plan").onclick = BA.guard(async () => {
       const i = await BA.api("/api/interviews", { method: "POST", body: { person_id: id, date: BA.today(), status: "planned" } });
       BA.go(`/listening/${i.id}`);
     });
@@ -1774,7 +1948,7 @@
     const ro = presenting();
     const node = (n) => `<li><div class="org-node"><a href="#/landscape/d-${n.id}"><b>${esc(n.name)}</b></a><span class="pill">${esc(n.kind)}</span>
         ${n.leader_name ? `<span class="quiet">led by ${esc(n.leader_name)}</span>` : ""}<span class="spacer"></span>
-        ${n.people.length ? `<span class="quiet">${n.people.length} ${n.people.length === 1 ? "person" : "people"}</span>` : ""}
+        ${n.people.length ? `<span class="org-people">${n.people.map((x) => `<a href="#/people/${x.id}" title="${esc(x.role || "")}">${esc(x.name)}</a>`).join(", ")}</span>` : ""}
         ${n.offerings.length ? BA.chips(n.offerings.map((o) => o.name)) : ""}${swotBadges(n.swot)}</div>
         ${n.children.length ? `<ul>${n.children.map(node).join("")}</ul>` : ""}</li>`;
     main.innerHTML = `${landscapeTabs("org")}

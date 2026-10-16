@@ -17,6 +17,7 @@ from .debt import router as debt_router
 from .jira import router as jira_router
 from .sprint_planning import router as sprint_planning_router
 from .teams import router as teams_router
+from .people_crm import router as people_crm_router
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -70,7 +71,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

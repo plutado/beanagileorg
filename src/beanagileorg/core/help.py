@@ -15,11 +15,13 @@ TOOLKIT = {
         "related": ["/me", "/dev-sync", "/onboarding"],
     },
     "/people": {
-        "purpose": "A profile for everyone you work with: team members, peers, stakeholders and vendor contacts, so you remember what matters to each of them.",
-        "steps": ["Add each person with their role and how you work with them.", "Open a profile to record skills, goals, what they want to learn and can teach, and how they like to work.",
-                  "Update it after one-on-ones, so the next conversation picks up where the last one left off."],
-        "privacy": "Only names, roles and departments show while presenting; everything else stays private.",
-        "related": ["/listening", "/skills", "/onboarding"],
+        "purpose": "Your private CRM for everyone you work with: team members, peers, stakeholders and vendor contacts. What matters to each person, every conversation, follow-ups, and who reports to whom.",
+        "steps": ["Add each person with their title and relationship; set who they report to, and an Org chart builds itself.",
+                  "Log one-on-ones, meetings and calls on their Conversations tab, with notes, takeaways and follow-ups that can go to the dev-sync log.",
+                  "Set a check-in cadence; anyone past it shows on Today. Check Before you meet on their Overview for your last notes and open follow-ups.",
+                  "Choose which fields you use under Fields. Sensitive notes stay masked until you click Show."],
+        "privacy": "Only names, titles, departments and reporting lines show while presenting; notes and conversations are private.",
+        "related": ["/listening", "/teams", "/coaching/one-on-ones"],
     },
     "/onboarding": {
         "purpose": "Bring new team members in smoothly, with a checklist that runs from the week before they start to day 90.",

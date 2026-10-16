@@ -86,6 +86,10 @@ TEAM_KINDS = ("mine", "other")
 TEAM_STATUS = ("on track", "at risk", "off track")
 SOS_KINDS = ("issue", "dependency", "decision", "risk", "impediment", "knowledge")
 SOS_STATUS = ("open", "in progress", "waiting", "done")
+INFLUENCE = ("low", "medium", "high")
+STANCE = ("champion", "supporter", "neutral", "skeptic", "blocker")
+INTERACTION_KINDS = ("one-on-one", "meeting", "call", "message", "conversation", "other")
+MOODS = ("great", "good", "mixed", "tense", "difficult")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -999,6 +1003,34 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        18,
+        """
+        ALTER TABLE people ADD COLUMN tags TEXT;
+        ALTER TABLE people ADD COLUMN cadence_days INTEGER;
+        ALTER TABLE people ADD COLUMN influence TEXT;
+        ALTER TABLE people ADD COLUMN stance TEXT;
+        ALTER TABLE people ADD COLUMN communication TEXT;
+        ALTER TABLE people ADD COLUMN motivations TEXT;
+        ALTER TABLE people ADD COLUMN personal_context TEXT;
+        ALTER TABLE people ADD COLUMN things_to_remember TEXT;
+        ALTER TABLE people ADD COLUMN key_dates TEXT;
+        ALTER TABLE people ADD COLUMN next_meeting DATE;
+        ALTER TABLE people ADD COLUMN manager_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        CREATE TABLE interactions (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'one-on-one',
+            title TEXT,
+            person_ids TEXT,
+            notes TEXT,
+            takeaways TEXT,
+            follow_ups TEXT,
+            mood TEXT
+        );
+        ALTER TABLE action_items ADD COLUMN interaction_id INTEGER REFERENCES interactions (id) ON DELETE SET NULL;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1025,6 +1057,21 @@ people = Record(
         "contact": Field("text", P),
         "active": Field("bool", S, default=True),
         "department_id": Field("int", S),
+        "tags": Field("list", P),
+        "cadence_days": Field("int", P),
+        "influence": Field("text", P, choices=INFLUENCE),
+        "stance": Field("text", P, choices=STANCE),
+        "communication": Field("text", P),
+        "motivations": Field("text", P),
+        "personal_context": Field("text", P),
+        "things_to_remember": Field("list", P),
+        "key_dates": Field("json", P),
+        "next_meeting": Field("date", P),
+        "manager_id": Field("int", S),
+    },
+    computed={
+        "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),
+        "department_name": ("(SELECT name FROM departments d WHERE d.id = people.department_id)", S),
     },
 )
 
@@ -1138,6 +1185,7 @@ action_items = Record(
         "notes": Field("text", P),
         "jira_keys": Field("keys", S),
         "team_id": Field("int", S),
+        "interaction_id": Field("int", P),
     },
     computed={
         "vendor_name": ("(SELECT name FROM vendors v WHERE v.id = action_items.vendor_id)", S),
@@ -2362,6 +2410,26 @@ sos_meetings = Record(
     },
 )
 
+# ---- conversations with people: private end to end ----
+
+interactions = Record(
+    entity="interaction",
+    table="interactions",
+    path="/api/interactions",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "kind": Field("text", P, choices=INTERACTION_KINDS, default="one-on-one"),
+        "title": Field("text", P),
+        "person_ids": Field("ids", P),
+        "notes": Field("text", P),
+        "takeaways": Field("text", P),
+        "follow_ups": Field("text", P),
+        "mood": Field("text", P, choices=MOODS),
+    },
+    hide_when_empty=True,
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2379,4 +2447,5 @@ RECORDS = [
     tech_debt, debt_decisions,
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
+    interactions,
 ]

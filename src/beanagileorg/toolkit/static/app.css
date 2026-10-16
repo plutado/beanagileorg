@@ -174,3 +174,13 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .team-pick { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .team-pick select { max-width: 220px; }
 .team-pick svg { width: 16px; height: 16px; vertical-align: -3px; color: var(--muted); }
+
+.sensitive { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+.sensitive-head { display: flex; align-items: center; gap: 8px; }
+.sensitive-body { margin-top: 6px; filter: blur(6px); user-select: none; pointer-events: none; max-height: 3.2em; overflow: hidden; }
+.sensitive.shown .sensitive-body { filter: none; user-select: auto; pointer-events: auto; max-height: none; overflow: visible; }
+.sensitive textarea { width: 100%; }
+.tl-date { min-width: 96px; }
+.org-people { font-size: .85rem; }
+.org-people a { color: var(--accent); }
+.kd { margin-bottom: 4px; }

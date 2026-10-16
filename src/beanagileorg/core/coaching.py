@@ -713,6 +713,7 @@ GUIDES = [
 TIPS = {
     "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
     "/people": [("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
+                ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation")],
     "/onboarding": [("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback")],
@@ -813,7 +814,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 4  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 5  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

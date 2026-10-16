@@ -117,6 +117,12 @@ def skills(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 # ---- Today ----
 
 
+def _people_due(conn):
+    from .people_crm import people_due
+
+    return people_due(conn)
+
+
 def _sos_due(conn):
     from .teams import sos_due
 
@@ -165,6 +171,7 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "debt_due": _debt_due(conn),
         "planning_due": _planning_due(conn),
         "sos_due": _sos_due(conn),
+        "people_due": _people_due(conn),
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
 

@@ -32,7 +32,8 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 **Team**
 
 - **Today:** overdue tasks and dev-sync items, what's due this week, obligations, this week's one-on-ones, learning goals at risk, vendor renewals and vendor concerns.
-- **People and team profiles:** role, relationship, background, skills, certifications, goals, what each person wants to learn and can teach, working style and support notes. Only names, roles and departments show in presentation mode.
+- **People, a private CRM:** a page for everyone you work with: title, location, contact, who they report to, teams, how they like to communicate, what motivates them, things to remember and key dates. Log every one-on-one, meeting and call with notes, takeaways and follow-ups; see relationship health against a check-in cadence, a Before you meet summary and a timeline across the toolkit. Choose which fields to use; sensitive notes stay masked until you show them, and private fields never appear while presenting.
+- **Org chart:** reporting lines drawn from each person's Reports to, with every person a link to their page.
 - **Onboarding:** a checklist template by track (Salesforce, MuleSoft, QA, employee, contractor) from the week before day 1 to day 90, copied for each new member with real dates, progress, items for you, the buddy and IT, a materials list, and a Markdown checklist to send them. Items due for you show on Today.
 - **Skills and learning:** a skills matrix and matches between who can teach and who wants to learn, each one proposable as a group learning session.
 - **Listening tour:** one record per one-on-one with the same four questions every time (what's working, what's frustrating, what to change first, what not to change), plus systems mentioned, gaps, opportunities and themes. Private end to end.

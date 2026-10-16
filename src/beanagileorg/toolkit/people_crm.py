@@ -1,0 +1,218 @@
+"""People as a CRM: conversations and notes, relationship health, one-on-one prep, a timeline across the toolkit,
+an org chart from reporting lines, and your choice of which profile fields to show.
+
+Everything here is private. Sensitive fields are masked in the page until you choose to show them, and private
+fields never appear while presenting.
+"""
+
+import json
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Body, Depends, HTTPException
+
+from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.privacy import Level, Viewer
+
+from . import models
+from .routes import create_action, require_write
+
+router = APIRouter()
+LAYOUT_KEY = "people.hidden_fields"
+SENSITIVE = ("personal_context", "support_notes", "key_dates", "motivations")
+OPTIONAL = ("start_date", "location", "timezone", "background", "skills", "certifications", "goals", "wants_to_learn", "can_teach", "working_style",
+            "support_notes", "contact", "tags", "cadence_days", "influence", "stance", "communication", "motivations", "personal_context",
+            "things_to_remember", "key_dates", "next_meeting", "manager_id")
+
+
+def _today() -> date:
+    return date.today()
+
+
+def _involves(ids_json: str | None, person_id: int) -> bool:
+    return person_id in (json.loads(ids_json) if ids_json else [])
+
+
+def _last_contacts(conn) -> dict[int, str]:
+    out: dict[int, str] = {}
+    for r in conn.execute("SELECT date, person_ids FROM interactions WHERE date <= ?", (_today().isoformat(),)):
+        for pid in json.loads(r["person_ids"] or "[]"):
+            out[pid] = max(out.get(pid, ""), r["date"])
+    for r in conn.execute("SELECT person_id, date FROM interviews WHERE status = 'done' AND date IS NOT NULL"):
+        if r["person_id"]:
+            out[r["person_id"]] = max(out.get(r["person_id"], ""), r["date"])
+    return out
+
+
+# ---- your choice of fields ----
+
+
+@router.get("/api/people/layout")
+def get_layout(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (LAYOUT_KEY,)).fetchone()
+    return {"hidden": json.loads(row["value"]) if row else [], "optional": list(OPTIONAL), "sensitive": list(SENSITIVE)}
+
+
+@router.put("/api/people/layout")
+def put_layout(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    hidden = [f for f in body.get("hidden", []) if f in OPTIONAL]
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (LAYOUT_KEY, json.dumps(hidden)))
+    return get_layout(viewer, conn)
+
+
+# ---- reporting lines ----
+
+
+@router.patch("/api/people/{person_id}")
+def update_person(person_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Like any update, but a manager can't be the person themselves or someone who reports to them."""
+    require_write(viewer)
+    if models.people.fetch(conn, person_id) is None:
+        raise HTTPException(404, "No such person.")
+    manager = body.get("manager_id")
+    seen = set()
+    while manager is not None:
+        if manager == person_id or manager in seen:
+            raise HTTPException(400, "That would make someone report to themselves through the chain.")
+        seen.add(manager)
+        row = conn.execute("SELECT manager_id FROM people WHERE id = ?", (manager,)).fetchone()
+        if row is None:
+            raise HTTPException(400, "That manager isn't in People.")
+        manager = row["manager_id"]
+    if "key_dates" in body:
+        body = {**body, "key_dates": {"dates": [d for d in (body["key_dates"] or {}).get("dates", []) if isinstance(d, dict) and d.get("label") and d.get("date")]} if body["key_dates"] else {}}
+    return models.people.visible(models.people.update(conn, person_id, body, viewer.source), viewer)
+
+
+@router.get("/api/people/org-chart")
+def org_chart(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    people = [p for p in models.people.visible_all(models.people.fetch_all(conn), viewer) if p.get("active", True)]
+    ids = {p["id"] for p in people}
+    nodes = {p["id"]: {"id": p["id"], "name": p["name"], "role": p.get("role"), "department": p.get("department_name"),
+                       "relationship": p.get("relationship"), "children": []} for p in people}
+    roots = []
+    for p in people:
+        boss = p.get("manager_id")
+        (nodes[boss]["children"] if boss in ids else roots).append(nodes[p["id"]])
+    return {"roots": roots, "with_manager": sum(1 for p in people if p.get("manager_id") in ids)}
+
+
+# ---- the overview, a person's page, and their timeline ----
+
+
+@router.get("/api/people/overview")
+def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    people = models.people.visible_all(models.people.fetch_all(conn), viewer)
+    if viewer.floor != Level.PRIVATE:
+        return {"people": people, "private": False}
+    last = _last_contacts(conn)
+    today = _today()
+    open_items = conn.execute("SELECT owner_id, raised_by_id FROM action_items WHERE status != 'done'").fetchall()
+    out = []
+    for p in people:
+        lc = last.get(p["id"])
+        days = (today - date.fromisoformat(lc)).days if lc else None
+        due = bool(p.get("cadence_days") and p["active"] and (days is None or days > p["cadence_days"]))
+        out.append({**p, "last_contact": lc, "days_since": days, "due": due,
+                    "open_follow_ups": sum(1 for r in open_items if p["id"] in (r["owner_id"], r["raised_by_id"]))})
+    return {"people": out, "private": True}
+
+
+def _upcoming_dates(person: dict, within: int = 7) -> list[dict]:
+    today, out = _today(), []
+    for d in ((person.get("key_dates") or {}).get("dates") or []):
+        try:
+            when = date.fromisoformat(d["date"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        nxt = when.replace(year=today.year)
+        if nxt < today:
+            nxt = nxt.replace(year=today.year + 1)
+        if (nxt - today).days <= within:
+            out.append({"label": d["label"], "date": nxt.isoformat(), "days": (nxt - today).days})
+    return out
+
+
+@router.get("/api/people/{person_id}/crm")
+def crm(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    p = models.people.fetch(conn, person_id)
+    if p is None:
+        raise HTTPException(404, "No such person.")
+    person = models.people.visible(p, viewer)
+    out = {"person": person,
+           "reports": [{"id": r["id"], "name": r["name"], "role": r["role"]} for r in models.people.fetch_all(conn, "manager_id = ? AND active = 1", (person_id,))],
+           "teams": [{"id": t["id"], "name": t["name"], "as": [label for key, label in (("product_owner_id", "product owner"), ("scrum_master_id", "Scrum Master"), ("lead_id", "lead")) if t[key] == person_id] or ["member"]}
+                     for t in models.teams.fetch_all(conn) if person_id in t["member_ids"] or person_id in (t["product_owner_id"], t["scrum_master_id"], t["lead_id"])]}
+    if viewer.floor != Level.PRIVATE:
+        return out
+    talks = [i for i in models.interactions.fetch_all(conn) if person_id in i["person_ids"]]
+    last = _last_contacts(conn).get(person_id)
+    days = (_today() - date.fromisoformat(last)).days if last else None
+    out.update({
+        "interactions": talks[:25],
+        "health": {"last_contact": last, "days_since": days, "cadence_days": p["cadence_days"],
+                   "due": bool(p["cadence_days"] and (days is None or days > p["cadence_days"])), "next_meeting": p["next_meeting"]},
+        "follow_ups": models.action_items.visible_all(models.action_items.fetch_all(conn, "status != 'done' AND (owner_id = ? OR raised_by_id = ?)", (person_id, person_id)), viewer),
+        "sos": [{"id": s["id"], "question": s["question"], "status": s["status"], "due": s["due"]} for s in models.sos_items.fetch_all(conn, "status != 'done'")
+                if s["owner_id"] == person_id or person_id in s["stakeholder_ids"]],
+        "upcoming_dates": _upcoming_dates(p, 30),
+    })
+    return out
+
+
+@router.get("/api/people/{person_id}/timeline")
+def timeline(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"events": []}
+    if models.people.fetch(conn, person_id) is None:
+        raise HTTPException(404, "No such person.")
+    ev = []
+    for i in models.interactions.fetch_all(conn):
+        if person_id in i["person_ids"]:
+            ev.append({"date": i["date"], "kind": i["kind"], "title": i["title"] or i["kind"], "route": f"/people/{person_id}", "detail": (i["takeaways"] or "")[:160]})
+    for r in models.interviews.fetch_all(conn, "person_id = ?", (person_id,)):
+        ev.append({"date": r["date"], "kind": "listening tour", "title": f"Listening-tour one-on-one ({r['status']})", "route": f"/listening/{r['id']}", "detail": ""})
+    for a in models.action_items.fetch_all(conn, "owner_id = ? OR raised_by_id = ?", (person_id, person_id)):
+        role = "owns" if a["owner_id"] == person_id else "raised"
+        ev.append({"date": a["raised_on"], "kind": "dev-sync", "title": f"{role.capitalize()}: {a['concern']}", "route": f"/dev-sync/{a['id']}", "detail": a["status"]})
+    for s in models.sos_items.fetch_all(conn):
+        if s["owner_id"] == person_id or person_id in s["stakeholder_ids"]:
+            ev.append({"date": s["raised_on"], "kind": "Scrum of Scrums", "title": s["question"], "route": "/sos", "detail": s["status"]})
+    for r in models.retros.fetch_all(conn):
+        if person_id in r["attendee_ids"]:
+            ev.append({"date": r["date"], "kind": "retro", "title": f"Retrospective{' sprint ' + str(r['sprint_number']) if r['sprint_number'] else ''}", "route": f"/retros/{r['id']}", "detail": ""})
+    ev.sort(key=lambda e: e["date"] or "", reverse=True)
+    return {"events": ev[:200]}
+
+
+@router.post("/api/interactions/{interaction_id}/follow-up", status_code=201)
+def follow_up(interaction_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Each line under follow-ups becomes a dev-sync item tied to this conversation; lines already sent are skipped."""
+    require_write(viewer)
+    i = models.interactions.fetch(conn, interaction_id)
+    if i is None:
+        raise HTTPException(404, "No such conversation.")
+    done = {r["concern"] for r in conn.execute("SELECT concern FROM action_items WHERE interaction_id = ?", (interaction_id,))}
+    lines = [ln.strip().lstrip("-*• ").strip() for ln in (i["follow_ups"] or "").splitlines()]
+    created = []
+    for ln in lines:
+        if ln and ln not in done:
+            created.append(create_action({"concern": ln, "origin": "one-on-one" if i["kind"] == "one-on-one" else "other",
+                                          "raised_by_id": i["person_ids"][0] if i["person_ids"] else None, "interaction_id": interaction_id}, viewer, conn))
+    return {"created": created}
+
+
+def people_due(conn) -> dict:
+    """For Today: people past their check-in cadence, key dates this week, and meetings planned this week."""
+    today, week = _today(), (_today() + timedelta(days=7)).isoformat()
+    last = _last_contacts(conn)
+    due, dates, meetings = [], [], []
+    for p in models.people.fetch_all(conn, "active = 1"):
+        lc = last.get(p["id"])
+        days = (today - date.fromisoformat(lc)).days if lc else None
+        if p["cadence_days"] and (days is None or days > p["cadence_days"]):
+            due.append({"id": p["id"], "name": p["name"], "days_since": days, "cadence_days": p["cadence_days"]})
+        dates += [{"id": p["id"], "name": p["name"], **d} for d in _upcoming_dates(p)]
+        if p["next_meeting"] and today.isoformat() <= p["next_meeting"] <= week:
+            meetings.append({"id": p["id"], "name": p["name"], "date": p["next_meeting"]})
+    return {"check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"])}
