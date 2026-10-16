@@ -41,6 +41,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **RACI:** decisions by role, with editable roles, a confirm status per row and a check for exactly one accountable person.
 - **Risks and decisions:** risks by level, owner, next step and due date, and decisions needed with who decides, when, and the outcome.
 - **Metrics:** baseline, target and readings over time for each measure, with an on-target indicator. Starter metrics are cycle time, deployment frequency, change failure rate and escaped defects.
+- **QA resources:** a manual test library anyone can follow (steps, expected result, owner, last result), test runs with pass, fail, blocked or skipped per case and failures sent to the dev-sync log, an inventory of automated suites (unit, Apex, MUnit, end-to-end) with coverage and latest result, regression plans for each Salesforce release and peak-season freeze with owner, backup and sign-off, and the definition of done.
 - **Dev-sync log:** every question raised after standup, with who raised it, owner, next action, due date, status, origin and private notes. Overdue items stand out, and the group-learning flag proposes a presentation.
 - **Group learning:** a schedule of short team presentations, fed by the dev-sync log and by teach/learn matches.
 - **Vendors:** type, status, account contacts, support process, service promise, contract dates and renewal notice; commercial terms stay private. A private conversation log, open concerns with owners, and follow-ups that become dev-sync items.

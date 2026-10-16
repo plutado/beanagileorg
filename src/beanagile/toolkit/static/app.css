@@ -58,3 +58,22 @@ table.raci td, table.raci th { white-space: nowrap; }
 .org-tree ul { margin-left: 18px; padding-left: 14px; border-left: 1px solid var(--line); }
 .org-node { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; margin: 4px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
 tr.muted td { opacity: .6; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stats .stat { margin: 0; }
+.stat-n { font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
+.stat-n.good { color: var(--good); } .stat-n.warn { color: var(--warn); } .stat-n.bad { color: var(--bad); }
+.tally { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.checklist { margin: 0; padding-left: 20px; } .checklist li { margin: 4px 0; }
+.plan-item h4, .run-row h4 { margin: 10px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.run-row { border-bottom: 1px solid var(--line); padding: 10px 0; border-left: 3px solid transparent; padding-left: 10px; }
+.run-row:last-child { border-bottom: 0; }
+.run-row summary { cursor: pointer; margin-bottom: 6px; }
+.run-row.result-pass { border-left-color: var(--good); } .run-row.result-fail { border-left-color: var(--bad); } .run-row.result-blocked { border-left-color: var(--warn); }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 5px 12px; color: var(--muted); cursor: pointer; font: inherit; font-size: .85rem; }
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button.on { background: var(--panel-2); color: var(--ink); font-weight: 600; }
+.seg button.on.good { background: var(--good-soft); color: var(--good); } .seg button.on.bad { background: var(--bad-soft); color: var(--bad); } .seg button.on.warn { background: var(--warn-soft); color: var(--warn); }
+.case-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; max-height: 240px; overflow: auto; padding: 6px 0; }
+

@@ -11,7 +11,7 @@ GOAL_STATUS = ("not started", "in progress", "done", "at risk")
 TASK_STATUS = ("open", "done")
 CADENCES = ("weekly", "every two weeks", "monthly", "quarterly", "once")
 ACTION_STATUS = ("open", "in progress", "waiting", "done")
-ACTION_ORIGINS = ("dev sync", "retro", "incident", "one-on-one", "vendor", "other")
+ACTION_ORIGINS = ("dev sync", "retro", "incident", "one-on-one", "vendor", "testing", "other")
 VENDOR_TYPES = ("platform vendor", "consulting partner", "contractor agency", "tooling", "other")
 VENDOR_STATUS = ("active", "onboarding", "under review", "ended")
 INTERACTION_CHANNELS = ("call", "meeting", "email", "chat", "other")
@@ -50,6 +50,14 @@ ASSESSMENT_SOURCES = ("listening tour", "metrics", "incident", "vendor", "custom
 CONFIDENCE = ("low", "medium", "high")
 ASSESSMENT_STATUS = ("open", "acted on", "closed")
 SUBJECT_TYPES = ("offering", "department")
+TEST_KINDS = ("smoke", "regression", "smoke and regression")
+RUN_KINDS = ("smoke", "regression", "release check", "exploratory")
+RUN_STATUS = ("planned", "in progress", "done")
+RESULTS = ("not run", "pass", "fail", "blocked", "skipped")
+SUITE_KINDS = ("unit", "integration", "end-to-end", "Apex", "MUnit", "performance", "other")
+SUITE_RESULTS = ("unknown", "passing", "failing", "flaky")
+REGRESSION_KINDS = ("Salesforce release", "peak-season freeze", "major release", "other")
+REGRESSION_STATUS = ("planned", "in progress", "signed off", "done")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -499,6 +507,76 @@ MIGRATIONS = [
             risk_id INTEGER REFERENCES risks (id) ON DELETE SET NULL
         );
         CREATE INDEX assessments_subject ON assessments (subject_type, subject_id);
+        """,
+    ),
+    (
+        8,
+        """
+        CREATE TABLE test_cases (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            system_id INTEGER REFERENCES systems (id) ON DELETE SET NULL,
+            area TEXT,
+            kind TEXT NOT NULL DEFAULT 'smoke',
+            priority TEXT NOT NULL DEFAULT 'medium',
+            preconditions TEXT,
+            steps TEXT,
+            expected TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            active INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE regression_plans (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'Salesforce release',
+            start_date DATE,
+            end_date DATE,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            backup_owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            scope TEXT,
+            case_ids TEXT,
+            status TEXT NOT NULL DEFAULT 'planned',
+            signoff_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            signoff_date DATE,
+            notes TEXT
+        );
+        CREATE TABLE test_runs (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'smoke',
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            plan_id INTEGER REFERENCES regression_plans (id) ON DELETE SET NULL,
+            release TEXT,
+            environment TEXT,
+            date DATE,
+            tester_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'in progress',
+            notes TEXT
+        );
+        CREATE TABLE test_results (
+            id INTEGER PRIMARY KEY,
+            run_id INTEGER NOT NULL REFERENCES test_runs (id) ON DELETE CASCADE,
+            case_id INTEGER NOT NULL REFERENCES test_cases (id) ON DELETE CASCADE,
+            result TEXT NOT NULL DEFAULT 'not run',
+            notes TEXT,
+            action_item_id INTEGER REFERENCES action_items (id) ON DELETE SET NULL,
+            UNIQUE (run_id, case_id)
+        );
+        CREATE TABLE test_suites (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'unit',
+            system_id INTEGER REFERENCES systems (id) ON DELETE SET NULL,
+            framework TEXT,
+            location TEXT,
+            ci_link TEXT,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            test_count INTEGER,
+            coverage REAL,
+            last_result TEXT NOT NULL DEFAULT 'unknown',
+            last_run DATE,
+            notes TEXT
+        );
         """,
     ),
 ]
@@ -1231,6 +1309,127 @@ assessments = Record(
     hide_when_empty=True,
 )
 
+# ---- QA resources: how the team tests is presentable; run notes stay private ----
+
+test_cases = Record(
+    entity="test_case",
+    table="test_cases",
+    path="/api/test-cases",
+    order_by="active DESC, system_id IS NULL, area, title",
+    fields={
+        "title": Field("text", S, required=True),
+        "system_id": Field("int", S),
+        "area": Field("text", S),
+        "kind": Field("text", S, choices=TEST_KINDS, default="smoke"),
+        "priority": Field("text", S, choices=PRIORITIES, default="medium"),
+        "preconditions": Field("text", S),
+        "steps": Field("text", S),
+        "expected": Field("text", S),
+        "owner_id": Field("int", S),
+        "active": Field("bool", S, default=True),
+    },
+    computed={
+        "system_name": ("(SELECT name FROM systems s WHERE s.id = test_cases.system_id)", S),
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = test_cases.owner_id)", S),
+        "last_result": ("(SELECT r.result FROM test_results r JOIN test_runs u ON u.id = r.run_id WHERE r.case_id = test_cases.id AND r.result != 'not run' ORDER BY u.date DESC, u.id DESC LIMIT 1)", S),
+        "last_run": ("(SELECT u.date FROM test_results r JOIN test_runs u ON u.id = r.run_id WHERE r.case_id = test_cases.id AND r.result != 'not run' ORDER BY u.date DESC, u.id DESC LIMIT 1)", S),
+    },
+)
+
+regression_plans = Record(
+    entity="regression_plan",
+    table="regression_plans",
+    path="/api/regression-plans",
+    order_by="status IN ('signed off', 'done'), start_date IS NULL, start_date",
+    fields={
+        "title": Field("text", E, required=True),
+        "kind": Field("text", E, choices=REGRESSION_KINDS, default="Salesforce release"),
+        "start_date": Field("date", E),
+        "end_date": Field("date", E),
+        "owner_id": Field("int", S),
+        "backup_owner_id": Field("int", S),
+        "scope": Field("text", S),
+        "case_ids": Field("ids", S),
+        "status": Field("text", E, choices=REGRESSION_STATUS, default="planned"),
+        "signoff_by_id": Field("int", S),
+        "signoff_date": Field("date", E),
+        "notes": Field("text", P),
+    },
+    computed={
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = regression_plans.owner_id)", S),
+        "backup_owner_name": ("(SELECT name FROM people p WHERE p.id = regression_plans.backup_owner_id)", S),
+        "signoff_by_name": ("(SELECT name FROM people p WHERE p.id = regression_plans.signoff_by_id)", S),
+    },
+)
+
+test_runs = Record(
+    entity="test_run",
+    table="test_runs",
+    path="/api/test-runs",
+    order_by="date IS NULL, date DESC, id DESC",
+    fields={
+        "name": Field("text", S, required=True),
+        "kind": Field("text", S, choices=RUN_KINDS, default="smoke"),
+        "sprint_id": Field("int", S),
+        "plan_id": Field("int", S),
+        "release": Field("text", S),
+        "environment": Field("text", S),
+        "date": Field("date", S),
+        "tester_id": Field("int", S),
+        "status": Field("text", S, choices=RUN_STATUS, default="in progress"),
+        "notes": Field("text", P),
+    },
+    computed={
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = test_runs.sprint_id)", S),
+        "tester_name": ("(SELECT name FROM people p WHERE p.id = test_runs.tester_id)", S),
+        "plan_title": ("(SELECT title FROM regression_plans g WHERE g.id = test_runs.plan_id)", S),
+        "total": ("(SELECT COUNT(*) FROM test_results r WHERE r.run_id = test_runs.id)", S),
+        "passed": ("(SELECT COUNT(*) FROM test_results r WHERE r.run_id = test_runs.id AND r.result = 'pass')", S),
+        "failed": ("(SELECT COUNT(*) FROM test_results r WHERE r.run_id = test_runs.id AND r.result = 'fail')", S),
+        "blocked": ("(SELECT COUNT(*) FROM test_results r WHERE r.run_id = test_runs.id AND r.result = 'blocked')", S),
+        "not_run": ("(SELECT COUNT(*) FROM test_results r WHERE r.run_id = test_runs.id AND r.result = 'not run')", S),
+    },
+)
+
+test_results = Record(
+    entity="test_result",
+    table="test_results",
+    path="/api/test-results",
+    order_by="run_id, id",
+    fields={
+        "run_id": Field("int", S, required=True),
+        "case_id": Field("int", S, required=True),
+        "result": Field("text", S, choices=RESULTS, default="not run"),
+        "notes": Field("text", S),
+        "action_item_id": Field("int", S),
+    },
+)
+
+test_suites = Record(
+    entity="test_suite",
+    table="test_suites",
+    path="/api/test-suites",
+    order_by="last_result = 'failing' DESC, last_result = 'flaky' DESC, name",
+    fields={
+        "name": Field("text", S, required=True),
+        "kind": Field("text", S, choices=SUITE_KINDS, default="unit"),
+        "system_id": Field("int", S),
+        "framework": Field("text", S),
+        "location": Field("text", S),
+        "ci_link": Field("text", S),
+        "owner_id": Field("int", S),
+        "test_count": Field("int", S),
+        "coverage": Field("number", S),
+        "last_result": Field("text", S, choices=SUITE_RESULTS, default="unknown"),
+        "last_run": Field("date", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "system_name": ("(SELECT name FROM systems s WHERE s.id = test_suites.system_id)", S),
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = test_suites.owner_id)", S),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -1240,4 +1439,5 @@ RECORDS = [
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,
     departments, offerings, assessments,
+    test_cases, regression_plans, test_runs, test_results, test_suites,
 ]

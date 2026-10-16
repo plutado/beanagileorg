@@ -15,6 +15,7 @@
   BA.command({ label: "Open the PI planning board", hint: "PI planning", icon: "kanban", run: () => BA.go("/pi") });
   BA.command({ label: "Work on the 30/60/90 plans", hint: "30/60/90 plans", icon: "flag", run: () => BA.go("/plans") });
   BA.command({ label: "Assess a product, service or department", hint: "Business landscape", icon: "building-2", run: () => BA.go("/landscape/swot") });
+  BA.command({ label: "Start a smoke test run", hint: "QA resources", icon: "flask-conical", run: () => BA.go("/qa/runs") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -477,7 +478,7 @@
   // ---------------------------------------------------------------- Dev-sync log
 
   const ACTION_STATUS = ["open", "in progress", "waiting", "done"];
-  const ACTION_ORIGINS = ["dev sync", "retro", "incident", "one-on-one", "other"];
+  const ACTION_ORIGINS = ["dev sync", "retro", "incident", "one-on-one", "vendor", "testing", "other"];
   const personOptions = (people, sel) => `<option value=""></option>${people.map((p) => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("")}`;
   const ACTION_FIELDS = (people) => [
     { name: "concern", label: "Question or concern", type: "textarea", required: true },
@@ -1854,4 +1855,317 @@
       BA.rerender();
     })));
   }
+
+  // ---------------------------------------------------------------- QA resources
+
+  const TEST_KINDS = ["smoke", "regression", "smoke and regression"];
+  const RUN_KINDS = ["smoke", "regression", "release check", "exploratory"];
+  const RESULTS = ["pass", "fail", "blocked", "skipped"];
+  const RESULT_TONES = { pass: "good", fail: "bad", blocked: "warn", skipped: "", "not run": "" };
+  const SUITE_KINDS = ["unit", "integration", "end-to-end", "Apex", "MUnit", "performance", "other"];
+  const SUITE_RESULTS = ["unknown", "passing", "failing", "flaky"];
+  const SUITE_TONES = { passing: "good", failing: "bad", flaky: "warn", unknown: "" };
+  const REG_KINDS = ["Salesforce release", "peak-season freeze", "major release", "other"];
+  const REG_STATUS = ["planned", "in progress", "signed off", "done"];
+  const qaTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["library", "Test library"], ["runs", "Runs"], ["suites", "Automated tests"], ["regression", "Regression plans"], ["dod", "Definition of done"]]
+    .map(([k, label]) => `<a href="#/qa${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
+  const tally = (r) => `<span class="tally">${r.passed ? `<span class="pill good">${r.passed} pass</span>` : ""}${r.failed ? `<span class="pill bad">${r.failed} fail</span>` : ""}${r.blocked ? `<span class="pill warn">${r.blocked} blocked</span>` : ""}${r.not_run ? `<span class="pill">${r.not_run} not run</span>` : ""}</span>`;
+  const sysOptions = (systems, sel, blank = "") => `<option value="">${blank}</option>${systems.map((s) => `<option value="${s.id}"${s.id === sel ? " selected" : ""}>${esc(s.name)}</option>`).join("")}`;
+  const numOrNull = (v) => (v === "" || v == null ? null : Number(v));
+
+  BA.view("/qa", {
+    title: "QA resources",
+    async render(main, param) {
+      if (param && param.startsWith("run-")) return renderRun(main, Number(param.slice(4)));
+      const views = { library: renderLibrary, runs: renderRuns, suites: renderSuites, regression: renderRegression, dod: renderDod };
+      if (views[param]) return views[param](main);
+      const o = await BA.api("/api/qa/overview");
+      const stat = (n, label, tone = "") => `<section class="card stat"><div class="stat-n ${tone}">${n ?? "–"}</div><div class="quiet">${label}</div></section>`;
+      main.innerHTML = `${qaTabs("")}
+        <div class="stats">${stat(o.cases.active, `manual test cases (${o.cases.smoke} smoke, ${o.cases.regression} regression)`)}${stat(o.cases.never_run, "never run", o.cases.never_run ? "warn" : "")}
+          ${stat(o.cases.failing.length, "failing or blocked last time", o.cases.failing.length ? "bad" : "good")}${stat(o.suites.average_coverage != null ? o.suites.average_coverage + "%" : null, `average coverage across ${o.suites.count} automated suites`)}
+          ${o.open_follow_ups != null ? stat(o.open_follow_ups, "open test follow-ups in the dev-sync log", o.open_follow_ups ? "warn" : "") : ""}</div>
+        <div class="cards">
+          <section class="card"><h2>Needs attention</h2>${[
+            ...o.cases.failing.map((c) => `<div class="item"><span class="pill bad">case</span><span>${esc(c.title)}</span><span class="spacer"></span><span class="quiet">${esc(c.system_name || "")}</span></div>`),
+            ...o.suites.failing.map((s) => `<div class="item">${tonePill(s.last_result, SUITE_TONES)}<span>${esc(s.name)}</span></div>`),
+          ].join("") || '<p class="quiet">Nothing failing.</p>'}</section>
+          <section class="card"><h2>Coming up</h2>${o.plans.map((p) => `<div class="item"><a href="#/qa/regression">${esc(p.title)}</a><span class="quiet">${esc(p.kind)}</span><span class="spacer"></span><span class="quiet">${p.start_date ? BA.fmtDate(p.start_date) : ""}${p.owner_name ? " · " + esc(p.owner_name) : ""}</span></div>`).join("") || '<p class="quiet">No regression plans ahead.</p>'}</section>
+          <section class="card"><h2>Recent runs</h2>${o.recent_runs.map((r) => `<div class="item"><a href="#/qa/run-${r.id}">${esc(r.name)}</a><span class="spacer"></span>${tally(r)}</div>`).join("") || '<p class="quiet">No runs yet.</p>'}</section>
+          <section class="card"><h2>Definition of done</h2>${o.definition_of_done.length ? `<ul class="checklist">${o.definition_of_done.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : '<p class="quiet">Not agreed yet. <a href="#/qa/dod">Write it with the team</a>.</p>'}
+            ${o.raci.length ? `<p class="quiet">Who decides, from the <a href="#/raci">RACI</a>: ${o.raci.map((r) => `${esc(r.decision)} (${Object.entries(r.cells).filter(([, l]) => l === "A").map(([role]) => esc(role)).join(", ") || "no one accountable yet"})`).join("; ")}</p>` : ""}</section>
+        </div>`;
+    },
+  });
+
+  async function renderLibrary(main) {
+    const [cases, systems, people] = await Promise.all([BA.api("/api/test-cases"), BA.api("/api/systems"), BA.api("/api/people")]);
+    const ro = presenting();
+    const filter = (() => { try { return JSON.parse(sessionStorage.getItem("ba-qa-filter") || "{}"); } catch { return {}; } })();
+    const shown = cases.filter((c) => (!filter.system || String(c.system_id) === filter.system) && (!filter.kind || c.kind === filter.kind) && (filter.retired || c.active));
+    const groups = {};
+    shown.forEach((c) => (groups[c.system_name || "No system"] ??= []).push(c));
+    const caseRow = (c) => `<details class="plan-item${c.active ? "" : " dropped"}" data-case="${c.id}"><summary><span>${esc(c.title)}</span><span class="spacer"></span>
+        ${c.area ? `<span class="quiet">${esc(c.area)}</span>` : ""}<span class="pill">${esc(c.kind)}</span>${tonePill(c.priority, PRIORITY_TONES)}
+        ${c.last_result ? `${tonePill(c.last_result, RESULT_TONES)}<span class="quiet">${BA.fmtDate(c.last_run)}</span>` : '<span class="quiet">never run</span>'}</summary>
+        ${c.preconditions ? `<h4>Before you start</h4>${BA.md(c.preconditions)}` : ""}${c.steps ? `<h4>Steps</h4>${BA.md(c.steps)}` : ""}${c.expected ? `<h4>Expected result</h4>${BA.md(c.expected)}` : ""}
+        ${ro ? "" : `<form class="edit-case"><div class="grid2">
+          <label>Title<input name="title" value="${esc(c.title)}" required></label><label>System<select name="system_id">${sysOptions(systems, c.system_id)}</select></label>
+          <label>Area<input name="area" value="${esc(c.area || "")}"></label><label>Kind<select name="kind">${opts(TEST_KINDS, c.kind)}</select></label>
+          <label>Priority<select name="priority">${opts(PRIORITIES, c.priority)}</select></label><label>Owner<select name="owner_id">${personOptions(people, c.owner_id)}</select></label></div>
+          <label>Before you start <span class="quiet">(data, accounts, environment)</span><textarea name="preconditions">${esc(c.preconditions || "")}</textarea></label>
+          <label>Steps <span class="quiet">(a numbered list works best)</span><textarea name="steps" rows="5">${esc(c.steps || "")}</textarea></label>
+          <label>Expected result<textarea name="expected">${esc(c.expected || "")}</textarea></label>
+          <label class="check"><input type="checkbox" name="active"${c.active ? " checked" : ""}> In use</label>
+          <div class="actions"><button class="btn danger left" type="button" data-del-case="${c.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+    main.innerHTML = `${qaTabs("library")}
+      <div class="row"><p class="quiet">Manual tests anyone on the team can follow. Smoke tests are the quick checks after every deploy; regression tests go into release plans.</p><span class="spacer"></span>
+        <select id="f-system" style="max-width:200px">${sysOptions(systems, numOrNull(filter.system), "All systems")}</select>
+        <select id="f-kind" style="max-width:200px"><option value="">All kinds</option>${opts(TEST_KINDS, filter.kind)}</select>
+        <label class="check"><input type="checkbox" id="f-retired"${filter.retired ? " checked" : ""}> Show retired</label></div>
+      ${Object.entries(groups).map(([name, list]) => `<section class="card"><h2>${esc(name)} <span class="quiet">${list.length}</span></h2>${list.map(caseRow).join("")}</section>`).join("") || '<p class="empty">No test cases yet.</p>'}
+      ${ro ? "" : `<section class="card"><h2>Add a test case</h2><form id="add-case" class="row">
+        <input name="title" placeholder="What it checks" required style="max-width:320px"><select name="system_id" style="max-width:200px">${sysOptions(systems, null, "System")}</select>
+        <input name="area" placeholder="Area" style="max-width:160px"><select name="kind" style="max-width:190px">${opts(TEST_KINDS, "smoke")}</select>
+        <button class="btn primary" type="submit">Add</button></form><p class="quiet">Systems come from the <a href="#/escalation">escalation playbook</a>. Open a case after adding it to write the steps.</p></section>`}`;
+    const saveFilter = () => {
+      sessionStorage.setItem("ba-qa-filter", JSON.stringify({ system: main.querySelector("#f-system").value, kind: main.querySelector("#f-kind").value, retired: main.querySelector("#f-retired").checked }));
+      BA.rerender();
+    };
+    ["#f-system", "#f-kind", "#f-retired"].forEach((s) => (main.querySelector(s).onchange = saveFilter));
+    if (ro) return;
+    const add = main.querySelector("#add-case");
+    add.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(add);
+      await BA.api("/api/test-cases", { method: "POST", body: { title: f.get("title"), system_id: numOrNull(f.get("system_id")), area: f.get("area"), kind: f.get("kind") } });
+      BA.rerender();
+    });
+    main.querySelectorAll("details[data-case]").forEach((det) => {
+      const id = det.dataset.case;
+      const form = det.querySelector("form.edit-case");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        await BA.api(`/api/test-cases/${id}`, { method: "PATCH", body: { title: f.get("title"), system_id: numOrNull(f.get("system_id")), area: f.get("area"), kind: f.get("kind"), priority: f.get("priority"),
+          owner_id: numOrNull(f.get("owner_id")), preconditions: f.get("preconditions"), steps: f.get("steps"), expected: f.get("expected"), active: form.elements.active.checked } });
+        BA.rerender();
+      });
+      det.querySelector("[data-del-case]").onclick = BA.guard(async () => {
+        if (!confirm("Delete this test case and its past results? Unticking 'In use' keeps the history.")) return;
+        await BA.api(`/api/test-cases/${id}`, { method: "DELETE" });
+        BA.rerender();
+      });
+    });
+  }
+
+  async function renderRuns(main) {
+    const [runs, systems, sprints, plans, people, current] = await Promise.all([
+      BA.api("/api/test-runs"), BA.api("/api/systems"), BA.api("/api/sprints"), BA.api("/api/regression-plans"), BA.api("/api/people"), BA.api("/api/sprints/current"),
+    ]);
+    const ro = presenting();
+    main.innerHTML = `${qaTabs("runs")}
+      ${ro ? "" : `<section class="card"><h2>Start a run</h2><form id="start-run"><div class="grid2">
+        <label>Name<input name="name" required placeholder="Such as: smoke after the [release name] deploy"></label>
+        <label>What to test<select name="select"><option value="smoke">Every smoke test</option><option value="regression">Every regression test</option><option value="all">Every active test</option></select></label>
+        <label>Only this system<select name="system_id">${sysOptions(systems, null, "All systems")}</select></label>
+        <label>Or a regression plan's cases<select name="plan_id"><option value=""></option>${plans.map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join("")}</select></label>
+        <label>Sprint<select name="sprint_id"><option value=""></option>${sprints.map((s) => `<option value="${s.id}"${current && s.id === current.id ? " selected" : ""}>Sprint ${s.number}</option>`).join("")}</select></label>
+        <label>Tester<select name="tester_id">${personOptions(people)}</select></label>
+        <label>Environment<input name="environment" placeholder="Such as: production, full sandbox"></label><label>Release<input name="release"></label></div>
+        <div class="actions"><button class="btn primary" type="submit">${BA.icon("play")} Start run</button></div></form></section>`}
+      <div class="tablewrap"><table class="data"><thead><tr><th>Run</th><th>Date</th><th>Kind</th><th>For</th><th>Results</th><th>Status</th></tr></thead><tbody>${
+        runs.map((r) => `<tr class="clickable" data-id="${r.id}"><td><b>${esc(r.name)}</b>${r.environment ? `<div class="quiet">${esc(r.environment)}</div>` : ""}</td><td>${BA.fmtDate(r.date)}</td><td>${esc(r.kind)}</td>
+          <td>${[r.sprint_number ? `Sprint ${r.sprint_number}` : "", r.plan_title ? esc(r.plan_title) : "", r.release ? esc(r.release) : ""].filter(Boolean).join(" · ")}</td><td>${tally(r)}</td><td>${BA.statusPill(r.status)}</td></tr>`).join("") ||
+        '<tr><td colspan="6" class="empty">No runs yet.</td></tr>'
+      }</tbody></table></div>`;
+    main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/qa/run-${tr.dataset.id}`)));
+    const form = main.querySelector("#start-run");
+    if (form)
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        const body = { name: f.get("name"), select: f.get("select"), system_id: numOrNull(f.get("system_id")), plan_id: numOrNull(f.get("plan_id")), sprint_id: numOrNull(f.get("sprint_id")),
+          tester_id: numOrNull(f.get("tester_id")), environment: f.get("environment"), release: f.get("release"), kind: f.get("select") === "regression" ? "regression" : "smoke" };
+        const run = await BA.api("/api/test-runs", { method: "POST", body });
+        BA.go(`/qa/run-${run.id}`);
+      });
+  }
+
+  async function renderRun(main, id) {
+    const d = await BA.api(`/api/test-runs/${id}/board`);
+    const r = d.run;
+    const ro = presenting();
+    document.getElementById("view-title").textContent = r.name;
+    const row = (x) => `<div class="run-row result-${x.result.replace(" ", "-")}" data-result="${x.id}">
+        <details><summary><b>${esc(x.case.title)}</b> <span class="quiet">${esc([x.case.system_name, x.case.area].filter(Boolean).join(" · "))}</span></summary>
+          ${x.case.preconditions ? `<h4>Before you start</h4>${BA.md(x.case.preconditions)}` : ""}${x.case.steps ? `<h4>Steps</h4>${BA.md(x.case.steps)}` : '<p class="quiet">No steps written yet.</p>'}${x.case.expected ? `<h4>Expected result</h4>${BA.md(x.case.expected)}` : ""}</details>
+        <div class="row">${ro ? tonePill(x.result, RESULT_TONES) : `<div class="seg">${RESULTS.map((v) => `<button type="button" class="${x.result === v ? "on " + (RESULT_TONES[v] || "") : ""}" data-set="${v}">${v}</button>`).join("")}</div>
+          <input name="notes" placeholder="What happened" value="${esc(x.notes || "")}" style="max-width:340px">
+          ${x.action_item_id ? '<a href="#/dev-sync">In the dev-sync log</a>' : (x.result === "fail" || x.result === "blocked") ? '<button class="btn" type="button" data-follow>Send to dev-sync</button>' : ""}`}</div></div>`;
+    main.innerHTML = `<p><a href="#/qa/runs">All runs</a></p>
+      <section class="card"><div class="row"><h2>${esc(r.name)}</h2><span class="quiet">${BA.fmtDate(r.date)} · ${esc(r.kind)}${r.environment ? " · " + esc(r.environment) : ""}${r.tester_name ? " · " + esc(r.tester_name) : ""}</span><span class="spacer"></span>${tally(r)}</div>
+        ${ro ? "" : `<div class="row"><select id="run-status" style="max-width:150px">${opts(["planned", "in progress", "done"], r.status)}</select><button class="btn" id="copy-summary">${BA.icon("copy")} Copy summary</button>
+          <span class="spacer"></span><button class="btn danger" id="del-run">Delete run</button></div>`}</section>
+      <section class="card">${d.results.map(row).join("")}</section>`;
+    if (ro) return;
+    main.querySelectorAll("[data-result]").forEach((el) => {
+      const rid = el.dataset.result;
+      el.querySelectorAll("[data-set]").forEach((b) => (b.onclick = BA.guard(async () => {
+        await BA.api(`/api/test-results/${rid}`, { method: "PATCH", body: { result: b.dataset.set } });
+        BA.rerender();
+      })));
+      el.querySelector('input[name="notes"]').onchange = BA.guard(async (e) => {
+        await BA.api(`/api/test-results/${rid}`, { method: "PATCH", body: { notes: e.target.value } });
+        BA.toast("Saved.");
+      });
+      const follow = el.querySelector("[data-follow]");
+      if (follow) follow.onclick = BA.guard(async () => {
+        await BA.api(`/api/test-results/${rid}/follow-up`, { method: "POST", body: {} });
+        BA.toast("Added to the dev-sync log.");
+        BA.rerender();
+      });
+    });
+    main.querySelector("#run-status").onchange = BA.guard(async (e) => {
+      await BA.api(`/api/test-runs/${id}`, { method: "PATCH", body: { status: e.target.value } });
+      BA.toast("Saved.");
+    });
+    main.querySelector("#copy-summary").onclick = BA.guard(async () => {
+      const s = await BA.api(`/api/test-runs/${id}/summary`);
+      await navigator.clipboard.writeText(s.markdown);
+      BA.toast("Summary copied.");
+    });
+    main.querySelector("#del-run").onclick = BA.guard(async () => {
+      if (!confirm("Delete this run and its results?")) return;
+      await BA.api(`/api/test-runs/${id}`, { method: "DELETE" });
+      BA.go("/qa/runs");
+    });
+  }
+
+  async function renderSuites(main) {
+    const [suites, systems, people] = await Promise.all([BA.api("/api/test-suites"), BA.api("/api/systems"), BA.api("/api/people")]);
+    const ro = presenting();
+    const link = (v) => (v && /^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\//, "").slice(0, 40))}</a>` : esc(v || ""));
+    const suiteRow = (s) => `<details class="plan-item" data-suite="${s.id}"><summary><b>${esc(s.name)}</b><span class="pill">${esc(s.kind)}</span><span class="quiet">${esc(s.system_name || "")}</span><span class="spacer"></span>
+        ${s.test_count != null ? `<span class="quiet">${s.test_count} tests</span>` : ""}${s.coverage != null ? `<span class="quiet">${s.coverage}% coverage</span>` : ""}${tonePill(s.last_result, SUITE_TONES)}${s.last_run ? `<span class="quiet">${BA.fmtDate(s.last_run)}</span>` : ""}</summary>
+        <p>${[s.framework ? esc(s.framework) : "", s.location ? `Lives in ${link(s.location)}` : "", s.ci_link ? `CI: ${link(s.ci_link)}` : "", s.owner_name ? `Owner: ${esc(s.owner_name)}` : ""].filter(Boolean).join(" · ") || '<span class="quiet">No details yet.</span>'}</p>
+        ${ro ? "" : `<form class="edit-suite"><div class="grid2">
+          <label>Name<input name="name" value="${esc(s.name)}" required></label><label>Kind<select name="kind">${opts(SUITE_KINDS, s.kind)}</select></label>
+          <label>System<select name="system_id">${sysOptions(systems, s.system_id)}</select></label><label>Framework<input name="framework" value="${esc(s.framework || "")}"></label>
+          <label>Where it lives <span class="quiet">(repo path or link)</span><input name="location" value="${esc(s.location || "")}"></label><label>CI link<input name="ci_link" value="${esc(s.ci_link || "")}"></label>
+          <label>Owner<select name="owner_id">${personOptions(people, s.owner_id)}</select></label><label>Number of tests<input type="number" name="test_count" value="${esc(s.test_count ?? "")}"></label>
+          <label>Coverage %<input type="number" step="0.1" name="coverage" value="${esc(s.coverage ?? "")}"></label><label>Latest result<select name="last_result">${opts(SUITE_RESULTS, s.last_result)}</select></label>
+          <label>Last run<input type="date" name="last_run" value="${esc(s.last_run || "")}"></label></div>
+          <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" data-del-suite="${s.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+    main.innerHTML = `${qaTabs("suites")}
+      <p class="quiet">Every automated suite: unit and integration tests, Apex tests, MuleSoft MUnit tests and end-to-end checks, where each lives, and how it did last time.</p>
+      <section class="card">${suites.map(suiteRow).join("") || '<p class="quiet">No suites recorded yet.</p>'}</section>
+      ${ro ? "" : `<section class="card"><h2>Add a suite</h2><form id="add-suite" class="row"><input name="name" placeholder="Suite name" required style="max-width:280px">
+        <select name="kind" style="max-width:150px">${opts(SUITE_KINDS, "unit")}</select><select name="system_id" style="max-width:200px">${sysOptions(systems, null, "System")}</select>
+        <input name="location" placeholder="Repo path or link" style="max-width:240px"><button class="btn primary" type="submit">Add</button></form></section>`}`;
+    if (ro) return;
+    main.querySelector("#add-suite").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      await BA.api("/api/test-suites", { method: "POST", body: { name: f.get("name"), kind: f.get("kind"), system_id: numOrNull(f.get("system_id")), location: f.get("location") } });
+      BA.rerender();
+    });
+    main.querySelectorAll("details[data-suite]").forEach((det) => {
+      const id = det.dataset.suite;
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        await BA.api(`/api/test-suites/${id}`, { method: "PATCH", body: { name: f.get("name"), kind: f.get("kind"), system_id: numOrNull(f.get("system_id")), framework: f.get("framework"), location: f.get("location"),
+          ci_link: f.get("ci_link"), owner_id: numOrNull(f.get("owner_id")), test_count: numOrNull(f.get("test_count")), coverage: numOrNull(f.get("coverage")), last_result: f.get("last_result"),
+          last_run: f.get("last_run") || null, notes: f.get("notes") } });
+        BA.rerender();
+      });
+      det.querySelector("[data-del-suite]").onclick = BA.guard(async () => {
+        if (!confirm("Delete this suite?")) return;
+        await BA.api(`/api/test-suites/${id}`, { method: "DELETE" });
+        BA.rerender();
+      });
+    });
+  }
+
+  async function renderRegression(main) {
+    const [plans, cases, people] = await Promise.all([BA.api("/api/regression-plans"), BA.api("/api/test-cases"), BA.api("/api/people")]);
+    const ro = presenting();
+    const pool = cases.filter((c) => c.active && c.kind !== "smoke");
+    const planCard = (p) => `<section class="card" data-plan="${p.id}"><div class="row"><h2>${esc(p.title)}</h2><span class="pill">${esc(p.kind)}</span><span class="spacer"></span>${BA.statusPill(p.status)}</div>
+        <p class="quiet">${p.start_date ? `${BA.fmtDate(p.start_date)}${p.end_date ? " to " + BA.fmtDate(p.end_date) : ""} · ` : ""}Owner: ${esc(p.owner_name || "not named")} · Backup: ${esc(p.backup_owner_name || "not named")}
+          ${p.signoff_date ? ` · Signed off ${BA.fmtDate(p.signoff_date)}${p.signoff_by_name ? " by " + esc(p.signoff_by_name) : ""}` : ""}</p>
+        ${p.scope ? BA.md(p.scope) : ""}
+        <p>${p.case_ids.length ? `${p.case_ids.length} regression case${p.case_ids.length === 1 ? "" : "s"} picked.` : "No cases picked, so a run uses every active regression test."}</p>
+        ${ro ? "" : `<div class="row"><button class="btn primary" type="button" data-run>${BA.icon("play")} Start a run from this plan</button></div>
+        <details><summary>Edit the plan and pick cases</summary><form class="edit-reg"><div class="grid2">
+          <label>Title<input name="title" value="${esc(p.title)}" required></label><label>Kind<select name="kind">${opts(REG_KINDS, p.kind)}</select></label>
+          <label>Starts<input type="date" name="start_date" value="${esc(p.start_date || "")}"></label><label>Ends<input type="date" name="end_date" value="${esc(p.end_date || "")}"></label>
+          <label>Owner<select name="owner_id">${personOptions(people, p.owner_id)}</select></label><label>Backup<select name="backup_owner_id">${personOptions(people, p.backup_owner_id)}</select></label>
+          <label>Status<select name="status">${opts(REG_STATUS, p.status)}</select></label><label>Signed off by<select name="signoff_by_id">${personOptions(people, p.signoff_by_id)}</select></label>
+          <label>Sign-off date<input type="date" name="signoff_date" value="${esc(p.signoff_date || "")}"></label></div>
+          <label>Scope <span class="quiet">(what changes, what's at risk, what's out)</span><textarea name="scope">${esc(p.scope || "")}</textarea></label>
+          <label>Cases</label><div class="case-picks">${pool.map((c) => `<label class="check"><input type="checkbox" name="case_ids" value="${c.id}"${p.case_ids.includes(c.id) ? " checked" : ""}> ${esc(c.title)} <span class="quiet">${esc(c.system_name || "")}</span></label>`).join("") || '<span class="quiet">No regression cases in the library yet.</span>'}</div>
+          <label>Private notes<textarea name="notes">${esc(p.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" data-del-reg>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</section>`;
+    main.innerHTML = `${qaTabs("regression")}
+      <p class="quiet">A plan for each Salesforce release and each peak-season freeze: what to test, who owns it, who backs them up, and who signs off.</p>
+      ${plans.map(planCard).join("") || '<p class="empty">No regression plans yet.</p>'}
+      ${ro ? "" : `<section class="card"><h2>New regression plan</h2><form id="add-reg" class="row"><input name="title" placeholder="Such as: [Salesforce release name] regression" required style="max-width:320px">
+        <select name="kind" style="max-width:190px">${opts(REG_KINDS, "Salesforce release")}</select><input type="date" name="start_date" style="max-width:170px">
+        <select name="owner_id" style="max-width:200px">${personOptions(people).replace('<option value=""></option>', '<option value="">Owner</option>')}</select><button class="btn primary" type="submit">Add</button></form></section>`}`;
+    if (ro) return;
+    main.querySelector("#add-reg").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      await BA.api("/api/regression-plans", { method: "POST", body: { title: f.get("title"), kind: f.get("kind"), start_date: f.get("start_date") || null, owner_id: numOrNull(f.get("owner_id")) } });
+      BA.rerender();
+    });
+    main.querySelectorAll("[data-plan]").forEach((sec) => {
+      const id = Number(sec.dataset.plan);
+      const plan = plans.find((p) => p.id === id);
+      sec.querySelector("[data-run]").onclick = BA.guard(async () => {
+        const run = await BA.api("/api/test-runs", { method: "POST", body: { name: plan.title, plan_id: id, kind: "regression" } });
+        BA.go(`/qa/run-${run.id}`);
+      });
+      const form = sec.querySelector("form.edit-reg");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(form);
+        await BA.api(`/api/regression-plans/${id}`, { method: "PATCH", body: { title: f.get("title"), kind: f.get("kind"), start_date: f.get("start_date") || null, end_date: f.get("end_date") || null,
+          owner_id: numOrNull(f.get("owner_id")), backup_owner_id: numOrNull(f.get("backup_owner_id")), status: f.get("status"), signoff_by_id: numOrNull(f.get("signoff_by_id")),
+          signoff_date: f.get("signoff_date") || null, scope: f.get("scope"), case_ids: f.getAll("case_ids").map(Number), notes: f.get("notes") } });
+        BA.rerender();
+      });
+      sec.querySelector("[data-del-reg]").onclick = BA.guard(async () => {
+        if (!confirm("Delete this regression plan? Its runs stay.")) return;
+        await BA.api(`/api/regression-plans/${id}`, { method: "DELETE" });
+        BA.rerender();
+      });
+    });
+  }
+
+  async function renderDod(main) {
+    const [dod, o] = await Promise.all([BA.api("/api/qa/definition-of-done"), BA.api("/api/qa/overview")]);
+    const ro = presenting();
+    main.innerHTML = `${qaTabs("dod")}
+      <section class="card"><h2>Definition of done</h2><p class="quiet">What has to be true before the team calls a story done. Agree it together and revisit it at retros.</p>
+        ${dod.items.length ? `<ul class="checklist">${dod.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : '<p class="quiet">Nothing agreed yet.</p>'}
+        ${ro ? "" : `<form id="dod"><label>One item per line<textarea name="items" rows="8">${esc(dod.items.join("\n"))}</textarea></label>
+          <div class="actions">${dod.items.length ? "" : '<button class="btn left" type="button" id="dod-starter">Load a starter list</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}</section>
+      <section class="card"><h2>Who decides</h2>${o.raci.length ? o.raci.map((r) => `<div class="item"><b>${esc(r.decision)}</b><span class="spacer"></span>${Object.entries(r.cells).map(([role, l]) => `<span class="pill${l === "A" ? " good" : ""}">${esc(role)}: ${l}</span>`).join(" ") || '<span class="quiet">no one assigned yet</span>'}</div>`).join("")
+        : '<p class="quiet">No QA or release decisions in the RACI yet. The starter content there includes QA sign-off and release go/no-go.</p>'}<p><a href="#/raci">Open the RACI</a></p></section>`;
+    if (ro) return;
+    main.querySelector("#dod").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      await BA.api("/api/qa/definition-of-done", { method: "PUT", body: { items: new FormData(e.target).get("items").split("\n") } });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+    const starter = main.querySelector("#dod-starter");
+    if (starter) starter.onclick = BA.guard(async () => (await BA.api("/api/qa/definition-of-done/starter", { method: "POST", body: {} }), BA.rerender()));
+  }
+
 })();

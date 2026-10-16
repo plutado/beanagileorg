@@ -8,6 +8,7 @@ from . import models
 from .planning import router as planning_router
 from .plans import router as plans_router
 from .landscape import router as landscape_router
+from .qa import router as qa_router
 from .reporting import router as reporting_router
 from .routes import router
 
@@ -26,6 +27,7 @@ NAV = [
     {"path": "/raci", "icon": "grid-3x3", "label": "RACI"},
     {"path": "/risks", "icon": "triangle-alert", "label": "Risks and decisions"},
     {"path": "/metrics", "icon": "gauge", "label": "Metrics"},
+    {"path": "/qa", "icon": "flask-conical", "label": "QA resources"},
     {"path": "/dev-sync", "icon": "list-checks", "label": "Dev-sync log"},
     {"path": "/learning", "icon": "presentation", "label": "Group learning"},
     {"path": "/vendors", "icon": "handshake", "label": "Vendors"},
@@ -50,7 +52,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, *(record.router() for record in models.RECORDS)],
+        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

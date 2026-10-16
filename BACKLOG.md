@@ -12,11 +12,11 @@ Nothing right now.
 
 In the order the 90-day plan needs them:
 
-- [ ] **QA resources (toolkit):** manual smoke test library (system, area, steps, expected result, owner, last run and result); test runs per release or sprint with pass, fail or blocked per case and failures turned into dev-sync items; automated test inventory (unit, integration, end-to-end and Apex suites, location, coverage, latest CI result); regression plans for each Salesforce release and peak-season freeze with named owners; ties to the definition of done and QA sign-off in the RACI
 - [ ] **Platform before real data:** nightly backups with a tested restore, local beanagile.org setup
 
 ## Toolkit, later versions
 
+- [ ] QA: placeholder seed data; pull automated suite results from Bitbucket Pipelines or another CI instead of typing them; a test-run section in the weekly status draft; per-story QA sign-off tied to PI planning stories; flaky-test tracking over time
 - [ ] Business landscape: placeholder seed data; link assessments to listening-tour themes, incidents and metrics as evidence; a shareable summary of selected points for leadership; an org chart drawing; capabilities each system supports (a capability map)
 - [ ] Plans: a version history of each plan as presented, so a later review can show what changed and why; a day-30/60/90 check-in that marks each item met, moved or dropped with a note
 - [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket or the release log
@@ -77,6 +77,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: QA resources. A manual test library (title, system, area, smoke or regression, priority, before-you-start, steps, expected result, owner, in use) grouped by system with filters and each case's last result; test runs started from every smoke or regression test, one system, or a regression plan, with pass, fail, blocked or skipped per case, notes, a tally and a copyable summary; a failed or blocked case goes to the dev-sync log tagged to the run's sprint and the case owner; an automated test inventory (unit, integration, end-to-end, Apex, MUnit, performance) with where each lives, CI link, test count, coverage and latest result; regression plans for Salesforce releases and peak-season freezes with owner, backup, scope, picked cases, status and sign-off; the definition of done with a starter list, and the QA and release rows from the RACI; an overview of what's failing, never run and coming up. Fixed: the dev-sync edit form now offers the vendor and testing origins, so saving those items no longer resets where they came from; 106 tests
 
 - [x] 2026-10-16: Business landscape. Products, services and internal platforms with what each is, who it serves, owning department, systems and vendors it relies on, maturity and status; the organization as a tree of divisions, departments and teams with leaders, people placed in them and the offerings they own (department loops are refused; deleting one moves its teams up); a strengths, weaknesses, opportunities and threats assessment for each offering and department with evidence, source, confidence, date and status, plus a combined matrix filtered by kind; an opportunity or weakness can become a roadmap item (title only, since the roadmap is shareable) or a risk; structure is presentable, the assessment is private and hidden while presenting; 98 tests
 
