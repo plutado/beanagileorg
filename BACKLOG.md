@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] Mandates: link plan items and roadmap items to the mandate outcome they serve; show mandate decision rights on the RACI; a version history view comparing what was agreed at day 30 and day 90
 - [ ] People: export the current People list as a roster file, so a team can be moved between installs; open seats (a role you're hiring for) as their own kind of placeholder
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
@@ -97,6 +98,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Mandates. A mandate for me and one for each report: what the role is for, the outcomes expected (with a measure, a day of the first 90, and a status), decision areas each marked I decide, I decide and inform, I recommend, I'm consulted, not mine, or to clarify (starting from common areas), boundaries, resources and questions still to clarify. Mark discussed, then agreed (with whom, review in 90 days); copy as Markdown. Mine can be filled from the Role brief or imported from a file; it can be shown while presenting, and my manager's weekly report shows progress on its outcomes. Agreeing a report's mandate completes their First 90 days milestone. Today nudges me to agree mine after two weeks and flags reviews. A coaching guide on getting clear on your mandate; 206 tests
 
 - [x] 2026-10-17: Placeholder people and roster import. People can be marked as placeholders (stand-ins in [brackets] until the real person is known), shown with a pill and a filter; giving one a real name clears the mark and keeps everything recorded against them. People > Fields > Import a roster adds a whole team from a JSON file: people, reporting lines, who's on my team, and which record is me; re-importing adds nothing. The real roster file lives outside the repo; 203 tests
 

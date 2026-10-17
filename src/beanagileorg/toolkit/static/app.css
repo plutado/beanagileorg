@@ -251,3 +251,6 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .f90-team .item > a { white-space: nowrap; }
 .f90-team .item > .quiet { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .f90-team .item > .quiet:last-child, .progress + .quiet { white-space: nowrap; flex: none; }
+
+.mandate-row { gap: 8px; flex-wrap: wrap; }
+.mandate-row input, .mandate-row select { margin: 0; }

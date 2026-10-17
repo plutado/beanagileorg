@@ -110,6 +110,10 @@ REPORT_AUDIENCES = ("leadership", "my manager")
 REPORT_STATUS = ("draft", "sent")
 CHANGE_AREAS = ("process", "ceremonies", "quality", "tooling", "communication", "roles", "other")
 CHANGE_STATUS = ("idea", "announced", "trial", "review", "adopted", "dropped")
+MANDATE_STATUS = ("draft", "discussed", "agreed")
+MANDATE_ITEM_KINDS = ("outcome", "decision")
+AUTHORITY = ("to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine")
+MANDATE_ITEM_STATUS = ("open", "on track", "at risk", "done", "dropped")
 CR_SOURCES = ("leadership", "stakeholder", "product owner", "customer", "production issue", "another team", "the team")
 CR_URGENCY = ("next sprint is fine", "this sprint", "emergency")
 CR_GOAL_IMPACT = ("doesn't affect the goal", "puts the goal at risk", "changes the goal", "makes the goal obsolete")
@@ -1254,6 +1258,37 @@ MIGRATIONS = [
         24,
         """
         ALTER TABLE people ADD COLUMN placeholder INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
+    (
+        25,
+        """
+        CREATE TABLE mandates (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            mine INTEGER NOT NULL DEFAULT 0,
+            purpose TEXT,
+            boundaries TEXT,
+            resources TEXT,
+            questions TEXT,
+            status TEXT NOT NULL DEFAULT 'draft',
+            agreed_with_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            agreed_on DATE,
+            review_on DATE,
+            notes TEXT
+        );
+        CREATE UNIQUE INDEX mandates_person ON mandates (person_id);
+        CREATE TABLE mandate_items (
+            id INTEGER PRIMARY KEY,
+            mandate_id INTEGER NOT NULL REFERENCES mandates (id) ON DELETE CASCADE,
+            kind TEXT NOT NULL DEFAULT 'outcome',
+            text TEXT NOT NULL,
+            measure TEXT,
+            due_day INTEGER,
+            authority TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            position INTEGER NOT NULL DEFAULT 0
+        );
         """,
     ),
 ]
@@ -2914,10 +2949,56 @@ first90_milestones = Record(
         "person_id": Field("int", P, required=True),
         "title": Field("text", P, required=True),
         "due_day": Field("int", P, required=True),
-        "auto": Field("text", P, choices=("one_on_one", "interview", "growth_goal", "feedback")),
+        "auto": Field("text", P, choices=("one_on_one", "interview", "growth_goal", "feedback", "mandate")),
         "done_on": Field("date", P),
         "note": Field("text", P),
         "position": Field("int", P, default=0),
+    },
+)
+
+# What a role is for, what it must deliver, and what it can decide. Yours is agreed with your manager and can be
+# shown to them; your reports' are private to you.
+mandates = Record(
+    entity="mandate",
+    table="mandates",
+    path="/api/mandates",
+    order_by="mine DESC, id",
+    ceiling_sql="CASE WHEN mine THEN 1 ELSE 0 END",
+    hide_when_empty=True,
+    fields={
+        "person_id": Field("int", S, required=True),
+        "mine": Field("bool", S, default=False),
+        "purpose": Field("text", S),
+        "boundaries": Field("text", S),
+        "resources": Field("text", S),
+        "questions": Field("text", S),
+        "status": Field("text", S, choices=MANDATE_STATUS, default="draft"),
+        "agreed_with_id": Field("int", S),
+        "agreed_on": Field("date", S),
+        "review_on": Field("date", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "person_name": ("(SELECT name FROM people p WHERE p.id = mandates.person_id)", S),
+        "agreed_with_name": ("(SELECT name FROM people p WHERE p.id = mandates.agreed_with_id)", S),
+    },
+)
+
+mandate_items = Record(
+    entity="mandate_item",
+    table="mandate_items",
+    path="/api/mandate-items",
+    order_by="mandate_id, kind, position, id",
+    ceiling_sql="(SELECT CASE WHEN m.mine THEN 1 ELSE 0 END FROM mandates m WHERE m.id = mandate_items.mandate_id)",
+    fields={
+        "mandate_id": Field("int", S, required=True),
+        "kind": Field("text", S, choices=MANDATE_ITEM_KINDS, default="outcome"),
+        "text": Field("text", S, required=True),
+        "measure": Field("text", S),
+        "due_day": Field("int", S),
+        "authority": Field("text", S, choices=AUTHORITY),
+        "status": Field("text", S, choices=MANDATE_ITEM_STATUS, default="open"),
+        "position": Field("int", S, default=0),
     },
 )
 
@@ -2939,5 +3020,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones,
+    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items,
 ]

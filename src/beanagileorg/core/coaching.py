@@ -774,6 +774,37 @@ GUIDES = [
         ],
         "related": ["/first90", "/listening", "/coaching/earning-trust"], "reading": [F90, UA],
     },
+    {
+        "slug": "your-mandate", "theme": "transition", "minutes": 6, "since": 9,
+        "title": "Getting clear on your mandate",
+        "summary": "Before you change anything, agree with your manager what your role is for, what it must deliver, and what you can decide on your own. Then give each of your reports the same clarity.",
+        "why": "Most early trouble in a new role comes from assumptions that were never spoken: you think you can reorganize the team, your manager thinks you were hired to stabilize it; you think a decision is yours, a peer thinks it's theirs. Writing the mandate down turns those assumptions into a conversation while it's still cheap to have.",
+        "practices": [
+            "Write a short draft yourself first: the purpose of the role, the outcomes you think are expected, and the decisions you think are yours.",
+            "Take it to your manager as questions, not claims. Ask what success looks like at 30, 60 and 90 days and how they'll judge it.",
+            "Go decision by decision. For each area, agree whether you decide, decide and inform, recommend, or are only consulted.",
+            "Ask about boundaries: what must not change, what needs sign-off, and where the politics are.",
+            "Ask what resources and support you'll have, and what you can spend without asking.",
+            "Agree a date to revisit it. Mandates shift as you learn and as the organization changes.",
+            "Do the same with each report: their outcomes, their decisions, and the support they get from you. Work it out with them, not for them.",
+        ],
+        "pitfalls": [
+            "Assuming the job description is the mandate.",
+            "Agreeing outcomes without agreeing how they'll be measured.",
+            "Leaving decision rights vague, then discovering the gap in a disagreement.",
+            "Never revisiting it after the first conversation.",
+        ],
+        "questions": [
+            "Which decisions am I making that I've never confirmed are mine?",
+            "Could my manager and I each write the same three outcomes for my role?",
+            "Does each person on my team know what they can decide without asking me?",
+        ],
+        "try": [
+            "Bring your draft mandate to your next one-on-one with your manager and work through the 'to clarify' decisions.",
+            "Ask each report to list three decisions they'd like to make on their own, and agree which ones they can.",
+        ],
+        "related": ["/first90", "/plans", "/coaching/your-manager"], "reading": [F90],
+    },
     # ---------------------------------------------------------------- culture and trust
     {
         "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
@@ -941,7 +972,8 @@ GUIDES = [
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
-    "/first90": [("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
+    "/first90": [("Agree your mandate early: what success looks like, and decision by decision, what you can do on your own.", "your-mandate", 9),
+                 ("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
                  ("Bring changes one at a time, as trials with a review date, and review them with the team.", "leading-change", 8),
                  ("Show the team what changed because of what they told you. It's the fastest way to earn the next conversation.", "leading-change", 8)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
@@ -989,7 +1021,8 @@ TIPS = {
     "/dev-sync": [("Follow up on every item, even when the answer is no. Closed loops build trust.", "earning-trust")],
     "/learning": [("Teaching others is one of the fastest ways to learn. Invite people to present what they know.", "delegation")],
     "/vendors": [("Talk to key vendors regularly, not only during incidents.", "vendor-partnerships")],
-    "/plans": [("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
+    "/plans": [("Your plans deliver your mandate. Check each plan item against the outcomes you agreed with your manager.", "your-mandate", 9),
+               ("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
                ("Pick a few early wins that solve problems people already feel.", "early-wins")],
     "/status": [("Log one line at the end of each day. Friday's report then writes itself, and nothing good gets forgotten.", "honest-status", 7),
                 ("Write a different version for each audience: outcomes and asks for leadership, the detail for your manager.", "your-manager", 7),
@@ -1062,7 +1095,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 8  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 9  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

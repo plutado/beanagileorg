@@ -274,6 +274,12 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
         md += ["## Sprint", f"Sprint {sp['number']}" + (f": {sp['goal']}" if sp.get("goal") else ""),
                f"- {prog['done_points']} of {prog['committed']} points done so far ({prog['done_stories']} of {prog['stories']} stories)"
                + (f", ending {weeks.fmt(date.fromisoformat(sp['end_date']))}" if sp.get("end_date") else ""), ""]
+    if audience == "my manager":
+        mine = models.mandates.fetch_all(conn, "mine = 1")
+        if mine:
+            outs = models.mandate_items.visible_all(models.mandate_items.fetch_all(conn, "mandate_id = ? AND kind = 'outcome' AND status != 'dropped'", (mine[0]["id"],)), viewer)
+            if outs:
+                md += ["## Progress on my mandate"] + [f"- {o['text']}: {o['status']}" for o in outs] + [""]
     md += ["## Highlights"] + ([_bullet(h, audience == "my manager") for h in highlights] or ["- [Placeholder: add wins and progress to the work log as they happen]"])
     delivered = [f"- {r['title']}" + (f" ({', '.join(r['jira_keys'])})" if r.get("jira_keys") else "") for r in shipped]
     if n_stories:

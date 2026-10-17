@@ -29,7 +29,7 @@ STARTER_TEMPLATE = [
     {"title": "Share 'Working with me' and ask what they'd want me to know about them", "due_day": 14, "auto": None},
     {"title": "Listening tour conversation", "due_day": 21, "auto": "interview"},
     {"title": "Career conversation: where they want to go, and what would help", "due_day": 30, "auto": None},
-    {"title": "Agree what's expected in their role, and how we'll know it's going well", "due_day": 45, "auto": None},
+    {"title": "Agree their mandate: what's expected in their role, and what they can decide", "due_day": 45, "auto": "mandate"},
     {"title": "Growth goal agreed", "due_day": 60, "auto": "growth_goal"},
     {"title": "Feedback both ways: ask for feedback on me, and share mine", "due_day": 75, "auto": "feedback"},
     {"title": "Day-90 check-in: what's changed for them, what's next", "due_day": 90, "auto": None},
@@ -115,6 +115,8 @@ def _auto_done(conn, pid: int, auto: str | None, start: date | None) -> str | No
         row = conn.execute(
             "SELECT MIN(date(datetime(c.at, 'localtime'))) AS d FROM change_log c JOIN growth_goals g ON c.entity = 'growth_goal' AND c.record_id = CAST(g.id AS TEXT) "
             "WHERE g.person_id = ? AND g.status != 'dropped'", (pid,)).fetchone()  # when the goal was first written down
+    elif auto == "mandate":
+        row = conn.execute("SELECT agreed_on AS d FROM mandates WHERE person_id = ? AND status = 'agreed'", (pid,)).fetchone()
     elif auto == "feedback":
         row = conn.execute("SELECT MIN(date) AS d FROM manager_notes WHERE person_id = ? AND shared = 1 AND date >= ?", (pid, since)).fetchone()
     else:
@@ -226,7 +228,7 @@ def start_team(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewe
 def put_template(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     items = body.get("items")
-    autos = {None, "one_on_one", "interview", "growth_goal", "feedback"}
+    autos = {None, "one_on_one", "interview", "growth_goal", "feedback", "mandate"}
     if not isinstance(items, list) or not items:
         raise HTTPException(400, "Give at least one milestone.")
     clean = []

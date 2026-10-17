@@ -108,6 +108,9 @@
           <p class="quiet">${rep.logged_today ? `${rep.logged_today} logged today. ` : "Nothing logged today yet. "}<a href="#/status/log">Work log</a></p>
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
+        ${d.mandates && (d.mandates.agree_mine || d.mandates.reviews.length) ? `<section class="card"><h2>Mandates</h2>
+          ${d.mandates.agree_mine ? `<div class="item"><span class="pill warn">day ${d.mandates.agree_mine.day}</span><a href="#/first90/${d.mandates.agree_mine.id ? `mandate/${d.mandates.agree_mine.id}` : "mandates"}">${d.mandates.agree_mine.exists ? "Agree your mandate with your manager" : "Write down your mandate, then agree it with your manager"}</a></div>` : ""}
+          ${d.mandates.reviews.map((m) => `<div class="item"><span class="pill">review</span><a href="#/first90/mandate/${m.id}">${m.mine ? "Your mandate" : `${esc(m.name || "")}'s mandate`}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.review_on)}</span></div>`).join("")}</section>` : ""}
         ${d.first90 && (d.first90.late.length || d.first90.checkpoint || d.first90.reviews.length) ? `<section class="card"><h2>First 90 days</h2>
           ${d.first90.checkpoint ? `<div class="item"><span class="pill warn">check-in</span><a href="#/first90/team">Day-${d.first90.checkpoint.day} team check-in</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.first90.checkpoint.due)}</span></div>` : ""}
           ${d.first90.reviews.map((c) => `<div class="item"><span class="pill">review</span><a href="#/first90/changes">Review with the team: ${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.review_on)}</span></div>`).join("")}
@@ -410,6 +413,7 @@
       const KIND_TONES = { praise: "good", win: "good", constructive: "warn", concern: "bad" };
       const ag = await BA.api(`/api/people/${id}/agenda`);
       box.innerHTML = `<div class="cards">
+          <section class="card"><div class="row"><h2>Mandate</h2><span class="spacer"></span><a class="btn" href="#/first90/mandates">Mandates</a></div><p class="quiet">What their role is for, what it's expected to deliver, and what they can decide on their own.</p></section>
           <section class="card"><h2>Growth goals</h2>${m.goals.map((g) => `<details class="plan-item${g.status !== "active" ? " dropped" : ""}" data-goal="${g.id}"><summary><b>${esc(g.goal)}</b><span class="spacer"></span>
               ${g.target_date ? `<span class="quiet">${BA.fmtDate(g.target_date)}</span>` : ""}${BA.statusPill(g.status === "active" ? "in progress" : g.status === "achieved" ? "done" : g.status)}</summary>
               ${g.measure ? `<p class="quiet">Measure: ${esc(g.measure)}</p>` : ""}${g.progress ? BA.md(g.progress) : ""}
@@ -4264,7 +4268,7 @@
     if (ro) { main.innerHTML = `${cultureTabs("brief")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
     const lines = (v) => (v || []).join("\n");
     main.innerHTML = `${cultureTabs("brief")}
-      <form id="brief" class="card"><h2>Role brief</h2><p class="quiet">What you were brought in to do, and the situation you inherited. It sits on the Culture overview so the day-to-day never crowds it out. Private.</p>
+      <form id="brief" class="card"><h2>Role brief</h2><p class="quiet">What you were brought in to do, and the situation you inherited. It sits on the Culture overview so the day-to-day never crowds it out. Private. The outcomes you're expected to deliver, and what you can decide, go in <a href="#/first90/mandates">your mandate</a>.</p>
         <label>What I was brought in to do <span class="quiet">(one per line)</span><textarea name="focus" rows="5">${esc(lines(b.focus))}</textarea></label>
         <label>What they said they needed in the person <span class="quiet">(one per line)</span><textarea name="must_haves" rows="4">${esc(lines(b.must_haves))}</textarea></label>
         <label>The situation I inherited <span class="quiet">(Markdown)</span><textarea name="situation" rows="5">${esc(b.situation || "")}</textarea></label>
@@ -4434,8 +4438,8 @@
   const CHANGE_STAGES = ["idea", "announced", "trial", "review", "adopted", "dropped"];
   const STAGE_TONES = { idea: "", announced: "accent", trial: "warn", review: "warn", adopted: "good", dropped: "" };
   const NEXT_STAGE = { idea: ["announced", "Announce it"], announced: ["trial", "Start the trial"], trial: ["review", "Review with the team"] };
-  const AUTO_LABELS = { one_on_one: "a one-on-one logged under People", interview: "a listening tour conversation marked done", growth_goal: "a growth goal on their Manager tab", feedback: "feedback marked shared on their Manager tab" };
-  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["working", "Working with me"]]
+  const AUTO_LABELS = { one_on_one: "a one-on-one logged under People", interview: "a listening tour conversation marked done", growth_goal: "a growth goal on their Manager tab", feedback: "feedback marked shared on their Manager tab", mandate: "their mandate marked agreed" };
+  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["mandates", "Mandates"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["working", "Working with me"]]
     .map(([k, l]) => `<a href="#/first90${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const f90Progress = (done, total) => `<span class="progress"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></span><span class="quiet">${done ?? 0} of ${total ?? 0}</span>`;
   const f90_dayLabel = (n) => n == null ? "not started" : n < 1 ? `starts in ${1 - n} day${1 - n === 1 ? "" : "s"}` : n > 90 ? `day ${n}, past 90` : `day ${n}`;
@@ -4443,8 +4447,9 @@
   BA.view("/first90", {
     title: "First 90 days",
     async render(main, param) {
-      const views = { team: renderF90Team, changes: renderF90Changes, working: renderWorking };
+      const views = { team: renderF90Team, changes: renderF90Changes, working: renderWorking, mandates: renderMandates };
       if (views[param]) return views[param](main);
+      if (param && param.startsWith("mandate/")) return renderMandate(main, Number(param.split("/")[1]));
       const d = await BA.api("/api/first90/overview");
       const ch = d.changes;
       main.innerHTML = `${f90Tabs("")}
@@ -4570,5 +4575,99 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     if (st) st.onclick = () => { form.elements.text.value = d.starter; };
     const cp = main.querySelector("#ww-copy");
     if (cp) cp.onclick = BA.guard(async () => { await navigator.clipboard.writeText(d.text); BA.toast("Copied."); });
+  }
+
+  // ---- Mandates ----
+
+  const AUTHORITY = ["to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine"];
+  const AUTH_TONES = { "to clarify": "warn", "I decide": "good", "I decide and inform": "good", "I recommend, someone else decides": "accent", "I'm consulted": "", "not mine": "" };
+  const M_STATUS = ["open", "on track", "at risk", "done", "dropped"];
+  const M_TONES = { open: "", "on track": "good", "at risk": "bad", done: "good", dropped: "" };
+  const MANDATE_TONES = { draft: "", discussed: "warn", agreed: "good" };
+
+  async function renderMandates(main) {
+    const d = await BA.api("/api/mandates/overview");
+    const ro = presenting(), m = d.mine;
+    main.innerHTML = `${f90Tabs("mandates")}
+      <p class="quiet">A mandate is the shared understanding of a role: what it's for, what it's expected to deliver and by when, what it can decide alone, and what it can only recommend. Work out yours with your manager early, and each report's with them.</p>
+      <section class="card"><div class="row"><h2>My mandate</h2>${m ? tonePill(m.status, MANDATE_TONES) : ""}<span class="spacer"></span>${m ? `<a class="btn" href="#/first90/mandate/${m.id}">Open</a>` : ""}</div>
+        ${m ? `${m.purpose ? `<p>${esc(m.purpose)}</p>` : '<p class="quiet">No purpose written yet.</p>'}
+          <div class="stat-row"><div><b>${m.outcomes.length}</b><span>expected outcomes</span></div><div><b>${m.done}</b><span>done</span></div><div><b>${m.at_risk}</b><span>at risk</span></div><div><b>${m.to_clarify}</b><span>decisions to clarify</span></div></div>
+          ${m.status === "agreed" ? `<p class="quiet">Agreed${m.agreed_with_name ? ` with ${esc(m.agreed_with_name)}` : ""} on ${BA.fmtDate(m.agreed_on)}. Review ${BA.fmtDate(m.review_on)}.</p>` : ""}`
+        : d.me ? (ro ? '<p class="quiet">Not started.</p>' : '<p class="quiet">Not started. It begins with a list of common decision areas, each marked "to clarify", to take to your manager.</p><button class="btn primary" id="start-mine">Start my mandate</button>')
+        : '<p class="quiet">Pick your own record under <a href="#/people">People</a> ("This is me") first.</p>'}</section>
+      ${d.reports ? `<section class="card"><h2>My team's mandates</h2><p class="quiet">Agreeing one completes that person's "agree their mandate" milestone in First 90 days.</p>
+        ${d.reports.map((r) => `<div class="item"><a href="#/people/${r.person_id}">${esc(r.name)}</a>${r.placeholder ? '<span class="pill warn">placeholder</span>' : ""}<span class="quiet">${esc(r.role || "")}</span><span class="spacer"></span>
+          ${r.mandate ? `${tonePill(r.mandate.status, MANDATE_TONES)}<span class="quiet">${r.mandate.to_clarify ? `${r.mandate.to_clarify} to clarify` : ""}</span><a class="btn" href="#/first90/mandate/${r.mandate.id}">Open</a>` : ro ? "" : `<button class="btn" data-start="${r.person_id}">Start</button>`}</div>`).join("") || '<p class="quiet">Nobody reports to you yet.</p>'}</section>` : ""}`;
+    const sm = main.querySelector("#start-mine");
+    if (sm) sm.onclick = BA.guard(async () => { const r = await BA.api("/api/mandates/mine", { method: "POST", body: {} }); BA.go(`/first90/mandate/${r.id}`); });
+    main.querySelectorAll("[data-start]").forEach((b) => (b.onclick = BA.guard(async () => { const r = await BA.api(`/api/mandates/for/${b.dataset.start}`, { method: "POST", body: {} }); BA.go(`/first90/mandate/${r.id}`); })));
+  }
+
+  async function renderMandate(main, id) {
+    const m = await BA.api(`/api/mandates/${id}/full`);
+    if (m.hidden) { main.innerHTML = `${f90Tabs("mandates")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const ro = presenting();
+    document.getElementById("view-title").textContent = m.mine ? "My mandate" : `${m.person_name}'s mandate`;
+    const textBlock = (key, label, help, rows = 3) => ro ? (m[key] ? `<h3>${label}</h3>${BA.md(m[key])}` : "") : `<label>${label} <span class="quiet">${help}</span><textarea name="${key}" rows="${rows}">${esc(m[key] || "")}</textarea></label>`;
+    main.innerHTML = `${f90Tabs("mandates")}
+      <section class="card"><div class="row"><h2>${m.mine ? "My mandate" : esc(m.person_name)}</h2>${tonePill(m.status, MANDATE_TONES)}<span class="spacer"></span>${ro ? "" : `${BA.historyButton("mandate", m.id)}<button class="btn" id="m-copy">Copy as Markdown</button>
+          ${m.status === "draft" ? '<button class="btn" id="m-discussed">Mark discussed</button>' : ""}${m.status !== "agreed" ? `<button class="btn primary" id="m-agree">Mark agreed</button>` : ""}`}</div>
+        <p class="quiet">${m.status === "agreed" ? `Agreed${m.agreed_with_name ? ` with ${esc(m.agreed_with_name)}` : ""} on ${BA.fmtDate(m.agreed_on)}. Review on ${BA.fmtDate(m.review_on)}.` : m.mine ? "Take this to your manager. Agree the outcomes and, decision by decision, what you can do on your own." : "Work this out with them, not for them, then mark it agreed."}</p>
+        <form id="m-text">${textBlock("purpose", "What the role is for", "(a sentence or two)", 2)}</form></section>
+      <section class="card"><h2>What success looks like</h2><p class="quiet">The outcomes expected, how you'll know, and roughly by when (day of your first 90).</p>
+        ${m.outcomes.map((o) => `<div class="item mandate-row" data-item="${o.id}">${ro ? `<span>${esc(o.text)}</span><span class="quiet">${esc(o.measure || "")}</span><span class="spacer"></span>${tonePill(o.status, M_TONES)}` :
+          `<input name="text" value="${esc(o.text)}" style="flex:2;min-width:200px"><input name="measure" value="${esc(o.measure || "")}" placeholder="How we'll know" style="flex:1.4;min-width:150px">
+           <input name="due_day" type="number" min="1" value="${esc(o.due_day ?? "")}" placeholder="Day" style="width:76px" title="${o.due ? BA.fmtDate(o.due) : "Day of your first 90"}"><select name="status" style="max-width:120px">${opts(M_STATUS, o.status)}</select><button class="icon-btn" data-del title="Remove">${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">None yet.</p>'}
+        ${ro ? "" : `<form id="add-outcome" class="row" style="margin-top:8px"><input name="text" required placeholder="An outcome, such as: Scrum running where it's missing" style="flex:1;min-width:240px"><button class="btn" type="submit">Add</button>
+          ${m.mine ? '<button class="btn" type="button" id="from-brief">Add from my Role brief</button>' : ""}</form>`}</section>
+      <section class="card"><h2>Decisions</h2><p class="quiet">For each area: can ${m.mine ? "you" : "they"} decide alone, decide and then inform, only recommend, or just be consulted? "To clarify" means it hasn't been discussed yet.</p>
+        ${m.decisions.map((dd) => `<div class="item mandate-row" data-item="${dd.id}">${ro ? `<span>${esc(dd.text)}</span><span class="spacer"></span>${tonePill(dd.authority || "to clarify", AUTH_TONES)}` :
+          `<input name="text" value="${esc(dd.text)}" style="flex:2;min-width:200px"><select name="authority" style="max-width:260px">${opts(AUTHORITY, dd.authority || "to clarify")}</select><button class="icon-btn" data-del title="Remove">${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">None yet.</p>'}
+        ${ro ? "" : '<form id="add-decision" class="row" style="margin-top:8px"><input name="text" required placeholder="A decision area" style="flex:1;min-width:240px"><button class="btn" type="submit">Add</button></form>'}</section>
+      <section class="card"><form id="m-more">${textBlock("boundaries", "Boundaries", "(what's out of scope, or needs sign-off)")}${textBlock("resources", "Resources and support", "(people, budget, tools, help)")}
+        ${textBlock("questions", "Still to clarify", "(questions for the next conversation)", 5)}${ro ? "" : `${textBlock("notes", "Private notes", "")}<div class="actions"><button class="btn primary" type="submit">Save</button></div>`}</form></section>
+      ${m.mine && !ro ? `<details class="card"><summary><b>Import from a file</b></summary><p class="quiet">Fill this mandate from a JSON file with purpose, resources, boundaries, questions, outcomes and decisions. Anything already here is kept; nothing is added twice.</p>
+        <input type="file" id="m-file" accept=".json,application/json"><textarea id="m-json" rows="5" class="mono"></textarea><div class="actions"><button class="btn primary" id="m-import">Import</button></div></details>` : ""}`;
+    if (ro) return;
+    const patchItem = (row) => BA.guard(async () => {
+      const body = {};
+      row.querySelectorAll("input, select").forEach((el) => (body[el.name] = el.name === "due_day" ? numOrNull(el.value) : el.value || null));
+      await BA.api(`/api/mandate-items/${row.dataset.item}`, { method: "PATCH", body });
+      BA.toast("Saved.");
+    });
+    main.querySelectorAll("[data-item]").forEach((row) => {
+      row.querySelectorAll("input, select").forEach((el) => (el.onchange = patchItem(row)));
+      row.querySelector("[data-del]").onclick = BA.guard(async () => { await BA.api(`/api/mandate-items/${row.dataset.item}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    const addItem = (form, kind) => (form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/mandate-items", { method: "POST", body: { mandate_id: id, kind, text: form.elements.text.value, position: 99, ...(kind === "decision" ? { authority: "to clarify" } : {}) } }); BA.rerender(); }));
+    addItem(main.querySelector("#add-outcome"), "outcome");
+    addItem(main.querySelector("#add-decision"), "decision");
+    const saveText = (form) => BA.guard(async (e) => { if (e) e.preventDefault(); const body = {}; form.querySelectorAll("textarea").forEach((el) => (body[el.name] = el.value || null)); await BA.api(`/api/mandates/${id}`, { method: "PATCH", body }); BA.toast("Saved."); });
+    main.querySelector("#m-more").onsubmit = saveText(main.querySelector("#m-more"));
+    main.querySelector("#m-text textarea").onchange = saveText(main.querySelector("#m-text"));
+    const fb = main.querySelector("#from-brief");
+    if (fb) fb.onclick = BA.guard(async () => { const r = await BA.api("/api/mandates/mine/from-brief", { method: "POST" }); BA.toast(r.added ? `Added ${r.added} from the Role brief.` : "Nothing new in the Role brief."); BA.rerender(); });
+    const disc = main.querySelector("#m-discussed");
+    if (disc) disc.onclick = BA.guard(async () => { await BA.api(`/api/mandates/${id}`, { method: "PATCH", body: { status: "discussed" } }); BA.rerender(); });
+    const ag = main.querySelector("#m-agree");
+    if (ag) ag.onclick = BA.guard(async () => {
+      if (m.to_clarify && !confirm(`${m.to_clarify} decision area${m.to_clarify === 1 ? " is" : "s are"} still "to clarify". Mark agreed anyway?`)) return;
+      await BA.api(`/api/mandates/${id}/agree`, { method: "POST", body: {} });
+      BA.toast("Agreed. A review is set for 90 days from now.");
+      BA.rerender();
+    });
+    main.querySelector("#m-copy").onclick = BA.guard(async () => { const r = await BA.api(`/api/mandates/${id}/export`, { method: "POST" }); await navigator.clipboard.writeText(r.markdown); BA.toast("Copied. Logged as an export."); });
+    const mf = main.querySelector("#m-file");
+    if (mf) {
+      mf.onchange = async () => { if (mf.files[0]) main.querySelector("#m-json").value = await mf.files[0].text(); };
+      main.querySelector("#m-import").onclick = BA.guard(async () => {
+        let body;
+        try { body = JSON.parse(main.querySelector("#m-json").value); } catch { throw new Error("That isn't valid JSON."); }
+        const r = await BA.api("/api/mandates/import", { method: "POST", body });
+        BA.toast(`Added ${r.added} item${r.added === 1 ? "" : "s"}${r.fields.length ? ` and ${r.fields.join(", ")}` : ""}.`);
+        BA.rerender();
+      });
+    }
   }
 })();
