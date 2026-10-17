@@ -100,6 +100,11 @@ In the order the 90-day plan needs them:
 - [ ] An async-first team agreement starter and practice pack: decide in writing where possible, no meetings to plan meetings, every meeting has a purpose and an owner, and recordings and summaries replace status meetings
 - [ ] Metrics starter: meeting load and reschedule rate (a simple weekly tally), to show the cost of planning to plan and the effect of going async
 - [ ] Reports: offer a recorded-video version of the weekly report, with a script drafted from the report itself
+- [ ] Video hosting and delivery (raised 2026-10-17, undecided). Options weighed:
+  - The company's own video platform. If [employer] is on Microsoft 365 (the interviews ran on Teams), that's Stream on SharePoint: sign-in, permissions, captions, transcripts and view counts, with Outlook and Teams previews. Nothing to build. Recommended for delivery.
+  - A white-label host bought on AppSumo: branding and analytics, but company videos would sit with a third party. It depends on a lifetime-deal vendor staying in business, and usually lacks company sign-in.
+  - Self-hosted HLS (ffmpeg to M3U8 segments, an hls.js player, built as in other projects): full control and fits local-first, but colleagues can't reach a personal device. Best kept for previews and a local library, or hosted on company infrastructure later.
+  - Delivery whichever host is chosen: email can't reliably play video. Send a poster image or short animated preview linking to the video, a three-line summary, the ask and a respond-by date, plus the transcript. Post the same in Teams. The Comms studio drafts all of it and tracks responses.
 
 ## Shared base and platform
 
