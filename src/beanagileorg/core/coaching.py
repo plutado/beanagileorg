@@ -1006,7 +1006,12 @@ TIPS = {
     "/first90": [("Agree your mandate early: what success looks like, and decision by decision, what you can do on your own.", "your-mandate", 9),
                  ("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
                  ("Bring changes one at a time, as trials with a review date, and review them with the team.", "leading-change", 8),
-                 ("Show the team what changed because of what they told you. It's the fastest way to earn the next conversation.", "leading-change", 8)],
+                 ("Show the team what changed because of what they told you. It's the fastest way to earn the next conversation.", "leading-change", 8),
+                 ("Match your approach to each area's situation. A turnaround and a sustaining success call for opposite moves.", 'read-the-situation', 11),
+                 ('Keep a learning agenda: the questions you need answered, who can answer them, and by when.', 'learn-fast', 11),
+                 ('Mark a few plan items as early wins: visible improvements people already want. They build the credibility for the bigger changes.', 'early-wins', 11),
+                 ('Hold the five conversations with your manager early: situation, expectations, working style, resources and your development.', 'your-manager', 11),
+                 ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
@@ -1129,7 +1134,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 10  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 11  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

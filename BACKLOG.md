@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] First 90 days: turn learning agenda answers into Business landscape assessments; suggest learning questions from listening tour themes; a mentoring summary for my manager's weekly report
 - [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
 - [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
 - [ ] Mandates: link plan items and roadmap items to the mandate outcome they serve; show mandate decision rights on the RACI; a version history view comparing what was agreed at day 30 and day 90
@@ -100,6 +101,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Getting up to speed on purpose, in First 90 days. Situation: each area (the team, delivery, quality and releases, the Salesforce platform, MuleSoft, stakeholders) diagnosed as a start-up, turnaround, accelerated growth, realignment or sustaining success, with private evidence and the approach it calls for; short original descriptions of each. Learning agenda: questions about the past, present, future, people, technical, products and politics, who could answer each, by which day, and what I learned; 15 starter questions; late ones on Today. Early wins: plan items can be marked as early wins. Conversations with my manager: situation, expectations, working style, resources, my development and the 90-day plan, each with when it was held, what was agreed and what's open; Today flags any not held by day 21. Plans can be marked agreed (with my manager by default). Mentoring: the managers I mentor, sessions with next steps, and practices shared, trying, adopted or dropped. A Momentum card shows early wins landed, changes kept, wins logged, practices adopted and the trust trend. Tips for each; 211 tests
 
 - [x] 2026-10-17: Peer relationships. People > Balance shows how logged conversations split up (my management chain), down (my reporting line), sideways (peers) and outward over 14 to 90 days, compared with the period before, and lists peers quietest first with influence, stance and the new exchange fields. Every person can carry "what I can offer them" and "what I need from them", shown as The exchange on their page. Today nudges when more conversations go up than sideways, and when a high-influence peer has gone quiet for three weeks. A coaching guide on building relationships with peers, with tips on People, Teams and Scrum of Scrums; 207 tests
 

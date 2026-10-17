@@ -108,6 +108,10 @@
           <p class="quiet">${rep.logged_today ? `${rep.logged_today} logged today. ` : "Nothing logged today yet. "}<a href="#/status/log">Work log</a></p>
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
+        ${d.accelerate && (d.accelerate.learning_late_count || d.accelerate.boss_unheld.length || d.accelerate.mentoring.length) ? `<section class="card"><h2>Getting up to speed</h2>
+          ${d.accelerate.boss_unheld.length ? `<div class="item"><span class="pill warn">manager</span><a href="#/first90/mandates">Not yet discussed with your manager: ${esc(d.accelerate.boss_unheld.join(", ").toLowerCase())}</a></div>` : ""}
+          ${d.accelerate.learning_late.map((q) => `<div class="item"><span class="pill">learn</span><a href="#/first90/learning">${esc(q.question)}</a></div>`).join("")}${d.accelerate.learning_late_count > d.accelerate.learning_late.length ? `<p class="quiet">and ${d.accelerate.learning_late_count - d.accelerate.learning_late.length} more open questions past their day</p>` : ""}
+          ${d.accelerate.mentoring.map((m) => `<div class="item"><span class="pill">mentoring</span><a href="#/first90/mentoring">${esc(m.name || "")}: ${esc(m.next_step || "follow up")}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.next_on)}</span></div>`).join("")}</section>` : ""}
         ${d.mandates && (d.mandates.agree_mine || d.mandates.reviews.length) ? `<section class="card"><h2>Mandates</h2>
           ${d.mandates.agree_mine ? `<div class="item"><span class="pill warn">day ${d.mandates.agree_mine.day}</span><a href="#/first90/${d.mandates.agree_mine.id ? `mandate/${d.mandates.agree_mine.id}` : "mandates"}">${d.mandates.agree_mine.exists ? "Agree your mandate with your manager" : "Write down your mandate, then agree it with your manager"}</a></div>` : ""}
           ${d.mandates.reviews.map((m) => `<div class="item"><span class="pill">review</span><a href="#/first90/mandate/${m.id}">${m.mine ? "Your mandate" : `${esc(m.name || "")}'s mandate`}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.review_on)}</span></div>`).join("")}</section>` : ""}
@@ -2079,7 +2083,7 @@
   const PLAN_KINDS = ["outcome", "action", "measure", "keep"];
   const PLAN_KIND_TITLES = { outcome: "Outcomes", action: "Actions", measure: "How we'll know", keep: "What I won't change" };
   const PLAN_ITEM_STATUS = ["planned", "in progress", "done", "dropped"];
-  const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "good" };
+  const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "accent", agreed: "good" };
   const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change" };
 
   BA.view("/plans", {
@@ -2096,7 +2100,7 @@
           ${i.themes?.length ? BA.chips(i.themes) : ""}
           ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">day ${i.due_day}</span>` : ""}
           ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
-          ${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
+          ${i.early_win ? '<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>' : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
         ${i.detail ? BA.md(i.detail) : ""}
         ${ro ? "" : `<form class="edit-item"><div class="grid2">
           <label>Title<input name="title" value="${esc(i.title)}" required></label>
@@ -2104,7 +2108,8 @@
           <label>Day <span class="quiet">(day of the role)</span><input type="number" min="1" name="due_day" value="${esc(i.due_day ?? "")}"></label>
           <label>Status<select name="status">${opts(PLAN_ITEM_STATUS, i.status)}</select></label>
           <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
-          <label>Themes <span class="quiet">(comma separated)</span><input name="themes" value="${esc((i.themes || []).join(", "))}" list="plan-themes"></label></div>
+          <label>Themes <span class="quiet">(comma separated)</span><input name="themes" value="${esc((i.themes || []).join(", "))}" list="plan-themes"></label>
+          <label class="check"><input type="checkbox" name="early_win"${i.early_win ? " checked" : ""}> An early win <span class="quiet">(a visible improvement people will notice)</span></label></div>
           <label>Detail<textarea name="detail">${esc(i.detail || "")}</textarea></label>
           <label>Evidence <span class="quiet">(private: who said it, what you saw)</span><textarea name="evidence">${esc(i.evidence || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del="${i.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
@@ -2112,7 +2117,8 @@
         const groups = PLAN_KINDS.map((k) => [k, h.items.filter((i) => i.kind === k)]).filter(([, list]) => list.length);
         return `<section class="card plan-horizon" data-plan="${h.id}">
           <div class="row"><h2>${esc(h.title)}</h2><span class="quiet">${dateRange(h)}</span><span class="spacer"></span>
-            ${tonePill(h.status, PLAN_STATUS_TONES)}${h.presented_on ? `<span class="quiet">${BA.fmtDate(h.presented_on)}${h.audience ? ` · ${esc(h.audience)}` : ""}</span>` : ""}</div>
+            ${tonePill(h.status, PLAN_STATUS_TONES)}${h.agreed_on ? `<span class="quiet">agreed ${BA.fmtDate(h.agreed_on)}</span>` : h.presented_on ? `<span class="quiet">${BA.fmtDate(h.presented_on)}${h.audience ? ` · ${esc(h.audience)}` : ""}</span>` : ""}
+            ${ro || h.status === "agreed" ? "" : `<button class="btn" type="button" data-agree-plan="${h.id}" title="Your manager has agreed this plan">Mark agreed</button>`}</div>
           ${ro ? "" : `<details class="plan-settings"><summary class="quiet">Rename, change the last day, or delete</summary><form class="edit-plan row">
             <input name="title" value="${esc(h.title)}" required style="max-width:240px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" value="${h.horizon_days}" required style="max-width:90px"></label>
             <button class="btn" type="submit">Save</button><span class="spacer"></span><button class="btn danger" type="button" data-del-plan="${h.id}">Delete plan</button></form></details>`}
@@ -2182,7 +2188,7 @@
           const f = new FormData(form);
           await BA.api(`/api/plan-items/${id}`, { method: "PATCH", body: {
             title: f.get("title"), kind: f.get("kind"), due_day: num(f.get("due_day")), status: f.get("status"),
-            owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"),
+            owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"), early_win: !!det.querySelector("[name=early_win]")?.checked,
           } });
           BA.rerender();
         });
@@ -2204,6 +2210,7 @@
         await navigator.clipboard.writeText(out.markdown);
         BA.toast("Outline copied. Only shareable fields are included.");
       });
+      main.querySelectorAll("[data-agree-plan]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/plans/${b.dataset.agreePlan}/agree`, { method: "POST", body: {} }); BA.toast("Marked agreed with your manager."); BA.rerender(); })));
       const presented = main.querySelector("#presented");
       presented.onsubmit = BA.guard(async (e) => {
         e.preventDefault();
@@ -4472,7 +4479,7 @@
   const STAGE_TONES = { idea: "", announced: "accent", trial: "warn", review: "warn", adopted: "good", dropped: "" };
   const NEXT_STAGE = { idea: ["announced", "Announce it"], announced: ["trial", "Start the trial"], trial: ["review", "Review with the team"] };
   const AUTO_LABELS = { one_on_one: "a one-on-one logged under People", interview: "a listening tour conversation marked done", growth_goal: "a growth goal on their Manager tab", feedback: "feedback marked shared on their Manager tab", mandate: "their mandate marked agreed" };
-  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["mandates", "Mandates"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["working", "Working with me"]]
+  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["mandates", "Mandates"], ["situation", "Situation"], ["learning", "Learning agenda"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["mentoring", "Mentoring"], ["working", "Working with me"]]
     .map(([k, l]) => `<a href="#/first90${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const f90Progress = (done, total) => `<span class="progress"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></span><span class="quiet">${done ?? 0} of ${total ?? 0}</span>`;
   const f90_dayLabel = (n) => n == null ? "not started" : n < 1 ? `starts in ${1 - n} day${1 - n === 1 ? "" : "s"}` : n > 90 ? `day ${n}, past 90` : `day ${n}`;
@@ -4480,7 +4487,7 @@
   BA.view("/first90", {
     title: "First 90 days",
     async render(main, param) {
-      const views = { team: renderF90Team, changes: renderF90Changes, working: renderWorking, mandates: renderMandates };
+      const views = { team: renderF90Team, changes: renderF90Changes, working: renderWorking, mandates: renderMandates, situation: renderSituation, learning: renderLearning, mentoring: renderMentoring };
       if (views[param]) return views[param](main);
       if (param && param.startsWith("mandate/")) return renderMandate(main, Number(param.split("/")[1]));
       const d = await BA.api("/api/first90/overview");
@@ -4489,6 +4496,10 @@
         <section class="card f90-head"><div class="row"><h2>${d.day ? `Day ${d.day} of 90` : "Set your start date"}</h2><span class="spacer"></span>${d.start_date ? `<span class="quiet">started ${BA.fmtDate(d.start_date)}</span>` : '<a class="btn" href="#/settings">Set start date</a>'}</div>
           ${d.day ? `<div class="f90-bar"><span style="width:${Math.min(100, Math.max(0, Math.round((d.day / 90) * 100)))}%"></span>${[30, 60, 90].map((n) => `<i style="left:${(n / 90) * 100}%">${n}</i>`).join("")}</div>` : ""}
           <p class="quiet">Three tracks that start together: yours, each new hire's, and the team you inherit, for whom this is the first 90 days with you.</p></section>
+        ${d.momentum ? `<section class="card"><h2>Momentum</h2><p class="quiet">Signs that good things are happening, which is what builds credibility and trust.</p>
+          <div class="stat-row"><div><b>${d.momentum.early_wins.done} of ${d.momentum.early_wins.total}</b><span><a href="#/plans">early wins</a> landed</span></div><div><b>${d.momentum.changes_kept}</b><span><a href="#/first90/changes">changes</a> kept</span></div>
+            <div><b>${d.momentum.wins_30}</b><span><a href="#/status/log">wins</a> logged in 30 days</span></div><div><b>${d.momentum.practices_adopted}</b><span>practices other managers <a href="#/first90/mentoring">adopted</a></span></div>
+            <div><b>${d.momentum.trust.now ?? "–"}</b><span><a href="#/culture/pulse">trust pulse</a>${d.momentum.trust.before != null ? ` (was ${d.momentum.trust.before})` : ""}</span></div></div></section>` : ""}
         <div class="cards f90-tracks">
           ${d.private ? `<section class="card"><h2>Me</h2>
             ${d.me.plans.map((p) => `<div class="item"><a href="#/plans">${esc(p.title)}</a><span class="spacer"></span>${f90Progress(p.done, p.total)}<span class="pill ${p.status === "presented" ? "good" : ""}">${esc(p.status)}</span></div>`).join("") || '<p class="quiet">No 30/60/90 plans yet. <a href="#/plans">Start them</a>.</p>'}
@@ -4632,6 +4643,24 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       ${d.reports ? `<section class="card"><h2>My team's mandates</h2><p class="quiet">Agreeing one completes that person's "agree their mandate" milestone in First 90 days.</p>
         ${d.reports.map((r) => `<div class="item"><a href="#/people/${r.person_id}">${esc(r.name)}</a>${r.placeholder ? '<span class="pill warn">placeholder</span>' : ""}<span class="quiet">${esc(r.role || "")}</span><span class="spacer"></span>
           ${r.mandate ? `${tonePill(r.mandate.status, MANDATE_TONES)}<span class="quiet">${r.mandate.to_clarify ? `${r.mandate.to_clarify} to clarify` : ""}</span><a class="btn" href="#/first90/mandate/${r.mandate.id}">Open</a>` : ro ? "" : `<button class="btn" data-start="${r.person_id}">Start</button>`}</div>`).join("") || '<p class="quiet">Nobody reports to you yet.</p>'}</section>` : ""}`;
+    if (d.reports !== undefined) {
+      const convs = await BA.api("/api/boss-conversations");
+      const box = document.createElement("section");
+      box.className = "card";
+      box.innerHTML = `<h2>Conversations with my manager</h2><p class="quiet">The conversations that set you up to succeed: the situation, expectations, working style, resources, your development, and agreeing the 90-day plan. Hold each early, write down what was agreed, and come back to them.</p>
+        ${convs.map((c) => `<details class="plan-item${c.held_on ? "" : ""}" data-conv="${c.id}"><summary>${c.held_on ? '<span class="pill good">held</span>' : '<span class="pill">not yet</span>'}<b>${esc(c.topic)}</b><span class="spacer"></span><span class="quiet">${c.held_on ? BA.fmtDate(c.held_on) : ""}${c.next_on ? ` · next ${BA.fmtDate(c.next_on)}` : ""}</span></summary>
+          <p class="quiet">${esc(c.prompt || "")}</p>${ro ? (c.agreed ? BA.md(c.agreed) : "") : `<form><div class="grid2"><label>Held on<input type="date" name="held_on" value="${esc(c.held_on || "")}"></label><label>Come back to it on<input type="date" name="next_on" value="${esc(c.next_on || "")}"></label></div>
+          <label>What we agreed<textarea name="agreed" rows="2">${esc(c.agreed || "")}</textarea></label><label>Still open<textarea name="open_points" rows="2">${esc(c.open_points || "")}</textarea></label>
+          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || (ro ? '<p class="quiet">None yet.</p>' : '<button class="btn" id="conv-start">List the conversations</button>')}
+        <p class="quiet">Agreeing the plan itself is marked on <a href="#/plans">30/60/90 plans</a> with "Mark agreed".</p>`;
+      main.appendChild(box);
+      const cs = box.querySelector("#conv-start");
+      if (cs) cs.onclick = BA.guard(async () => { await BA.api("/api/boss-conversations/starter", { method: "POST" }); BA.rerender(); });
+      box.querySelectorAll("[data-conv]").forEach((det) => {
+        const form = det.querySelector("form");
+        if (form) form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(form); await BA.api(`/api/boss-conversations/${det.dataset.conv}`, { method: "PATCH", body: { held_on: f.get("held_on") || null, next_on: f.get("next_on") || null, agreed: f.get("agreed") || null, open_points: f.get("open_points") || null } }); BA.toast("Saved."); BA.rerender(); });
+      });
+    }
     const sm = main.querySelector("#start-mine");
     if (sm) sm.onclick = BA.guard(async () => { const r = await BA.api("/api/mandates/mine", { method: "POST", body: {} }); BA.go(`/first90/mandate/${r.id}`); });
     main.querySelectorAll("[data-start]").forEach((b) => (b.onclick = BA.guard(async () => { const r = await BA.api(`/api/mandates/for/${b.dataset.start}`, { method: "POST", body: {} }); BA.go(`/first90/mandate/${r.id}`); })));
@@ -4702,5 +4731,103 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         BA.rerender();
       });
     }
+  }
+
+  // ---- Situation, learning agenda and mentoring ----
+
+  const SIT_KINDS = ["start-up", "turnaround", "accelerated growth", "realignment", "sustaining success"];
+  const SIT_TONES = { "start-up": "accent", turnaround: "bad", "accelerated growth": "good", realignment: "warn", "sustaining success": "good" };
+  const LEARN_AREAS = ["past", "present", "future", "people", "technical", "products and customers", "politics"];
+  const PRACTICE_STATUS = ["shared", "trying", "adopted", "dropped"];
+  const PRACTICE_TONES = { shared: "", trying: "warn", adopted: "good", dropped: "" };
+
+  async function renderSituation(main) {
+    const [list, guide] = await Promise.all([BA.api("/api/situations"), BA.api("/api/situations/guide")]);
+    const ro = presenting();
+    main.innerHTML = `${f90Tabs("situation")}
+      <p class="quiet">Different parts of the same job can need very different approaches. For each area, decide what kind of situation it's in, why you think so, and what that means for how you'll act there. Revisit it after the listening tour.</p>
+      <details class="card"><summary><b>The five kinds of situation</b></summary>${SIT_KINDS.map((k) => `<div class="sit-guide"><span class="pill ${SIT_TONES[k]}">${k}</span><p>${esc(guide[k].what)}</p><p class="quiet"><b>Usually calls for:</b> ${esc(guide[k].approach)}</p></div>`).join("")}</details>
+      <section class="card">${list.map((s) => ro ? `<div class="sit-row"><div class="row"><b>${esc(s.area)}</b>${s.kind ? `<span class="pill ${SIT_TONES[s.kind]}">${esc(s.kind)}</span>` : '<span class="pill">not decided</span>'}</div>${s.approach ? `<p>${esc(s.approach)}</p>` : ""}</div>`
+        : `<form class="sit-row" data-sit="${s.id}"><div class="row"><input name="area" value="${esc(s.area)}" style="max-width:260px;font-weight:600"><select name="kind" style="max-width:200px"><option value="">Not decided</option>${opts(SIT_KINDS, s.kind)}</select><span class="spacer"></span><button class="icon-btn" type="button" data-del title="Remove">${BA.icon("x")}</button></div>
+          <div class="grid2"><label>Why I think so <span class="quiet">(private)</span><textarea name="evidence" rows="2">${esc(s.evidence || "")}</textarea></label><label>What it means for how I act here<textarea name="approach" rows="2" placeholder="${s.kind ? esc(guide[s.kind].approach) : ""}">${esc(s.approach || "")}</textarea></label></div>
+          <div class="actions"><button class="btn" type="submit">Save</button></div></form>`).join("") || '<p class="quiet">No areas yet.</p>'}
+        ${ro ? "" : `<form id="add-sit" class="row" style="margin-top:8px"><input name="area" required placeholder="An area, such as: Release management" style="flex:1;min-width:220px"><button class="btn" type="submit">Add</button>${list.length ? "" : '<button class="btn" type="button" id="sit-starter">Start with common areas</button>'}</form>`}</section>`;
+    if (ro) return;
+    main.querySelectorAll("[data-sit]").forEach((f) => {
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/situations/${f.dataset.sit}`, { method: "PATCH", body: { area: fd.get("area"), kind: fd.get("kind") || null, evidence: fd.get("evidence") || null, approach: fd.get("approach") || null } }); BA.toast("Saved."); BA.rerender(); });
+      f.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Remove this area?")) return; await BA.api(`/api/situations/${f.dataset.sit}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    main.querySelector("#add-sit").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/situations", { method: "POST", body: { area: e.target.elements.area.value, position: list.length } }); BA.rerender(); });
+    const st = main.querySelector("#sit-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/situations/starter", { method: "POST" }); BA.rerender(); });
+  }
+
+  async function renderLearning(main) {
+    const [d, people] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people")]);
+    if (d.hidden) { main.innerHTML = `${f90Tabs("learning")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const f = (() => { try { return sessionStorage.getItem("ba-learn-filter") || "open"; } catch { return "open"; } })();
+    const shown = d.questions.filter((q) => f === "all" || q.status === f);
+    const pick = (q) => `<div class="case-picks ask-pick">${people.filter((p) => p.active !== false).map((p) => `<label class="check"><input type="checkbox" name="ask_ids" value="${p.id}"${(q.ask_ids || []).includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>`;
+    main.innerHTML = `${f90Tabs("learning")}
+      <p class="quiet">Be deliberate about what you need to learn, from whom, and by when. Questions about the past explain how things got this way; the present shows how work really happens; the future is what the business is counting on. Add what comes up in the listening tour.</p>
+      <section class="card"><div class="row"><h2>Learning agenda</h2><span class="quiet">${d.counts.open} open · ${d.counts.answered} answered${d.late ? ` · <span class="pill warn">${d.late} past their day</span>` : ""}</span><span class="spacer"></span>
+        <div class="seg" id="lq-filter">${[["open", "Open"], ["answered", "Answered"], ["all", "All"]].map(([k, l]) => `<button type="button" data-f="${k}" class="${k === f ? "on" : ""}">${l}</button>`).join("")}</div></div>
+        ${LEARN_AREAS.map((a) => [a, shown.filter((q) => q.area === a)]).filter(([, l]) => l.length).map(([a, l]) => `<h3>${esc(a[0].toUpperCase() + a.slice(1))}</h3>${l.map((q) => `<details class="plan-item${q.status !== "open" ? " dropped" : ""}" data-q="${q.id}"><summary>
+            ${q.late ? '<span class="pill warn">late</span>' : q.status === "answered" ? '<span class="pill good">answered</span>' : ""}<span>${esc(q.question)}</span><span class="spacer"></span><span class="quiet">${q.ask_names.length ? esc(q.ask_names.join(", ")) + " · " : ""}${q.due ? BA.fmtDate(q.due) : q.due_day ? `day ${q.due_day}` : ""}</span></summary>
+          <form><label>Question<input name="question" value="${esc(q.question)}"></label><div class="grid2"><label>Area<select name="area">${opts(LEARN_AREAS, q.area)}</select></label><label>By day<input type="number" min="1" name="due_day" value="${esc(q.due_day ?? "")}"></label>
+            <label>Status<select name="status">${opts(["open", "answered", "dropped"], q.status)}</select></label></div><label>Who could answer it</label>${pick(q)}
+            <label>What I learned<textarea name="answer" rows="3">${esc(q.answer || "")}</textarea></label><div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
+        <form id="add-q" class="row" style="margin-top:10px"><select name="area" style="max-width:190px">${opts(LEARN_AREAS, "present")}</select><input name="question" required placeholder="What do you need to find out?" style="flex:1;min-width:240px"><input type="number" name="due_day" min="1" placeholder="By day" style="width:90px"><button class="btn" type="submit">Add</button>
+          ${d.questions.length ? "" : '<button class="btn" type="button" id="lq-starter">Start from suggested questions</button>'}</form></section>`;
+    main.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-learn-filter", b.dataset.f); } catch {} BA.rerender(); }));
+    main.querySelectorAll("[data-q]").forEach((det) => {
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(form);
+        await BA.api(`/api/learning-questions/${det.dataset.q}`, { method: "PATCH", body: { question: fd.get("question"), area: fd.get("area"), due_day: numOrNull(fd.get("due_day")), status: fd.get("status"), answer: fd.get("answer") || null, ask_ids: fd.getAll("ask_ids").map(Number) } });
+        BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this question?")) return; await BA.api(`/api/learning-questions/${det.dataset.q}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    main.querySelector("#add-q").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api("/api/learning-questions", { method: "POST", body: { question: fd.get("question"), area: fd.get("area"), due_day: numOrNull(fd.get("due_day")), position: d.questions.length } }); BA.rerender(); });
+    const st = main.querySelector("#lq-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/learning-questions/starter", { method: "POST" }); BA.rerender(); });
+  }
+
+  async function renderMentoring(main) {
+    const d = await BA.api("/api/mentoring/overview");
+    if (d.hidden) {
+      main.innerHTML = `${f90Tabs("mentoring")}<section class="card"><h2>Practices other teams have adopted</h2>${d.adopted.map((p) => `<div class="item"><span>${esc(p.practice)}</span><span class="spacer"></span><span class="quiet">${esc(p.person_name || "")}</span></div>`).join("") || '<p class="quiet">None yet.</p>'}</section>`;
+      return;
+    }
+    main.innerHTML = `${f90Tabs("mentoring")}
+      <p class="quiet">The other managers you mentor, and the practices they pick up from you as yours prove out. Adopted practices count toward Momentum, and are the clearest evidence that this part of the role is working.</p>
+      <div class="stat-row" style="margin-bottom:12px">${PRACTICE_STATUS.map((s) => `<div><b>${d.totals[s]}</b><span>${s}</span></div>`).join("")}</div>
+      ${d.mentees.map((m) => `<section class="card" data-mentee="${m.id}"><div class="row"><h2><a href="#/people/${m.id}">${esc(m.name)}</a></h2><span class="quiet">${esc(m.role || "")}</span><span class="spacer"></span><span class="quiet">${m.last ? `last session ${BA.fmtDate(m.last)}` : "no sessions yet"}${m.next_on ? ` · next ${BA.fmtDate(m.next_on)}` : ""}</span></div>
+        <h3>Practices</h3>${m.practices.map((p) => `<div class="item" data-practice="${p.id}"><span>${esc(p.practice)}</span><span class="spacer"></span><select style="max-width:130px">${opts(PRACTICE_STATUS, p.status)}</select></div>`).join("") || '<p class="quiet">None yet.</p>'}
+        <form class="row add-practice"><input name="practice" required placeholder="A practice you've shared, such as: sprint goals" style="flex:1;min-width:220px"><button class="btn" type="submit">Add</button></form>
+        <h3>Sessions</h3>${m.sessions.slice(0, 5).map((s) => `<div class="item"><span class="quiet">${BA.fmtDate(s.date)}</span><span>${esc(s.topic || "")}</span><span class="spacer"></span><span class="quiet">${esc(s.next_step || "")}</span></div>`).join("") || '<p class="quiet">None yet.</p>'}
+        <form class="add-session"><div class="grid2"><label>Date<input type="date" name="date" value="${BA.today()}"></label><label>Topic<input name="topic"></label><label>Next step<input name="next_step"></label><label>Follow up on<input type="date" name="next_on"></label></div>
+          <label>Notes<textarea name="notes" rows="2"></textarea></label><div class="actions"><button class="btn" type="submit">Log a session</button></div></form></section>`).join("")}
+      <section class="card"><h2>Start mentoring someone</h2>${d.candidates.length ? `<form id="new-mentee" class="row"><select name="person" style="max-width:280px">${d.candidates.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select><input name="practice" placeholder="A first practice to share (optional)" style="flex:1;min-width:200px"><button class="btn primary" type="submit">Start</button></form>`
+        : '<p class="quiet">Add the managers you\'ll mentor under People, as peers.</p>'}</section>`;
+    main.querySelectorAll("[data-mentee]").forEach((sec) => {
+      const pid = Number(sec.dataset.mentee);
+      sec.querySelectorAll("[data-practice] select").forEach((s) => (s.onchange = BA.guard(async () => {
+        const body = { status: s.value };
+        if (s.value === "adopted") body.since = BA.today();
+        await BA.api(`/api/mentored-practices/${s.closest("[data-practice]").dataset.practice}`, { method: "PATCH", body }); BA.toast("Saved."); BA.rerender();
+      })));
+      const ap = sec.querySelector(".add-practice");
+      ap.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/mentored-practices", { method: "POST", body: { person_id: pid, practice: ap.elements.practice.value, since: BA.today() } }); BA.rerender(); });
+      const as = sec.querySelector(".add-session");
+      as.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(as); await BA.api("/api/mentoring-sessions", { method: "POST", body: { person_id: pid, date: f.get("date"), topic: f.get("topic") || null, next_step: f.get("next_step") || null, next_on: f.get("next_on") || null, notes: f.get("notes") || null } }); BA.toast("Logged."); BA.rerender(); });
+    });
+    const nm = main.querySelector("#new-mentee");
+    if (nm) nm.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(nm), pid = Number(f.get("person"));
+      if (f.get("practice")) await BA.api("/api/mentored-practices", { method: "POST", body: { person_id: pid, practice: f.get("practice"), since: BA.today() } });
+      else await BA.api("/api/mentoring-sessions", { method: "POST", body: { person_id: pid, date: BA.today(), topic: "Getting started" } });
+      BA.rerender();
+    });
   }
 })();

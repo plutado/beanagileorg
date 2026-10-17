@@ -38,7 +38,7 @@ OBJECTIVE_KINDS = ("committed", "stretch")
 DEPENDENCY_STATUS = ("open", "met", "at risk")
 MILESTONE_KINDS = ("release", "freeze", "demo", "innovation and planning", "other")
 ROAM = ("unroamed", "resolved", "owned", "accepted", "mitigated")
-PLAN_STATUS = ("draft", "reviewed", "presented")
+PLAN_STATUS = ("draft", "reviewed", "presented", "agreed")
 PLAN_ITEM_KINDS = ("outcome", "action", "measure", "keep")
 PLAN_ITEM_STATUS = ("planned", "in progress", "done", "dropped")
 DEPARTMENT_KINDS = ("division", "department", "team")
@@ -111,6 +111,10 @@ REPORT_STATUS = ("draft", "sent")
 CHANGE_AREAS = ("process", "ceremonies", "quality", "tooling", "communication", "roles", "other")
 CHANGE_STATUS = ("idea", "announced", "trial", "review", "adopted", "dropped")
 MANDATE_STATUS = ("draft", "discussed", "agreed")
+LEARNING_AREAS = ("past", "present", "future", "people", "technical", "products and customers", "politics")
+LEARNING_STATUS = ("open", "answered", "dropped")
+SITUATION_KINDS = ("start-up", "turnaround", "accelerated growth", "realignment", "sustaining success")
+PRACTICE_STATUS = ("shared", "trying", "adopted", "dropped")
 MANDATE_ITEM_KINDS = ("outcome", "decision")
 AUTHORITY = ("to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine")
 MANDATE_ITEM_STATUS = ("open", "on track", "at risk", "done", "dropped")
@@ -1298,6 +1302,60 @@ MIGRATIONS = [
         ALTER TABLE people ADD COLUMN need_from_them TEXT;
         """,
     ),
+    (
+        27,
+        """
+        CREATE TABLE learning_questions (
+            id INTEGER PRIMARY KEY,
+            question TEXT NOT NULL,
+            area TEXT NOT NULL DEFAULT 'present',
+            ask_ids TEXT,
+            due_day INTEGER,
+            answer TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE situations (
+            id INTEGER PRIMARY KEY,
+            area TEXT NOT NULL,
+            kind TEXT,
+            evidence TEXT,
+            approach TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        ALTER TABLE plan_items ADD COLUMN early_win INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE plans ADD COLUMN agreed_on DATE;
+        ALTER TABLE plans ADD COLUMN agreed_with_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        CREATE TABLE boss_conversations (
+            id INTEGER PRIMARY KEY,
+            topic TEXT NOT NULL,
+            prompt TEXT,
+            held_on DATE,
+            agreed TEXT,
+            open_points TEXT,
+            next_on DATE,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE mentoring_sessions (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            topic TEXT,
+            notes TEXT,
+            next_step TEXT,
+            next_on DATE
+        );
+        CREATE TABLE mentored_practices (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            practice TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'shared',
+            since DATE,
+            notes TEXT
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1982,6 +2040,8 @@ plans = Record(
         "summary": Field("text", E),
         "status": Field("text", S, choices=PLAN_STATUS, default="draft"),
         "presented_on": Field("date", S),
+        "agreed_on": Field("date", S),
+        "agreed_with_id": Field("int", S),
         "audience": Field("text", S),
         "notes": Field("text", P),
     },
@@ -2002,6 +2062,7 @@ plan_items = Record(
         "status": Field("text", E, choices=PLAN_ITEM_STATUS, default="planned"),
         "themes": Field("list", S),
         "evidence": Field("text", P),
+        "early_win": Field("bool", E, default=False),
         "position": Field("int", S, default=0),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S)},
@@ -3011,6 +3072,90 @@ mandate_items = Record(
     },
 )
 
+# What you need to learn about the organization, from whom, and by when: the learning agenda.
+learning_questions = Record(
+    entity="learning_question",
+    table="learning_questions",
+    path="/api/learning-questions",
+    order_by="status = 'open' DESC, due_day IS NULL, due_day, position, id",
+    hide_when_empty=True,
+    fields={
+        "question": Field("text", P, required=True),
+        "area": Field("text", P, choices=LEARNING_AREAS, default="present"),
+        "ask_ids": Field("ids", P),
+        "due_day": Field("int", P),
+        "answer": Field("text", P),
+        "status": Field("text", P, choices=LEARNING_STATUS, default="open"),
+        "position": Field("int", P, default=0),
+    },
+)
+
+# What kind of situation each area is in, and what that means for how you act there.
+situations = Record(
+    entity="situation",
+    table="situations",
+    path="/api/situations",
+    order_by="position, id",
+    fields={
+        "area": Field("text", S, required=True),
+        "kind": Field("text", S, choices=SITUATION_KINDS),
+        "evidence": Field("text", P),
+        "approach": Field("text", S),
+        "position": Field("int", S, default=0),
+    },
+)
+
+# The conversations with your manager that set you up to succeed, held and revisited.
+boss_conversations = Record(
+    entity="boss_conversation",
+    table="boss_conversations",
+    path="/api/boss-conversations",
+    order_by="position, id",
+    hide_when_empty=True,
+    fields={
+        "topic": Field("text", P, required=True),
+        "prompt": Field("text", P),
+        "held_on": Field("date", P),
+        "agreed": Field("text", P),
+        "open_points": Field("text", P),
+        "next_on": Field("date", P),
+        "notes": Field("text", P),
+        "position": Field("int", P, default=0),
+    },
+)
+
+# Managers you mentor: sessions, and the practices they've picked up from you.
+mentoring_sessions = Record(
+    entity="mentoring_session",
+    table="mentoring_sessions",
+    path="/api/mentoring-sessions",
+    order_by="date DESC, id DESC",
+    hide_when_empty=True,
+    fields={
+        "person_id": Field("int", P, required=True),
+        "date": Field("date", P, required=True),
+        "topic": Field("text", P),
+        "notes": Field("text", P),
+        "next_step": Field("text", P),
+        "next_on": Field("date", P),
+    },
+)
+
+mentored_practices = Record(
+    entity="mentored_practice",
+    table="mentored_practices",
+    path="/api/mentored-practices",
+    order_by="status = 'dropped', person_id, id",
+    fields={
+        "person_id": Field("int", S, required=True),
+        "practice": Field("text", S, required=True),
+        "status": Field("text", S, choices=PRACTICE_STATUS, default="shared"),
+        "since": Field("date", S),
+        "notes": Field("text", P),
+    },
+    computed={"person_name": ("(SELECT name FROM people p WHERE p.id = mentored_practices.person_id)", S)},
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -3029,5 +3174,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items,
+    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
 ]

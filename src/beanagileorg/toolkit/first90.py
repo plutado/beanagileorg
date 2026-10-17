@@ -177,6 +177,9 @@ def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     out["new_hires"] = hires
     if viewer.floor != Level.PRIVATE:
         return out
+    from .accelerate import momentum
+
+    out["momentum"] = momentum(conn)
     plans = models.plans.fetch_all(conn)
     items = models.plan_items.fetch_all(conn)
     out["me"] = {

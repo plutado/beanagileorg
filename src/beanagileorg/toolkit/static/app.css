@@ -261,3 +261,7 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .b-tile { border-top: 3px solid transparent; } .b-up-tile { border-top-color: #8a6bd1; } .b-down-tile { border-top-color: #3b82c4; } .b-sideways-tile { border-top-color: #2f9e6f; } .b-outward-tile { border-top-color: #9aa3ad; }
 .callout { padding: 10px 12px; border-radius: 8px; background: var(--panel-2); } .callout.warn { background: var(--warn-soft); color: var(--ink); }
 .exchange h3 { margin-top: 0; }
+
+.sit-row { padding: 10px 0; border-bottom: 1px solid var(--line); } .sit-row:last-of-type { border-bottom: 0; }
+.sit-guide { padding: 8px 0; border-bottom: 1px solid var(--line); } .sit-guide p { margin: 4px 0; }
+.ask-pick { min-height: 34px; }
