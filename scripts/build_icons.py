@@ -13,7 +13,7 @@ ICONS = [
     "sun", "calendar-check", "users", "graduation-cap", "messages-square", "chart-column", "list-checks",
     "presentation", "siren", "user-round", "settings", "calendar-clock", "mail", "layout-template",
     "calendar-days", "send", "spell-check", "film", "handshake", "map", "grid-3x3", "triangle-alert", "gauge",
-    "file-text", "notebook-pen", "refresh-ccw", "kanban", "thumbs-up", "flag", "building-2", "flask-conical", "play", "copy", "network", "external-link", "git-branch", "arrow-up", "arrow-down", "compass", "lightbulb", "notebook", "circle-help", "info", "wrench", "list-ordered", "arrow-big-up", "undo-2", "users-round", "history", "heart-handshake",
+    "file-text", "notebook-pen", "refresh-ccw", "kanban", "thumbs-up", "flag", "building-2", "flask-conical", "play", "copy", "network", "external-link", "git-branch", "arrow-up", "arrow-down", "compass", "lightbulb", "notebook", "circle-help", "info", "wrench", "list-ordered", "arrow-big-up", "undo-2", "users-round", "history", "heart-handshake", "arrow-left-right",
     # interface
     "search", "command", "moon", "monitor", "x", "plus", "chevron-down", "chevron-right", "log-out",
     "eye-off", "eye", "keyboard", "check", "circle-alert", "sparkles", "inbox", "panel-left",

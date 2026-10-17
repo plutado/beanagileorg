@@ -17,6 +17,7 @@ In the order the 90-day plan needs them:
 ## Toolkit, later versions
 
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
+- [ ] Change requests: who asks most often and what share of their requests were accepted; link a request to a Jira issue and import interruptions flagged in Jira; a stakeholder-facing summary of the policy to share
 - [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer), since reviews say there's no clear channel to leadership
 - [ ] Culture: import outside culture signals (themes from public reviews) as organization-level notes with a source and date, so they sit beside what you see yourself
 - [ ] Culture: show agreed team agreements inside the retro view, and a growth-path page for direct reports (levels and what moves someone up)
@@ -94,6 +95,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Change requests for work that arrives mid-sprint. Log each request (what, who asked, where it came from, urgency, size, value, effect on the sprint goal, Jira keys); its page shows the sprint's capacity, points in the sprint, done and left, and the unfinished stories lowest priority first. The decision follows Scrum: swap out work of similar size (with a running in-versus-out balance), absorb a small one, defer to the backlog, reject with a reason, or cancel the sprint when the goal no longer makes sense. Applying it moves the stories (swapped-out work back to the backlog as ready, accepted work into the sprint, deferred work to the backlog), then you record when the requester was told. A written policy with a starter draft, scope change per sprint (requests, points in and out, percentage of committed scope), Today items for requests waiting and requesters not yet told, scope changes in the weekly and sprint reports, a coaching guide and tips; 197 tests
 
 - [x] 2026-10-17: Weeks, sprint weeks and reports. A daily work log (win, progress, blocker, risk, decision, ask, next, note), each entry for leadership, my manager or just me, with a quick-log box on Today. Every date maps to its week (start day configurable), week in the role, and sprint week (a two-week sprint has week 1 and week 2). The Weekly report drafts any week for leadership (exportable data only) or my manager (presentable too): overall colour, sprint progress, highlights, delivered, blockers and risks, decisions, asks, next week, metrics. The Sprint report covers goal, points done against committed, what didn't finish, velocity and each sprint week. Drafts can be edited, copied (logged as an export), saved, and marked sent with who it went to. Activity shows everything added or moved forward in a week, by day, with Add to log. Today flags a weekly report not yet saved and a finished sprint without a report. The router now ignores a query after the path (#/status?week=…); 193 tests
 

@@ -35,6 +35,16 @@ TOOLKIT = {
         "privacy": "Only agreed team agreements show while presenting; everything else is private.",
         "related": ["/people", "/retros", "/coaching/calling-out-harm"],
     },
+    "/changes": {
+        "purpose": "Handle work that arrives in the middle of a sprint: record the request, judge it against the sprint goal, decide with the product owner, adjust the sprint, and tell the requester.",
+        "steps": ["Log each request as it arrives: what, who asked, why it matters, how urgent and roughly how big.",
+                  "Open it to see the sprint's capacity, what's done and the unfinished stories that could come out.",
+                  "Decide with the product owner: swap work out, absorb a small one, defer it to the backlog, reject it, or cancel the sprint if the goal no longer makes sense.",
+                  "Applying the decision moves the stories: swapped-out work goes back to the backlog and accepted work joins the sprint.",
+                  "Mark when the requester was told. Scope change per sprint feeds the sprint report and the retro."],
+        "privacy": "Titles, sources, decisions and points can go in leadership reports; descriptions and who asked show only to your manager or you; notes are private.",
+        "related": ["/planning", "/status", "/coaching/change-mid-sprint"],
+    },
     "/onboarding": {
         "purpose": "Bring new team members in smoothly, with a checklist that runs from the week before they start to day 90.",
         "steps": ["Load the starter checklist, then edit the template under Checklist template.", "When someone joins, add them under People, then build their checklist with their start date, buddy and tracks.",

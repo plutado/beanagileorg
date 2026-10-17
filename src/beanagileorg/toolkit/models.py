@@ -108,6 +108,11 @@ LOG_AUDIENCES = ("leadership", "my manager", "just me")
 REPORT_KINDS = ("weekly", "sprint")
 REPORT_AUDIENCES = ("leadership", "my manager")
 REPORT_STATUS = ("draft", "sent")
+CR_SOURCES = ("leadership", "stakeholder", "product owner", "customer", "production issue", "another team", "the team")
+CR_URGENCY = ("next sprint is fine", "this sprint", "emergency")
+CR_GOAL_IMPACT = ("doesn't affect the goal", "puts the goal at risk", "changes the goal", "makes the goal obsolete")
+CR_STATUS = ("received", "assessing", "decided", "closed")
+CR_DECISIONS = ("accepted with a swap", "accepted without a swap", "deferred to the backlog", "rejected", "sprint cancelled")
 PULSE_SOURCES = ("my read", "team survey")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
@@ -1172,6 +1177,39 @@ MIGRATIONS = [
             sent_to TEXT,
             created_on DATE NOT NULL DEFAULT CURRENT_DATE
         );
+        """,
+    ),
+    (
+        22,
+        """
+        CREATE TABLE change_requests (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            source TEXT NOT NULL DEFAULT 'stakeholder',
+            requested_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            requested_on DATE NOT NULL,
+            needed_by DATE,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            urgency TEXT NOT NULL DEFAULT 'this sprint',
+            value TEXT,
+            goal_impact TEXT,
+            points INTEGER,
+            status TEXT NOT NULL DEFAULT 'received',
+            decision TEXT,
+            decided_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            decided_on DATE,
+            decision_reason TEXT,
+            swapped_out_ids TEXT,
+            points_out INTEGER,
+            backlog_item_id INTEGER REFERENCES backlog_items (id) ON DELETE SET NULL,
+            communicated_on DATE,
+            jira_keys TEXT,
+            notes TEXT
+        );
+        CREATE TRIGGER change_requests_default_team AFTER INSERT ON change_requests WHEN NEW.team_id IS NULL
+        BEGIN UPDATE change_requests SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
         """,
     ),
 ]
@@ -2756,6 +2794,44 @@ reports = Record(
     computed={"sprint_number": ("(SELECT number FROM sprints s WHERE s.id = reports.sprint_id)", E)},
 )
 
+# Work that arrives in the middle of a sprint: how it was assessed, who decided, what was swapped out and who was told.
+change_requests = Record(
+    entity="change_request",
+    table="change_requests",
+    path="/api/change-requests",
+    order_by="status IN ('decided', 'closed'), requested_on DESC, id DESC",
+    fields={
+        "title": Field("text", E, required=True),
+        "description": Field("text", S),
+        "source": Field("text", E, choices=CR_SOURCES, default="stakeholder"),
+        "requested_by_id": Field("int", S),
+        "requested_on": Field("date", E, required=True),
+        "needed_by": Field("date", E),
+        "sprint_id": Field("int", E),
+        "team_id": Field("int", S),
+        "urgency": Field("text", E, choices=CR_URGENCY, default="this sprint"),
+        "value": Field("text", E),
+        "goal_impact": Field("text", E, choices=CR_GOAL_IMPACT),
+        "points": Field("int", E),
+        "status": Field("text", E, choices=CR_STATUS, default="received"),
+        "decision": Field("text", E, choices=CR_DECISIONS),
+        "decided_by_id": Field("int", S),
+        "decided_on": Field("date", E),
+        "decision_reason": Field("text", E),
+        "swapped_out_ids": Field("ids", S),
+        "points_out": Field("int", E),
+        "backlog_item_id": Field("int", S),
+        "communicated_on": Field("date", E),
+        "jira_keys": Field("keys", E),
+        "notes": Field("text", P),
+    },
+    computed={
+        "requested_by_name": ("(SELECT name FROM people p WHERE p.id = change_requests.requested_by_id)", S),
+        "decided_by_name": ("(SELECT name FROM people p WHERE p.id = change_requests.decided_by_id)", S),
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = change_requests.sprint_id)", E),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2774,5 +2850,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports,
+    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests,
 ]

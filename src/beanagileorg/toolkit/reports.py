@@ -49,6 +49,7 @@ SOURCES = {
     "culture_observation": ("Culture note", "/culture/noticing", "title", {"addressed"}),
     "learning_session": ("Learning session", "/learning", "topic", {"done"}),
     "team_agreement": ("Team agreement", "/culture/agreements", "text", {"agreed"}),
+    "change_request": ("Change request", "/changes", "title", {"decided"}),
 }
 
 
@@ -279,6 +280,11 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     md += ["", "## Delivered"] + (delivered or ["- Nothing marked finished this week."])
     md += ["", "## Blockers and risks"] + [_bullet(i) for i in issues]
     md += [_table(["Risk", "Level", "Owner", "Next step", "Due"], [(r["title"], r["level"], r.get("owner_name"), r.get("next_step"), r.get("due")) for r in risks])]
+    from .changes import changes_between, report_lines
+
+    scope = changes_between(conn, s.isoformat(), e.isoformat(), floor)
+    if scope:
+        md += ["", "## Scope changes"] + report_lines(scope)
     md += ["", "## Decisions"] + [_bullet(d) for d in decided] + [_table(["Decision needed", "From", "Needed by"], [(d["decision"], d.get("from_name"), d.get("needed_by")) for d in decisions])]
     if asks:
         md += ["", "## Asks"] + [_bullet(a) for a in asks]
@@ -290,7 +296,7 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     title = f"Weekly report: {info['label'].replace('Week of ', 'week of ')}"
     return {"kind": "weekly", "audience": audience, "week": info, "period_start": info["start"], "period_end": info["end"],
             "sprint_id": info["sprint"]["id"] if info["sprint"] else None, "overall": overall, "reason": why, "title": title,
-            "counts": {"highlights": len(highlights), "issues": len(issues), "stories": n_stories, "points": pts, "shipped": len(shipped)},
+            "counts": {"scope_changes": len(scope), "highlights": len(highlights), "issues": len(issues), "stories": n_stories, "points": pts, "shipped": len(shipped)},
             "markdown": "\n".join(md)}
 
 
@@ -316,6 +322,13 @@ def build_sprint(conn, sprint_id: int, audience: str = "leadership") -> dict:
     left = carried_next if carried_next["n"] else carried
     if left["n"]:
         md.append(f"- {left['n']} {'story' if left['n'] == 1 else 'stories'} ({left['pts']} points) not finished" + (", carried into the next sprint" if carried_next["n"] else ""))
+    from .changes import report_lines
+
+    crs = models.change_requests.visible_all(models.change_requests.fetch_all(conn, "sprint_id = ?", (sprint_id,)), Viewer(floor=floor, source="report"))
+    accepted = [c for c in crs if c.get("decision") in ("accepted with a swap", "accepted without a swap")]
+    p_in, p_out = sum(c.get("points") or 0 for c in accepted), sum(c.get("points_out") or 0 for c in accepted)
+    if crs:
+        md.append(f"- Scope changed by {len(crs)} request{'s' if len(crs) != 1 else ''} during the sprint: {p_in} points added, {p_out} taken out, net {p_in - p_out:+d}")
     history = conn.execute(
         "SELECT s.number, p.completed_points FROM sprints s JOIN sprint_plans p ON p.sprint_id = s.id WHERE s.team_id IS ? AND p.completed_points IS NOT NULL "
         "AND s.number <= ? ORDER BY s.number DESC LIMIT 5", (sprint.get("team_id"), sprint["number"])).fetchall()
@@ -333,11 +346,14 @@ def build_sprint(conn, sprint_id: int, audience: str = "leadership") -> dict:
         md += [f"- Delivered: {r['title']}" for r in shipped]
         md += [_bullet(h, audience == "my manager") for h in highlights]
         md += [_bullet(i).replace("- ", "- Blocker or risk: ", 1) for i in issues]
+    if crs:
+        md += ["", "## Scope changes during the sprint"] + report_lines(crs)
     retro = conn.execute("SELECT COUNT(*) FROM retro_commitments WHERE sprint_id = ?", (sprint_id,)).fetchone()[0]
     md += ["", "## Retrospective", f"- {retro} improvement{'s' if retro != 1 else ''} agreed for next sprint" if retro else "- [Placeholder: what the team agreed to change]"]
     md += ["", "## Next sprint", "- [Placeholder: goal and focus]"]
     return {"kind": "sprint", "audience": audience, "sprint": {"id": sprint["id"], "number": sprint["number"], "goal": sprint.get("goal")},
             "period_start": s.isoformat(), "period_end": e.isoformat(), "sprint_id": sprint_id, "progress": prog,
+            "scope": {"requests": len(crs), "accepted": len(accepted), "points_in": p_in, "points_out": p_out},
             "weeks": [{"week": n, "start": a.isoformat(), "end": b.isoformat(), "stories": st, "points": p} for n, a, b, st, p in week_rows],
             "title": f"Sprint {sprint['number']} report", "markdown": "\n".join(md)}
 

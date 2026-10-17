@@ -708,6 +708,39 @@ GUIDES = [
         ],
         "related": ["/planning", "/sprints", "/qa"], "reading": [SG, MEA],
     },
+    {
+        "slug": "change-mid-sprint", "theme": "agile", "minutes": 6, "since": 7,
+        "title": "Change in the middle of a sprint",
+        "summary": "A sprint is a short promise. New requests are welcome, but they come through the product owner, they're weighed against the sprint goal, and when something comes in, something of similar size goes out.",
+        "why": "When anyone can drop work into a running sprint, the team stops being able to predict anything, the sprint goal stops meaning anything, and the people who asked for the original work are quietly let down. Saying 'yes, and here's what moves' keeps both the stakeholder relationship and the team's credibility.",
+        "practices": [
+            "Agree a short, written policy with the product owner and the team, and share it with stakeholders before the first interruption, not during it.",
+            "Send every request to the product owner. Developers shouldn't have to say no to a director on their own.",
+            "Default to the backlog. Most requests can wait one or two weeks once someone explains when they'll be looked at.",
+            "Ask three questions: what is it worth, how big is it, and does it put the sprint goal at risk?",
+            "If it must come in, swap out unstarted work of about the same size, and tell the owner of that work.",
+            "Keep a small, planned buffer for support and surprises, so small things don't need a debate.",
+            "Tell the requester the decision and the reason the same day, especially when the answer is no or later.",
+            "Count scope change per sprint and look at the trend in retros and with leadership. Data makes the conversation calmer.",
+        ],
+        "pitfalls": [
+            "Adding work without taking anything out, then calling the sprint a miss.",
+            "Letting urgency stand in for importance. Loud isn't the same as valuable.",
+            "Pulling out half-finished work. Swap unstarted stories where you can.",
+            "Treating every production issue as a change request. Real emergencies follow the escalation path.",
+            "Cancelling sprints casually. It's for when the goal itself no longer makes sense.",
+        ],
+        "questions": [
+            "How much of last sprint's scope changed after planning?",
+            "Who usually asks for mid-sprint work, and do they know our process?",
+            "Which requests could have waited for the next sprint planning?",
+        ],
+        "try": [
+            "Write the policy with your product owner this week and walk your main stakeholders through it.",
+            "Bring the scope-change numbers from the last two sprints to the next retrospective.",
+        ],
+        "related": ["/changes", "/planning", "/coaching/saying-no-to-scope"], "reading": [SG, MEA],
+    },
     # ---------------------------------------------------------------- culture and trust
     {
         "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
@@ -875,6 +908,9 @@ GUIDES = [
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
+    "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
+                 ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
+                 ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
     "/culture": [('What you tolerate becomes the standard. Address harmful behavior early, privately, and follow up.', 'calling-out-harm', 6),
                  ("Read today's standard before your first meeting, and look for one chance to live it.", 'consistency-and-integrity', 6),
                  ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6)],
@@ -898,7 +934,8 @@ TIPS = {
     "/sos": [("Every cross-team item needs one owner, a due date and the outcome you expect. Otherwise it just gets discussed again next week.", "scrum-of-scrums", 4),
              ("Keep the Scrum of Scrums short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4),
              ('When an organization-wide habit keeps hurting delivery, bring evidence and a proposal, not a complaint.', 'challenging-the-organization', 6)],
-    "/planning": [("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
+    "/planning": [("Leave a little room in each sprint for support and surprises, so small requests don\'t need a debate.", "change-mid-sprint", 7),
+                  ("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
                   ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
     "/retros": [("Open every retro by reviewing last time's commitments. That's what makes retros worth the hour.", "retros"),

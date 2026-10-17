@@ -35,6 +35,7 @@
   BA.command({ label: "Take the trust pulse", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/pulse") });
   BA.command({ label: "Weekly report", hint: "Reports", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Sprint report", hint: "Reports", icon: "file-text", run: () => BA.go("/status/sprint") });
+  BA.command({ label: "New change request", hint: "Change requests", icon: "arrow-left-right", run: () => BA.go("/changes/new") });
   BA.command({ label: "Log something", hint: "Work log", icon: "file-text", run: () => BA.go("/status/log") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -107,6 +108,9 @@
           <p class="quiet">${rep.logged_today ? `${rep.logged_today} logged today. ` : "Nothing logged today yet. "}<a href="#/status/log">Work log</a></p>
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
+        ${d.changes && (d.changes.waiting.length || d.changes.untold.length) ? `<section class="card"><h2>Change requests</h2>
+          ${d.changes.waiting.map((c) => `<div class="item"><span class="pill ${c.urgency === "emergency" ? "bad" : "warn"}">decide</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${c.days ? `${c.days} day${c.days === 1 ? "" : "s"} waiting` : "today"}</span></div>`).join("")}
+          ${d.changes.untold.map((c) => `<div class="item"><span class="pill">tell them</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.decision)}</span></div>`).join("")}</section>` : ""}
         <section class="card"><h2>Overdue</h2>${d.overdue_tasks.map(taskRow).join("") || empty("Nothing overdue.")}</section>
         <section class="card"><h2>Dev-sync items overdue</h2>${
           d.overdue_actions.map((a) => `<div class="item"><a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span><span class="quiet">${esc(a.owner_name || "")} · ${BA.fmtDate(a.due)}</span></div>`).join("") ||
@@ -4257,4 +4261,151 @@
     });
   }
 
+  // ---------------------------------------------------------------- Change requests
+
+  const CR_SOURCES = ["leadership", "stakeholder", "product owner", "customer", "production issue", "another team", "the team"];
+  const CR_URGENCY = ["next sprint is fine", "this sprint", "emergency"];
+  const CR_IMPACT = ["doesn't affect the goal", "puts the goal at risk", "changes the goal", "makes the goal obsolete"];
+  const CR_DECISIONS = [
+    ["accepted with a swap", "Swap", "Take out unstarted work of about the same size, so the sprint stays achievable."],
+    ["accepted without a swap", "Absorb", "Only for small work that fits in the slack you planned for."],
+    ["deferred to the backlog", "Defer", "It goes to the backlog for a coming sprint planning. Say when it'll be looked at."],
+    ["rejected", "Reject", "Not worth doing, or not now. Give the reason."],
+    ["sprint cancelled", "Cancel the sprint", "Only when the sprint goal no longer makes sense. Then plan a new sprint."],
+  ];
+  const CR_STATUS_TONES = { received: "warn", assessing: "warn", decided: "good", closed: "" };
+  const decisionTone = (d) => ({ "accepted with a swap": "accent", "accepted without a swap": "accent", "deferred to the backlog": "", rejected: "bad", "sprint cancelled": "bad" })[d] || "";
+  const changeTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["new", "New request"], ["all", "All requests"], ["policy", "Our policy"]]
+    .map(([k, l]) => `<a href="#/changes${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+  const crRow = (c) => `<div class="item"><span class="pill ${CR_STATUS_TONES[c.status]}">${esc(c.status)}</span><a href="#/changes/${c.id}">${esc(c.title)}</a>${c.decision ? `<span class="pill ${decisionTone(c.decision)}">${esc(c.decision)}</span>` : ""}
+    <span class="spacer"></span><span class="quiet">${esc(c.source)}${c.requested_by_name ? ` · ${esc(c.requested_by_name)}` : ""}${c.sprint_number ? ` · sprint ${c.sprint_number}` : ""} · ${BA.fmtDate(c.requested_on)}</span></div>`;
+
+  BA.view("/changes", {
+    title: "Change requests",
+    async render(main, param) {
+      if (param === "new") return renderNewChange(main);
+      if (param === "all") return renderAllChanges(main);
+      if (param === "policy") return renderChangePolicy(main);
+      if (param) return renderChange(main, Number(param));
+      const d = await BA.api("/api/change-requests/overview");
+      const s = d.sprint;
+      const maxPts = Math.max(1, ...d.churn.map((c) => Math.max(c.points_in, c.points_out)));
+      main.innerHTML = `${changeTabs("")}
+        ${s ? `<section class="card"><div class="row"><h2>Sprint ${s.sprint.number}${d.running ? "" : " (not running today)"}</h2><span class="spacer"></span>${s.days_left != null ? `<span class="quiet">${s.days_left} day${s.days_left === 1 ? "" : "s"} left</span>` : ""}</div>
+          <p>${esc(s.sprint.goal || "No sprint goal set.")}</p>
+          <div class="stat-row"><div><b>${s.capacity ?? "–"}</b><span>capacity</span></div><div><b>${s.committed ?? "–"}</b><span>committed</span></div><div><b>${s.in_sprint}</b><span>in the sprint now</span></div><div><b>${s.done}</b><span>done</span></div>
+            <div><b>${s.changes.points_in}</b><span>points added by requests</span></div><div><b>${s.changes.points_out}</b><span>points swapped out</span></div></div></section>` : '<section class="card"><p class="quiet">No sprint yet. Requests can still be logged and deferred to the backlog.</p></section>'}
+        <div class="cards">
+          <section class="card"><h2>Waiting for a decision</h2>${d.open.map(crRow).join("") || '<p class="quiet">Nothing waiting.</p>'}${presenting() ? "" : '<p><a class="btn" href="#/changes/new">New request</a></p>'}</section>
+          <section class="card"><h2>Decided, requester not told yet</h2>${d.untold.map(crRow).join("") || '<p class="quiet">Everyone has heard back.</p>'}</section>
+        </div>
+        <section class="card"><h2>Scope change by sprint</h2>${d.churn.some((c) => c.requests) ? `<div class="churn">${d.churn.map((c) => `<div class="churn-col" title="${c.requests} requests: ${c.accepted} accepted, ${c.deferred} deferred, ${c.rejected} rejected">
+            <div class="churn-bars"><span class="in" style="height:${Math.round((c.points_in / maxPts) * 100)}%"></span><span class="out" style="height:${Math.round((c.points_out / maxPts) * 100)}%"></span></div>
+            <b>S${c.number}</b><span class="quiet">${c.requests} req${c.changed_pct != null ? ` · ${c.changed_pct}%` : ""}</span></div>`).join("")}</div>
+          <p class="quiet"><span class="legend in"></span> points added <span class="legend out"></span> points swapped out. The percentage is points added against what was committed at planning.</p>` : '<p class="quiet">No requests recorded against a sprint yet.</p>'}</section>
+        <section class="card"><h2>Recently decided</h2>${d.recent.map(crRow).join("") || '<p class="quiet">None yet.</p>'}</section>
+        ${d.policy ? "" : '<section class="card"><h2>Write your policy</h2><p class="quiet">Agree with your product owner how mid-sprint requests are handled, and share it with stakeholders before the first one arrives. <a href="#/changes/policy">Start from a draft</a>.</p></section>'}`;
+    },
+  });
+
+  function changeFields(c, people) {
+    return `<div class="grid2"><label>What's being asked<input name="title" value="${esc(c.title || "")}" required></label>
+      <label>Asked by<select name="requested_by_id"><option value=""></option>${people.map((p) => `<option value="${p.id}"${p.id === c.requested_by_id ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <label>Where it came from<select name="source">${opts(CR_SOURCES, c.source || "stakeholder")}</select></label><label>Asked on<input type="date" name="requested_on" value="${esc(c.requested_on || BA.today())}" required></label>
+      <label>How urgent<select name="urgency">${opts(CR_URGENCY, c.urgency || "this sprint")}</select></label><label>Needed by<input type="date" name="needed_by" value="${esc(c.needed_by || "")}"></label>
+      <label>Rough size (points)<input type="number" min="0" name="points" value="${esc(c.points ?? "")}"></label><label>Effect on the sprint goal<select name="goal_impact"><option value=""></option>${opts(CR_IMPACT, c.goal_impact)}</select></label>
+      <label>Jira keys<input name="jira_keys" value="${esc((c.jira_keys || []).join(", "))}" placeholder="Optional"></label></div>
+      <label>Why it matters (the value, in the requester's words)<input name="value" value="${esc(c.value || "")}"></label>
+      <label>Details<textarea name="description" rows="3">${esc(c.description || "")}</textarea></label>
+      <label>Private notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label>`;
+  }
+  const readChange = (form) => { const f = new FormData(form); return { title: f.get("title"), requested_by_id: numOrNull(f.get("requested_by_id")), source: f.get("source"), requested_on: f.get("requested_on"), urgency: f.get("urgency"),
+    needed_by: f.get("needed_by") || null, points: numOrNull(f.get("points")), goal_impact: f.get("goal_impact") || null, jira_keys: keysIn(f.get("jira_keys")), value: f.get("value") || null, description: f.get("description") || null, notes: f.get("notes") || null }; };
+
+  async function renderNewChange(main) {
+    if (presenting()) { main.innerHTML = `${changeTabs("new")}<p class="empty">Hidden while presenting.</p>`; return; }
+    const [people, current] = await Promise.all([BA.api("/api/people"), BA.api("/api/sprints/current")]);
+    main.innerHTML = `${changeTabs("new")}<form id="new-cr" class="card"><h2>New change request</h2>
+      <p class="quiet">Capture it as it arrives, even if the answer will be "next sprint". ${current ? `It will be weighed against Sprint ${current.number}.` : ""}</p>${changeFields({}, people)}
+      <div class="actions"><button class="btn primary" type="submit">Save and assess</button></div></form>`;
+    const form = main.querySelector("#new-cr");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const c = await BA.api("/api/change-requests", { method: "POST", body: { ...readChange(form), sprint_id: current ? current.id : null } });
+      BA.go(`/changes/${c.id}`);
+    });
+  }
+
+  async function renderChange(main, id) {
+    const [a, people] = await Promise.all([BA.api(`/api/change-requests/${id}/assess`), BA.api("/api/people")]);
+    const c = a.request, imp = a.impact, ro = presenting();
+    const open = c.status === "received" || c.status === "assessing";
+    const swapPicker = imp && imp.candidates.length ? `<div class="swap-list">${imp.candidates.map((i) => `<label class="check swap-item"><input type="checkbox" name="swap" value="${i.id}" data-pts="${i.points || 0}"> <span>${esc(i.title)}</span>${i.jira_key ? `<span class="jira-key">${esc(i.jira_key)}</span>` : ""}<span class="spacer"></span><span class="quiet">${i.points ?? "?"} pts${i.owner_name ? ` · ${esc(i.owner_name)}` : ""}</span></label>`).join("")}</div>
+      <p class="swap-balance quiet" id="balance"></p>` : '<p class="quiet">No unfinished stories in the sprint to swap out.</p>';
+    main.innerHTML = `${changeTabs("")}
+      <section class="card"><div class="row"><h2>${esc(c.title)}</h2>${tonePill(c.status, CR_STATUS_TONES)}${c.decision ? `<span class="pill ${decisionTone(c.decision)}">${esc(c.decision)}</span>` : ""}<span class="spacer"></span>${BA.historyButton("change_request", c.id)}</div>
+        <p class="quiet">${[`From ${esc(c.source)}${c.requested_by_name ? ` (${esc(c.requested_by_name)})` : ""}`, `asked ${BA.fmtDate(c.requested_on)}`, esc(c.urgency), c.needed_by ? `needed by ${BA.fmtDate(c.needed_by)}` : "", c.points != null ? `${c.points} points` : "not sized", c.goal_impact ? esc(c.goal_impact) : ""].filter(Boolean).join(" · ")}</p>
+        ${c.value ? `<p><b>Why it matters:</b> ${esc(c.value)}</p>` : ""}${c.description ? BA.md(c.description) : ""}
+        ${c.status === "decided" || c.status === "closed" ? `<p><b>Decision:</b> ${esc(c.decision)}${c.decided_by_name ? ` by ${esc(c.decided_by_name)}` : ""} on ${BA.fmtDate(c.decided_on)}.${c.decision_reason ? ` ${esc(c.decision_reason)}` : ""}${c.points_out ? ` ${c.points_out} points swapped out.` : ""}</p>
+          <p>${c.communicated_on ? `Requester told ${BA.fmtDate(c.communicated_on)}.` : ro ? "Requester not told yet." : '<button class="btn primary" id="told">I\'ve told the requester</button>'}${c.backlog_item_id ? ` <a href="#/planning">See it in Sprint planning</a>` : ""}</p>` : ""}</section>
+      ${imp ? `<section class="card"><h2>Sprint ${imp.sprint.number}: where it stands</h2><p>${esc(imp.sprint.goal || "No sprint goal set.")}</p>
+        <div class="stat-row"><div><b>${imp.capacity ?? "–"}</b><span>capacity</span></div><div><b>${imp.in_sprint}</b><span>points in the sprint</span></div><div><b>${imp.done}</b><span>done</span></div><div><b>${imp.remaining}</b><span>left</span></div>${imp.days_left != null ? `<div><b>${imp.days_left}</b><span>days left</span></div>` : ""}</div>
+        ${c.points != null && imp.capacity ? `<p class="quiet">Adding ${c.points} points without a swap would put the sprint at ${imp.in_sprint + c.points} of ${imp.capacity}.</p>` : ""}</section>` : ""}
+      ${open && !ro ? `<form id="decide" class="card"><h2>Decide</h2>
+        <p class="quiet">Ask: what is it worth, how big is it, and does it put the sprint goal at risk? The product owner makes the call, with the team.</p>
+        <div class="decision-options">${CR_DECISIONS.map(([v, l, help], i) => `<label class="decision-opt"><input type="radio" name="decision" value="${v}"${i === 2 ? " checked" : ""}><span><b>${l}</b><small>${help}</small></span></label>`).join("")}</div>
+        <div id="swap-box" hidden><h3>What comes out</h3><p class="quiet">Lowest priority first. Prefer stories nobody has started.</p>${swapPicker}</div>
+        <div class="grid2"><label>Decided by<select name="decided_by_id"><option value=""></option>${people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></label>
+          <label>Size (points)<input type="number" min="0" name="points" value="${esc(c.points ?? "")}"></label></div>
+        <label>Reason <span class="quiet">(what the requester will hear)</span><textarea name="reason" rows="2"></textarea></label>
+        <div class="actions"><button class="btn" type="button" id="assessing"${c.status === "assessing" ? " disabled" : ""}>Mark as being assessed</button><button class="btn primary" type="submit">Record and apply the decision</button></div></form>` : ""}
+      ${ro ? "" : `<details class="card"><summary><b>Edit the request</b></summary><form id="edit-cr">${changeFields(c, people)}<div class="actions"><button class="btn danger left" type="button" id="del-cr">Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}`;
+    if (ro) return;
+    const edit = main.querySelector("#edit-cr");
+    edit.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/change-requests/${id}`, { method: "PATCH", body: readChange(edit) }); BA.toast("Saved."); BA.rerender(); });
+    main.querySelector("#del-cr").onclick = BA.guard(async () => { if (!confirm("Delete this request? Stories it moved stay where they are.")) return; await BA.api(`/api/change-requests/${id}`, { method: "DELETE" }); BA.go("/changes"); });
+    const toldBtn = main.querySelector("#told");
+    if (toldBtn) toldBtn.onclick = BA.guard(async () => { await BA.api(`/api/change-requests/${id}/told`, { method: "POST", body: {} }); BA.rerender(); });
+    const form = main.querySelector("#decide");
+    if (!form) return;
+    const swapBox = main.querySelector("#swap-box"), bal = main.querySelector("#balance");
+    const update = () => {
+      swapBox.hidden = form.elements.decision.value !== "accepted with a swap";
+      if (!bal) return;
+      const out = [...form.querySelectorAll("[name=swap]:checked")].reduce((n, x) => n + Number(x.dataset.pts), 0);
+      const inPts = numOrNull(form.elements.points.value) || 0;
+      bal.innerHTML = `Coming in: <b>${inPts}</b> points · going out: <b>${out}</b> points · ${out >= inPts ? "the sprint stays the same size or smaller" : `the sprint grows by ${inPts - out} points`}`;
+    };
+    form.querySelectorAll("[name=decision], [name=swap], [name=points]").forEach((el) => (el.oninput = el.onchange = update));
+    update();
+    main.querySelector("#assessing").onclick = BA.guard(async () => { await BA.api(`/api/change-requests/${id}`, { method: "PATCH", body: { status: "assessing" } }); BA.rerender(); });
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      const body = { decision: f.get("decision"), reason: f.get("reason"), decided_by_id: numOrNull(f.get("decided_by_id")), points: numOrNull(f.get("points")), swap_out_ids: f.getAll("swap").map(Number) };
+      if (body.decision === "sprint cancelled" && !confirm("Cancel the sprint? Do this only when the sprint goal no longer makes sense. Nothing is moved automatically; plan a new sprint next.")) return;
+      const r = await BA.api(`/api/change-requests/${id}/decide`, { method: "POST", body });
+      BA.toast(r.warning || "Decision recorded. Now tell the requester.");
+      BA.rerender();
+    });
+  }
+
+  async function renderAllChanges(main) {
+    const list = await BA.api("/api/change-requests");
+    main.innerHTML = `${changeTabs("all")}<section class="card"><h2>All requests</h2>${list.map(crRow).join("") || '<p class="quiet">None yet.</p>'}</section>`;
+  }
+
+  async function renderChangePolicy(main) {
+    const d = await BA.api("/api/change-requests/policy");
+    const ro = presenting();
+    main.innerHTML = `${changeTabs("policy")}
+      <section class="card"><h2>How we handle requests during a sprint</h2>${d.policy ? BA.md(d.policy) : '<p class="quiet">No policy yet.</p>'}</section>
+      ${ro ? "" : `<form id="policy" class="card"><h2>Edit</h2><p class="quiet">Agree it with your product owner and the team, then walk your stakeholders through it. Markdown works.</p>
+        <textarea name="policy" rows="16">${esc(d.policy || "")}</textarea><div class="actions">${d.policy ? "" : '<button class="btn left" type="button" id="starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}`;
+    if (ro) return;
+    const form = main.querySelector("#policy");
+    form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/change-requests/policy", { method: "PUT", body: { policy: form.elements.policy.value } }); BA.toast("Saved."); BA.rerender(); });
+    const st = main.querySelector("#starter");
+    if (st) st.onclick = () => { form.elements.policy.value = d.starter; };
+  }
 })();
