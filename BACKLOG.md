@@ -16,6 +16,8 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
+- [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
 - [ ] Mandates: link plan items and roadmap items to the mandate outcome they serve; show mandate decision rights on the RACI; a version history view comparing what was agreed at day 30 and day 90
 - [ ] People: export the current People list as a roster file, so a team can be moved between installs; open seats (a role you're hiring for) as their own kind of placeholder
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
@@ -98,6 +100,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Peer relationships. People > Balance shows how logged conversations split up (my management chain), down (my reporting line), sideways (peers) and outward over 14 to 90 days, compared with the period before, and lists peers quietest first with influence, stance and the new exchange fields. Every person can carry "what I can offer them" and "what I need from them", shown as The exchange on their page. Today nudges when more conversations go up than sideways, and when a high-influence peer has gone quiet for three weeks. A coaching guide on building relationships with peers, with tips on People, Teams and Scrum of Scrums; 207 tests
 
 - [x] 2026-10-17: Mandates. A mandate for me and one for each report: what the role is for, the outcomes expected (with a measure, a day of the first 90, and a status), decision areas each marked I decide, I decide and inform, I recommend, I'm consulted, not mine, or to clarify (starting from common areas), boundaries, resources and questions still to clarify. Mark discussed, then agreed (with whom, review in 90 days); copy as Markdown. Mine can be filled from the Role brief or imported from a file; it can be shown while presenting, and my manager's weekly report shows progress on its outcomes. Agreeing a report's mandate completes their First 90 days milestone. Today nudges me to agree mine after two weeks and flags reviews. A coaching guide on getting clear on your mandate; 206 tests
 

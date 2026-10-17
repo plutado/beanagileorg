@@ -22,7 +22,7 @@ ME_KEY = "people.me_id"
 SENSITIVE = ("personal_context", "support_notes", "key_dates", "motivations")
 OPTIONAL = ("start_date", "location", "timezone", "background", "skills", "certifications", "goals", "wants_to_learn", "can_teach", "working_style",
             "support_notes", "contact", "tags", "cadence_days", "influence", "stance", "communication", "motivations", "personal_context",
-            "things_to_remember", "key_dates", "next_meeting", "manager_id")
+            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them")
 
 
 def _today() -> date:
@@ -308,6 +308,76 @@ def follow_up(interaction_id: int, viewer: Viewer = Depends(get_viewer), conn=De
     return {"created": created}
 
 
+# ---- relationship balance: up, down and sideways ----
+
+DIRECTIONS = ("up", "down", "sideways", "outward")
+QUIET_DAYS = 21
+
+
+def directions(conn) -> dict[int, str]:
+    """Where each person sits relative to you: up your management chain, down in your reporting line, sideways among peers, or outward."""
+    me = me_id(conn)
+    people = models.people.fetch_all(conn)
+    by_id = {p["id"]: p for p in people}
+    up, cur, seen = set(), by_id.get(me, {}).get("manager_id") if me else None, set()
+    while cur and cur not in seen:
+        seen.add(cur)
+        up.add(cur)
+        cur = by_id.get(cur, {}).get("manager_id")
+    down, frontier = set(), {me} if me else set()
+    while frontier:
+        frontier = {p["id"] for p in people if p.get("manager_id") in frontier and p["id"] not in down and p["id"] != me}
+        down |= frontier
+    out = {}
+    for p in people:
+        if p["id"] == me:
+            continue
+        rel = p.get("relationship")
+        out[p["id"]] = ("up" if p["id"] in up or (rel == "manager" and p["id"] not in down) else "down" if p["id"] in down or rel in ("employee", "contractor")
+                        else "sideways" if rel == "peer" else "outward")
+    return out
+
+
+def _counts(conn, where: dict[int, str], start: str, end: str) -> dict:
+    counts = {d: 0 for d in DIRECTIONS}
+    for r in conn.execute("SELECT person_ids FROM interactions WHERE date BETWEEN ? AND ?", (start, end)):
+        for d in {where[pid] for pid in json.loads(r["person_ids"] or "[]") if pid in where}:
+            counts[d] += 1
+    return counts
+
+
+def build_balance(conn, days: int = 30) -> dict:
+    t = _today()
+    where = directions(conn)
+    start, prev_start = (t - timedelta(days=days - 1)).isoformat(), (t - timedelta(days=2 * days - 1)).isoformat()
+    last = _last_contacts(conn)
+    peers = []
+    for p in models.people.fetch_all(conn, "active = 1"):
+        if where.get(p["id"]) != "sideways":
+            continue
+        lc = last.get(p["id"])
+        since = (t - date.fromisoformat(lc)).days if lc else None
+        peers.append({"id": p["id"], "name": p["name"], "role": p.get("role"), "influence": p.get("influence"), "stance": p.get("stance"),
+                      "last_contact": lc, "days_since": since, "quiet": since is None or since > QUIET_DAYS, "placeholder": bool(p.get("placeholder")),
+                      "offer_them": p.get("offer_them"), "need_from_them": p.get("need_from_them"), "cadence_days": p.get("cadence_days")})
+    peers.sort(key=lambda x: (x["days_since"] is not None, -(x["days_since"] or 0)))
+    now = _counts(conn, where, start, t.isoformat())
+    before = _counts(conn, where, prev_start, (t - timedelta(days=days)).isoformat())
+    return {"days": days, "has_me": bool(me_id(conn)), "counts": now, "previous": before, "peers": peers,
+            "people": {d: sum(1 for v in where.values() if v == d) for d in DIRECTIONS},
+            "top_heavy": now["up"] >= 2 and now["up"] > now["sideways"]}
+
+
+@router.get("/api/people/balance")
+def balance(days: int = 30, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Private: how your conversations split between up, down, sideways and outward, and which peers have gone quiet."""
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    if not 7 <= days <= 180:
+        raise HTTPException(400, "Look back between 7 and 180 days.")
+    return build_balance(conn, days)
+
+
 def people_due(conn) -> dict:
     """For Today: people past their check-in cadence, key dates this week, and meetings planned this week."""
     today, week = _today(), (_today() + timedelta(days=7)).isoformat()
@@ -321,8 +391,14 @@ def people_due(conn) -> dict:
         dates += [{"id": p["id"], "name": p["name"], **d} for d in _upcoming_dates(p)]
         if p["next_meeting"] and today.isoformat() <= p["next_meeting"] <= week:
             meetings.append({"id": p["id"], "name": p["name"], "date": p["next_meeting"]})
+    bal = build_balance(conn) if me_id(conn) else None
+    sideways = None
+    if bal:
+        key_quiet = [{"id": p["id"], "name": p["name"], "days_since": p["days_since"]} for p in bal["peers"] if p["quiet"] and p["influence"] == "high"]
+        if bal["top_heavy"] or key_quiet:
+            sideways = {"up": bal["counts"]["up"], "sideways": bal["counts"]["sideways"], "top_heavy": bal["top_heavy"], "quiet": key_quiet[:5]}
     open_c = models.commitments.fetch_all(conn, "status = 'open' AND due IS NOT NULL")
-    return {"check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"]),
+    return {"sideways": sideways, "check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"]),
             "i_owe": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"], "late": c["due"] < today.isoformat()}
                       for c in open_c if c["direction"] == "mine" and c["due"] <= week],
             "they_owe_late": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"]}

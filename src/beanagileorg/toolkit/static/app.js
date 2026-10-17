@@ -134,6 +134,10 @@
           ${d.culture.unaddressed.map((o) => `<div class="item"><span class="pill bad">unaddressed</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">noticed ${BA.fmtDate(o.date)}</span></div>`).join("")}
           ${d.culture.follow_ups.map((o) => `<div class="item"><span class="pill warn">follow up</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(o.follow_up)}</span></div>`).join("")}
           ${d.culture.pulse_due ? '<div class="item"><span class="pill">pulse</span><a href="#/culture/pulse">Time for a trust pulse</a></div>' : ""}</section>` : ""}
+        ${d.people_due && d.people_due.sideways ? `<section class="card"><h2>Peers</h2>
+          ${d.people_due.sideways.top_heavy ? `<p>In the last 30 days you had <b>${d.people_due.sideways.up}</b> conversation${d.people_due.sideways.up === 1 ? "" : "s"} up your management chain and <b>${d.people_due.sideways.sideways}</b> with peers. Peers will make or break most of what you're trying to change.</p>` : ""}
+          ${d.people_due.sideways.quiet.map((q) => `<div class="item"><span class="pill warn">quiet</span><a href="#/people/${q.id}">${esc(q.name)}</a><span class="spacer"></span><span class="quiet">${q.days_since == null ? "no conversation yet" : `${q.days_since} days`}</span></div>`).join("")}
+          <p><a href="#/people/balance">Relationship balance</a></p></section>` : ""}
         ${d.people_due && (d.people_due.check_ins.length || d.people_due.key_dates.length || d.people_due.meetings.length || (d.people_due.i_owe || []).length || (d.people_due.they_owe_late || []).length) ? `<section class="card"><h2>People</h2>
           ${(d.people_due.i_owe || []).map((c) => `<div class="item"><span class="pill ${c.late ? "bad" : "warn"}">I owe</span><a href="#/people/${c.person_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.name)} · ${BA.fmtDate(c.due)}</span></div>`).join("")}
           ${(d.people_due.they_owe_late || []).map((c) => `<div class="item"><span class="pill">follow up</span><a href="#/people/${c.person_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.name)} · was due ${BA.fmtDate(c.due)}</span></div>`).join("")}
@@ -194,8 +198,8 @@
   const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
     wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
     influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
-    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to" };
-  const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them" };
+  const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["balance", "Balance"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
   const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
       <button type="button" class="link-btn" data-reveal>${revealed(id) ? "Hide" : "Show"}</button></div><div class="sensitive-body">${html}</div></div>`;
@@ -206,6 +210,7 @@
     async render(main, param) {
       if (param === "org") return renderOrgChart(main);
       if (param === "fields") return renderPeopleFields(main);
+      if (param === "balance") return renderBalance(main);
       if (param) return renderPerson(main, Number(param));
       const [d, rep] = await Promise.all([BA.api("/api/people/overview"), BA.api("/api/people/reports")]);
       const ro = presenting();
@@ -240,6 +245,30 @@
       if (add) add.onsubmit = BA.guard(async (e) => { e.preventDefault(); const rec = await BA.api("/api/people", { method: "POST", body: BA.readForm(add, PERSON_FIELDS.slice(0, 3)) }); BA.go(`/people/${rec.id}`); });
     },
   });
+
+  async function renderBalance(main) {
+    let days = 30;
+    try { days = Number(sessionStorage.getItem("ba-balance-days")) || 30; } catch {}
+    const d = await BA.api(`/api/people/balance?days=${days}`);
+    if (d.hidden) { main.innerHTML = `${peopleTabs("balance")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const labels = { up: ["Up", "your manager and their chain"], down: ["Down", "your reports and their teams"], sideways: ["Sideways", "peers"], outward: ["Outward", "stakeholders, vendors and others"] };
+    const total = Object.values(d.counts).reduce((a, b) => a + b, 0);
+    const delta = (k) => { const n = d.counts[k] - d.previous[k]; return n ? `<span class="quiet">${n > 0 ? "+" : ""}${n} vs the ${d.days} days before</span>` : `<span class="quiet">same as before</span>`; };
+    main.innerHTML = `${peopleTabs("balance")}
+      ${d.has_me ? "" : '<section class="card"><p>Pick your own record ("This is me") and set who you report to, so the toolkit knows who is up, down and sideways.</p></section>'}
+      <section class="card"><div class="row"><h2>Where your conversations go</h2><span class="spacer"></span><select id="bal-days" style="max-width:150px">${[14, 30, 60, 90].map((n) => `<option value="${n}"${n === d.days ? " selected" : ""}>Last ${n} days</option>`).join("")}</select></div>
+        <p class="quiet">Conversations logged under People, counted once for each direction they touch. A new leader tends to spend too much time upward; peers decide whether most of what you're changing will stick.</p>
+        ${total ? `<div class="balance-bar">${["up", "down", "sideways", "outward"].map((k) => d.counts[k] ? `<span class="b-${k}" style="flex:${d.counts[k]}" title="${labels[k][0]}: ${d.counts[k]}">${labels[k][0]}</span>` : "").join("")}</div>` : ""}
+        <div class="stat-row">${["up", "down", "sideways", "outward"].map((k) => `<div class="b-tile b-${k}-tile"><b>${d.counts[k]}</b><span>${labels[k][0]}: ${labels[k][1]}</span>${delta(k)}</div>`).join("")}</div>
+        ${d.top_heavy ? `<p class="callout warn">More of your conversations went up than sideways. Pick one peer from the list below and set up a conversation this week.</p>` : d.counts.sideways ? '<p class="quiet">Sideways is holding its own.</p>' : ""}</section>
+      <section class="card"><h2>Peers</h2><p class="quiet">Quietest first. Mark someone as a peer under their Details to see them here. Write down what you can offer each one and what you need from them: peer relationships run on exchange.</p>
+        ${d.peers.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Peer</th><th>Influence</th><th>Last talked</th><th>What I can offer</th><th>What I need</th></tr></thead><tbody>${d.peers.map((p) => `<tr class="clickable" data-id="${p.id}">
+            <td><b>${esc(p.name)}</b>${p.placeholder ? ' <span class="pill warn">placeholder</span>' : ""}<div class="quiet">${esc(p.role || "")}</div></td><td>${esc(p.influence || "")}${p.stance ? `<div class="quiet">${esc(p.stance)}</div>` : ""}</td>
+            <td>${p.quiet ? '<span class="pill warn">quiet</span> ' : ""}${ago(p.days_since)}</td><td class="quiet">${esc((p.offer_them || "").slice(0, 90)) || "–"}</td><td class="quiet">${esc((p.need_from_them || "").slice(0, 90)) || "–"}</td></tr>`).join("")}</tbody></table></div>`
+          : '<p class="quiet">No peers yet. Add the managers and leads at your level under People, with relationship "peer".</p>'}</section>`;
+    main.querySelector("#bal-days").onchange = (e) => { try { sessionStorage.setItem("ba-balance-days", e.target.value); } catch {} BA.rerender(); };
+    main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/people/${tr.dataset.id}`)));
+  }
 
   async function renderOrgChart(main) {
     const d = await BA.api("/api/people/org-chart");
@@ -355,6 +384,8 @@
             ${d.follow_ups.length ? `<h3>Open follow-ups</h3>${d.follow_ups.map((a) => `<div class="item"><a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span>${BA.statusPill(a.status)}</div>`).join("")}` : ""}
             ${d.sos.length ? `<h3>Across teams</h3>${d.sos.map((s) => `<div class="item"><a href="#/sos">${esc(s.question)}</a><span class="spacer"></span><span class="quiet">${s.due ? BA.fmtDate(s.due) : ""}</span></div>`).join("")}` : ""}</section></div>
         ${commitmentsCard(d, p)}
+        ${(show("offer_them") && p.offer_them) || (show("need_from_them") && p.need_from_them) ? `<section class="card exchange"><h2>The exchange</h2><div class="grid2"><div><h3>What I can offer them</h3>${p.offer_them ? BA.md(p.offer_them) : '<p class="quiet">Not written yet.</p>'}</div>
+          <div><h3>What I need from them</h3>${p.need_from_them ? BA.md(p.need_from_them) : '<p class="quiet">Not written yet.</p>'}</div></div></section>` : ""}
         <section class="card"><h2>About ${esc(p.name.split(" ")[0])}</h2>
           ${block("communication")}${block("working_style")}${block("goals")}${block("background")}
           ${show("skills") && (p.skills || []).length ? `<h3>Skills</h3><p>${BA.chips(p.skills)}</p>` : ""}
@@ -463,6 +494,8 @@
         ${extra("influence", `<label>Influence<select name="influence"><option value=""></option>${opts(INFLUENCE, p.influence)}</select></label>`)}
         ${extra("stance", `<label>Stance<select name="stance"><option value=""></option>${opts(STANCE, p.stance)}</select></label>`)}</div>
         ${extra("communication", `<label>How they like to communicate<textarea name="communication" rows="2">${esc(p.communication || "")}</textarea></label>`)}
+        ${extra("offer_them", `<label>What I can offer them <span class="quiet">(help, information, support for what they care about)</span><textarea name="offer_them" rows="2">${esc(p.offer_them || "")}</textarea></label>`)}
+        ${extra("need_from_them", `<label>What I need from them <span class="quiet">(support, information, decisions, introductions)</span><textarea name="need_from_them" rows="2">${esc(p.need_from_them || "")}</textarea></label>`)}
         ${extra("things_to_remember", `<label>Things to remember <span class="quiet">(one per line)</span><textarea name="things_to_remember" rows="3">${esc((p.things_to_remember || []).join("\n"))}</textarea></label>`)}
         ${["motivations", "support_notes", "personal_context"].filter(show).map((f) => field(f, `<textarea name="${f}" rows="3">${esc(p[f] || "")}</textarea>`)).join("")}
         ${extra("key_dates", field("key_dates", `<div id="key-dates">${[...keyDates, { label: "", date: "" }].map((x) => `<div class="row kd"><input name="kd_label" value="${esc(x.label)}" placeholder="Such as: work anniversary" style="max-width:240px"><input type="date" name="kd_date" value="${esc(x.date)}" style="max-width:170px"></div>`).join("")}</div>`))}
@@ -479,7 +512,7 @@
       if (form.elements.cadence_days) body.cadence_days = numOrNull(fd.get("cadence_days"));
       if (form.elements.next_meeting) body.next_meeting = fd.get("next_meeting") || null;
       for (const f of ["influence", "stance"]) if (form.elements[f]) body[f] = fd.get(f) || null;
-      for (const f of ["communication", "motivations", "support_notes", "personal_context"]) if (form.elements[f]) body[f] = fd.get(f);
+      for (const f of ["communication", "motivations", "support_notes", "personal_context", "offer_them", "need_from_them"]) if (form.elements[f]) body[f] = fd.get(f);
       if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
       if (form.querySelector("#key-dates")) {
         const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");

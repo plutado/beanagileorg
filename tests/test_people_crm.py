@@ -116,3 +116,36 @@ def test_roster_import_and_placeholders(client):
     assert client.post("/api/people/roster", json={"people": [{"key": "x", "name": "[X]", "reports_to": "nobody"}]}).status_code == 400
     assert client.post("/api/people/roster", json={"people": []}).status_code == 400
     assert client.post("/api/people/roster", json={"me": "zzz", "people": [{"key": "y", "name": "[Y]"}]}).status_code == 400
+
+
+def test_relationship_balance_and_peer_nudge(client):
+    from datetime import date, timedelta
+    d = lambda n: (date.today() + timedelta(days=n)).isoformat()
+    boss = client.post("/api/people", json={"name": "[Boss]", "relationship": "manager"}).json()["id"]
+    bigboss = client.post("/api/people", json={"name": "[Boss's boss]"}).json()["id"]
+    client.patch(f"/api/people/{boss}", json={"manager_id": bigboss})
+    me = client.post("/api/people", json={"name": "[Me]", "manager_id": boss}).json()["id"]
+    client.put("/api/people/me", json={"person_id": me})
+    rep = client.post("/api/people", json={"name": "[Report]"}).json()["id"]
+    client.patch(f"/api/people/{rep}", json={"manager_id": me})
+    peer = client.post("/api/people", json={"name": "[Peer]", "relationship": "peer", "influence": "high"}).json()["id"]
+    talk = client.post("/api/people", json={"name": "[Talked peer]", "relationship": "peer"}).json()["id"]
+    vendor = client.post("/api/people", json={"name": "[Vendor]", "relationship": "vendor"}).json()["id"]
+    for who, when in [([boss], -2), ([bigboss], -5), ([boss, rep], -8), ([talk], -40), ([vendor], -3)]:
+        client.post("/api/interactions", json={"date": d(when), "person_ids": who, "kind": "meeting"})
+    b = client.get("/api/people/balance").json()
+    assert b["counts"] == {"up": 3, "down": 1, "sideways": 0, "outward": 1} and b["previous"]["sideways"] == 1 and b["top_heavy"]
+    assert [p["name"] for p in b["peers"]] == ["[Peer]", "[Talked peer]"] and all(p["quiet"] for p in b["peers"])
+    nudge = client.get("/api/today").json()["people_due"]["sideways"]
+    assert nudge["top_heavy"] and nudge["quiet"][0]["id"] == peer
+    client.patch(f"/api/people/{peer}", json={"offer_them": "[Help]", "need_from_them": "[QA time]"})
+    client.post("/api/interactions", json={"date": d(0), "person_ids": [peer, talk]})
+    client.post("/api/interactions", json={"date": d(-1), "person_ids": [peer]})
+    client.post("/api/interactions", json={"date": d(-1), "person_ids": [talk]})
+    b = client.get("/api/people/balance").json()
+    assert b["counts"]["sideways"] == 3 and not b["top_heavy"] and b["peers"][0]["offer_them"] in ("[Help]", None)
+    assert client.get("/api/today").json()["people_due"]["sideways"] is None
+    assert client.get("/api/people/balance?days=3").status_code == 400
+    client.post("/api/session/presentation", json={"on": True})
+    assert client.get("/api/people/balance").json() == {"hidden": True}
+    assert "offer_them" not in client.get(f"/api/people/{peer}").json()

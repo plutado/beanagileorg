@@ -1291,6 +1291,13 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        26,
+        """
+        ALTER TABLE people ADD COLUMN offer_them TEXT;
+        ALTER TABLE people ADD COLUMN need_from_them TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1329,6 +1336,8 @@ people = Record(
         "next_meeting": Field("date", P),
         "manager_id": Field("int", S),
         "placeholder": Field("bool", S, default=False),
+        "offer_them": Field("text", P),
+        "need_from_them": Field("text", P),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),

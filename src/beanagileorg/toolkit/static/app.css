@@ -254,3 +254,10 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 
 .mandate-row { gap: 8px; flex-wrap: wrap; }
 .mandate-row input, .mandate-row select { margin: 0; }
+
+.balance-bar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; margin: 10px 0; font-size: .78rem; font-weight: 600; }
+.balance-bar span { display: grid; place-items: center; color: #fff; min-width: 0; overflow: hidden; white-space: nowrap; }
+.b-up { background: #8a6bd1; } .b-down { background: #3b82c4; } .b-sideways { background: #2f9e6f; } .b-outward { background: #9aa3ad; }
+.b-tile { border-top: 3px solid transparent; } .b-up-tile { border-top-color: #8a6bd1; } .b-down-tile { border-top-color: #3b82c4; } .b-sideways-tile { border-top-color: #2f9e6f; } .b-outward-tile { border-top-color: #9aa3ad; }
+.callout { padding: 10px 12px; border-radius: 8px; background: var(--panel-2); } .callout.warn { background: var(--warn-soft); color: var(--ink); }
+.exchange h3 { margin-top: 0; }

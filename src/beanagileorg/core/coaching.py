@@ -805,6 +805,37 @@ GUIDES = [
         ],
         "related": ["/first90", "/plans", "/coaching/your-manager"], "reading": [F90],
     },
+    {
+        "slug": "peer-relationships", "theme": "stakeholders", "minutes": 6, "since": 10,
+        "title": "Building relationships with your peers",
+        "summary": "New leaders tend to invest upward and downward and neglect sideways. But the peers at your level, who run the teams yours depends on, decide whether most of your changes stick.",
+        "why": "Your manager sets direction and your team does the work, but almost everything you want to change touches someone else's team: shared releases, product priorities, QA, architecture, other managers' people. Peers have no reason to help you just because you're new. They help people who've already helped them, understood their problems, and kept their word. That takes time, so start early, before you need anything.",
+        "practices": [
+            "Map who matters sideways: the managers and leads your team depends on, and those who depend on you.",
+            "Meet each one early, without an ask. Learn what they're trying to achieve and what gets in their way.",
+            "Write down what you can offer each peer and what you need from them. Look for the trade before you need it.",
+            "Give first: share information, help with a problem, back them in a meeting, make an introduction.",
+            "Keep a regular rhythm with key peers, even a short monthly coffee. Relationships fade quietly when you're busy.",
+            "Bring peers into your changes early, especially where your process meets theirs, and ask for their view.",
+            "Watch where your time goes. If most of your conversations go up, rebalance on purpose.",
+        ],
+        "pitfalls": [
+            "Spending all your relationship time on your manager and their manager.",
+            "Only calling a peer when you need something.",
+            "Treating peers as competitors for resources or attention.",
+            "Escalating a disagreement with a peer before talking to them directly.",
+        ],
+        "questions": [
+            "Which peers' support do my top three changes depend on?",
+            "When did I last help a peer with something they cared about?",
+            "Who on my peer list haven't I spoken to this month?",
+        ],
+        "try": [
+            "Pick the two peers your plans depend on most and set up a conversation with each this week, with no ask.",
+            "Fill in 'what I can offer them' and 'what I need from them' for every peer.",
+        ],
+        "related": ["/people/balance", "/sos", "/coaching/earning-trust"], "reading": [F90],
+    },
     # ---------------------------------------------------------------- culture and trust
     {
         "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
@@ -986,7 +1017,8 @@ TIPS = {
     "/people": [("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
-                ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6)],
+                ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6),
+                ('Invest sideways as much as up. Your peers decide whether most of your changes stick.', "peer-relationships", 10)],
     "/onboarding": [("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
                     ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback")],
@@ -999,10 +1031,12 @@ TIPS = {
               ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
     "/teams": [("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4),
-               ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6)],
+               ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6),
+               ("Know what each peer team is trying to achieve. It's the start of every useful trade.", "peer-relationships", 10)],
     "/sos": [("Every cross-team item needs one owner, a due date and the outcome you expect. Otherwise it just gets discussed again next week.", "scrum-of-scrums", 4),
              ("Keep the Scrum of Scrums short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4),
-             ('When an organization-wide habit keeps hurting delivery, bring evidence and a proposal, not a complaint.', 'challenging-the-organization', 6)],
+             ('When an organization-wide habit keeps hurting delivery, bring evidence and a proposal, not a complaint.', 'challenging-the-organization', 6),
+             ('The Scrum of Scrums is where peer relationships pay off. Help another team before you need their help.', "peer-relationships", 10)],
     "/planning": [("Leave a little room in each sprint for support and surprises, so small requests don\'t need a debate.", "change-mid-sprint", 7),
                   ("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
@@ -1095,7 +1129,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 9  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 10  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():
