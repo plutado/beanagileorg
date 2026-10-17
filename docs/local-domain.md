@@ -72,3 +72,8 @@ export BEANAGILEORG_ALLOWED_HOSTS="[placeholder-machine-name].[placeholder-tailn
 ## The public site
 
 `site/index.html` is the whole public site: the cat video and nothing else. Put the video file next to it as `site/[placeholder video file name].mp4`, update the file name in `index.html`, and publish the folder on any static host (GitHub Pages, Cloudflare Pages, Netlify). Point beanagile.org and www at that host. Never add records for the app names there other than the `127.0.0.1` ones above.
+
+## The one public app name: share
+
+`share.beanagile.org` is planned as the only public app name: a gated page on DreamHost for videos, presentations and pages that David shares through personal links (see the video message platform spec). Unlike `toolkit` and `comms`, it points at the DreamHost server's IP, not `127.0.0.1`. DNS for beanagile.org is at GoDaddy; the bare domain still shows GoDaddy's parking page until the cat-video site is published.
+
