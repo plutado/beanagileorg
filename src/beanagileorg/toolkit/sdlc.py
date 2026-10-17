@@ -51,11 +51,11 @@ STARTER_STAGES = [
 STARTER_ENVIRONMENTS = [
     ("Salesforce", "Developer sandboxes", "One per developer (Developer sandbox type): build and unit test a story in isolation.", "No production data", "Each developer", "Can refresh daily",
      "[Placeholder: a branch per story, named with the Jira key]", "[Placeholder: how changes are retrieved from the sandbox into the branch]"),
-    ("Salesforce", "Integration sandbox (Developer Pro)", "Where merged work lands: every developer's changes together, so they're tested side by side. Often just called the Pro sandbox.", "Configuration and seeded test data, no production data",
+    ("Salesforce", "Integration sandbox (Developer Pro)", "Where merged work lands: every developer's changes together, so they're tested side by side.", "Configuration and seeded test data, no production data",
      "[Placeholder: pipeline or release owner]", "Can refresh daily", "[Placeholder: integration branch]", "[Placeholder: deployed when a pull request merges]"),
     ("Salesforce", "QA sandbox (Partial Copy)", "QA testing, regression and user acceptance of what's going into the next release.", "A sample of production data chosen by a sandbox template [Placeholder: masking]", "[Placeholder]", "Every 5 days at most",
      "[Placeholder: release branch]", "[Placeholder]"),
-    ("Salesforce", "[Placeholder: Full sandbox, if the team has one]", "A full copy of production for staging, performance and load testing, and training.", "Full production data copy", "[Placeholder]", "Every 29 days at most",
+    ("Salesforce", "Full sandbox", "A full copy of production for staging, performance and load testing, and training.", "Full production data copy", "[Placeholder]", "Every 29 days at most",
      "", "[Placeholder]"),
     ("Salesforce", "Production", "Live.", "Production data", "[Placeholder: release owner]", "n/a", "[Placeholder: main branch]", "[Placeholder: deployed after the go/no-go]"),
     ("MuleSoft", "[Placeholder: to confirm whether MuleSoft is developed on or mainly used to connect third-party systems]", "[Placeholder]", "[Placeholder]", "[Placeholder]", "n/a", "", ""),
