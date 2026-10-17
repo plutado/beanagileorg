@@ -202,3 +202,5 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .score.s1, .score.s2 { background: var(--bad-soft); color: var(--bad); } .score.s3 { background: var(--warn-soft); color: var(--warn); } .score.s4, .score.s5 { background: var(--good-soft); color: var(--good); }
 .agreements { padding-left: 20px; list-style: disc; } .agreements li { margin: 6px 0; font-size: 1.02rem; }
 .agreement-row { margin: 6px 0; }
+.env-ref summary { display: flex; gap: 10px; align-items: baseline; cursor: pointer; }
+.env-ref .tablewrap { margin-top: 10px; }
