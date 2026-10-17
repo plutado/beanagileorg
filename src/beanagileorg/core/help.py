@@ -45,6 +45,16 @@ TOOLKIT = {
         "privacy": "Titles, sources, decisions and points can go in leadership reports; descriptions and who asked show only to your manager or you; notes are private.",
         "related": ["/planning", "/status", "/coaching/change-mid-sprint"],
     },
+    "/first90": {
+        "purpose": "Your first 90 days, each new hire's, and the team you inherit, side by side by day: for them it's the first 90 days with a new manager who is bringing change.",
+        "steps": ["Set your start date in Settings and pick your own record under People, so the team and the day count are known.",
+                  "Give your inherited team their milestones: first one-on-one, career conversation, growth goal, feedback both ways, a day-90 check-in.",
+                  "Write 'Working with me' and share it in week one: how you work, what you've been asked to do, what you'll change and protect.",
+                  "Add each change you're bringing. Announce it, try it for a set time, review it with the team, then keep or drop it.",
+                  "Hold check-ins at days 30, 60 and 90: a trust pulse, what you heard, and what changed because of it."],
+        "privacy": "Working with me and the team changes can be shown while presenting; milestones, check-in notes and your own track are private.",
+        "related": ["/onboarding", "/plans", "/coaching/leading-change"],
+    },
     "/onboarding": {
         "purpose": "Bring new team members in smoothly, with a checklist that runs from the week before they start to day 90.",
         "steps": ["Load the starter checklist, then edit the template under Checklist template.", "When someone joins, add them under People, then build their checklist with their start date, buddy and tracks.",

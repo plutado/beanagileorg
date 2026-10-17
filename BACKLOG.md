@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
 - [ ] Change requests: who asks most often and what share of their requests were accepted; link a request to a Jira issue and import interruptions flagged in Jira; a stakeholder-facing summary of the policy to share
 - [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer), since reviews say there's no clear channel to leadership
@@ -95,6 +96,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: First 90 days. One page with three tracks by day number: mine (30/60/90 plans with progress and due dates, listening tour, reflections, plan items due this week), each new hire's onboarding on their own clock, and the team I inherit, for whom it's the first 90 days with me. Inherited team members (direct reports who aren't being onboarded) get milestones from an editable template (first one-on-one, sharing Working with me, listening tour, career conversation, role expectations, growth goal, feedback both ways, day-90 check-in), several of which tick themselves when the toolkit sees them happen. Team check-ins at days 30, 60 and 90 show whether a trust pulse was taken nearby and record what I heard and what changed because of it. "Working with me" has a starter draft and can be shown while presenting. Changes I'm bringing move from idea to announced, trial (with a review date about two sprints out), review, then kept or dropped with the outcome; they can be shown to the team and appear in my manager's weekly report. Today flags late milestones, a check-in falling due and changes due for review. A coaching guide on leading change as a new manager; 202 tests
 
 - [x] 2026-10-17: Change requests for work that arrives mid-sprint. Log each request (what, who asked, where it came from, urgency, size, value, effect on the sprint goal, Jira keys); its page shows the sprint's capacity, points in the sprint, done and left, and the unfinished stories lowest priority first. The decision follows Scrum: swap out work of similar size (with a running in-versus-out balance), absorb a small one, defer to the backlog, reject with a reason, or cancel the sprint when the goal no longer makes sense. Applying it moves the stories (swapped-out work back to the backlog as ready, accepted work into the sprint, deferred work to the backlog), then you record when the requester was told. A written policy with a starter draft, scope change per sprint (requests, points in and out, percentage of committed scope), Today items for requests waiting and requesters not yet told, scope changes in the weekly and sprint reports, a coaching guide and tips; 197 tests
 

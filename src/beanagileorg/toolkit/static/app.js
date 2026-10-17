@@ -108,6 +108,10 @@
           <p class="quiet">${rep.logged_today ? `${rep.logged_today} logged today. ` : "Nothing logged today yet. "}<a href="#/status/log">Work log</a></p>
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
+        ${d.first90 && (d.first90.late.length || d.first90.checkpoint || d.first90.reviews.length) ? `<section class="card"><h2>First 90 days</h2>
+          ${d.first90.checkpoint ? `<div class="item"><span class="pill warn">check-in</span><a href="#/first90/team">Day-${d.first90.checkpoint.day} team check-in</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.first90.checkpoint.due)}</span></div>` : ""}
+          ${d.first90.reviews.map((c) => `<div class="item"><span class="pill">review</span><a href="#/first90/changes">Review with the team: ${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.review_on)}</span></div>`).join("")}
+          ${d.first90.late.map((m) => `<div class="item"><span class="pill bad">late</span><a href="#/first90/team">${esc(m.person)}: ${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.due)}</span></div>`).join("")}</section>` : ""}
         ${d.changes && (d.changes.waiting.length || d.changes.untold.length) ? `<section class="card"><h2>Change requests</h2>
           ${d.changes.waiting.map((c) => `<div class="item"><span class="pill ${c.urgency === "emergency" ? "bad" : "warn"}">decide</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${c.days ? `${c.days} day${c.days === 1 ? "" : "s"} waiting` : "today"}</span></div>`).join("")}
           ${d.changes.untold.map((c) => `<div class="item"><span class="pill">tell them</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.decision)}</span></div>`).join("")}</section>` : ""}
@@ -4407,5 +4411,149 @@
     form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/change-requests/policy", { method: "PUT", body: { policy: form.elements.policy.value } }); BA.toast("Saved."); BA.rerender(); });
     const st = main.querySelector("#starter");
     if (st) st.onclick = () => { form.elements.policy.value = d.starter; };
+  }
+
+  // ---------------------------------------------------------------- First 90 days
+
+  const CHANGE_AREAS = ["process", "ceremonies", "quality", "tooling", "communication", "roles", "other"];
+  const CHANGE_STAGES = ["idea", "announced", "trial", "review", "adopted", "dropped"];
+  const STAGE_TONES = { idea: "", announced: "accent", trial: "warn", review: "warn", adopted: "good", dropped: "" };
+  const NEXT_STAGE = { idea: ["announced", "Announce it"], announced: ["trial", "Start the trial"], trial: ["review", "Review with the team"] };
+  const AUTO_LABELS = { one_on_one: "a one-on-one logged under People", interview: "a listening tour conversation marked done", growth_goal: "a growth goal on their Manager tab", feedback: "feedback marked shared on their Manager tab" };
+  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["working", "Working with me"]]
+    .map(([k, l]) => `<a href="#/first90${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+  const f90Progress = (done, total) => `<span class="progress"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></span><span class="quiet">${done ?? 0} of ${total ?? 0}</span>`;
+  const f90_dayLabel = (n) => n == null ? "not started" : n < 1 ? `starts in ${1 - n} day${1 - n === 1 ? "" : "s"}` : n > 90 ? `day ${n}, past 90` : `day ${n}`;
+
+  BA.view("/first90", {
+    title: "First 90 days",
+    async render(main, param) {
+      const views = { team: renderF90Team, changes: renderF90Changes, working: renderWorking };
+      if (views[param]) return views[param](main);
+      const d = await BA.api("/api/first90/overview");
+      const ch = d.changes;
+      main.innerHTML = `${f90Tabs("")}
+        <section class="card f90-head"><div class="row"><h2>${d.day ? `Day ${d.day} of 90` : "Set your start date"}</h2><span class="spacer"></span>${d.start_date ? `<span class="quiet">started ${BA.fmtDate(d.start_date)}</span>` : '<a class="btn" href="#/settings">Set start date</a>'}</div>
+          ${d.day ? `<div class="f90-bar"><span style="width:${Math.min(100, Math.max(0, Math.round((d.day / 90) * 100)))}%"></span>${[30, 60, 90].map((n) => `<i style="left:${(n / 90) * 100}%">${n}</i>`).join("")}</div>` : ""}
+          <p class="quiet">Three tracks that start together: yours, each new hire's, and the team you inherit, for whom this is the first 90 days with you.</p></section>
+        <div class="cards f90-tracks">
+          ${d.private ? `<section class="card"><h2>Me</h2>
+            ${d.me.plans.map((p) => `<div class="item"><a href="#/plans">${esc(p.title)}</a><span class="spacer"></span>${f90Progress(p.done, p.total)}<span class="pill ${p.status === "presented" ? "good" : ""}">${esc(p.status)}</span></div>`).join("") || '<p class="quiet">No 30/60/90 plans yet. <a href="#/plans">Start them</a>.</p>'}
+            <div class="item"><a href="#/listening">Listening tour</a><span class="spacer"></span>${f90Progress(d.me.listening.done, d.me.listening.total)}</div>
+            <div class="item"><a href="#/coaching/reflect">Reflections</a><span class="spacer"></span><span class="quiet">${d.me.reflections} written</span></div>
+            ${d.me.items_due.length ? `<h3>Due this week</h3>${d.me.items_due.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(i.due)}</span></div>`).join("")}` : ""}</section>` : ""}
+          <section class="card"><h2>New hires</h2>${d.new_hires.map((h) => `<div class="item"><a href="#/onboarding/${h.id}">${esc(h.name || "")}</a><span class="quiet">${esc(h.role || "")}</span><span class="spacer"></span><span class="quiet">${f90_dayLabel(h.day)}</span>${f90Progress(h.done, h.total)}</div>`).join("") || '<p class="quiet">Nobody being onboarded. <a href="#/onboarding">Onboarding</a>.</p>'}</section>
+        </div>
+${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.team.people.map((p) => `<div class="item"><a href="#/first90/team">${esc(p.name)}</a><span class="quiet">${p.next ? esc(p.next.title.split(":")[0]) : p.total ? "all done" : "not started"}</span><span class="spacer"></span>${p.late ? `<span class="pill bad">${p.late} late</span>` : ""}${f90Progress(p.done, p.total)}</div>`).join("")
+            || (d.team.has_me ? '<p class="quiet">Nobody reports to you yet, apart from new hires. Set "Reports to" under People.</p>' : '<p class="quiet">Pick your own record under <a href="#/people">People</a> ("This is me") and set who reports to you.</p>')}</section>` : ""}
+        ${d.private ? `<section class="card"><h2>Team check-ins</h2><div class="checkpoints">${d.checkpoints.map((c) => `<a class="checkpoint${c.done_on ? " done" : ""}" href="#/first90/team"><b>Day ${c.day}</b><span class="quiet">${c.due ? BA.fmtDate(c.due) : "–"}</span>
+            <span>${c.done_on ? "held" : c.due && c.due < BA.today() ? "due" : "coming up"}</span><span class="quiet">${c.pulse_on ? `pulse ${BA.fmtDate(c.pulse_on)}` : "no pulse yet"}</span></a>`).join("")}</div></section>` : ""}
+        <section class="card"><h2>Changes I'm bringing</h2><div class="stage-strip">${CHANGE_STAGES.map((s) => `<a href="#/first90/changes"><b>${ch[s]}</b><span>${s}</span></a>`).join("")}</div>
+          ${d.working_with_me ? "" : '<p class="quiet">You haven\'t written "Working with me" yet. <a href="#/first90/working">Write it</a> before your first team meeting.</p>'}</section>`;
+    },
+  });
+
+  async function renderF90Team(main) {
+    const d = await BA.api("/api/first90/team");
+    if (d.hidden) { main.innerHTML = `${f90Tabs("team")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const unstarted = d.people.filter((p) => !p.total);
+    main.innerHTML = `${f90Tabs("team")}
+      <p class="quiet">The people who reported to someone else before you arrived. Their first 90 days with you run from your start date${d.start_date ? ` (${BA.fmtDate(d.start_date)}, day ${d.day})` : ""}. Some milestones tick themselves when the toolkit sees them happen.</p>
+      ${!d.start_date ? '<section class="card"><p>Set your start date in <a href="#/settings">Settings</a> to date the milestones.</p></section>' : ""}
+      ${unstarted.length ? `<section class="card"><div class="row"><span>${unstarted.map((p) => esc(p.name)).join(", ")} ${unstarted.length === 1 ? "has" : "have"} no milestones yet.</span><span class="spacer"></span><button class="btn primary" id="f90-start">Give them the milestones</button></div></section>` : ""}
+      ${d.people.filter((p) => p.total).map((p) => `<section class="card"><div class="row"><h2><a href="#/people/${p.id}">${esc(p.name)}</a></h2><span class="quiet">${esc(p.role || "")}</span><span class="spacer"></span>${p.late ? `<span class="pill bad">${p.late} late</span>` : ""}${f90Progress(p.done, p.total)}</div>
+        ${p.milestones.map((m) => `<div class="item milestone${m.done ? " done" : ""}" data-ms="${m.id}"><label class="check"><input type="checkbox"${m.done ? " checked" : ""}${m.seen_in_data ? " disabled" : ""}></label>
+          <span class="ms-day">Day ${m.due_day}</span><span>${esc(m.title)}</span><span class="spacer"></span>
+          ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
+      ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Set "Reports to" on each person under People.' : 'Pick your own record under <a href="#/people">People</a> ("This is me"), then set who reports to you.'}</p></section>` : ""}
+      <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
+        ${d.checkpoints.map((c) => `<details class="plan-item${c.done_on ? " dropped" : ""}" data-cp="${c.day}"${!c.done_on && c.due && c.due <= BA.today() ? " open" : ""}><summary><b>Day ${c.day}</b><span class="quiet">${c.due ? BA.fmtDate(c.due) : ""}</span><span class="spacer"></span>${c.pulse_on ? `<span class="pill good">pulse ${BA.fmtDate(c.pulse_on)}</span>` : '<span class="pill">no pulse</span>'}${c.done_on ? `<span class="pill good">held ${BA.fmtDate(c.done_on)}</span>` : ""}</summary>
+          <form><label>What I heard<textarea name="heard" rows="2">${esc(c.heard || "")}</textarea></label><label>What changed because of it <span class="quiet">(tell the team this)</span><textarea name="changed" rows="2">${esc(c.changed || "")}</textarea></label>
+          <label>Notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label><div class="actions"><label class="left">Held on <input type="date" name="done_on" value="${esc(c.done_on || "")}"></label><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}</section>
+      <details class="card"><summary><b>Milestone template</b></summary><p class="quiet">What every inherited team member gets. Changes apply to people you start from now on. One per line: day, then the milestone.</p>
+        <form id="tpl"><textarea name="tpl" rows="10" class="mono">${esc(d.template.map((m) => `${m.due_day} | ${m.title}${m.auto ? ` | auto:${m.auto}` : ""}`).join("\n"))}</textarea><div class="actions"><button class="btn primary" type="submit">Save template</button></div></form></details>`;
+    const st = main.querySelector("#f90-start");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/first90/team/start", { method: "POST", body: {} }); BA.rerender(); });
+    main.querySelectorAll("[data-ms] input").forEach((cb) => (cb.onchange = BA.guard(async () => {
+      await BA.api(`/api/first90-milestones/${cb.closest("[data-ms]").dataset.ms}`, { method: "PATCH", body: { done_on: cb.checked ? BA.today() : null } });
+      BA.rerender();
+    })));
+    main.querySelectorAll("[data-cp]").forEach((det) => {
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(form); await BA.api(`/api/first90/checkpoints/${det.dataset.cp}`, { method: "PUT", body: { heard: f.get("heard"), changed: f.get("changed"), notes: f.get("notes"), done_on: f.get("done_on") || null } }); BA.toast("Saved."); BA.rerender(); });
+    });
+    const tpl = main.querySelector("#tpl");
+    tpl.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const items = tpl.elements.tpl.value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+        const [day, title, auto] = l.split("|").map((x) => x.trim());
+        return { due_day: Number(day), title, auto: auto && auto.startsWith("auto:") ? auto.slice(5) : null };
+      });
+      await BA.api("/api/first90/template", { method: "PUT", body: { items } });
+      BA.toast("Template saved.");
+    });
+  }
+
+  async function renderF90Changes(main) {
+    const list = await BA.api("/api/team-changes");
+    const ro = presenting();
+    const fields = (c = {}) => `<div class="grid2"><label>The change<input name="title" value="${esc(c.title || "")}" required></label><label>Area<select name="area">${opts(CHANGE_AREAS, c.area || "process")}</select></label>
+        <label>Review with the team on<input type="date" name="review_on" value="${esc(c.review_on || "")}"></label></div>
+      <label>Why: the problem it solves <span class="quiet">(in the team's words if you can)</span><textarea name="why" rows="2">${esc(c.why || "")}</textarea></label>
+      <label>What changes for people day to day<textarea name="what_changes" rows="2">${esc(c.what_changes || "")}</textarea></label>
+      <label>How we'll try it, and how we'll know it helped<textarea name="how_we_try" rows="2">${esc(c.how_we_try || "")}</textarea></label>
+      ${c.id ? `<label>What the team said<textarea name="team_feedback" rows="2">${esc(c.team_feedback || "")}</textarea></label><label>Outcome<input name="outcome" value="${esc(c.outcome || "")}"></label>` : ""}
+      <label>Private notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label>`;
+    const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; o.review_on = f.get("review_on") || null; return o; };
+    const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b><span class="quiet">${esc(c.area)}</span><span class="spacer"></span>
+        <span class="quiet">${c.status === "trial" && c.review_on ? `review ${BA.fmtDate(c.review_on)}` : c.decided_on ? BA.fmtDate(c.decided_on) : c.trial_start ? `trial from ${BA.fmtDate(c.trial_start)}` : c.announced_on ? `announced ${BA.fmtDate(c.announced_on)}` : ""}</span></summary>
+      ${c.why ? `<p><b>Why:</b> ${esc(c.why)}</p>` : ""}${c.what_changes ? `<p><b>What changes:</b> ${esc(c.what_changes)}</p>` : ""}${c.how_we_try ? `<p><b>How we'll try it:</b> ${esc(c.how_we_try)}</p>` : ""}
+      ${c.team_feedback ? `<p><b>What the team said:</b> ${esc(c.team_feedback)}</p>` : ""}${c.outcome ? `<p><b>Outcome:</b> ${esc(c.outcome)}</p>` : ""}
+      ${ro ? "" : `<div class="actions">${NEXT_STAGE[c.status] ? `<button class="btn primary" data-next="${NEXT_STAGE[c.status][0]}">${NEXT_STAGE[c.status][1]}</button>` : ""}
+        ${["trial", "review"].includes(c.status) ? '<button class="btn" data-next="adopted">Keep it</button><button class="btn" data-next="dropped">Drop it</button>' : ""}</div>
+        <details><summary class="quiet">Edit</summary><form>${fields(c)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("team_change", c.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
+    const live = list.filter((c) => !["adopted", "dropped"].includes(c.status)), done = list.filter((c) => ["adopted", "dropped"].includes(c.status));
+    main.innerHTML = `${f90Tabs("changes")}
+      <p class="quiet">Every change you bring, where the team can see it: announced with the reason, tried for a set time, reviewed together, then kept or dropped. This page can be shown to the team while presenting.</p>
+      <section class="card"><h2>In progress</h2>${live.map(card).join("") || '<p class="quiet">Nothing yet.</p>'}</section>
+      ${done.length ? `<section class="card"><h2>Decided</h2>${done.map(card).join("")}</section>` : ""}
+      ${ro ? "" : `<form id="add-ch" class="card"><h2>A change to bring</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add as an idea</button></div></form>`}`;
+    if (ro) return;
+    const add = main.querySelector("#add-ch");
+    add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/team-changes", { method: "POST", body: { ...read(add), position: list.length } }); BA.rerender(); });
+    main.querySelectorAll("[data-ch]").forEach((det) => {
+      const id = det.dataset.ch, c = list.find((x) => x.id === Number(id));
+      det.querySelectorAll("[data-next]").forEach((b) => (b.onclick = BA.guard(async () => {
+        const status = b.dataset.next, body = { status };
+        if (status === "adopted" || status === "dropped") {
+          const outcome = prompt(status === "adopted" ? "What did the team decide, and why keep it?" : "Why drop it? Say what you learned.", c.outcome || "");
+          if (outcome === null) return;
+          body.outcome = outcome;
+        }
+        await BA.api(`/api/team-changes/${id}/advance`, { method: "POST", body });
+        BA.toast(status === "trial" ? "Trial started. A review date is set about two sprints out." : "Updated.");
+        BA.rerender();
+      })));
+      const form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/team-changes/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this change? Dropping it keeps the record.")) return; await BA.api(`/api/team-changes/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderWorking(main) {
+    const d = await BA.api("/api/first90/working-with-me");
+    const ro = presenting();
+    main.innerHTML = `${f90Tabs("working")}
+      <section class="card working-doc">${d.text ? BA.md(d.text) : '<p class="quiet">Not written yet.</p>'}</section>
+      ${ro ? "" : `<form id="ww" class="card"><h2>Edit</h2><p class="quiet">A page about how you work, what you've been asked to do, and how you'll bring change, in your own words. Share it in week one and ask what they'd add. It can be shown while presenting.</p>
+        <textarea name="text" rows="20">${esc(d.text || "")}</textarea>
+        <div class="actions">${d.text ? '<button class="btn left" type="button" id="ww-copy">Copy Markdown</button>' : '<button class="btn left" type="button" id="ww-starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}`;
+    if (ro) return;
+    const form = main.querySelector("#ww");
+    form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/first90/working-with-me", { method: "PUT", body: { text: form.elements.text.value } }); BA.toast("Saved."); BA.rerender(); });
+    const st = main.querySelector("#ww-starter");
+    if (st) st.onclick = () => { form.elements.text.value = d.starter; };
+    const cp = main.querySelector("#ww-copy");
+    if (cp) cp.onclick = BA.guard(async () => { await navigator.clipboard.writeText(d.text); BA.toast("Copied."); });
   }
 })();

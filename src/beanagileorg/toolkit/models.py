@@ -108,6 +108,8 @@ LOG_AUDIENCES = ("leadership", "my manager", "just me")
 REPORT_KINDS = ("weekly", "sprint")
 REPORT_AUDIENCES = ("leadership", "my manager")
 REPORT_STATUS = ("draft", "sent")
+CHANGE_AREAS = ("process", "ceremonies", "quality", "tooling", "communication", "roles", "other")
+CHANGE_STATUS = ("idea", "announced", "trial", "review", "adopted", "dropped")
 CR_SOURCES = ("leadership", "stakeholder", "product owner", "customer", "production issue", "another team", "the team")
 CR_URGENCY = ("next sprint is fine", "this sprint", "emergency")
 CR_GOAL_IMPACT = ("doesn't affect the goal", "puts the goal at risk", "changes the goal", "makes the goal obsolete")
@@ -1210,6 +1212,42 @@ MIGRATIONS = [
         );
         CREATE TRIGGER change_requests_default_team AFTER INSERT ON change_requests WHEN NEW.team_id IS NULL
         BEGIN UPDATE change_requests SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        """,
+    ),
+    (
+        23,
+        """
+        CREATE TABLE team_changes (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            area TEXT NOT NULL DEFAULT 'process',
+            why TEXT,
+            what_changes TEXT,
+            how_we_try TEXT,
+            status TEXT NOT NULL DEFAULT 'idea',
+            announced_on DATE,
+            trial_start DATE,
+            review_on DATE,
+            decided_on DATE,
+            outcome TEXT,
+            team_feedback TEXT,
+            agreement_id INTEGER REFERENCES team_agreements (id) ON DELETE SET NULL,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TRIGGER team_changes_default_team AFTER INSERT ON team_changes WHEN NEW.team_id IS NULL
+        BEGIN UPDATE team_changes SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TABLE first90_milestones (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            due_day INTEGER NOT NULL,
+            auto TEXT,
+            done_on DATE,
+            note TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
         """,
     ),
 ]
@@ -2832,6 +2870,50 @@ change_requests = Record(
     },
 )
 
+# A change you're bringing to the team, made visible: announced, tried, reviewed together, then kept or dropped.
+team_changes = Record(
+    entity="team_change",
+    table="team_changes",
+    path="/api/team-changes",
+    order_by="status IN ('adopted', 'dropped'), position, id",
+    fields={
+        "title": Field("text", S, required=True),
+        "area": Field("text", S, choices=CHANGE_AREAS, default="process"),
+        "why": Field("text", S),
+        "what_changes": Field("text", S),
+        "how_we_try": Field("text", S),
+        "status": Field("text", S, choices=CHANGE_STATUS, default="idea"),
+        "announced_on": Field("date", S),
+        "trial_start": Field("date", S),
+        "review_on": Field("date", S),
+        "decided_on": Field("date", S),
+        "outcome": Field("text", S),
+        "team_feedback": Field("text", S),
+        "agreement_id": Field("int", S),
+        "team_id": Field("int", S),
+        "notes": Field("text", P),
+        "position": Field("int", S, default=0),
+    },
+)
+
+# Each inherited team member's first 90 days with you, counted from your start date.
+first90_milestones = Record(
+    entity="first90_milestone",
+    table="first90_milestones",
+    path="/api/first90-milestones",
+    order_by="person_id, due_day, position, id",
+    hide_when_empty=True,
+    fields={
+        "person_id": Field("int", P, required=True),
+        "title": Field("text", P, required=True),
+        "due_day": Field("int", P, required=True),
+        "auto": Field("text", P, choices=("one_on_one", "interview", "growth_goal", "feedback")),
+        "done_on": Field("date", P),
+        "note": Field("text", P),
+        "position": Field("int", P, default=0),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2850,5 +2932,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests,
+    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones,
 ]

@@ -117,6 +117,12 @@ def skills(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 # ---- Today ----
 
 
+def _first90_due(conn):
+    from .first90 import first90_due
+
+    return first90_due(conn)
+
+
 def _changes_due(conn):
     from .changes import changes_due
 
@@ -193,6 +199,7 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "culture": _culture_due(conn),
         "reports": _reports_due(conn),
         "changes": _changes_due(conn),
+        "first90": _first90_due(conn),
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
 

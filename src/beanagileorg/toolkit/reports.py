@@ -50,6 +50,7 @@ SOURCES = {
     "learning_session": ("Learning session", "/learning", "topic", {"done"}),
     "team_agreement": ("Team agreement", "/culture/agreements", "text", {"agreed"}),
     "change_request": ("Change request", "/changes", "title", {"decided"}),
+    "team_change": ("Team change", "/first90/changes", "title", {"adopted"}),
 }
 
 
@@ -281,6 +282,14 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     md += ["", "## Blockers and risks"] + [_bullet(i) for i in issues]
     md += [_table(["Risk", "Level", "Owner", "Next step", "Due"], [(r["title"], r["level"], r.get("owner_name"), r.get("next_step"), r.get("due")) for r in risks])]
     from .changes import changes_between, report_lines
+
+    moved = conn.execute(
+        "SELECT DISTINCT record_id FROM change_log WHERE entity = 'team_change' AND field = 'status' AND date(datetime(at, 'localtime')) BETWEEN ? AND ?",
+        (s.isoformat(), e.isoformat())).fetchall()
+    team_moves = models.team_changes.visible_all([c for c in (models.team_changes.fetch(conn, int(r["record_id"])) for r in moved) if c], viewer)
+    team_moves = [c for c in team_moves if c.get("title")]  # only shown where the audience may see them
+    if team_moves:
+        md += ["", "## Changes I'm bringing to the team"] + [f"- {c['title']}: {c['status']}" + (f". {c['outcome']}" if c.get("outcome") and c["status"] in ("adopted", "dropped") else "") for c in team_moves]
 
     scope = changes_between(conn, s.isoformat(), e.isoformat(), floor)
     if scope:

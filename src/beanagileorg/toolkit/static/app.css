@@ -231,3 +231,23 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .churn-bars span { width: 14px; border-radius: 3px 3px 0 0; min-height: 2px; }
 .churn-bars .in, .legend.in { background: var(--warn); } .churn-bars .out, .legend.out { background: var(--accent); }
 .legend { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: middle; }
+
+.progress { display: inline-block; width: 70px; height: 6px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.progress span { display: block; height: 100%; background: var(--accent); }
+.f90-bar { position: relative; height: 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); margin: 14px 0 22px; }
+.f90-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.f90-bar i { position: absolute; top: 14px; transform: translateX(-100%); font-style: normal; font-size: .75rem; color: var(--muted); }
+.checkpoints { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.checkpoint { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: inherit; text-decoration: none; }
+.checkpoint.done { border-color: var(--good); }
+.stage-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.stage-strip a { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; border: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; }
+.stage-strip b { font-size: 1.2rem; } .stage-strip span { font-size: .75rem; color: var(--muted); }
+.milestone .ms-day { min-width: 58px; color: var(--muted); font-size: .85rem; }
+.milestone.done > span:not(.spacer):not(.quiet) { text-decoration: line-through; color: var(--muted); }
+.working-doc { font-size: 1.02rem; line-height: 1.6; }
+@media (max-width: 560px) { .stage-strip { grid-template-columns: repeat(3, 1fr); } }
+.f90-team .item { flex-wrap: nowrap; }
+.f90-team .item > a { white-space: nowrap; }
+.f90-team .item > .quiet { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f90-team .item > .quiet:last-child, .progress + .quiet { white-space: nowrap; flex: none; }

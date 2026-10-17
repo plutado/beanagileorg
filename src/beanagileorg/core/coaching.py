@@ -741,6 +741,39 @@ GUIDES = [
         ],
         "related": ["/changes", "/planning", "/coaching/saying-no-to-scope"], "reading": [SG, MEA],
     },
+    {
+        "slug": "leading-change", "theme": "transition", "minutes": 6, "since": 8,
+        "title": "Leading change as a new manager",
+        "summary": "Your first 90 days are the team's first 90 days with you. Change lands better when people can see it coming, help shape it, and know it will be reviewed with them.",
+        "why": "A team that has lived through turnover and shifting direction has learned to wait out new managers. If changes arrive all at once, or without a reason, they look like one more wave. If they arrive one at a time, explained, tried and reviewed together, the team starts to trust that this time is different.",
+        "practices": [
+            "Listen before you change anything. Use the listening tour to learn what's working and what people want changed first.",
+            "Tell the team in week one what you've been asked to do and how you'll go about it. A short 'Working with me' page helps.",
+            "Introduce changes one or two at a time, each with the problem it solves, in the team's words where you can.",
+            "Call every change a trial with a review date. People accept experiments far more easily than mandates.",
+            "Review each change with the team before you keep it, and drop the ones that don't help. Dropping one builds credibility.",
+            "Start with changes that solve a pain people already feel, so the first wins are theirs.",
+            "Keep every change visible in one place, with where it stands.",
+            "Give each person their own first 90 days with you: a first one-on-one, a career conversation, a growth goal and feedback both ways.",
+        ],
+        "pitfalls": [
+            "Arriving with the answers and changing everything in the first month.",
+            "Explaining changes by what worked at your last company.",
+            "Announcing a change and never coming back to see whether it helped.",
+            "Changing so much at once that nobody can tell what made a difference.",
+            "Forgetting the people who are new to you just because they're not new to the company.",
+        ],
+        "questions": [
+            "Which of my planned changes solves a problem the team told me about?",
+            "Could everyone on the team say what's changing and why?",
+            "Which change is due for a review with the team?",
+        ],
+        "try": [
+            "Share 'Working with me' at your first team meeting and ask what they'd add.",
+            "Pick one change for the next two sprints, announce it as a trial, and put the review date in the calendar.",
+        ],
+        "related": ["/first90", "/listening", "/coaching/earning-trust"], "reading": [F90, UA],
+    },
     # ---------------------------------------------------------------- culture and trust
     {
         "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
@@ -908,6 +941,9 @@ GUIDES = [
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
+    "/first90": [("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
+                 ("Bring changes one at a time, as trials with a review date, and review them with the team.", "leading-change", 8),
+                 ("Show the team what changed because of what they told you. It's the fastest way to earn the next conversation.", "leading-change", 8)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
@@ -919,7 +955,8 @@ TIPS = {
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
                 ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6)],
-    "/onboarding": [("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
+    "/onboarding": [("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
+                    ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback")],
     "/skills": [("Match stretch work to what people want to learn. Growth is one of the best reasons people stay.", "delegation")],
     "/listening": [("Ask everyone the same questions so you can compare answers. Listen more than you talk.", "learn-fast"),
@@ -1025,7 +1062,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 7  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 8  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():
