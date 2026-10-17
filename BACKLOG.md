@@ -93,6 +93,14 @@ In the order the 90-day plan needs them:
   - A short training path: install, first-week setup (roster, mandate, First 90 days), and the weekly rhythm (work log, reports, Scrum of Scrums).
   - Whose device and whose data: each manager's data stays on their company machine, under the same privacy levels.
 
+## Async, one-to-many communication (from David's stated style, 2026-10-17)
+
+- [ ] Comms studio: a "video pitch" message type. A short script drafted from toolkit facts (metrics, sprint results, decisions needed), a storyboard of on-screen slides or demo steps, a target length of 2 to 4 minutes, a written summary and transcript for people who skim, one clear ask, and a respond-by date
+- [ ] Track async asks: who each pitch went to, who has responded, and what was decided, with follow-ups on Today; replies to a pitch can become decisions or dev-sync items
+- [ ] An async-first team agreement starter and practice pack: decide in writing where possible, no meetings to plan meetings, every meeting has a purpose and an owner, and recordings and summaries replace status meetings
+- [ ] Metrics starter: meeting load and reschedule rate (a simple weekly tally), to show the cost of planning to plan and the effect of going async
+- [ ] Reports: offer a recorded-video version of the weekly report, with a script drafted from the report itself
+
 ## Shared base and platform
 
 - [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location; a warning on Today when the last good backup is more than two days old
