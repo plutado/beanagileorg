@@ -17,7 +17,7 @@ def client(tmp_path):
 
 def test_starter_loads_once_and_policies_start_as_drafts(client):
     out = client.post("/api/sdlc/starter").json()
-    assert out == {"stages": 9, "environments": 5, "policies": 9}
+    assert out == {"stages": 9, "environments": 6, "policies": 9}
     assert client.post("/api/sdlc/starter").status_code == 409
     d = client.get("/api/sdlc").json()
     assert [s["name"] for s in d["stages"]][:2] == ["Intake", "Refinement"] and d["stages"][-1]["name"] == "Support and learn"
