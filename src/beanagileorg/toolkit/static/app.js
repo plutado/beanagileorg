@@ -31,6 +31,8 @@
   BA.command({ label: "Update a team's status", hint: "Teams", icon: "users-round", run: () => BA.go("/teams") });
   BA.command({ label: "Log a conversation with someone", hint: "People", icon: "users", run: () => BA.go("/people") });
   BA.command({ label: "Open the org chart", hint: "People", icon: "users", run: () => BA.go("/people/org") });
+  BA.command({ label: "Note something about the culture", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/noticing") });
+  BA.command({ label: "Take the trust pulse", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/pulse") });
   BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
@@ -107,6 +109,11 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
+        ${d.culture && (d.culture.standard || d.culture.unaddressed.length || d.culture.follow_ups.length || d.culture.pulse_due) ? `<section class="card culture-today"><h2>Culture and trust</h2>
+          ${d.culture.standard ? `<blockquote class="standard-quote">${esc(d.culture.standard.text)}</blockquote>` : ""}
+          ${d.culture.unaddressed.map((o) => `<div class="item"><span class="pill bad">unaddressed</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">noticed ${BA.fmtDate(o.date)}</span></div>`).join("")}
+          ${d.culture.follow_ups.map((o) => `<div class="item"><span class="pill warn">follow up</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(o.follow_up)}</span></div>`).join("")}
+          ${d.culture.pulse_due ? '<div class="item"><span class="pill">pulse</span><a href="#/culture/pulse">Time for a trust pulse</a></div>' : ""}</section>` : ""}
         ${d.people_due && (d.people_due.check_ins.length || d.people_due.key_dates.length || d.people_due.meetings.length || (d.people_due.i_owe || []).length || (d.people_due.they_owe_late || []).length) ? `<section class="card"><h2>People</h2>
           ${(d.people_due.i_owe || []).map((c) => `<div class="item"><span class="pill ${c.late ? "bad" : "warn"}">I owe</span><a href="#/people/${c.person_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.name)} · ${BA.fmtDate(c.due)}</span></div>`).join("")}
           ${(d.people_due.they_owe_late || []).map((c) => `<div class="item"><span class="pill">follow up</span><a href="#/people/${c.person_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.name)} · was due ${BA.fmtDate(c.due)}</span></div>`).join("")}
@@ -3863,5 +3870,207 @@
         <div class="msg-preview">${BA.md(s.markdown)}</div></section>`;
     const c = main.querySelector("#copy-sos");
     if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/sos/summary/export", { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Summary copied."); });
+  }
+
+  // ---------------------------------------------------------------- Culture and trust
+
+  const C_CATEGORIES = ["intimidation or dominating", "chaos or missing process", "quiet voices unheard", "blame", "siloed teams", "disrespect", "burnout or overload", "heroics", "great collaboration", "speaking up", "helping others", "other"];
+  const C_ACTIONS = ["not yet", "watching", "spoke privately", "raised with the team", "raised with my manager", "agreement or process change", "escalated"];
+  const C_STATUS = ["open", "watching", "addressed"];
+  const C_STATUS_TONES = { open: "warn", watching: "accent", addressed: "good" };
+  const A_AREAS = ["working together", "disagreement", "meetings", "code review", "communication", "quality", "other"];
+  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["brief", "Role brief"]]
+    .map(([k, l]) => `<a href="#/culture${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+  const bars = (vals, max = 5) => `<span class="mini-bars">${vals.map((v) => `<span title="${v ?? "–"}" style="height:${v ? Math.round((v / max) * 100) : 4}%"></span>`).join("")}</span>`;
+
+  BA.view("/culture", {
+    title: "Culture and trust",
+    async render(main, param) {
+      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, brief: renderBrief };
+      if (views[param]) return views[param](main);
+      const d = await BA.api("/api/culture/overview");
+      if (!d.private) {
+        main.innerHTML = `${cultureTabs("")}<section class="card"><h2>Team agreements</h2>${agreementsList(d.agreements.filter((a) => a.status === "agreed"))}</section>`;
+        return;
+      }
+      const last = d.pulses.find((p) => p.source === "my read");
+      main.innerHTML = `${cultureTabs("")}
+        ${d.today ? `<section class="card"><blockquote class="standard-quote">${esc(d.today.text)}</blockquote>${d.today.why ? `<p class="quiet">${esc(d.today.why)}</p>` : ""}<p class="quiet">One of <a href="#/culture/standards">your standards</a>, a different one each day.</p></section>`
+          : `<section class="card"><h2>Start with your standards</h2><p class="quiet">The handful of commitments you hold yourself to. One shows here and on Today each day, so they stay in mind.</p><a class="btn primary" href="#/culture/standards">Write my standards</a></section>`}
+        <div class="cards">
+          <section class="card"><h2>Needs attention</h2>${[...d.unaddressed.map((o) => `<div class="item"><span class="pill bad">unaddressed</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(o.date)}</span></div>`),
+            ...d.follow_ups.map((o) => `<div class="item"><span class="pill warn">follow up</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(o.follow_up)}</span></div>`)].join("") || '<p class="quiet">Nothing waiting on you.</p>'}
+            <p class="quiet">${d.open["my team"]} open on your team · ${d.open.organization} in the wider organization · ${d.open.positive} good things noted this month</p></section>
+          <section class="card"><h2>Trust pulse</h2>${last ? `<p class="quiet">Your last read: ${BA.fmtDate(last.date)}</p>${d.dimensions.map((dim) => `<div class="item"><span>${esc(dim.label)}</span><span class="spacer"></span>${bars(d.pulses.filter((p) => p.source === "my read").slice(0, 6).reverse().map((p) => (p.scores || {})[dim.key]))}<b>${(last.scores || {})[dim.key] ?? "–"}</b></div>`).join("")}`
+            : '<p class="quiet">No pulse yet.</p>'}${d.pulse_due ? `<p><a class="btn" href="#/culture/pulse">Take the pulse</a></p>` : ""}</section>
+          <section class="card"><h2>Living my standards</h2>${d.self_check_trend.length ? `<p>${bars(d.self_check_trend.map((w) => w.average))} <span class="quiet">weekly average, last ${d.self_check_trend.length} weeks</span></p>` : ""}
+            <p class="quiet">${d.last_self_check ? `Last self-check ${BA.fmtDate(d.last_self_check)}.` : "No self-check yet."}</p><a class="btn" href="#/culture/standards">Weekly self-check</a></section>
+          <section class="card"><h2>Team agreements</h2><p>${d.agreements.filter((a) => a.status === "agreed").length} agreed · ${d.agreements.filter((a) => a.status === "proposed").length} proposed</p>
+            ${d.agreements_due.length ? `<p class="pill warn">${d.agreements_due.length} due for review</p>` : ""}<a href="#/culture/agreements">See them</a></section>
+        </div>
+        ${d.brief.focus.length || d.brief.situation ? `<section class="card"><h2>What I was brought in to do</h2>${d.brief.focus.length ? `<ul class="checklist">${d.brief.focus.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${d.brief.situation ? BA.md(d.brief.situation) : ""}<p class="quiet"><a href="#/culture/brief">Role brief</a></p></section>`
+          : `<section class="card"><h2>Role brief</h2><p class="quiet">Write down what you were brought in to do and the situation you inherited, so it stays beside the day-to-day. <a href="#/culture/brief">Write it</a>.</p></section>`}`;
+    },
+  });
+
+  async function renderNoticing(main) {
+    const [obs, people] = await Promise.all([BA.api("/api/culture-observations"), BA.api("/api/people")]);
+    const ro = presenting();
+    if (ro) { main.innerHTML = `${cultureTabs("noticing")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-cul-filter") || "{}"); } catch { return {}; } })();
+    const shown = obs.filter((o) => (!f.scope || o.scope === f.scope) && (!f.kind || o.kind === f.kind) && (f.done || o.status !== "addressed"));
+    const pname = Object.fromEntries(people.map((p) => [p.id, p.name]));
+    const fields = (o = {}) => `<div class="grid2"><label>What you noticed<input name="title" value="${esc(o.title || "")}" required></label>
+        <label>Kind<select name="kind">${opts(["concern", "positive"], o.kind || "concern")}</select></label>
+        <label>Where<select name="scope">${opts(["my team", "organization"], o.scope || "my team")}</select></label><label>Category<select name="category"><option value=""></option>${opts(C_CATEGORIES, o.category)}</select></label>
+        <label>Severity<select name="severity"><option value=""></option>${opts(["low", "medium", "high"], o.severity)}</select></label><label>Date<input type="date" name="date" value="${esc(o.date || BA.today())}"></label>
+        <label>What I did<select name="action">${opts(C_ACTIONS, o.action || "not yet")}</select></label><label>Status<select name="status">${opts(C_STATUS, o.status || "open")}</select></label>
+        <label>Follow up on<input type="date" name="follow_up" value="${esc(o.follow_up || "")}"></label></div>
+        <label>Details <span class="quiet">(what happened, specifically; the effect on people)</span><textarea name="details" rows="3">${esc(o.details || "")}</textarea></label>
+        <label>People involved</label><div class="case-picks">${people.map((p) => `<label class="check"><input type="checkbox" name="people_ids" value="${p.id}"${(o.people_ids || []).includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>
+        ${o.id ? `<label>Outcome<input name="outcome" value="${esc(o.outcome || "")}"></label>` : ""}`;
+    const read = (form) => { const fd = new FormData(form); return { title: fd.get("title"), kind: fd.get("kind"), scope: fd.get("scope"), category: fd.get("category") || null, severity: fd.get("severity") || null, date: fd.get("date"),
+      action: fd.get("action"), status: fd.get("status"), follow_up: fd.get("follow_up") || null, details: fd.get("details"), people_ids: fd.getAll("people_ids").map(Number), ...(form.elements.outcome ? { outcome: fd.get("outcome") } : {}) }; };
+    main.innerHTML = `${cultureTabs("noticing")}
+      <p class="quiet">A private log of what you see: intimidation, chaos from missing process, quiet voices drowned out, blame, siloed camps, and the good moments worth reinforcing. Harmful things on your own team left at "not yet" for a week show on Today.</p>
+      <form id="add-obs" class="card"><h2>Note something</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Save</button></div></form>
+      <div class="row"><select id="cf-scope" style="max-width:170px"><option value="">Everywhere</option>${opts(["my team", "organization"], f.scope)}</select><select id="cf-kind" style="max-width:150px"><option value="">Concerns and positives</option>${opts(["concern", "positive"], f.kind)}</select>
+        <label class="check"><input type="checkbox" id="cf-done"${f.done ? " checked" : ""}> Show addressed</label></div>
+      <section class="card">${shown.map((o) => `<details class="plan-item${o.status === "addressed" ? " dropped" : ""}" data-obs="${o.id}"><summary><span class="pill ${o.kind === "positive" ? "good" : o.severity === "high" ? "bad" : "warn"}">${esc(o.kind)}</span><b>${esc(o.title)}</b><span class="spacer"></span>
+          ${o.category ? `<span class="quiet">${esc(o.category)}</span>` : ""}<span class="quiet">${esc(o.scope)}</span>${tonePill(o.status, C_STATUS_TONES)}<span class="quiet">${BA.fmtDate(o.date)}</span></summary>
+          ${o.details ? BA.md(o.details) : ""}<p class="quiet">${[(o.people_ids || []).length ? "People: " + o.people_ids.map((x) => esc(pname[x] || "")).join(", ") : "", "What I did: " + esc(o.action), o.outcome ? "Outcome: " + esc(o.outcome) : ""].filter(Boolean).join(" · ")}</p>
+          <form class="edit-obs">${fields(o)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("culture_observation", o.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`).join("") || '<p class="quiet">Nothing noted yet.</p>'}</section>`;
+    const save = () => { sessionStorage.setItem("ba-cul-filter", JSON.stringify({ scope: main.querySelector("#cf-scope").value, kind: main.querySelector("#cf-kind").value, done: main.querySelector("#cf-done").checked })); BA.rerender(); };
+    ["#cf-scope", "#cf-kind", "#cf-done"].forEach((s) => (main.querySelector(s).onchange = save));
+    const add = main.querySelector("#add-obs");
+    add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/culture-observations", { method: "POST", body: read(add) }); BA.toast("Noted."); BA.rerender(); });
+    main.querySelectorAll("[data-obs]").forEach((det) => {
+      const id = det.dataset.obs, form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/culture-observations/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this note?")) return; await BA.api(`/api/culture-observations/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderPulse(main) {
+    const d = await BA.api("/api/culture/overview");
+    if (!d.private) { main.innerHTML = `${cultureTabs("pulse")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const teams = BA.teamList || [];
+    const scale = (key) => `<div class="seg pulse-seg">${[1, 2, 3, 4, 5].map((n) => `<label><input type="radio" name="${key}" value="${n}"><span>${n}</span></label>`).join("")}</div>`;
+    const rows = d.pulses;
+    main.innerHTML = `${cultureTabs("pulse")}
+      <form id="pulse" class="card"><h2>Take the pulse</h2><p class="quiet">Your honest read of the team right now, from 1 (worrying) to 5 (strong). Or enter the averages from an anonymous team survey. Every ${d.pulse_days} days is a good rhythm.</p>
+        <div class="row"><select name="source" style="max-width:160px"><option value="my read">My read</option><option value="team survey">Team survey</option></select><input type="date" name="date" value="${BA.today()}" style="max-width:170px">
+          ${teams.length > 1 ? `<select name="team_id" style="max-width:200px"><option value="">All my teams</option>${teams.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select>` : ""}<input type="number" name="respondents" min="1" placeholder="Respondents (survey)" style="max-width:190px"></div>
+        ${d.dimensions.map((dim) => `<div class="item pulse-row"><span>${esc(dim.label)}</span><span class="spacer"></span>${scale(dim.key)}</div>`).join("")}
+        <label>What's behind the scores<textarea name="notes" rows="3"></textarea></label>
+        <div class="actions"><label class="check left">Remind me every <input type="number" id="pulse-days" min="1" max="120" value="${d.pulse_days}" style="max-width:70px"> days</label><button class="btn primary" type="submit">Save pulse</button></div></form>
+      <section class="card"><h2>Over time</h2>${rows.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Date</th><th>Source</th>${d.dimensions.map((dim) => `<th title="${esc(dim.label)}">${esc(dim.key)}</th>`).join("")}<th>Notes</th></tr></thead><tbody>${rows.map((p) => `<tr><td>${BA.fmtDate(p.date)}</td><td>${esc(p.source)}${p.respondents ? ` (${p.respondents})` : ""}</td>
+          ${d.dimensions.map((dim) => { const v = (p.scores || {})[dim.key]; return `<td><span class="score s${v || 0}">${v ?? "–"}</span></td>`; }).join("")}<td class="quiet">${esc((p.notes || "").slice(0, 120))}</td></tr>`).join("")}</tbody></table></div>` : '<p class="quiet">No pulses yet.</p>'}</section>`;
+    const form = main.querySelector("#pulse");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const scores = Object.fromEntries(d.dimensions.map((dim) => [dim.key, numOrNull(fd.get(dim.key))]).filter(([, v]) => v != null));
+      if (!Object.keys(scores).length) throw new Error("Score at least one line from 1 to 5.");
+      await BA.api("/api/trust-pulses", { method: "POST", body: { source: fd.get("source"), date: fd.get("date"), team_id: numOrNull(fd.get("team_id")), respondents: numOrNull(fd.get("respondents")), scores, notes: fd.get("notes") } });
+      BA.toast("Pulse saved.");
+      BA.rerender();
+    });
+    main.querySelector("#pulse-days").onchange = BA.guard(async (e) => { await BA.api("/api/culture/settings", { method: "PUT", body: { pulse_days: Number(e.target.value) } }); BA.toast("Saved."); });
+  }
+
+  async function renderStandards(main) {
+    const d = await BA.api("/api/culture/overview");
+    if (!d.private) { main.innerHTML = `${cultureTabs("standards")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const active = d.standards.filter((s) => s.active);
+    main.innerHTML = `${cultureTabs("standards")}
+      <section class="card"><h2>My standards</h2><p class="quiet">The commitments you hold yourself to as a leader, in your own words. One appears on Today each day. Keep the list short enough to remember.</p>
+        ${d.standards.map((s) => `<details class="plan-item${s.active ? "" : " dropped"}" data-std="${s.id}"><summary><b>${esc(s.text)}</b><span class="spacer"></span>${s.last ? `<span class="quiet">last ${s.last.rating}/5</span>` : ""}</summary>
+          ${s.why ? `<p class="quiet">${esc(s.why)}</p>` : ""}<form class="edit-std"><label>Standard<input name="text" value="${esc(s.text)}" required></label><label>Why it matters to me<input name="why" value="${esc(s.why || "")}"></label>
+          <div class="actions"><label class="check left"><input type="checkbox" name="active"${s.active ? " checked" : ""}> In use</label><button class="btn danger" type="button" data-del>Delete</button>${BA.historyButton("standard", s.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`).join("") ||
+          '<p class="quiet">None yet. Start from a suggested list and rewrite it, or add your own.</p>'}
+        <form id="add-std" class="row" style="margin-top:8px"><input name="text" required placeholder="A commitment, such as: no surprises" style="flex:1;min-width:240px"><button class="btn" type="submit">Add</button>
+          ${d.standards.length ? "" : '<button class="btn" type="button" id="std-starter">Start from suggestions</button>'}</form></section>
+      ${active.length ? `<form id="check" class="card"><h2>Weekly self-check</h2><p class="quiet">How well did you live each one this week? Be honest; this is only for you.</p>
+        ${active.map((s) => `<div class="pulse-row item"><span>${esc(s.text)}</span><span class="spacer"></span><div class="seg pulse-seg">${[1, 2, 3, 4, 5].map((n) => `<label><input type="radio" name="r-${s.id}" value="${n}"><span>${n}</span></label>`).join("")}</div></div>
+          <input name="n-${s.id}" placeholder="A moment that shows it, either way (optional)" class="check-note">`).join("")}
+        <div class="actions"><button class="btn primary" type="submit">Save self-check</button></div></form>` : ""}`;
+    main.querySelector("#add-std").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/standards", { method: "POST", body: { text: new FormData(e.target).get("text"), position: d.standards.length } }); BA.rerender(); });
+    const st = main.querySelector("#std-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/culture/standards/starter", { method: "POST" }); BA.rerender(); });
+    main.querySelectorAll("[data-std]").forEach((det) => {
+      const id = det.dataset.std, form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(form); await BA.api(`/api/standards/${id}`, { method: "PATCH", body: { text: fd.get("text"), why: fd.get("why"), active: form.elements.active.checked } }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this standard and its self-check history? Unticking 'In use' keeps the history.")) return; await BA.api(`/api/standards/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    const check = main.querySelector("#check");
+    if (check) check.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(check);
+      const ratings = active.map((s) => ({ standard_id: s.id, rating: numOrNull(fd.get(`r-${s.id}`)), note: fd.get(`n-${s.id}`) })).filter((r) => r.rating);
+      await BA.api("/api/culture/self-check", { method: "POST", body: { ratings } });
+      BA.toast("Self-check saved.");
+      BA.go("/culture");
+    });
+  }
+
+  function agreementsList(list) {
+    return A_AREAS.map((area) => [area, list.filter((a) => a.area === area)]).filter(([, l]) => l.length)
+      .map(([area, l]) => `<h3>${esc(area[0].toUpperCase() + area.slice(1))}</h3><ul class="agreements">${l.map((a) => `<li>${esc(a.text)}</li>`).join("")}</ul>`).join("") || '<p class="quiet">No agreements yet.</p>';
+  }
+
+  async function renderAgreements(main) {
+    const list = await BA.api("/api/team-agreements");
+    const ro = presenting();
+    const teams = BA.teamList || [];
+    const tname = Object.fromEntries(teams.map((x) => [x.id, x.name]));
+    main.innerHTML = `${cultureTabs("agreements")}
+      <section class="card"><h2>How we work together</h2><p class="quiet">Agreements the team makes together: how we disagree, run meetings, review code and talk to each other. Show them on screen at a retro, and review them on the date you set.</p>
+        ${agreementsList(list.filter((a) => a.status === "agreed"))}</section>
+      ${ro ? "" : `<section class="card"><h2>All agreements</h2>${list.map((a) => `<form class="row agreement-row" data-agr="${a.id}"><input name="text" value="${esc(a.text)}" style="flex:1;min-width:240px"><select name="area" style="max-width:170px">${opts(A_AREAS, a.area)}</select>
+          <select name="status" style="max-width:120px">${opts(["proposed", "agreed", "retired"], a.status)}</select><input type="date" name="review_on" value="${esc(a.review_on || "")}" title="Review on" style="max-width:160px">
+          ${teams.length > 1 ? `<span class="quiet">${esc(tname[a.team_id] || "all teams")}</span>` : ""}<button class="btn" type="submit">Save</button><button class="icon-btn" type="button" data-del title="Delete">${BA.icon("x")}</button></form>`).join("") || '<p class="quiet">None yet.</p>'}
+        <form id="add-agr" class="row" style="margin-top:8px"><input name="text" required placeholder="We agree that..." style="flex:1;min-width:240px"><select name="area" style="max-width:170px">${opts(A_AREAS, "working together")}</select><button class="btn" type="submit">Add as a proposal</button>
+          ${list.length ? "" : '<button class="btn" type="button" id="agr-starter">Start from suggestions</button>'}</form>
+        <p class="quiet">Suggestions load as proposals. Agree them with the team, then mark them agreed; the date is recorded.</p></section>`}`;
+    if (ro) return;
+    main.querySelector("#add-agr").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api("/api/team-agreements", { method: "POST", body: { text: fd.get("text"), area: fd.get("area") } }); BA.rerender(); });
+    const st = main.querySelector("#agr-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/culture/agreements/starter", { method: "POST", body: {} }); BA.rerender(); });
+    main.querySelectorAll("[data-agr]").forEach((f) => {
+      f.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const was = list.find((a) => a.id === Number(f.dataset.agr));
+        const fd = new FormData(f);
+        const body = { text: fd.get("text"), area: fd.get("area"), status: fd.get("status"), review_on: fd.get("review_on") || null };
+        if (body.status === "agreed" && was.status !== "agreed") body.agreed_on = BA.today();
+        await BA.api(`/api/team-agreements/${f.dataset.agr}`, { method: "PATCH", body });
+        BA.toast("Saved.");
+        BA.rerender();
+      });
+      f.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this agreement? Marking it retired keeps the record.")) return; await BA.api(`/api/team-agreements/${f.dataset.agr}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderBrief(main) {
+    const b = await BA.api("/api/culture/role-brief");
+    const ro = presenting();
+    if (ro) { main.innerHTML = `${cultureTabs("brief")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const lines = (v) => (v || []).join("\n");
+    main.innerHTML = `${cultureTabs("brief")}
+      <form id="brief" class="card"><h2>Role brief</h2><p class="quiet">What you were brought in to do, and the situation you inherited. It sits on the Culture overview so the day-to-day never crowds it out. Private.</p>
+        <label>What I was brought in to do <span class="quiet">(one per line)</span><textarea name="focus" rows="5">${esc(lines(b.focus))}</textarea></label>
+        <label>What they said they needed in the person <span class="quiet">(one per line)</span><textarea name="must_haves" rows="4">${esc(lines(b.must_haves))}</textarea></label>
+        <label>The situation I inherited <span class="quiet">(Markdown)</span><textarea name="situation" rows="5">${esc(b.situation || "")}</textarea></label>
+        <label>What to protect while I change things <span class="quiet">(one per line)</span><textarea name="keep" rows="3">${esc(lines(b.keep))}</textarea></label>
+        <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`;
+    const form = main.querySelector("#brief");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const split = (k) => fd.get(k).split("\n").map((x) => x.trim()).filter(Boolean);
+      await BA.api("/api/culture/role-brief", { method: "PUT", body: { focus: split("focus"), must_haves: split("must_haves"), keep: split("keep"), situation: fd.get("situation") } });
+      BA.toast("Saved.");
+    });
   }
 })();

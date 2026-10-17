@@ -11,6 +11,7 @@ THEMES = [
     ("team", "Leading the team", "One-on-ones, feedback, trust and growing people."),
     ("agile", "Agile practice", "Bringing in Scrum and quality as a coach, not an enforcer."),
     ("stakeholders", "Stakeholders and communication", "Honest status, clear priorities and saying no well."),
+    ("culture", "Culture and trust", "Safety, consistency and standards: the culture people feel every day, and how a leader shapes it."),
     ("leaders", "Leading leaders", "Mentoring other managers and coordinating across teams."),
     ("partners", "Vendors and partners", "Getting the most from the people outside your team."),
 ]
@@ -707,14 +708,181 @@ GUIDES = [
         ],
         "related": ["/planning", "/sprints", "/qa"], "reading": [SG, MEA],
     },
+    # ---------------------------------------------------------------- culture and trust
+    {
+        "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
+        "title": 'Building a culture of trust',
+        "summary": "Trust is built in small, repeated moments: doing what you said, protecting people who speak up, and telling the truth when it's awkward.",
+        "why": "A team that has been through heavy turnover has learned to be careful. People watch a new leader for months before they believe anything has changed. Speeches don't move that; a long run of small, consistent actions does.",
+        "practices": [
+            "Keep small promises visibly. Write down what you said you'd do and close the loop, even when the answer is no.",
+            'Thank people specifically, and in public, when they raise a problem early or admit a mistake.',
+            "Share what you know about what's coming, including the uncertain parts. Silence gets filled with rumours.",
+            'Ask for feedback on yourself, act on some of it, and say that you did.',
+            "Treat people the same whether or not they're in the room.",
+            'Take a regular read of how safe and clear things feel, and look at the trend, not one score.',
+        ],
+        "pitfalls": [
+            'Expecting trust because of your title or your track record somewhere else.',
+            'Reacting badly once to bad news. One sharp reaction undoes months of invitation.',
+            'Asking for openness, then repeating something said in confidence.',
+        ],
+        "questions": [
+            'What did I promise this week, and did I deliver it?',
+            'Who has stopped bringing me problems, and why?',
+            "When did someone last tell me something I didn't want to hear? How did I respond?",
+        ],
+        "try": [
+            'Take a trust pulse now and again in two weeks. Pick the lowest line and do one thing about it.',
+            "In your next one-on-ones, ask: what's one thing I could do that would make your work easier?",
+        ],
+        "related": ['/culture', '/people', '/retros'], "reading": [],
+    },
+    {
+        "slug": 'strong-and-quiet-voices', "theme": "culture", "minutes": 5, "since": 6,
+        "title": 'Strong opinions and quiet voices',
+        "summary": "Meetings tend to belong to whoever talks first and loudest. A leader's job is to make sure the best idea wins, not the most confident one.",
+        "why": 'When a few strong voices dominate, the rest of the team stops offering ideas, and you lose what they know. It rarely looks like a problem from the front of the room, because the quiet simply stay quiet.',
+        "practices": [
+            'Give people time to think before discussing: a minute of silent writing, then go round the room.',
+            'Ask the quietest person first, by name, with a question they can answer well.',
+            'Gather estimates and opinions at the same time so nobody anchors on the first answer.',
+            "When someone talks over another person, bring it back: 'Hold on, I want to hear the rest of that.'",
+            "Talk privately with people who dominate. Most don't realize the effect, and many will help once they do.",
+            'Offer written channels for people who think better after the meeting.',
+        ],
+        "pitfalls": [
+            'Taking silence as agreement.',
+            'Rewarding speed of answer over quality of thought.',
+            'Shaming a dominant person in front of the group. Address it privately.',
+        ],
+        "questions": [
+            'In my last three meetings, who spoke least? What might they have known?',
+            'Do decisions here tend to go to the person who argues hardest?',
+        ],
+        "try": [
+            'Run your next retro with silent writing first and a round where everyone speaks once before open discussion.',
+        ],
+        "related": ['/culture', '/retros', '/planning'], "reading": [],
+    },
+    {
+        "slug": 'calling-out-harm', "theme": "culture", "minutes": 6, "since": 6,
+        "title": 'Calling out intimidation and harmful behavior',
+        "summary": 'What a leader tolerates becomes the standard. Address harmful behavior early, privately first, and about the behavior rather than the person.',
+        "why": 'Intimidation, belittling and blame spread quietly. The people affected rarely complain, and everyone else learns what is allowed. Leaving it alone is a decision, and the team notices it.',
+        "practices": [
+            'Write down what you saw soon after: what was said or done, the date, and the effect on others. Specifics beat impressions.',
+            'Talk to the person privately and soon. Describe the behavior and its effect, then ask for their view.',
+            'Be clear about what needs to change, and follow up on a date.',
+            "Check in with the people affected. Make sure they know you noticed and that they won't pay for speaking up.",
+            "If it continues, or it's serious, take it to your manager or HR, following your company's process.",
+            'Recognize good behavior too: people who make room for others, admit mistakes, or help a colleague.',
+        ],
+        "pitfalls": [
+            'Waiting for someone to complain formally before acting.',
+            'Excusing behavior because the person is a high performer.',
+            'Labelling the person instead of describing what they did.',
+            'Raising it once and never following up.',
+        ],
+        "questions": [
+            "Is there a behavior on my team I've been hoping will go away on its own?",
+            'Would a new team member think this behavior is normal here?',
+        ],
+        "try": [
+            "Note anything you've been putting off under Culture and trust, decide on one step, and set a follow-up date.",
+        ],
+        "related": ['/culture', '/people', '/coaching/feedback'], "reading": [],
+    },
+    {
+        "slug": 'consistency-and-integrity', "theme": "culture", "minutes": 5, "since": 6,
+        "title": 'Being consistent every day',
+        "summary": "A reputation for integrity comes from doing the same right thing on hard days as on easy ones, so people can predict how you'll act.",
+        "why": "People trust leaders they can predict. If your standards bend under pressure, or depend on who's asking, people learn to manage you instead of telling you the truth.",
+        "practices": [
+            'Write down the handful of standards you hold yourself to, in your own words, and read them often.',
+            'Check yourself weekly against them, honestly, and note a moment that showed each one, either way.',
+            'Apply the same rules to senior and junior people, and to people you like and people you find difficult.',
+            "When you get something wrong, say so plainly and say what you'll do differently.",
+            'Explain your decisions, including the trade-offs, so people can see the reasoning is consistent.',
+        ],
+        "pitfalls": [
+            'Lowering the bar quietly when a deadline is close.',
+            "Holding the team to standards you don't meet yourself.",
+            'Treating integrity as a trait you have rather than a habit you practice.',
+        ],
+        "questions": [
+            'Where did I bend a standard this week, and was it a good reason or a convenient one?',
+            "Could my team predict how I'd react to a missed deadline? To bad news?",
+        ],
+        "try": [
+            'Do the weekly self-check under Culture and trust for a month and look at the trend.',
+        ],
+        "related": ['/culture', '/coaching/culture-of-trust'], "reading": [],
+    },
+    {
+        "slug": 'order-without-bureaucracy', "theme": "culture", "minutes": 5, "since": 6,
+        "title": 'Order without bureaucracy',
+        "summary": 'Chaos wears people out. A small amount of clear, agreed process gives a team calm and predictability without slowing it down.',
+        "why": 'When nobody knows how work arrives, who decides, or what done means, every day becomes a scramble and the loudest request wins. People feel it as stress, not as a process problem. Adding the right little bit of structure is one of the kindest things a leader can do.',
+        "practices": [
+            'Start with the pain people already feel: surprise requests, unclear priorities, broken handoffs.',
+            'Agree a few simple rules with the team: one way work comes in, who sets priority, what done means.',
+            'Write them down where everyone can see them, and mark them agreed.',
+            'Protect the team from work that skips the process, politely and every time.',
+            "Review the rules at retros. Drop the ones that don't help.",
+        ],
+        "pitfalls": [
+            'Adding process for its own sake, or all at once.',
+            "Imposing rules the team didn't help shape.",
+            'Making exceptions for whoever pushes hardest; that brings the chaos back.',
+        ],
+        "questions": [
+            "Where does work arrive without warning, and who decides whether it's taken on?",
+            'What do people find most chaotic right now?',
+        ],
+        "try": [
+            'Ask the team for the one rule that would make the next sprint calmer, agree it, and try it for two sprints.',
+        ],
+        "related": ['/culture', '/sdlc', '/roadmap'], "reading": [UA],
+    },
+    {
+        "slug": 'challenging-the-organization', "theme": "culture", "minutes": 6, "since": 6,
+        "title": 'Challenging the wider organization well',
+        "summary": "Some of what hurts your team comes from outside it. Raise it with evidence and a proposal, through the right people, and keep your team's trust while you do.",
+        "why": 'Teams notice whether their leader is willing to stand up for them. But a challenge that arrives as a complaint, or goes round people, costs credibility. Done well, pushing back makes you more trusted on both sides.',
+        "practices": [
+            'Collect specifics before raising anything: what happens, how often, and the cost to delivery or to people.',
+            'Bring a proposal, not just a problem, and be open to a better one.',
+            'Raise it with your manager first, and agree who else should hear it.',
+            'Pick the few things that matter most. Challenging everything gets you tuned out.',
+            'Tell your team what you raised and what happened, even when nothing has changed yet.',
+        ],
+        "pitfalls": [
+            'Venting about other teams to your own.',
+            "Going over someone's head without talking to them first.",
+            "Promising your team a change you can't deliver.",
+        ],
+        "questions": [
+            'Which organization-wide habit costs my team the most?',
+            'What evidence do I have, and who could change it?',
+        ],
+        "try": [
+            'Note organization-wide patterns under Culture and trust for a month, then bring the top one to your manager with a proposal.',
+        ],
+        "related": ['/culture', '/sos', '/coaching/your-manager'], "reading": [],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
+    "/culture": [('What you tolerate becomes the standard. Address harmful behavior early, privately, and follow up.', 'calling-out-harm', 6),
+                 ("Read today's standard before your first meeting, and look for one chance to live it.", 'consistency-and-integrity', 6),
+                 ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6)],
     "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
     "/people": [("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
-                ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation")],
+                ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
+                ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6)],
     "/onboarding": [("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback")],
     "/skills": [("Match stretch work to what people want to learn. Growth is one of the best reasons people stay.", "delegation")],
@@ -722,16 +890,20 @@ TIPS = {
                    ("Hold early impressions as hypotheses. Write down what would prove them wrong.", "read-the-situation")],
     "/rollup": [("Share what you heard with the team before announcing changes. It shows you listened.", "earning-trust"),
                 ("The 'don't change' notes matter as much as the complaints. Plan to keep them.", "read-the-situation")],
-    "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum")],
+    "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
+              ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
-    "/teams": [("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4)],
+    "/teams": [("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4),
+               ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6)],
     "/sos": [("Every cross-team item needs one owner, a due date and the outcome you expect. Otherwise it just gets discussed again next week.", "scrum-of-scrums", 4),
-             ("Keep the Scrum of Scrums short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4)],
+             ("Keep the Scrum of Scrums short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4),
+             ('When an organization-wide habit keeps hurting delivery, bring evidence and a proposal, not a complaint.', 'challenging-the-organization', 6)],
     "/planning": [("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
                   ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
     "/retros": [("Open every retro by reviewing last time's commitments. That's what makes retros worth the hour.", "retros"),
-                ("If you're the manager, speak last.", "psychological-safety")],
+                ("If you're the manager, speak last.", "psychological-safety"),
+                ('Start with a minute of silent writing so the quiet voices get heard before the loud ones.', 'strong-and-quiet-voices', 6)],
     "/pi": [("Make cross-team dependencies visible early, each with an owner and a needed-by date.", "scrum-of-scrums")],
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
     "/raci": [("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
@@ -814,7 +986,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 5  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 6  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

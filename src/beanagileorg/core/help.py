@@ -25,6 +25,16 @@ TOOLKIT = {
         "privacy": "Only names, titles, departments and reporting lines show while presenting; notes and conversations are private.",
         "related": ["/listening", "/teams", "/coaching/one-on-ones"],
     },
+    "/culture": {
+        "purpose": "Keep trust, safety and your own standards in front of you: what you notice in the culture, how the team feels, how you're living your standards, and what the team has agreed.",
+        "steps": ["Write your standards under My standards (or start from suggestions). One shows on Today each day.",
+                  "Under Noticing, log what you see: intimidation, chaos from missing process, quiet voices, and good moments too.",
+                  "Concerns on your team still at 'not yet' after a week show on Today, as do follow-up dates.",
+                  "Take a trust pulse every couple of weeks, from your own read or a team survey, and watch the trend.",
+                  "Agree team agreements together, show them at retros, and fill in the Role brief so the mandate stays in view."],
+        "privacy": "Only agreed team agreements show while presenting; everything else is private.",
+        "related": ["/people", "/retros", "/coaching/calling-out-harm"],
+    },
     "/onboarding": {
         "purpose": "Bring new team members in smoothly, with a checklist that runs from the week before they start to day 90.",
         "steps": ["Load the starter checklist, then edit the template under Checklist template.", "When someone joins, add them under People, then build their checklist with their start date, buddy and tracks.",

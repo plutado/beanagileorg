@@ -94,6 +94,16 @@ COMMITMENT_DIRECTIONS = ("mine", "theirs")
 COMMITMENT_STATES = ("open", "done", "dropped")
 MANAGER_NOTE_KINDS = ("praise", "constructive", "win", "concern")
 GROWTH_STATUS = ("active", "achieved", "paused", "dropped")
+CULTURE_SCOPES = ("my team", "organization")
+CULTURE_KINDS = ("concern", "positive")
+CULTURE_CATEGORIES = ("intimidation or dominating", "chaos or missing process", "quiet voices unheard", "blame", "siloed teams", "disrespect", "burnout or overload",
+                      "heroics", "great collaboration", "speaking up", "helping others", "other")
+CULTURE_ACTIONS = ("not yet", "watching", "spoke privately", "raised with the team", "raised with my manager", "agreement or process change", "escalated")
+CULTURE_STATUS = ("open", "watching", "addressed")
+SEVERITY = ("low", "medium", "high")
+AGREEMENT_AREAS = ("working together", "disagreement", "meetings", "code review", "communication", "quality", "other")
+AGREEMENT_STATUS = ("proposed", "agreed", "retired")
+PULSE_SOURCES = ("my read", "team survey")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
 
@@ -1068,6 +1078,60 @@ MIGRATIONS = [
             status TEXT NOT NULL DEFAULT 'active',
             progress TEXT,
             updated DATE
+        );
+        """,
+    ),
+    (
+        20,
+        """
+        CREATE TABLE standards (
+            id INTEGER PRIMARY KEY,
+            text TEXT NOT NULL,
+            why TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE standard_checks (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            standard_id INTEGER NOT NULL REFERENCES standards (id) ON DELETE CASCADE,
+            rating INTEGER NOT NULL,
+            note TEXT
+        );
+        CREATE TABLE trust_pulses (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            source TEXT NOT NULL DEFAULT 'my read',
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            scores TEXT,
+            respondents INTEGER,
+            notes TEXT
+        );
+        CREATE TABLE culture_observations (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            scope TEXT NOT NULL DEFAULT 'my team',
+            kind TEXT NOT NULL DEFAULT 'concern',
+            category TEXT,
+            title TEXT NOT NULL,
+            details TEXT,
+            people_ids TEXT,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            severity TEXT,
+            action TEXT NOT NULL DEFAULT 'not yet',
+            status TEXT NOT NULL DEFAULT 'open',
+            follow_up DATE,
+            outcome TEXT
+        );
+        CREATE TABLE team_agreements (
+            id INTEGER PRIMARY KEY,
+            text TEXT NOT NULL,
+            area TEXT NOT NULL DEFAULT 'working together',
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'proposed',
+            agreed_on DATE,
+            review_on DATE,
+            position INTEGER NOT NULL DEFAULT 0
         );
         """,
     ),
@@ -2525,6 +2589,91 @@ growth_goals = Record(
     hide_when_empty=True,
 )
 
+# ---- culture and trust: your standards, what you notice, the trust pulse (private); team agreements are shareable ----
+
+standards = Record(
+    entity="standard",
+    table="standards",
+    path="/api/standards",
+    order_by="active DESC, position, id",
+    fields={
+        "text": Field("text", P, required=True),
+        "why": Field("text", P),
+        "active": Field("bool", P, default=True),
+        "position": Field("int", P, default=0),
+    },
+    hide_when_empty=True,
+)
+
+standard_checks = Record(
+    entity="standard_check",
+    table="standard_checks",
+    path="/api/standard-checks",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "standard_id": Field("int", P, required=True),
+        "rating": Field("int", P, required=True),
+        "note": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
+trust_pulses = Record(
+    entity="trust_pulse",
+    table="trust_pulses",
+    path="/api/trust-pulses",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "source": Field("text", P, choices=PULSE_SOURCES, default="my read"),
+        "team_id": Field("int", P),
+        "scores": Field("json", P),
+        "respondents": Field("int", P),
+        "notes": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
+culture_observations = Record(
+    entity="culture_observation",
+    table="culture_observations",
+    path="/api/culture-observations",
+    order_by="status = 'addressed', date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "scope": Field("text", P, choices=CULTURE_SCOPES, default="my team"),
+        "kind": Field("text", P, choices=CULTURE_KINDS, default="concern"),
+        "category": Field("text", P, choices=CULTURE_CATEGORIES),
+        "title": Field("text", P, required=True),
+        "details": Field("text", P),
+        "people_ids": Field("ids", P),
+        "team_id": Field("int", P),
+        "severity": Field("text", P, choices=SEVERITY),
+        "action": Field("text", P, choices=CULTURE_ACTIONS, default="not yet"),
+        "status": Field("text", P, choices=CULTURE_STATUS, default="open"),
+        "follow_up": Field("date", P),
+        "outcome": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
+team_agreements = Record(
+    entity="team_agreement",
+    table="team_agreements",
+    path="/api/team-agreements",
+    order_by="status = 'retired', area, position, id",
+    fields={
+        "text": Field("text", S, required=True),
+        "area": Field("text", S, choices=AGREEMENT_AREAS, default="working together"),
+        "team_id": Field("int", S),
+        "status": Field("text", S, choices=AGREEMENT_STATUS, default="proposed"),
+        "agreed_on": Field("date", S),
+        "review_on": Field("date", S),
+        "position": Field("int", S, default=0),
+    },
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2543,4 +2692,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
+    standards, standard_checks, trust_pulses, culture_observations, team_agreements,
 ]

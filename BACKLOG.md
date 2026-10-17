@@ -16,6 +16,9 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer), since reviews say there's no clear channel to leadership
+- [ ] Culture: import outside culture signals (themes from public reviews) as organization-level notes with a source and date, so they sit beside what you see yourself
+- [ ] Culture: show agreed team agreements inside the retro view, and a growth-path page for direct reports (levels and what moves someone up)
 - [ ] People: a stakeholder map (influence against stance) drawn from the CRM fields; import contacts from a CSV; reminders before a one-on-one with an agenda drafted from open follow-ups
 - [ ] Teams: per-team PI objectives and an ART view across teams; a dependency map between teams drawn from Scrum of Scrums items; each team's metrics side by side; export a team's status pack for its own manager
 - [ ] Code: a proper code editor for code-heavy fields (indent with Tab, line numbers), and a dedicated Apex highlighter instead of borrowing Java's
@@ -90,6 +93,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-16: Culture and trust. A new section that keeps soft skills and culture in view: My standards (your own commitments, one shown on Today each day, with a weekly 1-to-5 self-check and trend); Noticing (a private log of concerns and good moments on your team or in the wider organization, by category such as intimidation, chaos from missing process, quiet voices unheard or blame, with what you did, status and a follow-up date; concerns on your team still at "not yet" after a week show on Today); Trust pulse (your read or a team survey across safety, clarity, trust, unity, collaboration, workload and recognition, on a cadence you set); Team agreements (proposed, agreed with a date, retired, with review dates; shown while presenting); and a Role brief. Six new coaching guides in a Culture and trust theme (building trust, strong and quiet voices, calling out harmful behavior, consistency, order without bureaucracy, challenging the wider organization) and tips on Culture, Retros, Teams, Scrum of Scrums, People and SDLC; 188 tests
 
 - [x] 2026-10-16: Manager tools. Pick your own record ("This is me"); everyone whose Reports to is you becomes a direct report, summarized on People (last talked, what you owe, what they owe, late items, active goals, feedback not yet shared). Commitments both ways on anyone's page ("I owe them" and "they owe me", with due dates, done dates and Jira keys), also added straight from a conversation's "I'll do" and "they'll do" boxes. For direct reports, a Manager tab: growth goals with a measure, target date, status and progress; a running log of praise, constructive feedback, wins and concerns, each marked shared or not; and a drafted one-on-one agenda (since last time, their commitments, mine, goals, feedback to share, open items) to copy. Your commitments due this week and theirs that are late show on Today; 184 tests
 

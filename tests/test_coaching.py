@@ -70,7 +70,7 @@ def test_tips_follow_edits(client):
     gid = next(g["id"] for g in client.get("/api/coaching/library").json()["guides"] if g["slug"] == "psychological-safety")
     client.patch(f"/api/coaching-guides/{gid}", json={"status": "draft"})
     retro = client.get("/api/coaching/tips").json()["/retros"]
-    assert len(retro) == 1 and retro[0]["guide"] is None
+    assert len(retro) == 2 and retro[0]["guide"] is None
 
 
 def test_reflection_journal(client):
