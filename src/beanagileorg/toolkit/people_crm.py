@@ -176,6 +176,9 @@ def update_person(person_id: int, body: dict = Body(...), viewer: Viewer = Depen
         if row is None:
             raise HTTPException(400, "That manager isn't in People.")
         manager = row["manager_id"]
+    current = models.people.fetch(conn, person_id)
+    if current["placeholder"] and "placeholder" not in body and body.get("name") and not body["name"].strip().startswith("["):
+        body = {**body, "placeholder": False}  # a real name replaces a stand-in
     if "key_dates" in body:
         body = {**body, "key_dates": {"dates": [d for d in (body["key_dates"] or {}).get("dates", []) if isinstance(d, dict) and d.get("label") and d.get("date")]} if body["key_dates"] else {}}
     return models.people.visible(models.people.update(conn, person_id, body, viewer.source), viewer)
@@ -324,3 +327,54 @@ def people_due(conn) -> dict:
                       for c in open_c if c["direction"] == "mine" and c["due"] <= week],
             "they_owe_late": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"]}
                               for c in open_c if c["direction"] == "theirs" and c["due"] < today.isoformat()]}
+
+
+@router.post("/api/people/roster", status_code=201)
+def import_roster(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Add a team in one go: people, who reports to whom, who's on your team, and which record is you.
+
+    Each entry has a key so others can point at it ("reports_to": "<key>" or "me"). Anyone already in People
+    with the same name is reused, so running it twice adds nothing. Stand-ins are marked as placeholders,
+    to be replaced with the real person later.
+    """
+    require_write(viewer)
+    entries = body.get("people")
+    if not isinstance(entries, list) or not entries:
+        raise HTTPException(400, "The roster needs a list of people.")
+    keys, created, reused = {}, [], []
+    for e in entries:
+        name = (e.get("name") or "").strip()
+        if not name or not e.get("key"):
+            raise HTTPException(400, "Each person needs a key and a name.")
+        if e.get("relationship") and e["relationship"] not in models.RELATIONSHIPS:
+            raise HTTPException(400, f"Unknown relationship for {name}.")
+        row = conn.execute("SELECT id FROM people WHERE name = ?", (name,)).fetchone()
+        if row:
+            keys[e["key"]] = row["id"]
+            reused.append(name)
+            continue
+        data = {k: e[k] for k in ("role", "relationship", "background", "tags", "working_style", "support_notes", "start_date") if e.get(k) is not None}
+        data.update(name=name, placeholder=bool(e.get("placeholder", name.startswith("["))))
+        keys[e["key"]] = models.people.create(conn, data, viewer.source)["id"]
+        created.append(name)
+    me_key = body.get("me")
+    if me_key:
+        if me_key not in keys:
+            raise HTTPException(400, "'me' must be the key of someone in the roster.")
+        if not me_id(conn):
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (ME_KEY, str(keys[me_key])))
+    me = me_id(conn)
+    for e in entries:
+        boss = e.get("reports_to")
+        target = me if boss == "me" else keys.get(boss) if boss else None
+        if boss and target is None:
+            raise HTTPException(400, f"{e['name']} reports to someone who isn't in the roster.")
+        if target and target != keys[e["key"]]:
+            models.people.update(conn, keys[e["key"]], {"manager_id": target}, viewer.source)
+    team = conn.execute("SELECT id, member_ids FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1").fetchone()
+    on_team = [keys[e["key"]] for e in entries if e.get("on_team")]
+    if team and on_team:
+        members = json.loads(team["member_ids"]) if team["member_ids"] else []
+        members += [m for m in on_team if m not in members]
+        models.teams.update(conn, team["id"], {"member_ids": members}, viewer.source)
+    return {"created": created, "reused": reused, "me": me, "team_members": len(on_team)}

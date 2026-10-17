@@ -1250,6 +1250,12 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        24,
+        """
+        ALTER TABLE people ADD COLUMN placeholder INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1287,6 +1293,7 @@ people = Record(
         "key_dates": Field("json", P),
         "next_meeting": Field("date", P),
         "manager_id": Field("int", S),
+        "placeholder": Field("bool", S, default=False),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),

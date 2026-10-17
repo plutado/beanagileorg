@@ -87,3 +87,32 @@ def test_private_while_presenting(client):
     assert "interactions" not in crm and crm["person"]["role"] == "[Title]"
     assert client.get("/api/interactions").json() == []
     assert client.get(f"/api/people/{a}/timeline").json() == {"events": []}
+
+
+def test_roster_import_and_placeholders(client):
+    roster = {"me": "me", "people": [
+        {"key": "me", "name": "[Me]", "reports_to": "boss"},
+        {"key": "boss", "name": "[My manager]", "relationship": "manager"},
+        {"key": "a", "name": "[Senior engineer]", "role": "Senior engineer", "relationship": "employee", "reports_to": "me", "on_team": True, "tags": ["senior"]},
+        {"key": "b", "name": "[Contractor]", "relationship": "contractor", "reports_to": "me", "on_team": True},
+        {"key": "c", "name": "Real Peer", "relationship": "peer"},
+    ]}
+    r = client.post("/api/people/roster", json=roster).json()
+    assert len(r["created"]) == 5 and r["team_members"] == 2 and r["me"]
+    again = client.post("/api/people/roster", json=roster).json()
+    assert again["created"] == [] and len(again["reused"]) == 5
+    people = {p["name"]: p for p in client.get("/api/people").json()}
+    assert people["[Senior engineer]"]["placeholder"] and not people["Real Peer"]["placeholder"]
+    assert people["[Senior engineer]"]["manager_id"] == people["[Me]"]["id"] and people["[Me]"]["manager_id"] == people["[My manager]"]["id"]
+    reports = client.get("/api/people/reports").json()
+    assert {x["name"] for x in reports["reports"]} == {"[Senior engineer]", "[Contractor]"}
+    team = next(t for t in client.get("/api/teams").json() if t["kind"] == "mine")
+    assert set(team["member_ids"]) == {people["[Senior engineer]"]["id"], people["[Contractor]"]["id"]}
+    # giving a stand-in a real name clears the mark, and keeps everything recorded against them
+    pid = people["[Senior engineer]"]["id"]
+    client.post("/api/interactions", json={"date": "2026-10-01", "person_ids": [pid], "title": "[Chat]"})
+    assert client.patch(f"/api/people/{pid}", json={"name": "Real Engineer"}).json()["placeholder"] is False
+    assert client.get(f"/api/people/{pid}/crm").json()["person"]["name"] == "Real Engineer"
+    assert client.post("/api/people/roster", json={"people": [{"key": "x", "name": "[X]", "reports_to": "nobody"}]}).status_code == 400
+    assert client.post("/api/people/roster", json={"people": []}).status_code == 400
+    assert client.post("/api/people/roster", json={"me": "zzz", "people": [{"key": "y", "name": "[Y]"}]}).status_code == 400

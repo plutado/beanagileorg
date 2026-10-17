@@ -208,7 +208,7 @@
       const ro = presenting();
       const f = (() => { try { return JSON.parse(sessionStorage.getItem("ba-people-filter") || "{}"); } catch { return {}; } })();
       const tags = [...new Set(d.people.flatMap((p) => p.tags || []))].sort();
-      const shown = d.people.filter((p) => (f.inactive || p.active) && (!f.rel || p.relationship === f.rel) && (!f.tag || (p.tags || []).includes(f.tag)) && (!f.due || p.due));
+      const shown = d.people.filter((p) => (f.inactive || p.active) && (!f.rel || p.relationship === f.rel) && (!f.tag || (p.tags || []).includes(f.tag)) && (!f.due || p.due) && (!f.ph || p.placeholder));
       const youCard = !d.private ? "" : rep.me == null
         ? `<section class="card"><h2>You and your reports</h2><p class="quiet">Pick your own record, so anyone whose Reports to is you shows up here as a direct report, with commitments, goals and feedback.</p>
             ${ro ? "" : `<div class="row"><select id="me-pick" style="max-width:260px"><option value="">Which of these people is you?</option>${d.people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div>`}</section>`
@@ -220,9 +220,10 @@
       main.innerHTML = `${peopleTabs("")}${youCard}
         ${d.private ? `<div class="row"><select id="pf-rel" style="max-width:180px"><option value="">Every relationship</option>${opts(RELATIONSHIPS, f.rel)}</select>
           ${tags.length ? `<select id="pf-tag" style="max-width:180px"><option value="">Every tag</option>${opts(tags, f.tag)}</select>` : ""}
-          <label class="check"><input type="checkbox" id="pf-due"${f.due ? " checked" : ""}> Due for a check-in</label><label class="check"><input type="checkbox" id="pf-inactive"${f.inactive ? " checked" : ""}> Show inactive</label></div>` : ""}
+          <label class="check"><input type="checkbox" id="pf-due"${f.due ? " checked" : ""}> Due for a check-in</label><label class="check"><input type="checkbox" id="pf-inactive"${f.inactive ? " checked" : ""}> Show inactive</label>${d.people.some((p) => p.placeholder) ? `<label class="check"><input type="checkbox" id="pf-ph"${f.ph ? " checked" : ""}> Placeholders only</label>` : ""}</div>` : ""}
+        ${d.people.some((p) => p.placeholder) && !ro ? `<p class="quiet ph-note"><span class="pill warn">placeholder</span> ${d.people.filter((p) => p.placeholder).length} people are stand-ins until you know who they are. Open one and give it the real name on Details; the placeholder mark clears itself, and everything you've recorded stays.</p>` : ""}
         <div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Role</th><th>Relationship</th>${d.private ? "<th>Last contact</th><th>Follow-ups</th>" : ""}</tr></thead><tbody>${
-          shown.map((p) => `<tr class="clickable" data-id="${p.id}"><td><b>${esc(p.name)}</b>${d.private && (p.tags || []).length ? ` ${BA.chips(p.tags)}` : ""}${p.active ? "" : ' <span class="pill">inactive</span>'}</td>
+          shown.map((p) => `<tr class="clickable" data-id="${p.id}"><td><b>${esc(p.name)}</b>${d.private && (p.tags || []).length ? ` ${BA.chips(p.tags)}` : ""}${p.active ? "" : ' <span class="pill">inactive</span>'}${p.placeholder ? ' <span class="pill warn">placeholder</span>' : ""}</td>
             <td>${esc(p.role || "")}${p.manager_name ? `<div class="quiet">reports to ${esc(p.manager_name)}</div>` : ""}</td><td>${esc(p.relationship || "")}</td>
             ${d.private ? `<td>${p.due ? '<span class="pill warn">due</span> ' : ""}${ago(p.days_since)}${p.next_meeting ? `<div class="quiet">next ${BA.fmtDate(p.next_meeting)}</div>` : ""}</td><td>${p.open_follow_ups || ""}</td>` : ""}</tr>`).join("") ||
           '<tr><td colspan="5" class="empty">No one matches.</td></tr>'}</tbody></table></div>
@@ -230,8 +231,8 @@
       main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/people/${tr.dataset.id}`)));
       const mePick = main.querySelector("#me-pick");
       if (mePick) mePick.onchange = BA.guard(async () => { if (!mePick.value) return; await BA.api("/api/people/me", { method: "PUT", body: { person_id: Number(mePick.value) } }); BA.rerender(); });
-      const save = () => { sessionStorage.setItem("ba-people-filter", JSON.stringify({ rel: main.querySelector("#pf-rel")?.value || "", tag: main.querySelector("#pf-tag")?.value || "", due: !!main.querySelector("#pf-due")?.checked, inactive: !!main.querySelector("#pf-inactive")?.checked })); BA.rerender(); };
-      main.querySelectorAll("#pf-rel, #pf-tag, #pf-due, #pf-inactive").forEach((el) => (el.onchange = save));
+      const save = () => { sessionStorage.setItem("ba-people-filter", JSON.stringify({ rel: main.querySelector("#pf-rel")?.value || "", tag: main.querySelector("#pf-tag")?.value || "", due: !!main.querySelector("#pf-due")?.checked, inactive: !!main.querySelector("#pf-inactive")?.checked, ph: !!main.querySelector("#pf-ph")?.checked })); BA.rerender(); };
+      main.querySelectorAll("#pf-rel, #pf-tag, #pf-due, #pf-inactive, #pf-ph").forEach((el) => (el.onchange = save));
       const add = main.querySelector("#add");
       if (add) add.onsubmit = BA.guard(async (e) => { e.preventDefault(); const rec = await BA.api("/api/people", { method: "POST", body: BA.readForm(add, PERSON_FIELDS.slice(0, 3)) }); BA.go(`/people/${rec.id}`); });
     },
@@ -254,7 +255,21 @@
     main.innerHTML = `${peopleTabs("fields")}
       <section class="card"><h2>Which fields to show</h2><p class="quiet">Untick the fields you don't use; they disappear from every person's page and form. Nothing already written is deleted, and you can turn a field back on any time. Sensitive fields (marked) are masked on the page until you choose to show them.</p>
         <form id="layout"><div class="case-picks">${l.optional.map((f) => `<label class="check"><input type="checkbox" name="show" value="${f}"${l.hidden.includes(f) ? "" : " checked"}${ro ? " disabled" : ""}> ${esc(FIELD_LABELS[f] || f)}${l.sensitive.includes(f) ? ' <span class="pill warn">sensitive</span>' : ""}</label>`).join("")}</div>
-        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form></section>`;
+        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form></section>
+      ${ro ? "" : `<section class="card"><h2>Import a roster</h2><p class="quiet">Add a whole team at once from a roster file: people, who reports to whom, who's on your team, and which record is you. Stand-ins in [brackets] are marked as placeholders. Anyone already here with the same name is left alone, so importing twice adds nothing.</p>
+        <div class="row"><input type="file" id="roster-file" accept=".json,application/json"></div><textarea id="roster-text" rows="6" class="mono" placeholder='{"me": "me", "people": [{"key": "me", "name": "[Me]"}, {"key": "a", "name": "[Engineer 1]", "relationship": "employee", "reports_to": "me", "on_team": true}]}'></textarea>
+        <div class="actions"><button class="btn primary" id="roster-go">Import</button></div></section>`}`;
+    const rf = main.querySelector("#roster-file");
+    if (rf) {
+      rf.onchange = async () => { if (rf.files[0]) main.querySelector("#roster-text").value = await rf.files[0].text(); };
+      main.querySelector("#roster-go").onclick = BA.guard(async () => {
+        let body;
+        try { body = JSON.parse(main.querySelector("#roster-text").value); } catch { throw new Error("That isn't valid roster JSON."); }
+        const r = await BA.api("/api/people/roster", { method: "POST", body });
+        BA.toast(`Added ${r.created.length}${r.reused.length ? `, ${r.reused.length} already here` : ""}.`);
+        BA.go("/people");
+      });
+    }
     const form = main.querySelector("#layout");
     if (!ro) form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
@@ -297,7 +312,7 @@
     const tabs = `<nav class="tabs">${[["overview", "Overview"], ["conversations", "Conversations"], ...(d.is_report ? [["manager", "Manager"]] : []), ["timeline", "Timeline"], ["details", "Details"]].filter(([k]) => !ro || k === "overview")
       .map(([k, l]) => `<a href="#/people/${id}" data-ptab="${k}" class="${k === current ? "active" : ""}">${l}</a>`).join("")}</nav>`;
     const fact = (f, label, val) => (show(f) && val ? `<div><span class="quiet">${esc(label)}</span> ${val}</div>` : "");
-    const header = `<section class="card"><div class="row"><h2>${esc(p.name)}</h2>${p.active === false ? '<span class="pill">inactive</span>' : ""}<span class="spacer"></span>
+    const header = `<section class="card"><div class="row"><h2>${esc(p.name)}</h2>${p.active === false ? '<span class="pill">inactive</span>' : ""}${p.placeholder ? '<span class="pill warn" title="A stand-in until you know who this is. Give it the real name on Details.">placeholder</span>' : ""}<span class="spacer"></span>
         ${p.stance && show("stance") ? tonePill(p.stance, STANCE_TONES) : ""}${p.influence && show("influence") ? `<span class="pill">${esc(p.influence)} influence</span>` : ""}</div>
       <div class="facts">${p.role ? `<div><span class="quiet">Title</span> ${esc(p.role)}</div>` : ""}${p.relationship ? `<div><span class="quiet">Relationship</span> ${esc(p.relationship)}</div>` : ""}
         ${p.manager_id && show("manager_id") ? `<div><span class="quiet">Reports to</span> <a href="#/people/${p.manager_id}">${esc(p.manager_name || "")}</a></div>` : ""}

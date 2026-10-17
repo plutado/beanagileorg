@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] People: export the current People list as a roster file, so a team can be moved between installs; open seats (a role you're hiring for) as their own kind of placeholder
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
 - [ ] Change requests: who asks most often and what share of their requests were accepted; link a request to a Jira issue and import interruptions flagged in Jira; a stakeholder-facing summary of the policy to share
@@ -96,6 +97,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Placeholder people and roster import. People can be marked as placeholders (stand-ins in [brackets] until the real person is known), shown with a pill and a filter; giving one a real name clears the mark and keeps everything recorded against them. People > Fields > Import a roster adds a whole team from a JSON file: people, reporting lines, who's on my team, and which record is me; re-importing adds nothing. The real roster file lives outside the repo; 203 tests
 
 - [x] 2026-10-17: First 90 days. One page with three tracks by day number: mine (30/60/90 plans with progress and due dates, listening tour, reflections, plan items due this week), each new hire's onboarding on their own clock, and the team I inherit, for whom it's the first 90 days with me. Inherited team members (direct reports who aren't being onboarded) get milestones from an editable template (first one-on-one, sharing Working with me, listening tour, career conversation, role expectations, growth goal, feedback both ways, day-90 check-in), several of which tick themselves when the toolkit sees them happen. Team check-ins at days 30, 60 and 90 show whether a trust pulse was taken nearby and record what I heard and what changed because of it. "Working with me" has a starter draft and can be shown while presenting. Changes I'm bringing move from idea to announced, trial (with a review date about two sprints out), review, then kept or dropped with the outcome; they can be shown to the team and appear in my manager's weekly report. Today flags late milestones, a check-in falling due and changes due for review. A coaching guide on leading change as a new manager; 202 tests
 

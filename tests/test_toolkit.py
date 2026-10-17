@@ -57,7 +57,7 @@ def test_people_in_presentation_mode_show_names_roles_and_department_only(client
     client.post("/api/people", json={"name": "[Placeholder name]", "role": "[Placeholder role]", "support_notes": "[Placeholder]"})
     present(client)
     shown = client.get("/api/people").json()[0]
-    assert set(shown) == {"id", "name", "role", "relationship", "active", "department_id", "department_name", "manager_id", "manager_name"}
+    assert set(shown) == {"id", "name", "role", "relationship", "active", "department_id", "department_name", "manager_id", "manager_name", "placeholder"}
 
 
 def test_export_token_sees_no_people_or_one_on_ones(client):
