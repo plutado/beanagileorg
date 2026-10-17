@@ -917,7 +917,9 @@ TIPS = {
     "/vendors": [("Talk to key vendors regularly, not only during incidents.", "vendor-partnerships")],
     "/plans": [("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
                ("Pick a few early wins that solve problems people already feel.", "early-wins")],
-    "/status": [("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
+    "/status": [("Log one line at the end of each day. Friday's report then writes itself, and nothing good gets forgotten.", "honest-status", 7),
+                ("Write a different version for each audience: outcomes and asks for leadership, the detail for your manager.", "your-manager", 7),
+                ("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
     "/architecture": [("Read the artifacts: the system map, past decisions and incidents show how things really work.", "learn-fast")],
     "/landscape": [("Diagnose each area separately. Some parts need fixing; others need protecting.", "read-the-situation")],
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety")],
@@ -986,7 +988,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 6  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 7  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

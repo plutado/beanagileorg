@@ -204,3 +204,15 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .agreement-row { margin: 6px 0; }
 .env-ref summary { display: flex; gap: 10px; align-items: baseline; cursor: pointer; }
 .env-ref .tablewrap { margin-top: 10px; }
+
+.week-chip { font-size: .78rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.log-form input[name=text] { margin: 8px 0; }
+.log-entry summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.log-day { min-width: 92px; }
+.jira-key { font-family: var(--mono, ui-monospace, monospace); font-size: .78rem; background: var(--panel-2); border-radius: 4px; padding: 1px 6px; }
+.sprint-weeks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+.sprint-weeks .sw { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); }
+#report-box textarea.mono { font-family: var(--mono, ui-monospace, monospace); font-size: .88rem; width: 100%; margin-top: 10px; }
+#report-box .msg-preview { margin-top: 10px; }
+.log-today form { margin-bottom: 6px; }
+

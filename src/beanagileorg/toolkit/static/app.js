@@ -33,7 +33,9 @@
   BA.command({ label: "Open the org chart", hint: "People", icon: "users", run: () => BA.go("/people/org") });
   BA.command({ label: "Note something about the culture", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/noticing") });
   BA.command({ label: "Take the trust pulse", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/pulse") });
-  BA.command({ label: "Weekly status draft", hint: "Reporting", icon: "file-text", run: () => BA.go("/status") });
+  BA.command({ label: "Weekly report", hint: "Reports", icon: "file-text", run: () => BA.go("/status") });
+  BA.command({ label: "Sprint report", hint: "Reports", icon: "file-text", run: () => BA.go("/status/sprint") });
+  BA.command({ label: "Log something", hint: "Work log", icon: "file-text", run: () => BA.go("/status/log") });
   BA.command({ label: "Log learning time", hint: "My development", icon: "graduation-cap", run: () => BA.go("/me") });
 
   const RELATIONSHIPS = ["employee", "contractor", "peer", "stakeholder", "manager", "vendor"];
@@ -97,7 +99,14 @@
       const taskRow = (t) => `<div class="item"><span>${esc(t.title)}</span><span class="spacer"></span>
         <span class="quiet">${BA.fmtDate(t.due)}</span><button class="btn" data-task="${t.id}">Done</button></div>`;
       const empty = (msg) => `<p class="quiet">${msg}</p>`;
+      const rep = d.reports || {};
       main.innerHTML = `<div class="cards">
+        <section class="card log-today"><h2>Work log</h2>
+          <form id="quick-log" class="row"><select name="kind" style="max-width:120px">${LOG_KINDS.filter((k) => k !== "note").concat("note").map((k) => `<option value="${k}">${esc(LOG_LABELS[k])}</option>`).join("")}</select>
+            <input name="text" required placeholder="What happened? It goes into this week's report" style="flex:1;min-width:200px"><button class="btn primary" type="submit">Log</button></form>
+          <p class="quiet">${rep.logged_today ? `${rep.logged_today} logged today. ` : "Nothing logged today yet. "}<a href="#/status/log">Work log</a></p>
+          ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
+          ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
         <section class="card"><h2>Overdue</h2>${d.overdue_tasks.map(taskRow).join("") || empty("Nothing overdue.")}</section>
         <section class="card"><h2>Dev-sync items overdue</h2>${
           d.overdue_actions.map((a) => `<div class="item"><a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span><span class="quiet">${esc(a.owner_name || "")} · ${BA.fmtDate(a.due)}</span></div>`).join("") ||
@@ -139,6 +148,14 @@
         <section class="card"><h2>Learning goals at risk</h2>${
           d.goals_at_risk.map((g) => `<div class="item"><a href="#/me">${esc(g.goal)}</a></div>`).join("") || empty("None at risk.")
         }</section></div>`;
+      const ql = main.querySelector("#quick-log");
+      ql.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(ql);
+        await BA.api("/api/log-entries", { method: "POST", body: { date: BA.today(), kind: f.get("kind"), text: f.get("text") } });
+        BA.toast("Logged.");
+        BA.rerender();
+      });
       main.querySelectorAll("[data-task]").forEach((b) => {
         b.onclick = BA.guard(async () => {
           await BA.api(`/api/tasks/${b.dataset.task}`, { method: "PATCH", body: { status: "done" } });
@@ -1546,25 +1563,183 @@
 
   // ---------------------------------------------------------------- Weekly status
 
+  // ---------------------------------------------------------------- Reports and the work log
+
+  const LOG_KINDS = ["win", "progress", "blocker", "risk", "decision", "ask", "next", "note"];
+  const LOG_LABELS = { win: "Win", progress: "Progress", blocker: "Blocker", risk: "Risk", decision: "Decision", ask: "Ask", next: "Next", note: "Note" };
+  const LOG_TONES = { win: "good", progress: "accent", blocker: "bad", risk: "warn", decision: "", ask: "warn", next: "", note: "" };
+  const LOG_AUDIENCES = ["leadership", "my manager", "just me"];
+  const reportTabs = (active) => `<nav class="tabs">${[["", "Weekly report"], ["sprint", "Sprint report"], ["log", "Work log"], ["activity", "Activity"], ["saved", "Saved"]]
+    .map(([k, l]) => `<a href="#/status${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+  const weekChip = (st) => st ? `<span class="week-chip" title="Week starting ${esc(st.week_start)}">W${st.iso_week}${st.role_week ? ` · role wk ${st.role_week}` : ""}${st.sprint_number ? ` · S${st.sprint_number} wk ${st.sprint_week}/${st.sprint_weeks}` : ""}</span>` : "";
+  const hashQuery = () => new URLSearchParams((location.hash.split("?")[1] || ""));
+  const keysIn = (v) => (v || "").split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
+
+  // The draft, editable before it's copied or saved; edits stay in this browser tab until saved.
+  function reportEditor(main, rep, kind) {
+    const key = `ba-report-${kind}-${rep.audience}-${rep.period_start}`;
+    let text = rep.markdown;
+    try { text = sessionStorage.getItem(key) || rep.markdown; } catch {}
+    const ro = presenting();
+    const box = main.querySelector("#report-box");
+    box.innerHTML = `<div class="row"><div class="seg" id="rep-mode"><button type="button" data-mode="preview" class="on">Preview</button><button type="button" data-mode="edit"${ro ? " disabled" : ""}>Edit</button></div>
+        ${text !== rep.markdown ? '<span class="pill warn">edited</span><button class="btn" type="button" id="rep-reset">Start again from the data</button>' : ""}<span class="spacer"></span>
+        ${ro ? "" : '<button class="btn" id="rep-copy">Copy Markdown</button><button class="btn" id="rep-save">Save draft</button><button class="btn primary" id="rep-sent">Save as sent</button>'}</div>
+      <div id="rep-preview" class="msg-preview">${BA.md(text)}</div><textarea id="rep-text" rows="24" class="mono" hidden>${esc(text)}</textarea>`;
+    const ta = box.querySelector("#rep-text"), pv = box.querySelector("#rep-preview");
+    box.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => {
+      box.querySelectorAll("[data-mode]").forEach((x) => x.classList.toggle("on", x === b));
+      const edit = b.dataset.mode === "edit";
+      ta.hidden = !edit; pv.hidden = edit;
+      if (!edit) pv.innerHTML = BA.md(ta.value);
+    }));
+    ta.oninput = () => { try { sessionStorage.setItem(key, ta.value); } catch {} };
+    const reset = box.querySelector("#rep-reset");
+    if (reset) reset.onclick = () => { try { sessionStorage.removeItem(key); } catch {} BA.rerender(); };
+    if (ro) return;
+    const body = (extra = {}) => ({ kind, audience: rep.audience, period_start: rep.period_start, period_end: rep.period_end, sprint_id: rep.sprint_id || null, title: rep.title, markdown: ta.value, ...extra });
+    box.querySelector("#rep-copy").onclick = BA.guard(async () => {
+      await navigator.clipboard.writeText(ta.value);
+      await BA.api("/api/reports/exported", { method: "POST", body: { title: rep.title, markdown: ta.value, kind } });
+      BA.toast("Copied. Logged as an export.");
+    });
+    box.querySelector("#rep-save").onclick = BA.guard(async () => { await BA.api("/api/reports", { method: "POST", body: body() }); try { sessionStorage.removeItem(key); } catch {} BA.toast("Saved under Saved."); });
+    box.querySelector("#rep-sent").onclick = BA.guard(async () => {
+      const to = prompt("Who did it go to? (optional)", rep.audience === "my manager" ? "[Manager]" : "[Leadership group]");
+      if (to === null) return;
+      await BA.api("/api/reports", { method: "POST", body: body({ status: "sent", sent_on: BA.today(), sent_to: to || null }) });
+      try { sessionStorage.removeItem(key); } catch {}
+      BA.toast("Saved as sent.");
+      BA.go("/status/saved");
+    });
+  }
+
+  const audiencePick = (aud) => `<div class="seg" id="aud">${["leadership", "my manager"].map((a) => `<button type="button" data-aud="${a}" class="${a === aud ? "on" : ""}">${a === "leadership" ? "Leadership" : "My manager"}</button>`).join("")}</div>`;
+  const getAud = () => { try { return sessionStorage.getItem("ba-report-aud") || "leadership"; } catch { return "leadership"; } };
+  const bindAud = (main) => main.querySelectorAll("[data-aud]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-report-aud", b.dataset.aud); } catch {} BA.rerender(); }));
+
   BA.view("/status", {
-    title: "Weekly status",
-    async render(main) {
-      const d = await BA.api("/api/status/draft");
-      const tone = { Green: "good", Yellow: "warn", Red: "bad" }[d.overall];
-      main.innerHTML = `<section class="card"><div class="row"><h2>Week of ${BA.fmtDate(d.week_of)}</h2><span class="pill ${tone}">${esc(d.overall)}</span>
-          <span class="quiet">suggested because ${esc(d.reason)}</span><span class="spacer"></span>
-          ${presenting() ? "" : '<button class="btn" id="copy">Copy Markdown</button>'}</div>
-        <p class="quiet">Built only from exportable data: roadmap, risks, decisions, metrics and learning goals marked for reporting. The Comms studio can pull this draft straight into a message once it's connected with an export-only token.</p></section>
-        <section class="card msg-preview">${BA.md(d.markdown)}</section>`;
-      const copy = main.querySelector("#copy");
-      if (copy)
-        copy.onclick = BA.guard(async () => {
-          const res = await BA.api("/api/status/export", { method: "POST" });
-          await navigator.clipboard.writeText(res.markdown);
-          BA.toast("Copied. Logged as an export.");
-        });
+    title: "Reports",
+    async render(main, param) {
+      const views = { sprint: renderSprintReport, log: renderWorkLog, activity: renderActivity, saved: renderSaved };
+      if (views[param]) return views[param](main);
+      const q = hashQuery(), aud = getAud();
+      const wk = await BA.api(`/api/weeks${q.get("week") ? `?on=${q.get("week")}` : ""}`);
+      const rep = await BA.api(`/api/reports/weekly?week=${wk.start}&audience=${encodeURIComponent(aud)}`);
+      const tone = { Green: "good", Yellow: "warn", Red: "bad" }[rep.overall];
+      main.innerHTML = `${reportTabs("")}
+        <section class="card"><div class="row"><select id="week-pick" style="max-width:340px">${wk.recent.map((w) => `<option value="${w.start}"${w.start === wk.start ? " selected" : ""}>${esc(w.label)}${w.sprint ? ` · ${esc(w.sprint.label)}` : ""}</option>`).join("")}</select>
+          ${audiencePick(aud)}<span class="pill ${tone}">${esc(rep.overall)}</span><span class="quiet">suggested because ${esc(rep.reason)}</span></div>
+          <p class="quiet">${[wk.sprint ? esc(wk.sprint.label) : "", wk.role_week ? `Week ${wk.role_week} in the role` : "", `${rep.counts.highlights} ${rep.counts.highlights === 1 ? "highlight" : "highlights"} and ${rep.counts.issues} ${rep.counts.issues === 1 ? "blocker or risk" : "blockers or risks"} logged`, `${rep.counts.stories} ${rep.counts.stories === 1 ? "story" : "stories"} finished (${rep.counts.points} points)`].filter(Boolean).join(" · ")}.
+            ${aud === "leadership" ? "Built only from exportable data and work log entries marked for leadership." : "Also includes work log entries marked for your manager. Nothing private."} <a href="#/status/activity?week=${wk.start}">See everything that happened this week</a>.</p></section>
+        <section class="card" id="report-box"></section>
+        ${presenting() ? "" : `<details class="card"><summary><b>Week settings</b></summary><div class="row"><label>Weeks start on <select id="ws">${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((n, i) => `<option value="${i}"${i === wk.week_start_day ? " selected" : ""}>${n}</option>`).join("")}</select></label>
+          <label>Weekly report is due on <select id="rd">${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((n, i) => `<option value="${i}"${i === wk.report_day ? " selected" : ""}>${n}</option>`).join("")}</select></label></div>
+          <p class="quiet">Set your start date in Settings to count weeks in the role. Sprint weeks come from each sprint's start date: a two-week sprint has a week 1 and a week 2.</p></details>`}`;
+      reportEditor(main, rep, "weekly");
+      bindAud(main);
+      main.querySelector("#week-pick").onchange = (e) => BA.go(`/status?week=${e.target.value}`);
+      const ws = main.querySelector("#ws");
+      if (ws) {
+        ws.onchange = BA.guard(async () => { await BA.api("/api/weeks/settings", { method: "PUT", body: { week_start_day: Number(ws.value) } }); BA.rerender(); });
+        main.querySelector("#rd").onchange = BA.guard(async (e) => { await BA.api("/api/weeks/settings", { method: "PUT", body: { report_day: Number(e.target.value) } }); BA.toast("Saved."); });
+      }
     },
   });
+
+  async function renderSprintReport(main) {
+    const sprints = (await BA.api("/api/sprints")).filter((s) => s.start_date);
+    keepTeam(sprints);
+    if (!sprints.length) { main.innerHTML = `${reportTabs("sprint")}<p class="empty">No sprints with a start date yet. Add one in the <a href="#/sprints">Sprint notebook</a>.</p>`; return; }
+    const q = hashQuery(), aud = getAud();
+    const current = await BA.api("/api/sprints/current");
+    const sid = Number(q.get("sprint")) || (current && current.id) || sprints[0].id;
+    const rep = await BA.api(`/api/reports/sprint?sprint_id=${sid}&audience=${encodeURIComponent(aud)}`);
+    const p = rep.progress;
+    main.innerHTML = `${reportTabs("sprint")}
+      <section class="card"><div class="row"><select id="sprint-pick" style="max-width:260px">${sprints.map((s) => `<option value="${s.id}"${s.id === sid ? " selected" : ""}>Sprint ${s.number} (${BA.fmtDate(s.start_date)})</option>`).join("")}</select>${audiencePick(aud)}</div>
+        <div class="sprint-weeks">${rep.weeks.map((w) => `<div class="sw"><b>Week ${w.week}</b><span class="quiet">${BA.fmtDate(w.start)} to ${BA.fmtDate(w.end)}</span><span>${w.stories} stories · ${w.points} points</span>
+          <a href="#/status?week=${w.start}">Weekly report</a></div>`).join("")}
+          <div class="sw"><b>Sprint</b><span class="quiet">${esc(rep.sprint.goal || "No goal set")}</span><span>${p.done_points} of ${p.committed} points · ${p.done_stories} of ${p.stories} stories</span></div></div></section>
+      <section class="card" id="report-box"></section>`;
+    reportEditor(main, rep, "sprint");
+    bindAud(main);
+    main.querySelector("#sprint-pick").onchange = (e) => BA.go(`/status/sprint?sprint=${e.target.value}`);
+  }
+
+  async function renderWorkLog(main) {
+    const ro = presenting();
+    const q = hashQuery();
+    const wk = await BA.api(`/api/weeks${q.get("week") ? `?on=${q.get("week")}` : ""}`);
+    const entries = await BA.api("/api/log-entries");
+    const shown = entries.filter((e) => e.date >= wk.recent[wk.recent.length - 1].start);
+    const byWeek = wk.recent.map((w) => [w, shown.filter((e) => e.date >= w.start && e.date <= w.end)]).filter(([, l]) => l.length);
+    const fields = (e = {}) => `<div class="row"><input type="date" name="date" value="${esc(e.date || BA.today())}" style="max-width:160px"><select name="kind" style="max-width:130px">${LOG_KINDS.map((k) => `<option value="${k}"${k === (e.kind || "progress") ? " selected" : ""}>${LOG_LABELS[k]}</option>`).join("")}</select>
+        <select name="audience" style="max-width:150px" title="Who can see this">${LOG_AUDIENCES.map((a) => `<option value="${a}"${a === (e.audience || "leadership") ? " selected" : ""}>For ${a}</option>`).join("")}</select>
+        <input name="jira_keys" value="${esc((e.jira_keys || []).join(", "))}" placeholder="Jira keys (optional)" style="max-width:200px"></div>
+      <input name="text" value="${esc(e.text || "")}" required placeholder="What happened, in a sentence you'd put in the report">
+      <textarea name="details" rows="2" placeholder="Details (optional)">${esc(e.details || "")}</textarea>`;
+    const read = (form) => { const f = new FormData(form); return { date: f.get("date"), kind: f.get("kind"), audience: f.get("audience"), jira_keys: keysIn(f.get("jira_keys")), text: f.get("text"), details: f.get("details") || null }; };
+    main.innerHTML = `${reportTabs("log")}
+      <p class="quiet">Note things as they happen: wins, progress, blockers, decisions, asks and what's next. Each entry lands in the week and sprint week of its date, and flows into the weekly and sprint reports for the audience you choose. "Just me" entries never leave the toolkit.</p>
+      ${ro ? "" : `<form id="add-log" class="card log-form"><h2>Log something</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Log</button></div></form>`}
+      ${byWeek.map(([w, list]) => `<section class="card"><div class="row"><h2>${esc(w.label)}</h2>${w.sprint ? `<span class="pill">${esc(w.sprint.label)}</span>` : ""}${w.role_week ? `<span class="quiet">week ${w.role_week} in the role</span>` : ""}<span class="spacer"></span><a href="#/status?week=${w.start}">Report</a></div>
+        ${list.map((e) => `<details class="plan-item log-entry" data-log="${e.id}"><summary><span class="quiet log-day">${BA.fmtDate(e.date)}</span><span class="pill ${LOG_TONES[e.kind]}">${LOG_LABELS[e.kind]}</span><span>${esc(e.text)}</span>${(e.jira_keys || []).map((k) => `<span class="jira-key">${esc(k)}</span>`).join("")}<span class="spacer"></span><span class="quiet">${esc(e.audience)}</span></summary>
+          ${e.details ? BA.md(e.details) : ""}${ro ? "" : `<form>${fields(e)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("log_entry", e.id)}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") || '<p class="empty">Nothing logged in the last 12 weeks.</p>'}`;
+    if (ro) return;
+    const add = main.querySelector("#add-log");
+    add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/log-entries", { method: "POST", body: read(add) }); BA.toast("Logged."); BA.rerender(); });
+    main.querySelectorAll("[data-log]").forEach((det) => {
+      const id = det.dataset.log, form = det.querySelector("form");
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/log-entries/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this entry?")) return; await BA.api(`/api/log-entries/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderActivity(main) {
+    const q = hashQuery();
+    const wk = await BA.api(`/api/weeks${q.get("week") ? `?on=${q.get("week")}` : ""}`);
+    const d = await BA.api(`/api/activity?start=${wk.start}&end=${wk.end}`);
+    if (d.hidden) { main.innerHTML = `${reportTabs("activity")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const evText = (ev) => ev.event === "added" ? "added" : ev.event === "finished" ? `finished (${esc(ev.to)})` : `${esc(ev.from)} → ${esc(ev.to)}`;
+    main.innerHTML = `${reportTabs("activity")}
+      <section class="card"><div class="row"><select id="week-pick" style="max-width:340px">${wk.recent.map((w) => `<option value="${w.start}"${w.start === wk.start ? " selected" : ""}>${esc(w.label)}${w.sprint ? ` · ${esc(w.sprint.label)}` : ""}</option>`).join("")}</select></div>
+        <p class="quiet">Everything you added or moved forward in the toolkit this week, by day. Private. Use "Add to log" to put something into a report, in your own words and for the audience you choose.</p></section>
+      ${d.days.map((day) => `<section class="card"><div class="row"><h2>${new Date(day.date + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</h2>${weekChip(day.stamp)}</div>
+        ${day.log.map((e) => `<div class="item"><span class="pill ${LOG_TONES[e.kind]}">${LOG_LABELS[e.kind]}</span><span>${esc(e.text)}</span><span class="spacer"></span><span class="quiet">logged · ${esc(e.audience)}</span></div>`).join("")}
+        ${day.events.map((ev, i) => `<div class="item"><span class="pill${ev.event === "finished" ? " good" : ""}">${esc(ev.type)}</span><a href="#${ev.path}">${esc(ev.title)}</a><span class="quiet">${evText(ev)}${ev.points ? ` · ${ev.points} pts` : ""}</span><span class="spacer"></span>
+          ${ev.promoted ? '<span class="quiet">in the log</span>' : `<button class="btn" data-promote="${day.date}|${i}">Add to log</button>`}</div>`).join("")}</section>`).join("") || '<p class="empty">Nothing recorded this week.</p>'}`;
+    main.querySelector("#week-pick").onchange = (e) => BA.go(`/status/activity?week=${e.target.value}`);
+    main.querySelectorAll("[data-promote]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const [dd, i] = b.dataset.promote.split("|");
+      const ev = d.days.find((x) => x.date === dd).events[Number(i)];
+      const text = prompt("How should this read in a report?", `${ev.event === "finished" ? "Finished: " : ""}${ev.title}`);
+      if (!text) return;
+      const kind = ev.event === "finished" ? "win" : ev.entity === "risk" ? "risk" : ev.entity === "decision_needed" ? "decision" : "progress";
+      await BA.api("/api/activity/promote", { method: "POST", body: { entity: ev.entity, id: ev.id, date: ev.date, kind, text, audience: "my manager" } });
+      BA.toast("Added to the work log, for your manager. Change the audience in the Work log.");
+      BA.rerender();
+    })));
+  }
+
+  async function renderSaved(main) {
+    const list = await BA.api("/api/reports");
+    const ro = presenting();
+    main.innerHTML = `${reportTabs("saved")}
+      <section class="card"><h2>Saved reports</h2><p class="quiet">What you saved or sent, as it read at the time. Edits keep a history.</p>
+        ${list.map((r) => `<details class="plan-item" data-rep="${r.id}"><summary><span class="pill ${r.status === "sent" ? "good" : ""}">${esc(r.status)}</span><b>${esc(r.title)}</b><span class="quiet">${esc(r.audience)}</span><span class="spacer"></span>
+            <span class="quiet">${r.sent_on ? `sent ${BA.fmtDate(r.sent_on)}${r.sent_to ? ` to ${esc(r.sent_to)}` : ""}` : `saved ${BA.fmtDate(r.created_on)}`}</span></summary>
+          <div class="msg-preview">${BA.md(r.markdown)}</div>
+          ${ro ? "" : `<div class="actions"><button class="btn danger left" data-del>Delete</button>${BA.historyButton("report", r.id)}<button class="btn" data-copy>Copy Markdown</button>${r.status === "sent" ? "" : '<button class="btn primary" data-sent>Mark sent</button>'}</div>`}</details>`).join("") || '<p class="quiet">Nothing saved yet.</p>'}</section>`;
+    if (ro) return;
+    main.querySelectorAll("[data-rep]").forEach((det) => {
+      const r = list.find((x) => x.id === Number(det.dataset.rep));
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this saved report?")) return; await BA.api(`/api/reports/${r.id}`, { method: "DELETE" }); BA.rerender(); });
+      det.querySelector("[data-copy]").onclick = BA.guard(async () => { await navigator.clipboard.writeText(r.markdown); await BA.api("/api/reports/exported", { method: "POST", body: { title: r.title, markdown: r.markdown, kind: r.kind } }); BA.toast("Copied. Logged as an export."); });
+      const sent = det.querySelector("[data-sent]");
+      if (sent) sent.onclick = BA.guard(async () => { const to = prompt("Who did it go to? (optional)", ""); if (to === null) return; await BA.api(`/api/reports/${r.id}`, { method: "PATCH", body: { status: "sent", sent_on: BA.today(), sent_to: to || null } }); BA.rerender(); });
+    });
+  }
 
   // ---------------------------------------------------------------- Retrospectives
 
@@ -4081,4 +4256,5 @@
       BA.toast("Saved.");
     });
   }
+
 })();

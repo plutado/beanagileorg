@@ -217,7 +217,7 @@
     const { tips, guide_base } = await loadTips();
     if (main.querySelector(":scope > .coach-tip")) return;
     const list = tips[key] || [];
-    if (!list.length || location.hash.slice(1).replace(/\/$/, "") !== key && location.hash) return;
+    if (!list.length || location.hash.slice(1).split("?")[0].replace(/\/$/, "") !== key && location.hash) return;
     const i = (BA.coachIndex[key] || 0) % list.length;
     const tip = list[i];
     const external = !guide_base.startsWith("#");
@@ -446,7 +446,8 @@
   let routeToken = 0;
   async function route() {
     const token = ++routeToken;
-    const path = location.hash.slice(1) || BA.session.nav.find((i) => i.path)?.path || "/settings";
+    // A query after the path (#/status?week=2026-10-12) is for the view to read; routing ignores it.
+    const path = location.hash.slice(1).split("?")[0] || BA.session.nav.find((i) => i.path)?.path || "/settings";
     const key = matchView(path);
     const def = key ? BA.views[key] : null;
     renderNav(key);

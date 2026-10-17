@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
 - [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer), since reviews say there's no clear channel to leadership
 - [ ] Culture: import outside culture signals (themes from public reviews) as organization-level notes with a source and date, so they sit beside what you see yourself
 - [ ] Culture: show agreed team agreements inside the retro view, and a growth-path page for direct reports (levels and what moves someone up)
@@ -93,6 +94,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Weeks, sprint weeks and reports. A daily work log (win, progress, blocker, risk, decision, ask, next, note), each entry for leadership, my manager or just me, with a quick-log box on Today. Every date maps to its week (start day configurable), week in the role, and sprint week (a two-week sprint has week 1 and week 2). The Weekly report drafts any week for leadership (exportable data only) or my manager (presentable too): overall colour, sprint progress, highlights, delivered, blockers and risks, decisions, asks, next week, metrics. The Sprint report covers goal, points done against committed, what didn't finish, velocity and each sprint week. Drafts can be edited, copied (logged as an export), saved, and marked sent with who it went to. Activity shows everything added or moved forward in a week, by day, with Add to log. Today flags a weekly report not yet saved and a finished sprint without a report. The router now ignores a query after the path (#/status?week=…); 193 tests
 
 - [x] 2026-10-16: Culture and trust. A new section that keeps soft skills and culture in view: My standards (your own commitments, one shown on Today each day, with a weekly 1-to-5 self-check and trend); Noticing (a private log of concerns and good moments on your team or in the wider organization, by category such as intimidation, chaos from missing process, quiet voices unheard or blame, with what you did, status and a follow-up date; concerns on your team still at "not yet" after a week show on Today); Trust pulse (your read or a team survey across safety, clarity, trust, unity, collaboration, workload and recognition, on a cadence you set); Team agreements (proposed, agreed with a date, retired, with review dates; shown while presenting); and a Role brief. Six new coaching guides in a Culture and trust theme (building trust, strong and quiet voices, calling out harmful behavior, consistency, order without bureaucracy, challenging the wider organization) and tips on Culture, Retros, Teams, Scrum of Scrums, People and SDLC; 188 tests
 

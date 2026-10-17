@@ -179,10 +179,14 @@ TOOLKIT = {
         "related": ["/rollup", "/status", "/coaching/your-manager"],
     },
     "/status": {
-        "purpose": "A weekly status draft built only from shareable data, with a suggested overall colour and the reason.",
-        "steps": ["Read the draft and check the suggested colour and reason.", "Copy it as Markdown and adjust the first line so it says the most important thing, or pull it into the Comms studio and finish it there."],
-        "privacy": "Only exportable data ever reaches this draft.",
-        "related": ["/roadmap", "/risks", "/coaching/honest-status"],
+        "purpose": "Weekly and sprint reports drafted from what you log each day and what you update in the toolkit, for leadership or for your manager.",
+        "steps": ["Log wins, progress, blockers, decisions, asks and what's next as they happen, from Today or the Work log, and pick who each one is for.",
+                  "Each entry and update lands in its week and sprint week: a two-week sprint has a week 1 and a week 2.",
+                  "Open the Weekly report, pick the week and the audience, read the draft and edit it; then copy it or save it as sent.",
+                  "At the end of a sprint, the Sprint report shows the goal, points done, what carried over and each week of the sprint.",
+                  "Check Activity for anything you moved forward but didn't log, and add it to the log in your own words."],
+        "privacy": "Leadership reports use only exportable data and entries marked for leadership; your manager's report can also use entries marked for them. Just-me entries and Activity stay private.",
+        "related": ["/sprints", "/risks", "/coaching/honest-status"],
     },
     "/architecture": {
         "purpose": "How your systems and tools fit together: a catalog, the integrations between them, a system map, decision records and guides.",

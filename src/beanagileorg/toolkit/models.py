@@ -103,6 +103,11 @@ CULTURE_STATUS = ("open", "watching", "addressed")
 SEVERITY = ("low", "medium", "high")
 AGREEMENT_AREAS = ("working together", "disagreement", "meetings", "code review", "communication", "quality", "other")
 AGREEMENT_STATUS = ("proposed", "agreed", "retired")
+LOG_KINDS = ("win", "progress", "blocker", "risk", "decision", "ask", "next", "note")
+LOG_AUDIENCES = ("leadership", "my manager", "just me")
+REPORT_KINDS = ("weekly", "sprint")
+REPORT_AUDIENCES = ("leadership", "my manager")
+REPORT_STATUS = ("draft", "sent")
 PULSE_SOURCES = ("my read", "team survey")
 SESSION_STATUS = ("proposed", "scheduled", "done")
 STEP_METHODS = ("call", "page", "chat", "email", "in person")
@@ -1132,6 +1137,40 @@ MIGRATIONS = [
             agreed_on DATE,
             review_on DATE,
             position INTEGER NOT NULL DEFAULT 0
+        );
+        """,
+    ),
+    (
+        21,
+        """
+        CREATE TABLE work_log (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'progress',
+            text TEXT NOT NULL,
+            details TEXT,
+            audience TEXT NOT NULL DEFAULT 'leadership',
+            jira_keys TEXT,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            source_entity TEXT,
+            source_id INTEGER
+        );
+        CREATE INDEX work_log_date ON work_log (date);
+        CREATE TRIGGER work_log_default_team AFTER INSERT ON work_log WHEN NEW.team_id IS NULL
+        BEGIN UPDATE work_log SET team_id = (SELECT id FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1) WHERE id = NEW.id; END;
+        CREATE TABLE reports (
+            id INTEGER PRIMARY KEY,
+            kind TEXT NOT NULL DEFAULT 'weekly',
+            audience TEXT NOT NULL DEFAULT 'leadership',
+            period_start DATE NOT NULL,
+            period_end DATE NOT NULL,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            title TEXT NOT NULL,
+            markdown TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft',
+            sent_on DATE,
+            sent_to TEXT,
+            created_on DATE NOT NULL DEFAULT CURRENT_DATE
         );
         """,
     ),
@@ -2674,6 +2713,49 @@ team_agreements = Record(
     },
 )
 
+# A daily note of what happened. Its audience caps who can ever see it: leadership reports, your manager's, or only you.
+work_log = Record(
+    entity="log_entry",
+    table="work_log",
+    path="/api/log-entries",
+    order_by="date DESC, id DESC",
+    ceiling_sql="CASE audience WHEN 'just me' THEN 0 WHEN 'my manager' THEN 1 ELSE 2 END",
+    fields={
+        "date": Field("date", E, required=True),
+        "kind": Field("text", E, choices=LOG_KINDS, default="progress"),
+        "text": Field("text", E, required=True),
+        "details": Field("text", E),
+        "audience": Field("text", E, choices=LOG_AUDIENCES, default="leadership"),
+        "jira_keys": Field("keys", E),
+        "team_id": Field("int", S),
+        "source_entity": Field("text", P),
+        "source_id": Field("int", P),
+    },
+)
+
+# Reports as sent: the edited text is kept, with who it went to and when.
+reports = Record(
+    entity="report",
+    table="reports",
+    path="/api/reports",
+    order_by="period_start DESC, id DESC",
+    ceiling_sql="CASE audience WHEN 'my manager' THEN 1 ELSE 2 END",
+    fields={
+        "kind": Field("text", E, choices=REPORT_KINDS, default="weekly"),
+        "audience": Field("text", E, choices=REPORT_AUDIENCES, default="leadership"),
+        "period_start": Field("date", E, required=True),
+        "period_end": Field("date", E, required=True),
+        "sprint_id": Field("int", E),
+        "title": Field("text", E, required=True),
+        "markdown": Field("text", E, required=True),
+        "status": Field("text", E, choices=REPORT_STATUS, default="draft"),
+        "sent_on": Field("date", E),
+        "sent_to": Field("text", P),
+        "created_on": Field("date", E),
+    },
+    computed={"sprint_number": ("(SELECT number FROM sprints s WHERE s.id = reports.sprint_id)", E)},
+)
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -2692,5 +2774,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, team_agreements,
+    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports,
 ]
