@@ -85,6 +85,14 @@ In the order the 90-day plan needs them:
 - [ ] Media production board: script, storyboard, shot list, recording, edit, captions, review, publish
 - [ ] Questions log and communication measures
 
+## Possible outcomes to plan for (not committed)
+
+- [ ] If David becomes a manager of managers or chief Scrum of Scrums (raised 2026-10-17): each manager runs their own local install, with their own data on their own machine, trained by David. Points to settle when it happens:
+  - Install from releases and customise through settings and practice packs, rather than forking. Forks drift, and they make it hard to share improvements. Keep forks for managers who want to change the code.
+  - A roll-up for David across his managers that uses exported status packs only, never their raw data. This builds on the existing "status packs back" plan.
+  - A short training path: install, first-week setup (roster, mandate, First 90 days), and the weekly rhythm (work log, reports, Scrum of Scrums).
+  - Whose device and whose data: each manager's data stays on their company machine, under the same privacy levels.
+
 ## Shared base and platform
 
 - [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location; a warning on Today when the last good backup is more than two days old
@@ -101,6 +109,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Leading upward. A coaching guide on proposing the plan to a manager who looks to you for it; the manager-conversation prompts now lead with proposals; the mandate's open-questions field is now "Proposals and open questions", and the mandate guide says to bring it as a proposal. David's mandate draft is rewritten as ten proposals, three genuine questions, and a proposed authority for each of 15 decision areas; 211 tests
 
 - [x] 2026-10-17: Getting up to speed on purpose, in First 90 days. Situation: each area (the team, delivery, quality and releases, the Salesforce platform, MuleSoft, stakeholders) diagnosed as a start-up, turnaround, accelerated growth, realignment or sustaining success, with private evidence and the approach it calls for; short original descriptions of each. Learning agenda: questions about the past, present, future, people, technical, products and politics, who could answer each, by which day, and what I learned; 15 starter questions; late ones on Today. Early wins: plan items can be marked as early wins. Conversations with my manager: situation, expectations, working style, resources, my development and the 90-day plan, each with when it was held, what was agreed and what's open; Today flags any not held by day 21. Plans can be marked agreed (with my manager by default). Mentoring: the managers I mentor, sessions with next steps, and practices shared, trying, adopted or dropped. A Momentum card shows early wins landed, changes kept, wins logged, practices adopted and the trust trend. Tips for each; 211 tests
 

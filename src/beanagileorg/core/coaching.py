@@ -781,8 +781,8 @@ GUIDES = [
         "why": "Most early trouble in a new role comes from assumptions that were never spoken: you think you can reorganize the team, your manager thinks you were hired to stabilize it; you think a decision is yours, a peer thinks it's theirs. Writing the mandate down turns those assumptions into a conversation while it's still cheap to have.",
         "practices": [
             "Write a short draft yourself first: the purpose of the role, the outcomes you think are expected, and the decisions you think are yours.",
-            "Take it to your manager as questions, not claims. Ask what success looks like at 30, 60 and 90 days and how they'll judge it.",
-            "Go decision by decision. For each area, agree whether you decide, decide and inform, recommend, or are only consulted.",
+            "Bring it to your manager as a proposal: what you recommend and why, with room for them to shape it. Keep genuine questions for what only they can know.",
+            "Go decision by decision. For each area, propose whether you decide, decide and inform, recommend, or are only consulted, and agree it.",
             "Ask about boundaries: what must not change, what needs sign-off, and where the politics are.",
             "Ask what resources and support you'll have, and what you can spend without asking.",
             "Agree a date to revisit it. Mandates shift as you learn and as the organization changes.",
@@ -835,6 +835,38 @@ GUIDES = [
             "Fill in 'what I can offer them' and 'what I need from them' for every peer.",
         ],
         "related": ["/people/balance", "/sos", "/coaching/earning-trust"], "reading": [F90],
+    },
+    {
+        "slug": "leading-upward", "theme": "transition", "minutes": 6, "since": 12,
+        "title": "Leading upward: proposing the plan to your manager",
+        "summary": "Sometimes you're hired for experience your manager doesn't have. Then the job is to propose, not ask: bring a recommendation, make the decision easy, and let them shape it and own it.",
+        "why": "A manager who looks to you for the plan still carries the risk of it, and still has to defend it to their own leadership. If you only ask what they want, you waste the experience you were hired for. If you simply announce the plan, they lose the chance to shape it and won't stand behind it. Proposing well sits between the two.",
+        "practices": [
+            "Lead with a recommendation, the two or three options you weighed, and why you chose this one.",
+            "Say exactly what you need from them: a decision, backing if there's pushback, an introduction, budget.",
+            "Leave real room for their changes. A plan they've shaped is one they'll defend upward.",
+            "Split the expertise openly: you bring how to run delivery and what you've seen elsewhere; they bring the organization's history, people and sensitivities. Ask for theirs on purpose.",
+            "Give them a one-line version they can repeat to their own leadership, and share the credit for early wins.",
+            "Match the moment: listen and test hypotheses in your first weeks, then propose once you've earned the right with the listening tour.",
+            "Close every proposal with what was agreed, written down, so the next conversation starts from there.",
+        ],
+        "pitfalls": [
+            "Asking open questions when you were hired to bring answers.",
+            "Overwhelming them with detail instead of a clear recommendation.",
+            "Treating their long tenure as a weakness rather than a source of knowledge you don't have.",
+            "Making them look uninformed in front of their leadership or peers.",
+            "Proposing so much change at once that saying yes feels like a risk.",
+        ],
+        "questions": [
+            "What am I asking my manager that I should be proposing instead?",
+            "What do they know about this organization that I need, and have I asked?",
+            "How would my manager explain this plan to their boss in one sentence?",
+        ],
+        "try": [
+            "Turn your open questions for your next one-on-one into proposals, keeping only the ones only they can answer.",
+            "Ask your manager for the history behind one thing you plan to change, before you propose changing it.",
+        ],
+        "related": ["/first90/mandates", "/plans", "/coaching/your-mandate"], "reading": [F90],
     },
     # ---------------------------------------------------------------- culture and trust
     {
@@ -1011,7 +1043,8 @@ TIPS = {
                  ('Keep a learning agenda: the questions you need answered, who can answer them, and by when.', 'learn-fast', 11),
                  ('Mark a few plan items as early wins: visible improvements people already want. They build the credibility for the bigger changes.', 'early-wins', 11),
                  ('Hold the five conversations with your manager early: situation, expectations, working style, resources and your development.', 'your-manager', 11),
-                 ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11)],
+                 ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11),
+                 ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
@@ -1060,7 +1093,8 @@ TIPS = {
     "/dev-sync": [("Follow up on every item, even when the answer is no. Closed loops build trust.", "earning-trust")],
     "/learning": [("Teaching others is one of the fastest ways to learn. Invite people to present what they know.", "delegation")],
     "/vendors": [("Talk to key vendors regularly, not only during incidents.", "vendor-partnerships")],
-    "/plans": [("Your plans deliver your mandate. Check each plan item against the outcomes you agreed with your manager.", "your-mandate", 9),
+    "/plans": [("Present the plan as your recommendation, with the options you weighed. Leave room for your manager to shape it, then agree it.", "leading-upward", 12),
+               ("Your plans deliver your mandate. Check each plan item against the outcomes you agreed with your manager.", "your-mandate", 9),
                ("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
                ("Pick a few early wins that solve problems people already feel.", "early-wins")],
     "/status": [("Log one line at the end of each day. Friday's report then writes itself, and nothing good gets forgotten.", "honest-status", 7),
@@ -1134,7 +1168,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 11  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 12  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

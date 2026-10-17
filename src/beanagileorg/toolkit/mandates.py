@@ -197,7 +197,7 @@ def mandate_markdown(conn, mandate_id: int, viewer: Viewer) -> dict:
     md += ["## What the role is for", f.get("purpose") or "[Placeholder]", ""]
     md += ["## What success looks like"] + ([f"- {o['text']}" + (f" (measure: {o['measure']})" if o.get("measure") else "") + (f", by {o['due']}" if o.get("due") else (f", by day {o['due_day']}" if o.get("due_day") else "")) for o in f["outcomes"]] or ["- [Placeholder]"])
     md += ["", "## Decisions", "| Area | Authority |", "| --- | --- |"] + [f"| {d['text']} | {d.get('authority') or 'to clarify'} |" for d in f["decisions"]]
-    for key, label in (("boundaries", "Boundaries"), ("resources", "Resources and support"), ("questions", "Still to clarify")):
+    for key, label in (("boundaries", "Boundaries"), ("resources", "Resources and support"), ("questions", "Proposals and open questions")):
         if f.get(key):
             md += ["", f"## {label}", f[key]]
     return {"title": title, "markdown": "\n".join(md)}

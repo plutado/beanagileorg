@@ -53,12 +53,12 @@ SITUATION_GUIDE = {
 STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
 
 BOSS_TOPICS = [
-    ("The situation", "How do we each see the situation? What's working, what isn't, and what kind of situation is it: a turnaround, a realignment, something else?"),
-    ("Expectations", "What does success look like at 30, 60, 90 days and six months, and how will it be judged? What must not go wrong?"),
-    ("Working style", "How do we like to communicate, how often, and in what form? What do you want to hear about, and what should I just handle?"),
-    ("Resources", "What do I have to work with (people, budget, tools, time), and what would I need to deliver more, faster?"),
-    ("My development", "Where can I grow in this role, what will I learn, and how will you help? (For me: Salesforce and MuleSoft depth.)"),
-    ("The 90-day plan", "Walk through the plan, adjust it together, and agree on it."),
+    ("The situation", "Bring your read of the situation (what's working, what isn't, what kind of situation it is) and test it against theirs. Ask for the history only they know: what's been tried, who matters, where the sensitivities are."),
+    ("Expectations", "Propose what success looks like at 30, 60 and 90 days and six months, and how you'll report on it. Ask what must not go wrong."),
+    ("Working style", "Propose a rhythm: how often you meet, what you'll send each week, what you'll handle yourself and what you'll bring to them. Ask what they want to hear about first."),
+    ("Resources", "Bring what you have and what would let you go faster, as a recommendation with options and their trade-offs."),
+    ("My development", "Say where you want to grow in this role and how they can help, including what you'll learn from their knowledge of the organization."),
+    ("The 90-day plan", "Present the plan as your recommendation, invite changes, and agree it together. Give them a one-line version they can share upward."),
 ]
 
 
