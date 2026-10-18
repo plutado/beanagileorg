@@ -12,7 +12,7 @@ from .routes import require_write
 router = APIRouter()
 ENTITIES = ("sdlc_stage", "sdlc_environment", "sdlc_policy")
 
-# Generic Scrum practice for a Salesforce and MuleSoft team. Anything that depends on how [employer] works is a
+# Generic Scrum practice for a Salesforce and MuleSoft team. Anything that depends on how the company works is a
 # [Placeholder] for the team to settle, and every policy starts as a draft.
 STARTER_STAGES = [
     ("Intake", "Capture a need and decide whether it belongs on the backlog.",

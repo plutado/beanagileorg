@@ -2279,7 +2279,7 @@
       const [offers, depts] = await Promise.all([BA.api("/api/landscape/offerings"), BA.api("/api/departments")]);
       const ro = presenting();
       main.innerHTML = `${landscapeTabs("")}
-        <p class="quiet">What [employer] offers today, who owns it and what it runs on. Open one to assess it.</p>
+        <p class="quiet">What the company offers today, who owns it and what it runs on. Open one to assess it.</p>
         <div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Kind</th><th>Owner</th><th>Maturity</th><th>Runs on</th><th>Assessment</th></tr></thead><tbody>${
           offers.map((o) => `<tr class="clickable${o.status === "retired" ? " muted" : ""}" data-id="${o.id}"><td><b>${esc(o.name)}</b>${o.status !== "active" ? ` <span class="pill">${esc(o.status)}</span>` : ""}<div class="quiet">${esc(o.customers || "")}</div></td>
             <td>${esc(o.kind)}</td><td>${esc(o.department_name || "")}</td><td>${o.maturity ? tonePill(o.maturity, MATURITY_TONES) : ""}</td>
@@ -3109,7 +3109,7 @@
       const [obs, people, items] = await Promise.all([BA.api("/api/onboardings"), BA.api("/api/people"), BA.api("/api/onboarding-items")]);
       const ro = presenting();
       main.innerHTML = `${obTabs("")}
-        ${!items.length && !ro ? `<section class="card"><h2>Start with a checklist</h2><p class="quiet">The starter checklist covers access, setup, people, ways of working, systems, learning and first work, from the week before day 1 to day 90, with separate items for Salesforce developers, MuleSoft developers, QA, employees and contractors. Anything specific to [employer] is a [Placeholder] for you to fill in.</p>
+        ${!items.length && !ro ? `<section class="card"><h2>Start with a checklist</h2><p class="quiet">The starter checklist covers access, setup, people, ways of working, systems, learning and first work, from the week before day 1 to day 90, with separate items for Salesforce developers, MuleSoft developers, QA, employees and contractors. Anything specific to your company is a [Placeholder] for you to fill in.</p>
           <button class="btn primary" id="ob-starter">Load the starter checklist</button></section>` : ""}
         <div class="sys-grid">${obs.map((o) => `<a class="sys-card" href="#/onboarding/${o.id}"><div class="row"><b>${esc(o.person_name)}</b><span class="spacer"></span>${BA.statusPill(o.status)}</div>
             <div class="quiet">${esc(o.person_role || "")}${o.start_date ? ` · starts ${BA.fmtDate(o.start_date)}` : ""}${o.buddy_name ? ` · buddy ${esc(o.buddy_name)}` : ""}</div>
@@ -3257,7 +3257,7 @@
       const d = await BA.api("/api/sdlc");
       const ro = presenting();
       const empty = !d.stages.length && !d.environments.length && !d.policies.length;
-      const starterCard = empty && !ro ? `<section class="card"><h2>Start from a draft</h2><p class="quiet">Nine stages from intake to support, each with when it starts, what happens and when it's done; Salesforce and MuleSoft environments; and draft policies for branching, review, testing, release, changes, hotfixes, freezes and test data. Anything specific to how [employer] works is a [Placeholder] for the team to settle.</p>
+      const starterCard = empty && !ro ? `<section class="card"><h2>Start from a draft</h2><p class="quiet">Nine stages from intake to support, each with when it starts, what happens and when it's done; Salesforce and MuleSoft environments; and draft policies for branching, review, testing, release, changes, hotfixes, freezes and test data. Anything specific to how your company works is a [Placeholder] for the team to settle.</p>
         <button class="btn primary" id="sdlc-starter">Load the starter SDLC</button></section>` : "";
       const bindStarter = () => { const b = main.querySelector("#sdlc-starter"); if (b) b.onclick = BA.guard(async () => { await BA.api("/api/sdlc/starter", { method: "POST", body: {} }); BA.rerender(); }); };
       if (param === "environments") return renderEnvs(main, d, ro, starterCard, bindStarter);

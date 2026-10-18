@@ -2087,7 +2087,7 @@ plan_items = Record(
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S)},
 )
 
-# ---- business landscape: structure is presentable; the assessment is [employer]'s confidential view, so private ----
+# ---- business landscape: structure is presentable; the assessment is the company's confidential view, so private ----
 
 departments = Record(
     entity="department",
