@@ -21,6 +21,8 @@ from .routes import START_DATE_KEY, require_write, today
 router = APIRouter()
 
 STARTER_QUESTIONS = [
+    ("present", "How much Agile does the team actually practice? Which ceremonies happen, which artifacts exist (backlog, sprint goal, definition of done, board), and how disciplined is it?", 7),
+    ("present", "Does an SDLC exist, and what shape is it: written down or tribal, followed or skipped under pressure, and where does it break?", 7),
     ("past", "What has been tried before to bring in Scrum or a QA process, and what happened?", 21),
     ("past", "Why have people left the team, in their words and in their managers'?", 21),
     ("past", "What did the team's previous managers do that people valued?", 30),
