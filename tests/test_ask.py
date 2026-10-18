@@ -11,6 +11,12 @@ from beanagileorg.toolkit.app import build
 PASSWORD = "[placeholder-password]"
 
 
+@pytest.fixture(autouse=True)
+def _no_release(monkeypatch):
+    from beanagileorg.core import ask as _a
+    monkeypatch.setattr(_a, "release", lambda s: None)  # never unload the real local Ollama during tests
+
+
 @pytest.fixture
 def setup(tmp_path):
     c = TestClient(build(Settings(app="toolkit", title="Toolkit", port=0, data_dir=tmp_path)), follow_redirects=False)
@@ -98,3 +104,18 @@ def test_anthropic_shape(setup, monkeypatch):
     assert calls[0][0] == "https://api.anthropic.com/v1/messages" and calls[0][1]["x-api-key"] == "[k]"
     assert calls[1][2]["messages"][-1]["content"][0]["type"] == "tool_result"
     assert c.put("/api/ask/settings", json={"provider": "other"}).status_code == 400
+
+
+def test_release_only_for_local_ollama(monkeypatch):
+    from beanagileorg.core import ask as a
+    import importlib
+    real = importlib.reload(a).release  # the unpatched function
+    calls = []
+    monkeypatch.setattr(a.urllib.request, "urlopen", lambda req, timeout=10: calls.append((req.full_url, req.data)) or __import__("io").BytesIO(b""))
+    real({**a.DEFAULTS})
+    assert calls and calls[0][0] == "http://127.0.0.1:11434/api/generate" and b'"keep_alive": 0' in calls[0][1]
+    calls.clear()
+    real({**a.DEFAULTS, "release_after": False})
+    real({**a.DEFAULTS, "base_url": "https://api.example.com/v1"})
+    real({**a.DEFAULTS, "provider": "anthropic"})
+    assert calls == []

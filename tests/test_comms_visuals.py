@@ -21,6 +21,12 @@ def tiny_png() -> bytes:
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
 
 
+@pytest.fixture(autouse=True)
+def _no_release(monkeypatch):
+    from beanagileorg.core import ask as _a
+    monkeypatch.setattr(_a, "release", lambda s: None)  # never unload the real local Ollama during tests
+
+
 @pytest.fixture
 def client(tmp_path):
     c = TestClient(build(Settings(app="comms", title="Comms", port=0, data_dir=tmp_path)), follow_redirects=False)

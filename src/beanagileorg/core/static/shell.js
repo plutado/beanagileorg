@@ -547,13 +547,14 @@
         <label>Model<input name="model" value="${BA.esc(s.model)}" placeholder="qwen3.6:35b-a3b"></label>
         <label>API key <span class="quiet">${s.has_key ? "(saved; leave blank to keep)" : "(not needed for a local model)"}</span><input type="password" name="api_key" autocomplete="off"></label>
         <label class="check"><input type="checkbox" name="allow_private_cloud"${s.allow_private_cloud ? " checked" : ""}> Let a cloud provider see private data too</label>
+        <label class="check"><input type="checkbox" name="release_after"${s.release_after ? " checked" : ""}> Unload a local model after each answer <span class="quiet">(frees about 20 GB on a shared Mac; the next question takes longer to start)</span></label>
         <div class="actions"><span class="pill ${s.local ? "good" : "warn"}">${s.local ? "local" : "cloud"}</span>${s.has_key ? '<button class="btn" type="button" id="ask-forget">Forget the key</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>`;
     main.querySelector("section.card")?.after(sec);
     const f = sec.querySelector("#ask-set");
     f.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const fd = new FormData(f);
-      const body = { provider: fd.get("provider"), base_url: fd.get("base_url"), model: fd.get("model"), allow_private_cloud: f.elements.allow_private_cloud.checked };
+      const body = { provider: fd.get("provider"), base_url: fd.get("base_url"), model: fd.get("model"), allow_private_cloud: f.elements.allow_private_cloud.checked, release_after: f.elements.release_after.checked };
       if (fd.get("api_key")) body.api_key = fd.get("api_key");
       if (body.allow_private_cloud && !confirm("A cloud provider would then receive private notes about people when it looks them up. Allow it?")) return;
       await BA.api("/api/ask/settings", { method: "PUT", body });

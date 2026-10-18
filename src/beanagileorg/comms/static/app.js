@@ -925,7 +925,7 @@
       const imgSet = await BA.api("/api/images/settings");
       main.innerHTML = `
         <section class="card"><h2>Generate an image</h2>
-          <p class="quiet">Illustrations, slide backgrounds and thumbnails from a description, made on this computer by the image service (${esc(imgSet.model)}). Images can't hold reliable words or numbers: use <a href="#/infographics">Infographics</a> for those. Use yourself, designed characters or animals as subjects, never a real colleague.</p>
+          <p class="quiet">Illustrations, slide backgrounds and thumbnails from a description, made on this computer by the image service (${esc(imgSet.model)}). Images can't hold reliable words or numbers: use <a href="#/infographics">Infographics</a> for those. Use yourself, designed characters or animals as subjects, never a real colleague. On this Mac, generating an image unloads any language model that's loaded (Odysseus or Ask), so their next answer starts slower.</p>
           <form id="gen" class="grid2"><label style="grid-column:1/-1">Describe the image<textarea name="prompt" rows="2" required placeholder="[Placeholder: a calm team at a whiteboard planning a sprint, seen from behind]"></textarea></label>
             <label>Shape<select name="size"><option value="slide">Slide (16:9)</option><option value="thumbnail">Video thumbnail (16:9)</option><option value="square">Square</option><option value="portrait">Portrait</option></select></label>
             <label>Model<select name="model"><option value="flux2-klein-4b">Klein 4B (fast, everyday)</option><option value="flux2-klein-9b">Klein 9B (finer; pauses the local language model while it runs)</option></select></label>

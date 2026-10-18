@@ -118,6 +118,13 @@ In the order the 90-day plan needs them:
 
 - [ ] Agile Cat (David's idea, 2026-10-17): the public site at beanagile.org becomes a series of short AI-generated cat videos about Agile, in place of the single cat video. It stays light, with no link to [employer] or the apps. Episodes could take on a sprint, a stand-up, a retro, a blocked story, or scope creep at 4:59 on a Friday. Hosted on DreamHost with the same HLS player and transcripts as the share platform. `site/` becomes the Agile Cat page.
 
+## Memory on David's Mac (measured by the Odysseus session, 2026-10-18)
+
+- [x] Ask unloads its local model right after each answer (Ollama keep_alive 0), on by default and switchable in Settings → Ask; the image screen says that generating unloads any loaded language model
+- [ ] Decide Ask's model on this Mac: keep the official qwen3.6:35b-a3b and unload after each answer (current), switch to ajax:9b (5.6 GB, but abliterated), or pull a stock 8B-class model (needs a download). On the company device, the official model stays the default
+- [ ] David's call, outside this repo: set OLLAMA_MAX_LOADED_MODELS to 1 in both Ollama launchd plists (re-apply after brew upgrade); add an idle unload to flux-mlx-server, which holds flux2-klein-4b (about 32 GB) permanently. The voice server (about 11 GB) stays as it is for now
+- [ ] Later: a small shared "who holds the GPU" lease service if contention stays a problem
+
 ## Shared base and platform
 
 - [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location; a warning on Today when the last good backup is more than two days old

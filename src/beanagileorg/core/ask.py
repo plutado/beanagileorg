@@ -36,7 +36,8 @@ from .records import REGISTRY
 
 SETTINGS_KEY = "ask.settings"
 SECRET_FILE = "ask-secret.json"
-DEFAULTS = {"provider": "openai", "base_url": "http://127.0.0.1:11434/v1", "model": "qwen3.6:35b-a3b", "allow_private_cloud": False, "max_rounds": 6}
+DEFAULTS = {"provider": "openai", "base_url": "http://127.0.0.1:11434/v1", "model": "qwen3.6:35b-a3b", "allow_private_cloud": False, "max_rounds": 6,
+            "release_after": True}
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 MAX_TOOL_CHARS = 6000
 
@@ -259,6 +260,23 @@ def _anthropic_turn(s: dict, key: str | None, system: str, messages: list, tools
     return text or None, calls, out.get("content", [])
 
 
+def release(s: dict) -> None:
+    """On a shared machine, unload a local Ollama model right after use, so it doesn't hold ~20 GB while idle.
+
+    Ollama's OpenAI-compatible API has no keep-alive setting, so this calls its native API with keep_alive 0, the
+    same way flux-mlx-server frees memory before loading an image model. Silent if it isn't Ollama.
+    """
+    if not s.get("release_after") or s["provider"] == "anthropic" or not is_local(s["base_url"]):
+        return
+    u = urlparse(s["base_url"])
+    native = f"{u.scheme}://{u.netloc}/api/generate"
+    try:
+        req = urllib.request.Request(native, data=json.dumps({"model": s["model"], "keep_alive": 0}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+        urllib.request.urlopen(req, timeout=10).close()
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        pass
+
+
 def complete(s: dict, key: str | None, system: str, user: str, max_tokens: int = 1500) -> str:
     """One plain request and answer, no tools: for drafting text or structured JSON from facts the caller supplies."""
     if s["provider"] == "anthropic":
@@ -269,6 +287,7 @@ def complete(s: dict, key: str | None, system: str, user: str, max_tokens: int =
         out = _post_json(s["base_url"].rstrip("/") + "/chat/completions", {"Authorization": f"Bearer {key}"} if key else {},
                          {"model": s["model"], "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}], "temperature": 0.3})
         text = out["choices"][0]["message"].get("content") or ""
+    release(s)
     return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
 
 
@@ -307,6 +326,7 @@ def ask(app: AskApp, conn, viewer: Viewer, s: dict, key: str | None, question: s
             for c in calls:
                 used.append({"tool": c["name"], "args": c["args"]})
                 messages.append({"role": "tool", "tool_call_id": c["id"], "content": run_tool(app, conn, floor, c["name"], c["args"])})
+    release(s)
     if answer is None:
         answer = "I couldn't finish within the allowed number of steps. Try a narrower question."
     answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.S).strip()  # some local models think out loud
@@ -345,6 +365,8 @@ def build_router(app_info: Callable[[], AskApp]) -> APIRouter:
                 s[k] = str(body[k]).strip()
         if "allow_private_cloud" in body:
             s["allow_private_cloud"] = bool(body["allow_private_cloud"])
+        if "release_after" in body:
+            s["release_after"] = bool(body["release_after"])
         if not s["base_url"].startswith(("http://", "https://")):
             raise HTTPException(400, "The address starts with http:// or https://.")
         if "api_key" in body:
