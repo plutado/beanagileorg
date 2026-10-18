@@ -1418,6 +1418,14 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        31,
+        """
+        ALTER TABLE preference_assessments ADD COLUMN hammer TEXT;
+        ALTER TABLE preference_assessments ADD COLUMN plan TEXT;
+        ALTER TABLE people ADD COLUMN advice TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1459,6 +1467,7 @@ people = Record(
         "offer_them": Field("text", P),
         "need_from_them": Field("text", P),
         "expects_from_me": Field("text", P),
+        "advice": Field("list", P),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),
@@ -2989,6 +2998,8 @@ preference_assessments = Record(
         "date": Field("date", P, required=True),
         "scores": Field("json", P),
         "notes": Field("text", P),
+        "hammer": Field("text", P),
+        "plan": Field("json", P),
     },
     hide_when_empty=True,
 )

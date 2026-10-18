@@ -22,7 +22,7 @@ ME_KEY = "people.me_id"
 SENSITIVE = ("personal_context", "support_notes", "key_dates", "motivations")
 OPTIONAL = ("start_date", "location", "timezone", "background", "skills", "certifications", "goals", "wants_to_learn", "can_teach", "working_style",
             "support_notes", "contact", "tags", "cadence_days", "influence", "stance", "communication", "motivations", "personal_context",
-            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them", "expects_from_me")
+            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them", "expects_from_me", "advice")
 
 
 def _today() -> date:
@@ -469,3 +469,19 @@ def import_roster(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), 
         members += [m for m in on_team if m not in members]
         models.teams.update(conn, team["id"], {"member_ids": members}, viewer.source)
     return {"created": created, "reused": reused, "me": me, "team_members": len(on_team)}
+
+
+ADVICE_KINDS = ("technical", "political", "personal")
+
+
+@router.get("/api/people/advice-network")
+def advice_network(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Your advisors by the kind of advice they give. Higher up, political counsel and personal advice matter more."""
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    out = {k: [] for k in ADVICE_KINDS}
+    for p in models.people.fetch_all(conn, "active = 1"):
+        for k in p.get("advice") or []:
+            if k in out:
+                out[k].append({"id": p["id"], "name": p["name"]})
+    return {"kinds": out, "missing": [k for k in ("political", "personal") if not out[k]]}

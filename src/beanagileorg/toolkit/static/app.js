@@ -208,7 +208,7 @@
   const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
     wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
     influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
-    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me" };
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for" };
   const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["balance", "Balance"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
   const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
@@ -507,6 +507,7 @@
         ${extra("communication", `<label>How they like to communicate<textarea name="communication" rows="2">${esc(p.communication || "")}</textarea></label>`)}
         ${extra("offer_them", `<label>What I can offer them <span class="quiet">(help, information, support for what they care about)</span><textarea name="offer_them" rows="2">${esc(p.offer_them || "")}</textarea></label>`)}
         ${extra("need_from_them", `<label>What I need from them <span class="quiet">(support, information, decisions, introductions)</span><textarea name="need_from_them" rows="2">${esc(p.need_from_them || "")}</textarea></label>`)}
+        ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("expects_from_me", `<label>What they expect from me <span class="quiet">(especially anyone who shapes how my work is judged)</span><textarea name="expects_from_me" rows="2">${esc(p.expects_from_me || "")}</textarea></label>`)}
         ${extra("things_to_remember", `<label>Things to remember <span class="quiet">(one per line)</span><textarea name="things_to_remember" rows="3">${esc((p.things_to_remember || []).join("\n"))}</textarea></label>`)}
         ${["motivations", "support_notes", "personal_context"].filter(show).map((f) => field(f, `<textarea name="${f}" rows="3">${esc(p[f] || "")}</textarea>`)).join("")}
@@ -525,6 +526,7 @@
       if (form.elements.next_meeting) body.next_meeting = fd.get("next_meeting") || null;
       for (const f of ["influence", "stance"]) if (form.elements[f]) body[f] = fd.get(f) || null;
       for (const f of ["communication", "motivations", "support_notes", "personal_context", "offer_them", "need_from_them", "expects_from_me"]) if (form.elements[f]) body[f] = fd.get(f);
+      if (form.querySelector('input[name="advice"]')) body.advice = fd.getAll("advice");
       if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
       if (form.querySelector("#key-dates")) {
         const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");
@@ -697,7 +699,7 @@
 
   async function renderPreferences(main) {
     if (presenting()) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
-    const d = await BA.api("/api/preferences");
+    const [d, people] = await Promise.all([BA.api("/api/preferences"), BA.api("/api/people")]);
     document.getElementById("view-title").textContent = "Problem preferences";
     const last = d.assessments[0];
     const cell = (a, k, i) => `<td><label style="display:flex;flex-direction:column;gap:4px;font-weight:400"><span class="quiet">${esc(a.cells[i])}</span><input type="number" min="1" max="10" name="${a.key}.${k.key}" value="${esc((last && last.scores && last.scores[a.key + "." + k.key]) || "")}" required style="max-width:70px"></label></td>`;
@@ -709,11 +711,18 @@
         <div class="tablewrap"><table class="data"><thead><tr><th></th>${d.kinds.map((k) => `<th>${esc(k.label)}<div class="quiet" style="font-weight:400;text-transform:none">${esc(k.about)}</div></th>`).join("")}<th>Total</th></tr></thead>
           <tbody>${d.areas.map((a) => `<tr><th>${esc(a.label)}</th>${d.kinds.map((k, i) => cell(a, k, i)).join("")}<td><b>${last ? last.rows[a.key] : "–"}</b>${lowA.has(a.key) ? ' <span class="pill warn">low</span>' : ""}</td></tr>`).join("")}
           <tr><th>Total</th>${d.kinds.map((k) => `<td><b>${last ? last.columns[k.key] : "–"}</b>${lowK.has(k.key) ? ' <span class="pill warn">low</span>' : ""}</td>`).join("")}<td></td></tr></tbody></table></div>
+        <label><b>My hammer</b> <span class="quiet">What has made you successful so far, and how could each strength misfire here? (Attention to detail can turn into micromanaging.)</span><textarea name="hammer" rows="3">${esc((last && last.hammer) || "")}</textarea></label>
         <label>Notes <span class="quiet">(optional)</span><textarea name="notes" rows="2"></textarea></label>
         <div class="actions"><button class="btn primary" type="submit">Save my ratings</button></div></form>
       ${last && last.complete ? `<section class="card"><h2>Possible blind spots</h2>${last.blind_spots.kinds.length || last.blind_spots.areas.length
         ? `<p>${[...last.blind_spots.kinds.map((k) => `${label(d.kinds, k)} problems`), ...last.blind_spots.areas.map((a) => label(d.areas, a))].map(esc).join(", ")} scored noticeably lower than your strongest. Guides that help:</p>
-           <ul>${last.guides.map((g) => `<li><a href="#/coaching/${g.slug}">${esc(g.title)}</a></li>`).join("")}</ul>`
+           <ul>${last.guides.map((g) => `<li><a href="#/coaching/${g.slug}">${esc(g.title)}</a></li>`).join("")}</ul>
+           <form id="comp"><h3>How I'll compensate</h3><p class="quiet">For each one: lean on discipline (time for it even when you'd rather not), a backstop (someone strong there to rely on and learn from), or an advisor.</p>
+             ${[...last.blind_spots.kinds.map((k) => [k, label(d.kinds, k) + " problems"]), ...last.blind_spots.areas.map((a) => [a, label(d.areas, a)])].map(([key, name]) => { const pl = (last.plan || {})[key] || {}; return `<div class="row" data-comp="${key}" style="align-items:center;margin-bottom:6px"><b style="min-width:180px">${esc(name)}</b>
+               <select name="how" style="max-width:150px">${["", "discipline", "backstop", "advisor"].map((h) => `<option value="${h}"${pl.how === h ? " selected" : ""}>${h || "How?"}</option>`).join("")}</select>
+               <select name="person" style="max-width:220px"><option value="">Person (optional)</option>${people.map((p) => `<option value="${p.id}"${pl.person_id === p.id ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select>
+               <input name="note" value="${esc(pl.note || "")}" placeholder="What I'll do" style="flex:1;min-width:180px"></div>`; }).join("")}
+             <div class="actions"><button class="btn" type="submit">Save my plan</button></div></form>`
         : '<p class="quiet">Nothing stands out as noticeably lower. A balanced profile, at least in what you enjoy.</p>'}</section>` : ""}
       ${d.assessments.length > 1 ? `<section class="card"><h2>Earlier ratings</h2>${d.assessments.slice(1).map((p) => `<div class="item">${BA.fmtDate(p.date)}<span class="spacer"></span><span class="quiet">${d.kinds.map((k) => `${esc(k.label)} ${p.columns[k.key]}`).join(" · ")}</span></div>`).join("")}</section>` : ""}`;
     const form = main.querySelector("#prefs");
@@ -722,9 +731,20 @@
       const fd = new FormData(form);
       const scores = {};
       for (const [k, v] of fd.entries()) if (k.includes(".")) scores[k] = Number(v);
-      await BA.api("/api/preferences", { method: "POST", body: { scores, notes: fd.get("notes") } });
+      await BA.api("/api/preferences", { method: "POST", body: { scores, notes: fd.get("notes"), hammer: fd.get("hammer") } });
       BA.toast("Saved.");
       BA.rerender();
+    });
+    const comp = main.querySelector("#comp");
+    if (comp) comp.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const plan = {};
+      comp.querySelectorAll("[data-comp]").forEach((r) => {
+        const person = r.querySelector('[name="person"]').value;
+        plan[r.dataset.comp] = { how: r.querySelector('[name="how"]').value || null, person_id: person ? Number(person) : null, note: r.querySelector('[name="note"]').value };
+      });
+      await BA.api(`/api/preference-assessments/${last.id}`, { method: "PATCH", body: { plan } });
+      BA.toast("Saved.");
     });
   }
 
@@ -732,12 +752,13 @@
     title: "My development",
     async render(main, param) {
       if (param === "preferences") return renderPreferences(main);
-      const [settings, goals, log, tasks, obligations] = await Promise.all([
+      const [settings, goals, log, tasks, obligations, advice] = await Promise.all([
         BA.api("/api/toolkit/settings"),
         BA.api("/api/learning-goals"),
         BA.api("/api/learning-log"),
         BA.api("/api/tasks"),
         BA.api("/api/obligations"),
+        BA.api("/api/people/advice-network"),
       ]);
       const start = settings.start_date;
       const dayDate = (n) => {
@@ -768,6 +789,9 @@
       main.innerHTML = `
         <section class="card"><div class="row"><h2>Problem preferences</h2><span class="spacer"></span><a class="btn" href="#/me/preferences">Take the assessment</a></div>
           <p class="quiet">Which kinds of problems you're drawn to, and which you tend to avoid. Low scores point to likely blind spots, each with guides to strengthen it.</p></section>
+        <section class="card"><h2>My advice network</h2>${[["technical", "Technical"], ["political", "Political"], ["personal", "Personal"]].map(([k, l]) => `<div class="item"><b style="min-width:90px">${l}</b>${advice.kinds[k].map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ") || '<span class="quiet">No one yet</span>'}</div>`).join("")}
+          ${advice.missing.length ? `<p class="callout warn">No ${advice.missing.join(" or ")} advisor yet. The higher you go, the more you need counsel on how the organization works and someone to keep you steady.</p>` : ""}
+          <p class="quiet">Mark advisors on each person's page under Details. <a href="#/coaching/new-role-mindset">Why it matters</a></p></section>
         <section class="card"><h2>Start date</h2>
           <form id="start" class="row"><input type="date" name="start_date" value="${esc(start || "")}" style="max-width:200px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every "Day N" into a real date.</span></form></section>

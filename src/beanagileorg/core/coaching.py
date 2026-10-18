@@ -36,11 +36,17 @@ GUIDES = [
             "Shift from doing to enabling. Your value now is in what the team does without you, not in what you do for them.",
             "Pick your pace on purpose. Move quickly on learning and relationships, and more slowly on changes to how people work.",
             "Make a clear break. Transitions blur, so let go of the old role on purpose: think through what changes, mark the move with people close to you, and ask your informal advisors for their view.",
+            "Know your hammer. Name the strengths that got you here, and how each could misfire in this role: attention to detail can become micromanaging, decisiveness can become not listening.",
+            "Compensate for blind spots in three ways: discipline yourself to spend time on what you'd rather avoid, find a backstop who's strong there and learn from them, and ask an advisor.",
+            "Relearn how to learn. Feeling out of your depth is normal in a new role. Lean into it instead of retreating to the work and people that make you feel capable.",
+            "Rework your advice network. Early on you need technical experts; higher up you need political counsel on how the organization works, and personal advisors who keep you steady.",
         ],
         "pitfalls": [
             "Arriving with the answer. A fix that worked elsewhere can fail here for reasons you can't see yet.",
             "Hiding behind activity. Busy days can mask that you haven't learned what matters.",
             "Trying to win every early conversation. You need allies more than points.",
+            "Drifting toward the people who make you feel capable, and away from the ones who'd tell you what you're missing.",
+            "Micromanaging the areas you know best, which takes ownership away from the people who should have it.",
         ],
         "questions": [
             "What did my last role reward that this one doesn't?",
@@ -1147,7 +1153,8 @@ TIPS = {
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
     "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
             ("Moving into a new role? Make the break from the old one on purpose, instead of letting the two blur together.", "new-role-mindset", 15),
-            ("Rate which kinds of problems you're drawn to under Problem preferences. The ones you avoid are where blind spots grow.", "new-role-mindset", 16)],
+            ("Rate which kinds of problems you're drawn to under Problem preferences. The ones you avoid are where blind spots grow.", "new-role-mindset", 16),
+            ("Check your advice network. Higher up, political counsel and personal advice matter as much as technical expertise.", "new-role-mindset", 17)],
     "/this-week": [("Send updates on a steady rhythm, even when there's little news. Consistency builds trust.", "honest-status")],
     "/messages": [("Put the most important sentence first. Most people read only the opening.", "honest-status")],
     "/templates": [("A template keeps your updates consistent, so changes stand out.", "honest-status")],
@@ -1161,6 +1168,8 @@ TIPS = {
 REFLECTION_PHASES = [
     ("Before you start", None, 0, [
         "What do I want people to say about me at day 90?",
+        "What has made me successful so far, and can I succeed here on those strengths alone?",
+        "Which parts of this job matter most but are ones I'd rather not focus on, and how will I cover them?",
         "What habits from my last role should I leave behind?",
         "What am I most nervous about, and what would help?",
     ]),
@@ -1196,6 +1205,8 @@ ANYTIME_PROMPTS = [
     "What conversation am I avoiding, and what's the first sentence I could say?",
     "What gave me energy this week, and what drained it?",
     "What did I learn from a mistake this week?",
+    "Am I doing all I can to prepare myself, or am I retreating to my comfort zone?",
+    "Who gives me political counsel and personal advice, not just technical answers?",
 ]
 
 
@@ -1212,7 +1223,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 16  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 17  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

@@ -67,3 +67,21 @@ def test_problem_preferences_find_blind_spots(client):
     partial = client.post("/api/preferences", json={"scores": {"people.technical": 2}}).json()
     assert partial["complete"] is False and partial["blind_spots"] == {"kinds": [], "areas": []}
     assert len(client.get("/api/preferences").json()["assessments"]) == 2
+
+
+def test_hammer_and_compensation_plan(client):
+    grid = client.get("/api/preferences").json()
+    scores = {f"{a['key']}.{k['key']}": 8 for a in grid["areas"] for k in grid["kinds"]}
+    scores.update({"finance.technical": 2, "finance.political": 2, "finance.cultural": 2})
+    r = client.post("/api/preferences", json={"scores": scores, "hammer": "[Placeholder: detail turns into control]"}).json()
+    assert r["hammer"].startswith("[Placeholder") and r["blind_spots"]["areas"] == ["finance"]
+    p = client.post("/api/people", json={"name": "[Placeholder name 1]"}).json()["id"]
+    plan = {"finance": {"how": "backstop", "person_id": p, "note": "[Placeholder]"}}
+    assert client.patch(f"/api/preference-assessments/{r['id']}", json={"plan": plan}).json()["plan"] == plan
+
+
+def test_advice_network(client):
+    assert client.get("/api/people/advice-network").json()["missing"] == ["political", "personal"]
+    a = client.post("/api/people", json={"name": "[Placeholder name 1]", "advice": ["technical", "political"]}).json()["id"]
+    n = client.get("/api/people/advice-network").json()
+    assert [x["id"] for x in n["kinds"]["political"]] == [a] and n["missing"] == ["personal"]

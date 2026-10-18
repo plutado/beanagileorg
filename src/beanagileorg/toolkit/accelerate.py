@@ -280,5 +280,5 @@ def save_preferences(body: dict = Body(...), viewer: Viewer = Depends(get_viewer
     scores = {k: int(v) for k, v in (body.get("scores") or {}).items() if k in keys and v not in (None, "")}
     if any(not 1 <= v <= 10 for v in scores.values()):
         raise HTTPException(400, "Rate each one from 1 to 10.")
-    rec = models.preference_assessments.create(conn, {"date": body.get("date") or today().isoformat(), "scores": scores, "notes": body.get("notes")}, viewer.source)
+    rec = models.preference_assessments.create(conn, {"date": body.get("date") or today().isoformat(), "scores": scores, "notes": body.get("notes"), "hammer": body.get("hammer")}, viewer.source)
     return {**rec, **preference_result(scores)}
