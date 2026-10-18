@@ -53,3 +53,17 @@ def test_checkpoint_keeps_the_informal_360(client):
     client.put("/api/first90/checkpoints/30", json={"adapting": "[Placeholder: what my manager and peers said]"})
     cp = client.get("/api/first90/overview").json()["checkpoints"][0]
     assert cp["day"] == 30 and cp["adapting"].startswith("[Placeholder")
+
+
+def test_problem_preferences_find_blind_spots(client):
+    grid = client.get("/api/preferences").json()
+    assert len(grid["areas"]) == 5 and len(grid["kinds"]) == 3 and grid["assessments"] == []
+    scores = {f"{a['key']}.{k['key']}": (3 if k["key"] == "political" else 8) for a in grid["areas"] for k in grid["kinds"]}
+    scores["finance.technical"] = scores["finance.cultural"] = 2
+    r = client.post("/api/preferences", json={"scores": scores}).json()
+    assert r["columns"]["political"] == 15 and r["blind_spots"]["kinds"] == ["political"] and r["blind_spots"]["areas"] == ["finance"]
+    assert {g["slug"] for g in r["guides"]} >= {"peer-relationships", "tech-debt-case"}
+    assert client.post("/api/preferences", json={"scores": {"people.technical": 11}}).status_code == 400
+    partial = client.post("/api/preferences", json={"scores": {"people.technical": 2}}).json()
+    assert partial["complete"] is False and partial["blind_spots"] == {"kinds": [], "areas": []}
+    assert len(client.get("/api/preferences").json()["assessments"]) == 2

@@ -695,9 +695,43 @@
 
   // ---------------------------------------------------------------- My development
 
+  async function renderPreferences(main) {
+    if (presenting()) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    const d = await BA.api("/api/preferences");
+    document.getElementById("view-title").textContent = "Problem preferences";
+    const last = d.assessments[0];
+    const cell = (a, k, i) => `<td><label style="display:flex;flex-direction:column;gap:4px;font-weight:400"><span class="quiet">${esc(a.cells[i])}</span><input type="number" min="1" max="10" name="${a.key}.${k.key}" value="${esc((last && last.scores && last.scores[a.key + "." + k.key]) || "")}" required style="max-width:70px"></label></td>`;
+    const lowK = new Set(last ? last.blind_spots.kinds : []), lowA = new Set(last ? last.blind_spots.areas : []);
+    const label = (list, key) => (list.find((x) => x.key === key) || {}).label || key;
+    main.innerHTML = `<p><a href="#/me">My development</a></p>
+      <form id="prefs" class="card"><h2>How much do you enjoy solving each kind of problem?</h2>
+        <p class="quiet">Rate each from 1 (very little) to 10 (a great deal). Rate your interest, not your skill or experience, and judge each one on its own. We tend to drift toward the problems we enjoy, so the low ones are where blind spots grow. Inspired by The First 90 Days. Private.</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th></th>${d.kinds.map((k) => `<th>${esc(k.label)}<div class="quiet" style="font-weight:400;text-transform:none">${esc(k.about)}</div></th>`).join("")}<th>Total</th></tr></thead>
+          <tbody>${d.areas.map((a) => `<tr><th>${esc(a.label)}</th>${d.kinds.map((k, i) => cell(a, k, i)).join("")}<td><b>${last ? last.rows[a.key] : "–"}</b>${lowA.has(a.key) ? ' <span class="pill warn">low</span>' : ""}</td></tr>`).join("")}
+          <tr><th>Total</th>${d.kinds.map((k) => `<td><b>${last ? last.columns[k.key] : "–"}</b>${lowK.has(k.key) ? ' <span class="pill warn">low</span>' : ""}</td>`).join("")}<td></td></tr></tbody></table></div>
+        <label>Notes <span class="quiet">(optional)</span><textarea name="notes" rows="2"></textarea></label>
+        <div class="actions"><button class="btn primary" type="submit">Save my ratings</button></div></form>
+      ${last && last.complete ? `<section class="card"><h2>Possible blind spots</h2>${last.blind_spots.kinds.length || last.blind_spots.areas.length
+        ? `<p>${[...last.blind_spots.kinds.map((k) => `${label(d.kinds, k)} problems`), ...last.blind_spots.areas.map((a) => label(d.areas, a))].map(esc).join(", ")} scored noticeably lower than your strongest. Guides that help:</p>
+           <ul>${last.guides.map((g) => `<li><a href="#/coaching/${g.slug}">${esc(g.title)}</a></li>`).join("")}</ul>`
+        : '<p class="quiet">Nothing stands out as noticeably lower. A balanced profile, at least in what you enjoy.</p>'}</section>` : ""}
+      ${d.assessments.length > 1 ? `<section class="card"><h2>Earlier ratings</h2>${d.assessments.slice(1).map((p) => `<div class="item">${BA.fmtDate(p.date)}<span class="spacer"></span><span class="quiet">${d.kinds.map((k) => `${esc(k.label)} ${p.columns[k.key]}`).join(" · ")}</span></div>`).join("")}</section>` : ""}`;
+    const form = main.querySelector("#prefs");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const scores = {};
+      for (const [k, v] of fd.entries()) if (k.includes(".")) scores[k] = Number(v);
+      await BA.api("/api/preferences", { method: "POST", body: { scores, notes: fd.get("notes") } });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+  }
+
   BA.view("/me", {
     title: "My development",
-    async render(main) {
+    async render(main, param) {
+      if (param === "preferences") return renderPreferences(main);
       const [settings, goals, log, tasks, obligations] = await Promise.all([
         BA.api("/api/toolkit/settings"),
         BA.api("/api/learning-goals"),
@@ -732,7 +766,9 @@
           .join("");
 
       main.innerHTML = `
-        <section class="card"><h2>Contract start date</h2>
+        <section class="card"><div class="row"><h2>Problem preferences</h2><span class="spacer"></span><a class="btn" href="#/me/preferences">Take the assessment</a></div>
+          <p class="quiet">Which kinds of problems you're drawn to, and which you tend to avoid. Low scores point to likely blind spots, each with guides to strengthen it.</p></section>
+        <section class="card"><h2>Start date</h2>
           <form id="start" class="row"><input type="date" name="start_date" value="${esc(start || "")}" style="max-width:200px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every "Day N" into a real date.</span></form></section>
         <section class="card"><h2>Jira</h2>

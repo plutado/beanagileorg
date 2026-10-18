@@ -140,6 +140,7 @@ BEANAGILEORG_DATA=/tmp/beanagileorg-demo uv run beanagileorg toolkit
 **Me**
 
 - **My development:** learning goals with time logged and a report toggle that controls what reaches status reports, plus tasks, recurring obligations and your start date.
+- **Problem preferences:** a self-assessment of which kinds of problems you're drawn to, across five areas (people, finance, product and customers, delivery and operations, engineering) and three kinds (technical, political, cultural). Totals that fall noticeably below your strongest are flagged as likely blind spots, each with guides to strengthen it, and earlier ratings are kept to compare.
 
 **Starter content:** one click loads a generic Agile adoption roadmap, the five common RACI decisions and the delivery metrics.
 

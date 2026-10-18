@@ -46,6 +46,7 @@ GUIDES = [
             "What did my last role reward that this one doesn't?",
             "Where am I still acting like an individual contributor?",
             "What would I be doing differently if I trusted that the learning dip is temporary?",
+            "Which kinds of problems do I avoid, and what will this role need from me there?",
         ],
         "try": [
             "Write a one-paragraph note to yourself on what success looks like at day 90, and reread it every Friday.",
@@ -1145,7 +1146,8 @@ TIPS = {
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
     "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
-            ("Moving into a new role? Make the break from the old one on purpose, instead of letting the two blur together.", "new-role-mindset", 15)],
+            ("Moving into a new role? Make the break from the old one on purpose, instead of letting the two blur together.", "new-role-mindset", 15),
+            ("Rate which kinds of problems you're drawn to under Problem preferences. The ones you avoid are where blind spots grow.", "new-role-mindset", 16)],
     "/this-week": [("Send updates on a steady rhythm, even when there's little news. Consistency builds trust.", "honest-status")],
     "/messages": [("Put the most important sentence first. Most people read only the opening.", "honest-status")],
     "/templates": [("A template keeps your updates consistent, so changes stand out.", "honest-status")],
@@ -1210,7 +1212,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 15  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 16  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

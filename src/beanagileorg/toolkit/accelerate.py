@@ -219,3 +219,66 @@ def accelerate_due(conn) -> dict:
     follow = [{"person_id": s["person_id"], "name": names.get(s["person_id"]), "next_step": s.get("next_step"), "next_on": s["next_on"]}
               for s in latest.values() if s.get("next_on") and s["next_on"] <= week]
     return {"learning_late": late[:5], "learning_late_count": len(late), "boss_unheld": unheld, "mentoring": follow}
+
+
+# ---- problem preferences ----
+# Five areas of the business against three kinds of problem. The idea of rating your interest in each, to find likely
+# blind spots, comes from The First 90 Days; the cells here are written for engineering leaders.
+
+PREF_KINDS = [
+    ("technical", "Technical", "Strategy, markets, technology and process"),
+    ("political", "Political", "Power, influence and relationships"),
+    ("cultural", "Cultural", "Values, norms and shared assumptions"),
+]
+PREF_AREAS = [
+    ("people", "People", ["Career levels, reviews and how people are rewarded", "Team morale, especially through change", "Fairness in who gets opportunities and recognition"]),
+    ("finance", "Finance", ["Budgets, licences and vendor costs", "Winning funding and headcount", "A habit of spending money wisely"]),
+    ("product", "Product and customers", ["Product direction and the roadmap", "Relationships with customers and stakeholders", "Putting customers first across the team"]),
+    ("delivery", "Delivery and operations", ["Quality, releases and reliability", "Vendors, partners and other teams you depend on", "A habit of continuous improvement"]),
+    ("engineering", "Engineering", ["Architecture, tooling and delivery pipelines", "How engineering, product and the business work together", "Collaboration across teams"]),
+]
+PREF_GUIDES = {
+    "technical": ["learn-fast", "metrics-without-blame"], "political": ["peer-relationships", "leading-upward"],
+    "cultural": ["culture-of-trust", "joining-from-outside"], "people": ["one-on-ones", "feedback"], "finance": ["tech-debt-case"],
+    "product": ["saying-no-to-scope", "honest-status"], "delivery": ["quality-culture", "vendor-partnerships"],
+    "engineering": ["integrating-teams", "scrum-of-scrums"],
+}
+
+
+def _guides(keys):
+    from beanagileorg.core.coaching import guide
+
+    return [{"slug": s, "title": guide(s)["title"]} for k in keys for s in PREF_GUIDES.get(k, []) if guide(s)]
+
+
+def preference_result(scores: dict) -> dict:
+    """Row and column totals, and the ones noticeably lower than the strongest: possible blind spots."""
+    val = lambda a, k: int((scores or {}).get(f"{a}.{k}") or 0)
+    cols = {k: sum(val(a, k) for a, _, _ in PREF_AREAS) for k, _, _ in PREF_KINDS}
+    rows = {a: sum(val(a, k) for k, _, _ in PREF_KINDS) for a, _, _ in PREF_AREAS}
+    complete = all(val(a, k) for a, _, _ in PREF_AREAS for k, _, _ in PREF_KINDS)
+    low_cols = [k for k, v in cols.items() if complete and v <= 0.8 * max(cols.values())]
+    low_rows = [a for a, v in rows.items() if complete and v <= 0.75 * max(rows.values())]
+    return {"columns": cols, "rows": rows, "complete": complete, "blind_spots": {"kinds": low_cols, "areas": low_rows},
+            "guides": _guides(low_cols + low_rows)}
+
+
+@router.get("/api/preferences")
+def preferences(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    past = models.preference_assessments.fetch_all(conn)
+    return {"kinds": [{"key": k, "label": l, "about": d} for k, l, d in PREF_KINDS],
+            "areas": [{"key": a, "label": l, "cells": c} for a, l, c in PREF_AREAS],
+            "assessments": [{**p, **preference_result(p.get("scores") or {})} for p in past]}
+
+
+@router.post("/api/preferences", status_code=201)
+def save_preferences(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    keys = {f"{a}.{k}" for a, _, _ in PREF_AREAS for k, _, _ in PREF_KINDS}
+    scores = {k: int(v) for k, v in (body.get("scores") or {}).items() if k in keys and v not in (None, "")}
+    if any(not 1 <= v <= 10 for v in scores.values()):
+        raise HTTPException(400, "Rate each one from 1 to 10.")
+    rec = models.preference_assessments.create(conn, {"date": body.get("date") or today().isoformat(), "scores": scores, "notes": body.get("notes")}, viewer.source)
+    return {**rec, **preference_result(scores)}

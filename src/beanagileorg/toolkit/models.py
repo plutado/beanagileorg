@@ -1403,6 +1403,21 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        30,
+        """
+        CREATE TABLE preference_assessments (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            scores TEXT,
+            notes TEXT,
+            privacy_ceiling INTEGER,
+            source TEXT NOT NULL DEFAULT 'me',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2964,6 +2979,20 @@ culture_reads = Record(
     hide_when_empty=True,
 )
 
+# A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
+preference_assessments = Record(
+    entity="preference_assessment",
+    table="preference_assessments",
+    path="/api/preference-assessments",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "scores": Field("json", P),
+        "notes": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
 # The local language: acronyms, product and project names, and words that mean something particular here.
 glossary_terms = Record(
     entity="glossary_term",
@@ -3266,5 +3295,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
+    standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
 ]
