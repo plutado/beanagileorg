@@ -4351,7 +4351,7 @@
       ["execution", "Getting things done", "Does following the process matter more, or knowing the right people?"],
       ["conflict", "Conflict", "Can people raise difficult issues without fear, or is conflict avoided or pushed down?"],
       ["recognition", "Recognition", "Who gets noticed and promoted: the visible stars or the quiet collaborators?"],
-      ["ends_means", "Ends and means", "Do results excuse how they were reached, or are the methods held to a standard too?"],
+      ["ends_means", "Ends and means", "Do results excuse how they were reached, or are the methods held to a standard too? Are the stated values backed by real consequences, good and bad?"],
     ]],
     ["Assumptions underneath", [["power", "Power and authority", "Does authority come with the position, with seniority, or from the ability to persuade and build consensus?"]]],
     ["So what", [["adapt_or_change", "Adapt or change", "Where will I adapt, and where will I deliberately work to change things? Say why."]]],
