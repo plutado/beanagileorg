@@ -114,7 +114,7 @@
       const [week, templates] = await Promise.all([BA.api("/api/this-week"), BA.api("/api/templates")]);
       if (!templates.length && !presenting()) {
         main.innerHTML = `<section class="card"><h2>Set up the studio</h2>
-          <p class="quiet">Load the starter kit: nine templates (weekly status, alerts, release notes, reviews and more), common audiences, placeholder channels, and a weekly cadence. Edit any of it afterwards.</p>
+          <p class="quiet">Load the starter kit: ${week.starter_templates} templates (weekly status, alerts, release notes, reviews and more), common audiences, placeholder channels, and a weekly cadence. Edit any of it afterwards.</p>
           <button class="btn primary" id="kit">Load starter kit</button></section>`;
         main.querySelector("#kit").onclick = BA.guard(async () => {
           await BA.api("/api/comms/starter-kit", { method: "POST" });

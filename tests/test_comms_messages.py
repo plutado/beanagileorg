@@ -1,7 +1,10 @@
+import re
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
-from beanagileorg.comms import checks
+from beanagileorg.comms import app as app_module, checks
 from beanagileorg.comms.app import build
 from beanagileorg.core.config import Settings
 
@@ -66,6 +69,15 @@ def test_starter_kit_loads_once(kit):
     assert len(kit.get("/api/audiences").json()) == 6
     assert all(c["name"].startswith("[Placeholder") for c in kit.get("/api/channels").json())
     assert kit.post("/api/comms/starter-kit").status_code == 409
+
+
+def test_this_week_reports_the_real_starter_template_count(client):
+    offered = client.get("/api/this-week").json()["starter_templates"]
+    loaded = client.post("/api/comms/starter-kit").json()["templates"]
+    assert offered == loaded == len(client.get("/api/templates").json())
+    js = (Path(app_module.__file__).parent / "static" / "app.js").read_text()
+    assert "${week.starter_templates} templates" in js
+    assert not re.search(r"starter kit: (one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve) templates", js)
 
 
 def test_due_items_and_drafting(kit):

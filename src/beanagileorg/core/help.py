@@ -273,7 +273,7 @@ COMMS = {
     },
     "/templates": {
         "purpose": "Reusable starting points for the messages you send often, each with default audiences and channel.",
-        "steps": ["Start from the nine built-in templates.", "Edit them to match how you write.", "Add your own for messages you repeat."],
+        "steps": ["Start from the built-in templates.", "Edit them to match how you write.", "Add your own for messages you repeat."],
         "privacy": "Shareable.",
         "related": ["/messages", "/calendar"],
     },

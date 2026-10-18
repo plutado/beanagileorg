@@ -15,7 +15,7 @@ from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Viewer
 
 from . import checks, models
-from .starter import load_starter_kit
+from .starter import TEMPLATES as STARTER_TEMPLATES, load_starter_kit
 
 router = APIRouter()
 
@@ -220,7 +220,8 @@ def this_week(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     due = [d for d in due if d["status"] != "sent" or d["due"] >= (today - timedelta(days=7)).isoformat()]
     drafts = models.messages.visible_all(models.messages.fetch_all(conn, "state IN ('draft', 'in review', 'ready')"), viewer)
     sent = models.messages.visible_all(models.messages.fetch_all(conn, "state = 'sent'"), viewer)[:5]
-    return {"today": today.isoformat(), "due": due if viewer.has_scope("full") else [], "drafts": drafts, "recently_sent": sent}
+    return {"today": today.isoformat(), "due": due if viewer.has_scope("full") else [], "drafts": drafts, "recently_sent": sent,
+            "starter_templates": len(STARTER_TEMPLATES)}
 
 
 @router.get("/api/comms-due")
