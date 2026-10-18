@@ -874,10 +874,12 @@ GUIDES = [
         "summary": "Coming in from another company is harder than being promoted. You don't know the informal networks or the culture yet, nobody knows your track record, and some places are slow to trust outsiders. Work on four things at once: the business, the people, expectations and the culture.",
         "why": "An internal promotion arrives with relationships, a reputation and a feel for how things really get done. An outside hire has to build all three while also doing the job. Many outside hires who struggle don't lack skill; they misread how the place works, or move before anyone trusts them. Naming the gaps early lets you close them on purpose.",
         "practices": [
-            "Business: learn how the company makes money, which products, customers and seasons matter most, and where your team's systems fit. Put these on your learning agenda with dates.",
+            "Business: learn the whole company, not just your part: its brands and products (use them as a customer), how it makes money, its operating model, and how planning, performance reviews and promotions work. Put these on your learning agenda with dates.",
             "People: map who people actually go to, not just the org chart. Meet peers and stakeholders early, before you need anything from them.",
             "Expectations: agree what success looks like with your manager in writing, and check it again at 30 and 60 days.",
-            "Culture: ask one or two long-tenured colleagues to be your culture guides. Ask them how things really work, and what newcomers usually get wrong.",
+            "Culture: ask one or two long-tenured colleagues to be your culture guides. Read the culture in layers, from the visible symbols and language down to the norms and the assumptions about power, and expect each unit to differ.",
+            "Ask about culture while you're still being recruited, start meeting people before your first day if you can, and recheck expectations in your first week.",
+            "At day 30, ask your manager and a few peers how you're adapting.",
             "Be easy to get to know. Share who you are, why you're here and how you work, in your own words, in your first week.",
             "Bring your strengths with you, and say plainly why they help. Adapting to the culture doesn't mean dropping what you were hired for.",
             "Earn credibility with small promises kept: follow up on every question, and show what changed because of what people told you.",
@@ -1083,13 +1085,16 @@ TIPS = {
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
     "/culture": [('What you tolerate becomes the standard. Address harmful behavior early, privately, and follow up.', 'calling-out-harm', 6),
                  ("Read today's standard before your first meeting, and look for one chance to live it.", 'consistency-and-integrity', 6),
-                 ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6)],
+                 ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6),
+                 ("Read each unit's culture in three layers: what's visible, the everyday norms, and the assumptions underneath. Start the Culture map.", "joining-from-outside", 14),
+                 ("Add acronyms and names to the Glossary as you hear them. Speaking like the locals builds trust quickly.", "joining-from-outside", 14)],
     "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
     "/people": [("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
                 ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6),
-                ('Invest sideways as much as up. Your peers decide whether most of your changes stick.', "peer-relationships", 10)],
+                ('Invest sideways as much as up. Your peers decide whether most of your changes stick.', "peer-relationships", 10),
+                ("Note what each key person expects from you, especially anyone who shapes how your work is judged.", "your-manager", 14)],
     "/onboarding": [("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
                     ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback"),
@@ -1136,7 +1141,8 @@ TIPS = {
                 ("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
     "/architecture": [("Read the artifacts: the system map, past decisions and incidents show how things really work.", "learn-fast")],
     "/landscape": [("Diagnose each area separately. Some parts need fixing; others need protecting.", "read-the-situation")],
-    "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety")],
+    "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
+                    ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
     "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself")],
     "/this-week": [("Send updates on a steady rhythm, even when there's little news. Consistency builds trust.", "honest-status")],
     "/messages": [("Put the most important sentence first. Most people read only the opening.", "honest-status")],
@@ -1202,7 +1208,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 13  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 14  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

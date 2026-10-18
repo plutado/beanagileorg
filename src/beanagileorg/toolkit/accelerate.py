@@ -45,6 +45,13 @@ STARTER_QUESTIONS = [
     ("people", "Who could be my culture guides: one or two long-tenured colleagues willing to help me read how things really work?", 7),
     ("people", "Who do people actually go to for answers and before decisions, whatever the org chart says?", 30),
     ("culture", "What does the culture reward, what does it quietly discourage, and how are disagreements handled?", 30),
+    ("business", "What are the company's brands and products? Use them as a customer, from the website to delivery, ideally before day one.", 7),
+    ("business", "What is the operating model: how work, budget and decisions flow between the business, IT and this team?", 30),
+    ("business", "When do annual planning and budgeting happen, and how does a team ask for people or tools?", 30),
+    ("people", "When do performance reviews run, what form do they take, and how are ratings and pay decided?", 21),
+    ("people", "What did the previous manager leave for each person: past reviews, goals, and promises made?", 14),
+    ("people", "How do job levels, promotions and contractor conversions work here?", 30),
+    ("politics", "Who besides my manager influences how my work is judged, and what do they expect from me?", 21),
 ]
 
 SITUATION_GUIDE = {
@@ -63,7 +70,7 @@ STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and release
 
 BOSS_TOPICS = [
     ("The situation", "Bring your read of the situation (what's working, what isn't, what kind of situation it is) and test it against theirs. Ask for the history only they know: what's been tried, who matters, where the sensitivities are."),
-    ("Expectations", "Propose what success looks like at 30, 60 and 90 days and six months, and how you'll report on it. Ask what must not go wrong."),
+    ("Expectations", "Propose what success looks like at 30, 60 and 90 days and six months, and how you'll report on it. Ask what must not go wrong. In your first week, recheck what was said while you were being hired: the scope of the role, how much room you have to change things, and the support you'll get."),
     ("Working style", "Propose a rhythm: how often you meet, what you'll send each week, what you'll handle yourself and what you'll bring to them. Ask what they want to hear about first."),
     ("Resources", "Bring what you have and what would let you go faster, as a recommendation with options and their trade-offs."),
     ("My development", "Say where you want to grow in this role and how they can help, including what you'll learn from their knowledge of the organization."),

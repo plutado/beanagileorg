@@ -16,6 +16,8 @@ from . import models
 from .routes import require_write
 
 router = APIRouter()
+# Starting units for the culture map; rename them to the real ones.
+STARTER_UNITS = ["My team", "A team I'm integrating", "The wider organization"]
 BRIEF_KEY = "culture.role_brief"
 PULSE_DAYS_KEY = "culture.pulse_days"
 UNADDRESSED_DAYS = 7
@@ -193,3 +195,13 @@ def culture_due(conn) -> dict:
         "follow_ups": [{"id": o["id"], "title": o["title"], "follow_up": o["follow_up"]} for o in models.culture_observations.fetch_all(conn, "status != 'addressed' AND follow_up IS NOT NULL AND follow_up <= ?", (week,))],
         "pulse_due": bool(mine) and (_today() - date.fromisoformat(mine[0]["date"])).days >= days,
     }
+
+
+@router.post("/api/culture/map/starter", status_code=201)
+def map_starter(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    if conn.execute("SELECT COUNT(*) FROM culture_reads").fetchone()[0]:
+        raise HTTPException(409, "The culture map has already started.")
+    for pos, unit in enumerate(STARTER_UNITS):
+        models.culture_reads.create(conn, {"unit": unit, "position": pos}, viewer.source)
+    return {"units": len(STARTER_UNITS)}

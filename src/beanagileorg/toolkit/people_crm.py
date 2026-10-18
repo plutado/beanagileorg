@@ -22,7 +22,7 @@ ME_KEY = "people.me_id"
 SENSITIVE = ("personal_context", "support_notes", "key_dates", "motivations")
 OPTIONAL = ("start_date", "location", "timezone", "background", "skills", "certifications", "goals", "wants_to_learn", "can_teach", "working_style",
             "support_notes", "contact", "tags", "cadence_days", "influence", "stance", "communication", "motivations", "personal_context",
-            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them")
+            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them", "expects_from_me")
 
 
 def _today() -> date:
@@ -378,6 +378,21 @@ def balance(days: int = 30, viewer: Viewer = Depends(get_viewer), conn=Depends(g
     return build_balance(conn, days)
 
 
+def neighbors(conn, last: dict | None = None) -> list[dict]:
+    """People named on a system (owner, first responder, backup, business contacts) you haven't had a conversation
+    with yet. Meet them before an incident, not during one."""
+    last = _last_contacts(conn) if last is None else last
+    me = me_id(conn)
+    people = {p["id"]: p for p in models.people.fetch_all(conn, "active = 1")}
+    found: dict[int, list[str]] = {}
+    for s in models.systems.fetch_all(conn):
+        ids = [s.get("owner_id"), s.get("first_responder_id"), s.get("backup_id"), *(s.get("business_contact_ids") or [])]
+        for pid in ids:
+            if pid and pid != me and pid in people and pid not in last and s["name"] not in found.setdefault(pid, []):
+                found[pid].append(s["name"])
+    return [{"id": pid, "name": people[pid]["name"], "systems": names} for pid, names in found.items() if names][:8]
+
+
 def people_due(conn) -> dict:
     """For Today: people past their check-in cadence, key dates this week, and meetings planned this week."""
     today, week = _today(), (_today() + timedelta(days=7)).isoformat()
@@ -398,7 +413,7 @@ def people_due(conn) -> dict:
         if bal["top_heavy"] or key_quiet:
             sideways = {"up": bal["counts"]["up"], "sideways": bal["counts"]["sideways"], "top_heavy": bal["top_heavy"], "quiet": key_quiet[:5]}
     open_c = models.commitments.fetch_all(conn, "status = 'open' AND due IS NOT NULL")
-    return {"sideways": sideways, "check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"]),
+    return {"sideways": sideways, "neighbors": neighbors(conn, last), "check_ins": due, "key_dates": sorted(dates, key=lambda d: d["days"]), "meetings": sorted(meetings, key=lambda m: m["date"]),
             "i_owe": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"], "late": c["due"] < today.isoformat()}
                       for c in open_c if c["direction"] == "mine" and c["due"] <= week],
             "they_owe_late": [{"id": c["id"], "person_id": c["person_id"], "name": c["person_name"], "title": c["title"], "due": c["due"]}

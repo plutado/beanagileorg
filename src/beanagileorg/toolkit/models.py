@@ -1368,6 +1368,41 @@ MIGRATIONS = [
         ALTER TABLE action_items ADD COLUMN update_on DATE;
         """,
     ),
+    (
+        29,
+        """
+        ALTER TABLE people ADD COLUMN expects_from_me TEXT;
+        ALTER TABLE systems ADD COLUMN business_contact_ids TEXT;
+        CREATE TABLE culture_reads (
+            id INTEGER PRIMARY KEY,
+            unit TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0,
+            symbols TEXT,
+            influence TEXT,
+            meetings TEXT,
+            execution TEXT,
+            conflict TEXT,
+            recognition TEXT,
+            ends_means TEXT,
+            power TEXT,
+            adapt_or_change TEXT,
+            privacy_ceiling INTEGER,
+            source TEXT NOT NULL DEFAULT 'me',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE glossary_terms (
+            id INTEGER PRIMARY KEY,
+            term TEXT NOT NULL,
+            meaning TEXT,
+            used_by TEXT,
+            privacy_ceiling INTEGER,
+            source TEXT NOT NULL DEFAULT 'me',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1408,6 +1443,7 @@ people = Record(
         "placeholder": Field("bool", S, default=False),
         "offer_them": Field("text", P),
         "need_from_them": Field("text", P),
+        "expects_from_me": Field("text", P),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),
@@ -1572,6 +1608,7 @@ systems = Record(
         "how_to_open_case": Field("text", S),
         "vendor_support": Field("text", P),
         "business_contacts": Field("text", S),
+        "business_contact_ids": Field("ids", S),
         "owner_id": Field("int", S),
         "first_responder_id": Field("int", S),
         "backup_id": Field("int", S),
@@ -2904,6 +2941,42 @@ culture_observations = Record(
     hide_when_empty=True,
 )
 
+# A read of the culture, one per unit (your team, a team you're integrating, the wider organization), in three
+# layers: symbols and language, everyday norms, and the assumptions underneath. Private.
+culture_reads = Record(
+    entity="culture_read",
+    table="culture_reads",
+    path="/api/culture-reads",
+    order_by="position, id",
+    fields={
+        "unit": Field("text", P, required=True),
+        "position": Field("int", P, default=0),
+        "symbols": Field("text", P),
+        "influence": Field("text", P),
+        "meetings": Field("text", P),
+        "execution": Field("text", P),
+        "conflict": Field("text", P),
+        "recognition": Field("text", P),
+        "ends_means": Field("text", P),
+        "power": Field("text", P),
+        "adapt_or_change": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
+# The local language: acronyms, product and project names, and words that mean something particular here.
+glossary_terms = Record(
+    entity="glossary_term",
+    table="glossary_terms",
+    path="/api/glossary-terms",
+    order_by="term COLLATE NOCASE",
+    fields={
+        "term": Field("text", S, required=True),
+        "meaning": Field("text", S),
+        "used_by": Field("text", S),
+    },
+)
+
 team_agreements = Record(
     entity="team_agreement",
     table="team_agreements",
@@ -3193,5 +3266,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
+    standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
 ]

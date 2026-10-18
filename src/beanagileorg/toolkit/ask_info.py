@@ -9,7 +9,7 @@ LINKS = {
     "person": "/people/{id}", "action_item": "/dev-sync/{id}", "change_request": "/changes/{id}", "mandate": "/first90/mandate/{id}",
     "retro": "/retros/{id}", "onboarding": "/onboarding/{id}", "risk": "/risks", "decision_needed": "/risks", "roadmap_item": "/roadmap",
     "backlog_item": "/planning", "sprint": "/sprints", "sos_item": "/sos", "team": "/teams", "tech_debt": "/debt", "vendor": "/vendors",
-    "culture_observation": "/culture/noticing", "trust_pulse": "/culture/pulse", "team_agreement": "/culture/agreements", "standard": "/culture/standards",
+    "culture_observation": "/culture/noticing", "culture_read": "/culture/map", "glossary_term": "/culture/glossary", "trust_pulse": "/culture/pulse", "team_agreement": "/culture/agreements", "standard": "/culture/standards",
     "log_entry": "/status/log", "report": "/status/saved", "team_change": "/first90/changes", "learning_question": "/first90/learning",
     "situation": "/first90/situation", "boss_conversation": "/first90/mandates", "mentoring_session": "/first90/mentoring", "mentored_practice": "/first90/mentoring",
     "plan": "/plans", "plan_item": "/plans", "interview": "/listening", "interaction": "/people", "commitment": "/people", "growth_goal": "/people",

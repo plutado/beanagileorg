@@ -161,7 +161,7 @@ def checkpoints(conn) -> list[dict]:
             pulse = row["date"] if row else None
         s = saved.get(str(n), {})
         out.append({"day": n, "due": due, "pulse_on": pulse, "done_on": s.get("done_on"), "notes": s.get("notes", ""),
-                    "heard": s.get("heard", ""), "changed": s.get("changed", "")})
+                    "heard": s.get("heard", ""), "changed": s.get("changed", ""), "adapting": s.get("adapting", "")})
     return out
 
 
@@ -255,7 +255,7 @@ def put_checkpoint(day: int, body: dict = Body(...), viewer: Viewer = Depends(ge
     if day not in CHECKPOINT_DAYS:
         raise HTTPException(404, "Check-ins are at days 30, 60 and 90.")
     saved = _setting(conn, CHECKPOINTS_KEY, {}) or {}
-    saved[str(day)] = {k: body.get(k) for k in ("done_on", "notes", "heard", "changed")}
+    saved[str(day)] = {k: body.get(k) for k in ("done_on", "notes", "heard", "changed", "adapting")}
     _put(conn, CHECKPOINTS_KEY, saved)
     return saved[str(day)]
 
