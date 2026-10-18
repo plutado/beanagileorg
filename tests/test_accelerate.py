@@ -27,11 +27,11 @@ def start(client, day):
 
 def test_learning_agenda(client):
     start(client, 25)
-    assert client.post("/api/learning-questions/starter").json()["questions"] == 30
+    assert client.post("/api/learning-questions/starter").json()["questions"] == 37
     assert client.post("/api/learning-questions/starter").status_code == 409
     a = client.get("/api/learning-questions/agenda").json()
     late = [q for q in a["questions"] if q["late"]]
-    assert a["counts"]["open"] == 30 and late and all(q["due_day"] < 25 for q in late)
+    assert a["counts"]["open"] == 37 and late and all(q["due_day"] < 25 for q in late)
     assert {q["area"] for q in a["questions"]} == set(a["areas"])
     peer = client.post("/api/people", json={"name": "[Peer]"}).json()["id"]
     q = late[0]
@@ -95,3 +95,15 @@ def test_early_wins_mentoring_and_momentum(client):
     hidden = client.get("/api/mentoring/overview").json()
     assert hidden["hidden"] and hidden["adopted"][0]["practice"] == "[Sprint goals]"
     assert "momentum" not in client.get("/api/first90/overview").json()
+
+
+def test_hypotheses_and_learning_balance(client):
+    for n in range(6):
+        client.post("/api/learning-questions", json={"question": f"[Technical question {n}]", "area": "technical"})
+    b = client.get("/api/learning-questions/agenda").json()["balance"]
+    assert b["counts"]["technical"] == 6 and b["technical_heavy"] is True
+    q = client.post("/api/learning-questions", json={"question": "[Politics question]", "area": "politics"}).json()
+    client.post("/api/learning-questions", json={"question": "[Culture question]", "area": "culture"})
+    client.patch(f"/api/learning-questions/{q['id']}", json={"hypothesis": "[Placeholder]", "disprove_if": "[Placeholder]", "verdict": "testing"})
+    b = client.get("/api/learning-questions/agenda").json()["balance"]
+    assert b["technical_heavy"] is False and b["hypotheses"] == 1 and b["testing"] == 1

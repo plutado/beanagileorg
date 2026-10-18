@@ -102,11 +102,16 @@ GUIDES = [
             "Learn from several directions: your team, peers, product, customers, support and leadership each see a different piece.",
             "Hold your early views as hypotheses. Write them down, then look for evidence that would prove them wrong.",
             "Read the artifacts: past retros, incidents, the backlog, release history. They show what people actually do, not what they say.",
+            "Ask how things got this way before changing them. A process that looks outdated may be a sensible answer to years of underinvestment, and the people who built it will notice whether you asked.",
+            "Treat learning as an investment. Your time is scarce, so aim for insights you can act on, and revisit your agenda as questions turn into hypotheses.",
+            "Balance what you learn. The technical side is easiest to see; culture and politics, including the informal network of alliances behind the org chart, are where new leaders usually trip.",
         ],
         "pitfalls": [
             "Talking more than listening in early conversations.",
             "Forming a firm judgment about a person or system in the first two weeks.",
             "Only learning from people who are easy to reach.",
+            "The urge to act before you understand. Being busy feels like progress, but early decisions made without learning cost credibility that's hard to win back.",
+            "Arriving with the answer: importing how your last company did it, without asking why things are different here.",
         ],
         "questions": [
             "What are the five questions I most need answered by day 30?",
@@ -1087,6 +1092,7 @@ TIPS = {
                  ('Hold the five conversations with your manager early: situation, expectations, working style, resources and your development.', 'your-manager', 11),
                  ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11),
                  ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12),
+                 ("As you learn, turn questions into hypotheses, and write down what would prove each one wrong.", "learn-fast", 18),
                  ("Joining from outside? Work on the business, the people, expectations and the culture at once, and find a culture guide early.", "joining-from-outside", 13)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
@@ -1223,7 +1229,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 17  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 18  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

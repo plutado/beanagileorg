@@ -4888,7 +4888,8 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
 
   const SIT_KINDS = ["start-up", "turnaround", "accelerated growth", "realignment", "sustaining success"];
   const SIT_TONES = { "start-up": "accent", turnaround: "bad", "accelerated growth": "good", realignment: "warn", "sustaining success": "good" };
-  const LEARN_AREAS = ["past", "present", "future", "people", "technical", "products and customers", "politics"];
+  const LEARN_AREAS = ["business", "past", "present", "future", "people", "culture", "technical", "products and customers", "politics"];
+  const VERDICT_TONES = { testing: "accent", supported: "good", disproved: "bad", mixed: "warn" };
   const PRACTICE_STATUS = ["shared", "trying", "adopted", "dropped"];
   const PRACTICE_TONES = { shared: "", trying: "warn", adopted: "good", dropped: "" };
 
@@ -4923,18 +4924,23 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       <p class="quiet">Be deliberate about what you need to learn, from whom, and by when. Questions about the past explain how things got this way; the present shows how work really happens; the future is what the business is counting on. Add what comes up in the listening tour.</p>
       <section class="card"><div class="row"><h2>Learning agenda</h2><span class="quiet">${d.counts.open} open · ${d.counts.answered} answered${d.late ? ` · <span class="pill warn">${d.late} past their day</span>` : ""}</span><span class="spacer"></span>
         <div class="seg" id="lq-filter">${[["open", "Open"], ["answered", "Answered"], ["all", "All"]].map(([k, l]) => `<button type="button" data-f="${k}" class="${k === f ? "on" : ""}">${l}</button>`).join("")}</div></div>
+        ${d.balance ? `<div class="item"><span class="quiet">Open questions: ${["technical", "people", "culture", "politics"].map((k) => `${k} ${d.balance.counts[k]}`).join(" · ")}${d.balance.hypotheses ? ` · ${d.balance.hypotheses} hypotheses, ${d.balance.testing} being tested` : ""}</span></div>
+          ${d.balance.technical_heavy ? '<p class="callout warn">Most of your questions are technical. Culture and politics are harder to see and easier to get wrong; add a few questions about how decisions really get made and what the culture rewards.</p>' : ""}` : ""}
         ${LEARN_AREAS.map((a) => [a, shown.filter((q) => q.area === a)]).filter(([, l]) => l.length).map(([a, l]) => `<h3>${esc(a[0].toUpperCase() + a.slice(1))}</h3>${l.map((q) => `<details class="plan-item${q.status !== "open" ? " dropped" : ""}" data-q="${q.id}"><summary>
-            ${q.late ? '<span class="pill warn">late</span>' : q.status === "answered" ? '<span class="pill good">answered</span>' : ""}<span>${esc(q.question)}</span><span class="spacer"></span><span class="quiet">${q.ask_names.length ? esc(q.ask_names.join(", ")) + " · " : ""}${q.due ? BA.fmtDate(q.due) : q.due_day ? `day ${q.due_day}` : ""}</span></summary>
+            ${q.late ? '<span class="pill warn">late</span>' : q.status === "answered" ? '<span class="pill good">answered</span>' : ""}${q.verdict ? `<span class="pill ${VERDICT_TONES[q.verdict] || ""}">${esc(q.verdict)}</span>` : ""}<span>${esc(q.question)}</span><span class="spacer"></span><span class="quiet">${q.ask_names.length ? esc(q.ask_names.join(", ")) + " · " : ""}${q.due ? BA.fmtDate(q.due) : q.due_day ? `day ${q.due_day}` : ""}</span></summary>
           <form><label>Question<input name="question" value="${esc(q.question)}"></label><div class="grid2"><label>Area<select name="area">${opts(LEARN_AREAS, q.area)}</select></label><label>By day<input type="number" min="1" name="due_day" value="${esc(q.due_day ?? "")}"></label>
             <label>Status<select name="status">${opts(["open", "answered", "dropped"], q.status)}</select></label></div><label>Who could answer it</label>${pick(q)}
-            <label>What I learned<textarea name="answer" rows="3">${esc(q.answer || "")}</textarea></label><div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
+            <label>What I learned<textarea name="answer" rows="3">${esc(q.answer || "")}</textarea></label>
+            <details${q.hypothesis ? " open" : ""}><summary class="quiet">Turn it into a hypothesis</summary><label>What I think is going on<textarea name="hypothesis" rows="2">${esc(q.hypothesis || "")}</textarea></label>
+              <label>What would prove it wrong<textarea name="disprove_if" rows="2">${esc(q.disprove_if || "")}</textarea></label><label>Verdict<select name="verdict"><option value=""></option>${opts(["testing", "supported", "disproved", "mixed"], q.verdict)}</select></label></details>
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
         <form id="add-q" class="row" style="margin-top:10px"><select name="area" style="max-width:190px">${opts(LEARN_AREAS, "present")}</select><input name="question" required placeholder="What do you need to find out?" style="flex:1;min-width:240px"><input type="number" name="due_day" min="1" placeholder="By day" style="width:90px"><button class="btn" type="submit">Add</button>
           ${d.questions.length ? "" : '<button class="btn" type="button" id="lq-starter">Start from suggested questions</button>'}</form></section>`;
     main.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-learn-filter", b.dataset.f); } catch {} BA.rerender(); }));
     main.querySelectorAll("[data-q]").forEach((det) => {
       const form = det.querySelector("form");
       form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(form);
-        await BA.api(`/api/learning-questions/${det.dataset.q}`, { method: "PATCH", body: { question: fd.get("question"), area: fd.get("area"), due_day: numOrNull(fd.get("due_day")), status: fd.get("status"), answer: fd.get("answer") || null, ask_ids: fd.getAll("ask_ids").map(Number) } });
+        await BA.api(`/api/learning-questions/${det.dataset.q}`, { method: "PATCH", body: { question: fd.get("question"), area: fd.get("area"), due_day: numOrNull(fd.get("due_day")), status: fd.get("status"), answer: fd.get("answer") || null, hypothesis: fd.get("hypothesis") || null, disprove_if: fd.get("disprove_if") || null, verdict: fd.get("verdict") || null, ask_ids: fd.getAll("ask_ids").map(Number) } });
         BA.rerender(); });
       det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this question?")) return; await BA.api(`/api/learning-questions/${det.dataset.q}`, { method: "DELETE" }); BA.rerender(); });
     });

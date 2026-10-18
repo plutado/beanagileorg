@@ -52,6 +52,14 @@ STARTER_QUESTIONS = [
     ("people", "What did the previous manager leave for each person: past reviews, goals, and promises made?", 14),
     ("people", "How do job levels, promotions and contractor conversions work here?", 30),
     ("politics", "Who besides my manager influences how my work is judged, and what do they expect from me?", 21),
+    # How did we get here? Ask before changing anything.
+    ("past", "How has the team performed over the last year or two, and how was that measured?", 21),
+    ("past", "What happened when goals or commitments were missed?", 21),
+    ("past", "What has the team asked for, more than once, and never received?", 14),
+    ("present", "Is the stated strategy the one the organization is actually pursuing?", 45),
+    ("present", "What lurking surprises or political missteps could knock me off track?", 21),
+    ("future", "Where are the pockets of excellence I can build on?", 30),
+    ("culture", "Which parts of the culture should be kept, and which need to change?", 60),
 ]
 
 SITUATION_GUIDE = {
@@ -111,8 +119,23 @@ def agenda(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         q["due"] = _due(start, q.get("due_day"))
         q["late"] = q["status"] == "open" and bool(q["due"]) and q["due"] < t
         q["ask_names"] = [names[i] for i in q.get("ask_ids") or [] if i in names]
-    return {"questions": qs, "areas": list(models.LEARNING_AREAS),
+    return {"questions": qs, "areas": list(models.LEARNING_AREAS), "balance": learning_balance(qs),
             "counts": {s: sum(1 for q in qs if q["status"] == s) for s in models.LEARNING_STATUS}, "late": sum(1 for q in qs if q["late"])}
+
+
+LEARNING_DOMAINS = {"technical": ("technical", "products and customers", "business"), "people": ("people",), "culture": ("culture",), "politics": ("politics",)}
+
+
+def learning_balance(qs: list[dict]) -> dict:
+    """How the open questions split across technical, people, culture and politics. It's easy to learn the technical
+    side and shortchange culture and politics, so say so when that happens."""
+    open_qs = [q for q in qs if q["status"] == "open"]
+    counts = {d: sum(1 for q in open_qs if q["area"] in areas) for d, areas in LEARNING_DOMAINS.items()}
+    tagged = sum(counts.values())
+    soft = counts["culture"] + counts["politics"]
+    return {"counts": counts, "untagged": len(open_qs) - tagged,
+            "technical_heavy": tagged >= 6 and counts["technical"] > 0.5 * tagged and soft < 0.25 * tagged,
+            "hypotheses": sum(1 for q in qs if q.get("hypothesis")), "testing": sum(1 for q in qs if q.get("verdict") == "testing")}
 
 
 # ---- situation diagnosis ----

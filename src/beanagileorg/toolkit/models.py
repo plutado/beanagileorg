@@ -114,6 +114,7 @@ CHANGE_STATUS = ("idea", "announced", "trial", "review", "adopted", "dropped")
 MANDATE_STATUS = ("draft", "discussed", "agreed")
 LEARNING_AREAS = ("business", "past", "present", "future", "people", "culture", "technical", "products and customers", "politics")
 LEARNING_STATUS = ("open", "answered", "dropped")
+HYPOTHESIS_VERDICTS = ("testing", "supported", "disproved", "mixed")
 SITUATION_KINDS = ("start-up", "turnaround", "accelerated growth", "realignment", "sustaining success")
 PRACTICE_STATUS = ("shared", "trying", "adopted", "dropped")
 MANDATE_ITEM_KINDS = ("outcome", "decision")
@@ -1424,6 +1425,14 @@ MIGRATIONS = [
         ALTER TABLE preference_assessments ADD COLUMN hammer TEXT;
         ALTER TABLE preference_assessments ADD COLUMN plan TEXT;
         ALTER TABLE people ADD COLUMN advice TEXT;
+        """,
+    ),
+    (
+        32,
+        """
+        ALTER TABLE learning_questions ADD COLUMN hypothesis TEXT;
+        ALTER TABLE learning_questions ADD COLUMN disprove_if TEXT;
+        ALTER TABLE learning_questions ADD COLUMN verdict TEXT;
         """,
     ),
 ]
@@ -3217,6 +3226,9 @@ learning_questions = Record(
         "ask_ids": Field("ids", P),
         "due_day": Field("int", P),
         "answer": Field("text", P),
+        "hypothesis": Field("text", P),
+        "disprove_if": Field("text", P),
+        "verdict": Field("text", P, choices=HYPOTHESIS_VERDICTS),
         "status": Field("text", P, choices=LEARNING_STATUS, default="open"),
         "position": Field("int", P, default=0),
     },

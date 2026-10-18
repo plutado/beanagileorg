@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Learning agenda, chapter 2. Questions can become hypotheses (what I think is going on, what would prove it wrong, a verdict); the agenda shows the split across technical, people, culture and politics and warns when technical crowds out the rest; seven more starter questions on history, missed goals, unmet asks, real versus stated strategy, landmines, pockets of excellence and culture to keep. The Learn fast guide gains practices on asking how things got this way, learning as an investment and balanced learning, and pitfalls on acting too soon and arriving with the answer. Also fixed business and culture questions not showing on the agenda; 240 tests
+
 - [x] 2026-10-18: Blind spots into a plan. Problem preferences gains "my hammer" (strengths that could misfire) and a compensation plan per blind spot (discipline, a backstop from People, or an advisor). People can be marked as technical, political or personal advisors, and My development shows the advice network and flags missing political or personal counsel. The new-role guide gains four practices and two pitfalls, and the reflection journal gains prompts from the end of chapter 1; 239 tests
 
 - [x] 2026-10-18: Problem preferences. A private self-assessment under My development: rate your interest (not skill) in fifteen kinds of problems, five areas by technical, political and cultural. Row and column totals flag likely blind spots, each linked to guides; earlier ratings are kept. The idea comes from The First 90 Days; the cells are written for engineering leaders. Also a "make a clear break" practice in the new-role guide and an ends-and-means values question in the culture map; 237 tests
