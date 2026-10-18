@@ -66,6 +66,8 @@ TEMPLATES = [
      "[Placeholder: where things stand in one sentence]\n\n## Results against the scorecard\n- [Placeholder]\n\n## Metrics\n- [Placeholder]\n\n## What's next\n- [Placeholder]\n\n## What we need\n- [Placeholder]"),
     ("Team announcement", "team announcement", [5],
      "[Placeholder: the news in one sentence]\n\n**Why:** [Placeholder]\n\n**What it means for you:** [Placeholder]\n\n**Where to ask:** [Placeholder channel]"),
+    ("Video pitch", "video pitch", [0, 2, 3],
+     "**Script (2 to 4 minutes)**\n\n1. **Hook:** [Placeholder: the problem or opportunity in one sentence, and why now]\n2. **What the data shows:** [Placeholder: two or three facts from the toolkit: metrics, sprint results, incidents]\n3. **What I propose:** [Placeholder: the recommendation, and the options I weighed]\n4. **What it means for you:** [Placeholder: what changes for this audience]\n5. **The ask:** [Placeholder: one specific ask, and a respond-by date]\n\n**On screen:** [Placeholder: slides or demo steps for each beat]\n\n---\n\n**Email to send with it**\n\n[Placeholder: poster image linking to the video]\n\n- [Placeholder: summary line 1]\n- [Placeholder: summary line 2]\n- [Placeholder: summary line 3]\n\n**The ask:** [Placeholder] by [Placeholder date]. Reply here, or in the comments under the video.\n\nThe transcript is below the video for anyone who'd rather read."),
     ("Sprint review invite and recap", "stakeholder update", [2, 1],
      "[Placeholder: the sprint goal in one sentence]\n\n## What we'll show\n- [Placeholder]\n\n## Recap\n- [Placeholder]\n\n**Highlights video:** [Placeholder link]"),
 ]

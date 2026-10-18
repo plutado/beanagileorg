@@ -81,7 +81,7 @@ def test_raci_cells_roles_and_accountable(client):
 
 def test_starter_loads_once(client):
     loaded = client.post("/api/delivery/starter").json()
-    assert loaded == {"roadmap_items": 15, "raci_decisions": 5, "metrics": 4}
+    assert loaded == {"roadmap_items": 15, "raci_decisions": 5, "metrics": 6}
     assert client.post("/api/delivery/starter").status_code == 409
 
 

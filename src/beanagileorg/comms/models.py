@@ -15,7 +15,7 @@ MEDIA_SOURCES = ("mine", "licensed", "placeholder")
 
 MESSAGE_TYPES = (
     "weekly note", "weekly status", "alert", "release notes", "stakeholder update",
-    "decision announcement", "team announcement", "review", "memo", "other",
+    "decision announcement", "team announcement", "review", "memo", "video pitch", "other",
 )
 MESSAGE_STATES = ("draft", "in review", "ready", "sent", "archived")
 DETAIL_LEVELS = ("summary first", "full detail", "technical", "what changes for them")

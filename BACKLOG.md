@@ -16,7 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
-- [ ] Dev-sync log: add kind (question, offer to present, decision needed, idea, action), subject matter experts, decision maker, and an "on the board" switch with shareable columns; a "Make an update" action that opens the Comms studio with a script drafted from the row. These feed the dev-sync board on the share site
+- [ ] Async asks: track who each video pitch went to, who responded and what was decided, with follow-ups on Today (needs the share site's view log)
 - [ ] First 90 days: turn learning agenda answers into Business landscape assessments; suggest learning questions from listening tour themes; a mentoring summary for my manager's weekly report
 - [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
 - [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
@@ -96,11 +96,7 @@ In the order the 90-day plan needs them:
 
 ## Async, one-to-many communication (from David's stated style, 2026-10-17)
 
-- [ ] Comms studio: a "video pitch" message type. A short script drafted from toolkit facts (metrics, sprint results, decisions needed), a storyboard of on-screen slides or demo steps, a target length of 2 to 4 minutes, a written summary and transcript for people who skim, one clear ask, and a respond-by date
 - [ ] Track async asks: who each pitch went to, who has responded, and what was decided, with follow-ups on Today; replies to a pitch can become decisions or dev-sync items
-- [ ] An async-first team agreement starter and practice pack: decide in writing where possible, no meetings to plan meetings, every meeting has a purpose and an owner, and recordings and summaries replace status meetings
-- [ ] Metrics starter: meeting load and reschedule rate (a simple weekly tally), to show the cost of planning to plan and the effect of going async
-- [ ] Reports: offer a recorded-video version of the weekly report, with a script drafted from the report itself
 - [ ] Video hosting and delivery (raised 2026-10-17, undecided). Options weighed:
   - The company's own video platform. If [employer] is on Microsoft 365 (the interviews ran on Teams), that's Stream on SharePoint: sign-in, permissions, captions, transcripts and view counts, with Outlook and Teams previews. Nothing to build. Recommended for delivery.
   - A white-label host bought on AppSumo: branding and analytics, but company videos would sit with a third party. It depends on a lifetime-deal vendor staying in business, and usually lacks company sign-in.
@@ -134,6 +130,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Dev-sync board, update scripts and async-first starters. The dev-sync log gains kind (question, offer to present, decision needed, idea, action), subject matter experts, a decision maker, an "on the dev-sync board" switch, and the latest update's link and date. The board can be copied as Markdown with only its shareable columns, ready for the share site later. "Make an update" drafts a two-to-three-minute script from a row's history. Weekly and sprint reports get a Video script button. The Comms studio gains a "video pitch" message type and template (script beats, on-screen notes, and the email to send with it). New starters: three async-first team agreements (no meetings to plan meetings, no agenda no meeting, status written or recorded); meetings-per-week and reschedule-rate metrics; and three SDLC communication policies (missed sprint commitment, release that breaks production, risk becoming likely); 214 tests
 
 - [x] 2026-10-17: Leading upward. A coaching guide on proposing the plan to a manager who looks to you for it; the manager-conversation prompts now lead with proposals; the mandate's open-questions field is now "Proposals and open questions", and the mandate guide says to bring it as a proposal. David's mandate draft is rewritten as ten proposals, three genuine questions, and a proposed authority for each of 15 decision areas; 211 tests
 

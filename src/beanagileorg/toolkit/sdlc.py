@@ -71,6 +71,9 @@ STARTER_POLICIES = [
     ("hotfix", "Hotfixes", "[Placeholder: when a fix can skip the normal cycle, who approves it, and how it is merged back.]"),
     ("release", "Freeze windows", "[Placeholder: peak-season and platform-release freeze dates, and how to ask for an exception.]"),
     ("branching", "Sandbox workflow", "Salesforce work moves through sandboxes rather than Git flow or feature-branch flow: each developer builds in their own sandbox, changes go into a branch for the story and a pull request, merged work is deployed to the integration sandbox (Developer Pro), the release is tested in the QA sandbox (Partial Copy), and production is deployed after the go/no-go. [Placeholder: how metadata moves between sandboxes and Bitbucket, branch names, who deploys each step, and how sandboxes are refreshed.]"),
+    ("communication", "When we miss a sprint commitment", "Within a day of the sprint review, a short written or recorded note goes to [Placeholder: stakeholders and leadership]: what we committed, what we finished, why the gap, what we're changing, and the new forecast. The team discusses it at the retro, without blame."),
+    ("communication", "When a release breaks production", "Fix first, then tell. A first note within [Placeholder: 30 minutes] to [Placeholder: who], updates every [Placeholder: hour] until it's resolved, then a blameless review within two working days: what happened, the impact, why testing didn't catch it, and what changes. Follows the escalation playbook."),
+    ("communication", "When a risk becomes likely", "The owner adds it to the risk log the same day, with a next step and a date. It stays in the weekly report until it's closed or accepted, and leadership hears about it before it becomes a surprise."),
     ("data", "Test data", "[Placeholder: what data each environment may hold, and how production data is masked.]"),
 ]
 

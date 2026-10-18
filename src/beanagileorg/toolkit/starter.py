@@ -30,6 +30,8 @@ METRICS = [
     ("Deployment frequency", "per week", "Production deployments", True),
     ("Change failure rate", "%", "Share of releases needing a fix or rollback", False),
     ("Escaped defects", "per sprint", "Bugs found after release", False),
+    ("Meetings per week (team)", "meetings", "A weekly tally from the team's calendars; the cost of coordination", False),
+    ("Meetings rescheduled", "%", "Share of planned meetings moved or cancelled each week; planning to plan", False),
 ]
 
 

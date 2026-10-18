@@ -62,7 +62,7 @@ def test_tables_and_headings_are_not_prose():
 
 
 def test_starter_kit_loads_once(kit):
-    assert len(kit.get("/api/templates").json()) == 9
+    assert len(kit.get("/api/templates").json()) == 10
     assert len(kit.get("/api/audiences").json()) == 6
     assert all(c["name"].startswith("[Placeholder") for c in kit.get("/api/channels").json())
     assert kit.post("/api/comms/starter-kit").status_code == 409

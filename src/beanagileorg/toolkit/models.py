@@ -12,6 +12,7 @@ TASK_STATUS = ("open", "done")
 CADENCES = ("weekly", "every two weeks", "monthly", "quarterly", "once")
 ACTION_STATUS = ("open", "in progress", "waiting", "done")
 ACTION_ORIGINS = ("dev sync", "retro", "incident", "one-on-one", "vendor", "testing", "other")
+DEVSYNC_KINDS = ("question", "offer to present", "decision needed", "idea", "action")
 VENDOR_TYPES = ("platform vendor", "consulting partner", "contractor agency", "tooling", "other")
 VENDOR_STATUS = ("active", "onboarding", "under review", "ended")
 INTERACTION_CHANNELS = ("call", "meeting", "email", "chat", "other")
@@ -69,7 +70,7 @@ ONBOARDING_CATEGORIES = ("accounts and access", "tools and setup", "people", "wa
 ONBOARDING_OWNERS = ("new member", "manager", "buddy", "IT or admin")
 ONBOARDING_TRACKS = ("Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor")
 ONBOARDING_STATUS = ("not started", "in progress", "done")
-POLICY_CATEGORIES = ("branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "other")
+POLICY_CATEGORIES = ("branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "communication", "other")
 POLICY_STATUS = ("draft", "agreed", "retired")
 GUIDE_STATUS = ("draft", "published")
 GUIDE_FOCUS = ("want to work on", "practicing", "comfortable")
@@ -1356,6 +1357,17 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        28,
+        """
+        ALTER TABLE action_items ADD COLUMN kind TEXT;
+        ALTER TABLE action_items ADD COLUMN expert_ids TEXT;
+        ALTER TABLE action_items ADD COLUMN decider_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        ALTER TABLE action_items ADD COLUMN on_board INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE action_items ADD COLUMN update_url TEXT;
+        ALTER TABLE action_items ADD COLUMN update_on DATE;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1514,11 +1526,18 @@ action_items = Record(
         "jira_keys": Field("keys", S),
         "team_id": Field("int", S),
         "interaction_id": Field("int", P),
+        "kind": Field("text", S, choices=DEVSYNC_KINDS),
+        "expert_ids": Field("ids", S),
+        "decider_id": Field("int", S),
+        "on_board": Field("bool", P, default=False),
+        "update_url": Field("text", S),
+        "update_on": Field("date", S),
     },
     computed={
         "vendor_name": ("(SELECT name FROM vendors v WHERE v.id = action_items.vendor_id)", S),
         "owner_name": ("(SELECT name FROM people p WHERE p.id = action_items.owner_id)", S),
         "raised_by_name": ("(SELECT name FROM people p WHERE p.id = action_items.raised_by_id)", S),
+        "decider_name": ("(SELECT name FROM people p WHERE p.id = action_items.decider_id)", S),
     },
 )
 

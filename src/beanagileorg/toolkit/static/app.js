@@ -875,7 +875,12 @@
     { name: "status", label: "Status", type: "select", blank: false, options: ACTION_STATUS },
     { name: "origin", label: "Came from", type: "select", blank: false, options: ACTION_ORIGINS },
     { name: "learning", label: "Group learning: worth a short team presentation", type: "checkbox" },
+    { name: "kind", label: "Kind", type: "select", options: ["question", "offer to present", "decision needed", "idea", "action"] },
+    { name: "decider_id", label: "Decision maker", type: "select", numeric: true, options: people.map((p) => ({ value: p.id, label: p.name })) },
     { name: "jira_keys", label: "Jira keys", type: "keys", placeholder: "ABC-123, ABC-124" },
+    { name: "on_board", label: "On the dev-sync board (shareable)", type: "checkbox" },
+    { name: "update_url", label: "Latest update (link to the presentation)" },
+    { name: "update_on", label: "Update posted", type: "date" },
     { name: "notes", label: "My notes (private)", type: "textarea" },
   ];
 
@@ -909,17 +914,21 @@
           <select id="f-status" style="max-width:180px">${["active", "overdue", ...ACTION_STATUS, "all"].map((s) => `<option${s === state.status ? " selected" : ""}>${s}</option>`).join("")}</select>
           <select id="f-owner" style="max-width:240px"><option value="">All owners</option>${owners.map(([id, n]) => `<option value="${id}"${String(id) === state.owner ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>
         </div>
-        <div class="tablewrap"><table class="data"><thead><tr><th>Question or concern</th><th>Raised by</th><th>Owner</th><th>Next action</th><th>Due</th><th>Status</th><th>Learning</th></tr></thead><tbody>${
+        <div class="tablewrap"><table class="data"><thead><tr><th>Question or concern</th><th>Kind</th><th>Raised by</th><th>Owner</th><th>Next action</th><th>Due</th><th>Status</th><th>Learning</th></tr></thead><tbody>${
           shown
-            .map((i) => `<tr class="clickable" data-id="${i.id}"><td>${esc(i.concern)} ${BA.issueKeys(i.jira_keys)}</td><td>${esc(i.raised_by_name || "")}</td><td>${esc(i.owner_name || "")}</td>
+            .map((i) => `<tr class="clickable" data-id="${i.id}"><td>${esc(i.concern)} ${BA.issueKeys(i.jira_keys)}${i.on_board ? ' <span class="pill accent" title="On the dev-sync board">board</span>' : ""}${i.update_url ? ` <a href="${esc(i.update_url)}" target="_blank" rel="noopener" class="pill good" onclick="event.stopPropagation()">update</a>` : ""}</td><td class="quiet">${esc(i.kind || "")}</td><td>${esc(i.raised_by_name || "")}</td><td>${esc(i.owner_name || "")}</td>
               <td>${esc(i.next_action)}</td><td${late(i) ? ' class="late"' : ""}>${BA.fmtDate(i.due)}</td>
               <td>${late(i) ? '<span class="pill bad">overdue</span>' : BA.statusPill(i.status)}</td><td>${i.learning ? '<span class="pill">yes</span>' : ""}</td></tr>`)
-            .join("") || '<tr><td colspan="7" class="empty">Nothing matches.</td></tr>'
+            .join("") || '<tr><td colspan="8" class="empty">Nothing matches.</td></tr>'
         }</tbody></table></div>
-        <p class="quiet">I own the follow-up on every item, so nothing raised gets dropped.</p>`;
+        <p class="quiet">I own the follow-up on every item, so nothing raised gets dropped.</p>
+        ${presenting() ? "" : `<section class="card"><div class="row"><h2>Dev-sync board</h2><span class="spacer"></span><button class="btn" id="copy-board">Copy the board as Markdown</button></div>
+          <p class="quiet">Rows marked "On the dev-sync board" with their shareable columns: topic, kind, who asked, experts, decision maker, next action, due, status and a link to the latest update. Until the share site exists, paste it into a page or message; later it becomes a gated board where each row opens its update presentation.</p></section>`}`;
       main.querySelector("#f-status").onchange = (e) => ((state.status = e.target.value), BA.rerender());
       main.querySelector("#f-owner").onchange = (e) => ((state.owner = e.target.value), BA.rerender());
       main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/dev-sync/${tr.dataset.id}`)));
+      const cb = main.querySelector("#copy-board");
+      if (cb) cb.onclick = BA.guard(async () => { const r = await BA.api("/api/dev-sync/board/export", { method: "POST" }); await navigator.clipboard.writeText(r.markdown); BA.toast(`Copied ${r.rows} row${r.rows === 1 ? "" : "s"}. Logged as an export.`); });
       const add = main.querySelector("#add");
       if (add)
         add.onsubmit = BA.guard(async (e) => {
@@ -939,12 +948,24 @@
       return;
     }
     main.innerHTML = `<p><a href="#/dev-sync">Dev-sync log</a></p><form id="item" class="card"><div class="grid2">${BA.form(fields, rec)}</div>
-      <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("action_item", id)}<button class="btn primary" type="submit">Save</button></div></form>`;
+      <label>Subject matter experts</label><div class="case-picks">${people.filter((p) => p.active !== false).map((p) => `<label class="check"><input type="checkbox" name="expert_ids" value="${p.id}"${(rec.expert_ids || []).includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>
+      <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("action_item", id)}<button class="btn" type="button" id="make-update">Make an update</button><button class="btn primary" type="submit">Save</button></div></form>
+      <section class="card" id="update-box" hidden></section>`;
     const form = main.querySelector("#item");
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
-      await BA.api(`/api/actions/${id}`, { method: "PATCH", body: BA.readForm(form, fields) });
+      await BA.api(`/api/actions/${id}`, { method: "PATCH", body: { ...BA.readForm(form, fields), expert_ids: new FormData(form).getAll("expert_ids").map(Number) } });
       BA.toast("Saved.");
+    });
+    main.querySelector("#make-update").onclick = BA.guard(async () => {
+      const s = await BA.api(`/api/actions/${id}/update-script`);
+      const box = main.querySelector("#update-box");
+      box.hidden = false;
+      box.innerHTML = `<div class="row"><h2>Update script</h2><span class="spacer"></span><button class="btn" id="copy-script">Copy</button></div>
+        <p class="quiet">A two-to-three-minute script drafted from this row. Record it, or build a short deck from it in the Comms studio (Video pitch template), then paste the link above under "Latest update" and save.</p>
+        <div class="msg-preview">${BA.md(s.markdown)}</div>`;
+      box.querySelector("#copy-script").onclick = BA.guard(async () => { await navigator.clipboard.writeText(s.markdown); BA.toast("Copied."); });
+      box.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     main.querySelector("#del").onclick = BA.guard(async () => {
       if (!confirm("Delete this item?")) return;
@@ -1648,7 +1669,7 @@
     const box = main.querySelector("#report-box");
     box.innerHTML = `<div class="row"><div class="seg" id="rep-mode"><button type="button" data-mode="preview" class="on">Preview</button><button type="button" data-mode="edit"${ro ? " disabled" : ""}>Edit</button></div>
         ${text !== rep.markdown ? '<span class="pill warn">edited</span><button class="btn" type="button" id="rep-reset">Start again from the data</button>' : ""}<span class="spacer"></span>
-        ${ro ? "" : '<button class="btn" id="rep-copy">Copy Markdown</button><button class="btn" id="rep-save">Save draft</button><button class="btn primary" id="rep-sent">Save as sent</button>'}</div>
+        ${ro ? "" : '<button class="btn" id="rep-script" title="A short narrated script from this report, to record as a video update">Video script</button><button class="btn" id="rep-copy">Copy Markdown</button><button class="btn" id="rep-save">Save draft</button><button class="btn primary" id="rep-sent">Save as sent</button>'}</div>
       <div id="rep-preview" class="msg-preview">${BA.md(text)}</div><textarea id="rep-text" rows="24" class="mono" hidden>${esc(text)}</textarea>`;
     const ta = box.querySelector("#rep-text"), pv = box.querySelector("#rep-preview");
     box.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => {
@@ -1662,6 +1683,15 @@
     if (reset) reset.onclick = () => { try { sessionStorage.removeItem(key); } catch {} BA.rerender(); };
     if (ro) return;
     const body = (extra = {}) => ({ kind, audience: rep.audience, period_start: rep.period_start, period_end: rep.period_end, sprint_id: rep.sprint_id || null, title: rep.title, markdown: ta.value, ...extra });
+    box.querySelector("#rep-script").onclick = BA.guard(async () => {
+      const q = kind === "sprint" ? `kind=sprint&sprint_id=${rep.sprint_id}` : `kind=weekly&week=${rep.period_start}`;
+      const s = await BA.api(`/api/reports/script?${q}&audience=${encodeURIComponent(rep.audience)}`);
+      let sb = main.querySelector("#script-box");
+      if (!sb) { sb = document.createElement("section"); sb.className = "card"; sb.id = "script-box"; box.after(sb); }
+      sb.innerHTML = `<div class="row"><h2>Video script</h2><span class="spacer"></span><button class="btn" id="copy-vs">Copy</button></div><p class="quiet">Drafted from this report's sections. Say it in your own words; send the report itself as the written version.</p><div class="msg-preview">${BA.md(s.markdown)}</div>`;
+      sb.querySelector("#copy-vs").onclick = BA.guard(async () => { await navigator.clipboard.writeText(s.markdown); BA.toast("Copied."); });
+      sb.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
     box.querySelector("#rep-copy").onclick = BA.guard(async () => {
       await navigator.clipboard.writeText(ta.value);
       await BA.api("/api/reports/exported", { method: "POST", body: { title: rep.title, markdown: ta.value, kind } });

@@ -47,6 +47,9 @@ STARTER_AGREEMENTS = [
     ("code review", "Review comments explain why, and suggest rather than command."),
     ("quality", "Mistakes are discussed to learn, not to blame."),
     ("working together", "We ask for help early and offer it freely."),
+    ("meetings", "No meetings to plan meetings: we decide in writing where we can."),
+    ("meetings", "Every meeting has an owner and an agenda sent beforehand; no agenda, no meeting."),
+    ("communication", "Status is written or recorded, so meetings are for decisions and problems."),
 ]
 EMPTY_BRIEF = {"focus": [], "must_haves": [], "situation": "", "keep": []}
 
