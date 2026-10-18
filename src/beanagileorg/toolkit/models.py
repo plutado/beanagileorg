@@ -1435,6 +1435,14 @@ MIGRATIONS = [
         ALTER TABLE learning_questions ADD COLUMN verdict TEXT;
         """,
     ),
+    (
+        33,
+        """
+        ALTER TABLE interviews ADD COLUMN if_you_were_me TEXT;
+        ALTER TABLE interviews ADD COLUMN how_answered TEXT;
+        ALTER TABLE people ADD COLUMN insight TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1477,6 +1485,7 @@ people = Record(
         "need_from_them": Field("text", P),
         "expects_from_me": Field("text", P),
         "advice": Field("list", P),
+        "insight": Field("list", P),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),
@@ -1499,6 +1508,8 @@ interviews = Record(
         "frustrating": Field("text", P),
         "change_first": Field("text", P),
         "dont_change": Field("text", P),
+        "if_you_were_me": Field("text", P),
+        "how_answered": Field("text", P),
         "systems": Field("list", P),
         "gaps": Field("text", P),
         "opportunities": Field("text", P),

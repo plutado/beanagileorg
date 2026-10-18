@@ -98,13 +98,16 @@ GUIDES = [
         "why": "Everyone tells a new leader something. Without a plan, you learn the loudest stories, not the most important ones. A learning agenda keeps you honest and shortens the time before you can act well.",
         "practices": [
             "Write a learning agenda: the questions you need answered about the work, the people, the systems and the history.",
-            "Ask everyone the same few questions, so you can compare answers. The listening tour uses four for this reason.",
+            "Ask everyone the same few questions, so you can compare answers. The listening tour uses five for this reason, ending with what they would focus on in your place",
             "Learn from several directions: your team, peers, product, customers, support and leadership each see a different piece.",
             "Hold your early views as hypotheses. Write them down, then look for evidence that would prove them wrong.",
             "Read the artifacts: past retros, incidents, the backlog, release history. They show what people actually do, not what they say.",
             "Ask how things got this way before changing them. A process that looks outdated may be a sensible answer to years of underinvestment, and the people who built it will notice whether you asked.",
             "Treat learning as an investment. Your time is scarce, so aim for insights you can act on, and revisit your agenda as questions turn into hypotheses.",
             "Balance what you learn. The technical side is easiest to see; culture and politics, including the informal network of alliances behind the org chart, are where new leaders usually trip.",
+            "Use a structure: the same script with everyone at one level, then bring your themes and questions back to them as a group. You learn the content and the team's dynamics at once.",
+            "Notice how people answer, not only what they say: who's direct and who's evasive, who takes responsibility and who points fingers, who sees the whole business and who sees one silo.",
+            "Start before you arrive: read what's public, and if you can, talk to someone who works there now or did recently.",
         ],
         "pitfalls": [
             "Talking more than listening in early conversations.",
@@ -112,6 +115,7 @@ GUIDES = [
             "Only learning from people who are easy to reach.",
             "The urge to act before you understand. Being busy feels like progress, but early decisions made without learning cost credibility that's hard to win back.",
             "Arriving with the answer: importing how your last company did it, without asking why things are different here.",
+            "Being swayed by the first, the last or the loudest person you talk to. Some will seek you out early precisely to shape your view.",
         ],
         "questions": [
             "What are the five questions I most need answered by day 30?",
@@ -1093,6 +1097,7 @@ TIPS = {
                  ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11),
                  ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12),
                  ("As you learn, turn questions into hypotheses, and write down what would prove each one wrong.", "learn-fast", 18),
+                 ("Learn from different vantage points: customers, integrators, the frontline and the people who remember how things came to be.", "learn-fast", 19),
                  ("Joining from outside? Work on the business, the people, expectations and the culture at once, and find a culture guide early.", "joining-from-outside", 13)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
@@ -1115,6 +1120,7 @@ TIPS = {
                     ("Hires from outside the company need a culture guide and a business orientation, not just accounts and tools.", "joining-from-outside", 13)],
     "/skills": [("Match stretch work to what people want to learn. Growth is one of the best reasons people stay.", "delegation")],
     "/listening": [("Ask everyone the same questions so you can compare answers. Listen more than you talk.", "learn-fast"),
+                   ("End each conversation with: if you were me, what would you focus on first?", "learn-fast", 19),
                    ("Hold early impressions as hypotheses. Write down what would prove them wrong.", "read-the-situation")],
     "/rollup": [("Share what you heard with the team before announcing changes. It shows you listened.", "earning-trust"),
                 ("The 'don't change' notes matter as much as the complaints. Plan to keep them.", "read-the-situation")],
@@ -1229,7 +1235,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 18  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 19  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

@@ -119,7 +119,7 @@ def agenda(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         q["due"] = _due(start, q.get("due_day"))
         q["late"] = q["status"] == "open" and bool(q["due"]) and q["due"] < t
         q["ask_names"] = [names[i] for i in q.get("ask_ids") or [] if i in names]
-    return {"questions": qs, "areas": list(models.LEARNING_AREAS), "balance": learning_balance(qs),
+    return {"questions": qs, "areas": list(models.LEARNING_AREAS), "balance": learning_balance(qs), "sources": insight_sources(conn),
             "counts": {s: sum(1 for q in qs if q["status"] == s) for s in models.LEARNING_STATUS}, "late": sum(1 for q in qs if q["late"])}
 
 
@@ -136,6 +136,67 @@ def learning_balance(qs: list[dict]) -> dict:
     return {"counts": counts, "untagged": len(open_qs) - tagged,
             "technical_heavy": tagged >= 6 and counts["technical"] > 0.5 * tagged and soft < 0.25 * tagged,
             "hypotheses": sum(1 for q in qs if q.get("hypothesis")), "testing": sum(1 for q in qs if q.get("verdict") == "testing")}
+
+
+# Where insight comes from: people with different vantage points, inside and outside the team.
+INSIGHT_KINDS = [
+    ("customer", "Customers and business users"), ("vendor", "Vendors and suppliers"), ("frontline", "Frontline engineers and operations"),
+    ("sales", "Sales and customer service"), ("staff", "Finance, legal and HR"), ("integrator", "Integrators: project and product managers"),
+    ("historian", "Natural historians: people who've been here a long time"),
+]
+
+
+def insight_sources(conn) -> dict:
+    from .people_crm import _last_contacts
+
+    last = _last_contacts(conn)
+    kinds = {k: [] for k, _ in INSIGHT_KINDS}
+    for p in models.people.fetch_all(conn, "active = 1"):
+        for k in p.get("insight") or []:
+            if k in kinds:
+                kinds[k].append({"id": p["id"], "name": p["name"], "heard": p["id"] in last})
+    tagged = sum(len(v) for v in kinds.values())
+    out = [{"key": k, "label": label, "people": kinds[k], "heard": sum(1 for x in kinds[k] if x["heard"])} for k, label in INSIGHT_KINDS]
+    return {"kinds": out, "gaps": [x["key"] for x in out if not x["heard"]] if tagged >= 3 else []}
+
+
+LEARNING_METHODS_KEY = "first90.learning_methods"
+LEARNING_METHODS = [
+    ("survey", "Climate or engagement survey", "Culture and morale, if results exist for your group.", "#/culture/pulse"),
+    ("slices", "Interviews across a slice", "Everyone at one level (horizontal) or down through levels (vertical), same questions.", "#/listening"),
+    ("feedback", "Feed back to the group", "Share your themes and questions with the people you interviewed, together.", "#/rollup"),
+    ("focus", "Focus groups", "A group that does similar work, to probe a shared concern and see who leads.", None),
+    ("decision", "Analyze a past decision", "Trace how a recent important decision was made and who influenced it.", None),
+    ("process", "Process analysis", "Chart a key process end to end and find where work waits.", "#/sdlc"),
+    ("tours", "Tours", "Time with the people closest to the product and the customer.", None),
+    ("pilots", "Pilot projects", "Small changes, and how the organization responds to them.", "#/first90/changes"),
+    ("assimilation", "New-leader assimilation", "A facilitated session where your team's questions reach you without names attached.", None),
+]
+METHOD_STATUS = ("not yet", "planned", "done", "not needed")
+
+
+@router.get("/api/first90/learning-methods")
+def learning_methods(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (LEARNING_METHODS_KEY,)).fetchone()
+    saved = json.loads(row["value"]) if row else {}
+    return {"statuses": list(METHOD_STATUS), "methods": [{"key": k, "label": l, "about": a, "link": link, "status": saved.get(k, {}).get("status", "not yet"), "notes": saved.get(k, {}).get("notes", "")}
+                                                          for k, l, a, link in LEARNING_METHODS]}
+
+
+@router.put("/api/first90/learning-methods/{key}")
+def put_learning_method(key: str, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    if key not in {k for k, *_ in LEARNING_METHODS}:
+        raise HTTPException(404, "No such method.")
+    if body.get("status", "not yet") not in METHOD_STATUS:
+        raise HTTPException(400, "Unknown status.")
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (LEARNING_METHODS_KEY,)).fetchone()
+    saved = json.loads(row["value"]) if row else {}
+    saved[key] = {"status": body.get("status", "not yet"), "notes": body.get("notes") or ""}
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (LEARNING_METHODS_KEY, json.dumps(saved)))
+    return saved[key]
 
 
 # ---- situation diagnosis ----

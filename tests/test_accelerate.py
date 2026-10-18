@@ -107,3 +107,23 @@ def test_hypotheses_and_learning_balance(client):
     client.patch(f"/api/learning-questions/{q['id']}", json={"hypothesis": "[Placeholder]", "disprove_if": "[Placeholder]", "verdict": "testing"})
     b = client.get("/api/learning-questions/agenda").json()["balance"]
     assert b["technical_heavy"] is False and b["hypotheses"] == 1 and b["testing"] == 1
+
+
+def test_sources_of_insight_and_learning_methods(client):
+    ids = [client.post("/api/people", json={"name": f"[Placeholder name {n}]", "insight": [k]}).json()["id"] for n, k in enumerate(["historian", "integrator", "customer"])]
+    s = client.get("/api/learning-questions/agenda").json()["sources"]
+    assert {"historian", "integrator", "customer"} <= set(s["gaps"])
+    client.post("/api/interactions", json={"date": date.today().isoformat(), "person_ids": [ids[0]]})
+    s = client.get("/api/learning-questions/agenda").json()["sources"]
+    assert "historian" not in s["gaps"] and next(k for k in s["kinds"] if k["key"] == "historian")["heard"] == 1
+    m = client.get("/api/first90/learning-methods").json()
+    assert len(m["methods"]) == 9 and all(x["status"] == "not yet" for x in m["methods"])
+    client.put("/api/first90/learning-methods/decision", json={"status": "planned", "notes": "[Placeholder decision]"})
+    assert client.put("/api/first90/learning-methods/nope", json={}).status_code == 404
+    assert next(x for x in client.get("/api/first90/learning-methods").json()["methods"] if x["key"] == "decision")["status"] == "planned"
+
+
+def test_listening_tour_fifth_question_rolls_up(client):
+    p = client.post("/api/people", json={"name": "[Placeholder name 1]"}).json()["id"]
+    client.post("/api/interviews", json={"person_id": p, "status": "done", "date": date.today().isoformat(), "if_you_were_me": "[Placeholder focus]", "how_answered": "[Placeholder]"})
+    assert client.get("/api/rollup").json()["notes"]["if_you_were_me"][0]["text"] == "[Placeholder focus]"

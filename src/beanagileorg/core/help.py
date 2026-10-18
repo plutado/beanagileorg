@@ -60,7 +60,8 @@ TOOLKIT = {
                   "Hold check-ins at days 30, 60 and 90: a trust pulse, what you heard, and what changed because of it.",
                   "Under Mandates, write down what your role is for, what it must deliver and what you can decide, then agree it with your manager. Do the same with each report.",
                   "Diagnose each area's situation, keep a learning agenda of what to find out and from whom, and track the managers you mentor. Momentum shows on the overview.",
-                  "As answers come in, turn questions into hypotheses with what would prove them wrong. The agenda warns when technical questions crowd out culture and politics."],
+                  "As answers come in, turn questions into hypotheses with what would prove them wrong. The agenda warns when technical questions crowd out culture and politics.",
+                  "Tag people by the insight they bring (customers, integrators, natural historians and more) to see whose view you're missing, and track which ways to learn you've used."],
         "privacy": "Working with me and the team changes can be shown while presenting; milestones, check-in notes and your own track are private.",
         "related": ["/onboarding", "/plans", "/coaching/leading-change"],
     },
@@ -79,7 +80,7 @@ TOOLKIT = {
         "related": ["/people", "/learning"],
     },
     "/listening": {
-        "purpose": "Run your listening tour: one record per one-on-one, with the same four questions every time so you can compare answers.",
+        "purpose": "Run your listening tour: one record per one-on-one, with the same five questions every time so you can compare answers, then share the themes back with the group.",
         "steps": ["Plan a one-on-one with each person.", "Afterwards, record what's working, what's frustrating, what to change first and what not to change.",
                   "Tag themes and systems as you go; they feed the day-30 rollup."],
         "privacy": "Private end to end. Only theme counts are ever shared.",

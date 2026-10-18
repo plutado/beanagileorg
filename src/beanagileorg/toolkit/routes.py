@@ -15,7 +15,7 @@ from .seed import load_placeholders
 
 router = APIRouter()
 START_DATE_KEY = "toolkit.start_date"
-NOTE_FIELDS = ("change_first", "frustrating", "dont_change", "gaps", "opportunities")
+NOTE_FIELDS = ("change_first", "frustrating", "dont_change", "if_you_were_me", "gaps", "opportunities")
 
 
 def today() -> date:
@@ -72,6 +72,7 @@ def rollup_markdown(viewer: Viewer = Depends(require_full), conn=Depends(get_con
         "opportunities": "Opportunities",
         "dont_change": "What not to change",
         "change_first": "What to change first",
+        "if_you_were_me": "If you were me, I'd focus on",
     }
     for key, title in titles.items():
         lines += ["", f"## {title}"] + [f"- {n['text']}" for n in data["notes"][key]]

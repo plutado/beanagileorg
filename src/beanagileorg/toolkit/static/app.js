@@ -73,10 +73,12 @@
     { name: "frustrating", label: "What's frustrating?", type: "textarea" },
     { name: "change_first", label: "What would you change first?", type: "textarea" },
     { name: "dont_change", label: "What should I not change?", type: "textarea" },
+    { name: "if_you_were_me", label: "If you were me, what would you focus on first?", type: "textarea" },
     { name: "systems", label: "Products and systems mentioned", type: "list", hint: "comma separated" },
     { name: "gaps", label: "Gaps", type: "textarea" },
     { name: "opportunities", label: "Opportunities", type: "textarea" },
     { name: "themes", label: "Themes", type: "list", hint: "comma separated; these roll up into the day-30 diagnosis" },
+    { name: "how_answered", label: "How they answered (private)", type: "textarea", hint: "direct or evasive, takes responsibility or points fingers, whole business or one silo" },
   ];
 
   // ---------------------------------------------------------------- Today
@@ -210,7 +212,7 @@
   const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
     wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
     influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
-    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for" };
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring" };
   const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["balance", "Balance"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
   const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
@@ -510,12 +512,13 @@
         ${extra("offer_them", `<label>What I can offer them <span class="quiet">(help, information, support for what they care about)</span><textarea name="offer_them" rows="2">${esc(p.offer_them || "")}</textarea></label>`)}
         ${extra("need_from_them", `<label>What I need from them <span class="quiet">(support, information, decisions, introductions)</span><textarea name="need_from_them" rows="2">${esc(p.need_from_them || "")}</textarea></label>`)}
         ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
+        ${extra("insight", `<label>Insight they bring <span class="quiet">(where their view of the organization comes from)</span></label><div class="case-picks">${[["customer", "Customer or business user"], ["vendor", "Vendor or supplier"], ["frontline", "Frontline"], ["sales", "Sales or service"], ["staff", "Finance, legal or HR"], ["integrator", "Integrator"], ["historian", "Natural historian"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="insight" value="${k}"${(p.insight || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("expects_from_me", `<label>What they expect from me <span class="quiet">(especially anyone who shapes how my work is judged)</span><textarea name="expects_from_me" rows="2">${esc(p.expects_from_me || "")}</textarea></label>`)}
         ${extra("things_to_remember", `<label>Things to remember <span class="quiet">(one per line)</span><textarea name="things_to_remember" rows="3">${esc((p.things_to_remember || []).join("\n"))}</textarea></label>`)}
         ${["motivations", "support_notes", "personal_context"].filter(show).map((f) => field(f, `<textarea name="${f}" rows="3">${esc(p[f] || "")}</textarea>`)).join("")}
         ${extra("key_dates", field("key_dates", `<div id="key-dates">${[...keyDates, { label: "", date: "" }].map((x) => `<div class="row kd"><input name="kd_label" value="${esc(x.label)}" placeholder="Such as: work anniversary" style="max-width:240px"><input type="date" name="kd_date" value="${esc(x.date)}" style="max-width:170px"></div>`).join("")}</div>`))}
         <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${d.is_me ? "" : '<button class="btn" type="button" id="this-is-me">This is me</button>'}${BA.historyButton("person", id)}<button class="btn primary" type="submit">Save</button></div></form>
-      <section class="card"><div class="row"><h2>Listening tour</h2><span class="spacer"></span><button class="btn" id="plan">Plan a listening-tour one-on-one</button></div><p class="quiet">The four standard questions, kept separately in the Listening tour.</p></section>`;
+      <section class="card"><div class="row"><h2>Listening tour</h2><span class="spacer"></span><button class="btn" id="plan">Plan a listening-tour one-on-one</button></div><p class="quiet">The five standard questions, kept separately in the Listening tour.</p></section>`;
     wireReveal();
     const form = box.querySelector("#person");
     form.onsubmit = BA.guard(async (e) => {
@@ -529,6 +532,7 @@
       for (const f of ["influence", "stance"]) if (form.elements[f]) body[f] = fd.get(f) || null;
       for (const f of ["communication", "motivations", "support_notes", "personal_context", "offer_them", "need_from_them", "expects_from_me"]) if (form.elements[f]) body[f] = fd.get(f);
       if (form.querySelector('input[name="advice"]')) body.advice = fd.getAll("advice");
+      if (form.querySelector('input[name="insight"]')) body.insight = fd.getAll("insight");
       if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
       if (form.querySelector("#key-dates")) {
         const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");
@@ -642,8 +646,8 @@
     main.innerHTML = `<p><a href="#/listening">All one-on-ones</a></p>
       <form id="iv" class="card">
         <div class="grid2">${BA.form(fields.slice(0, 3), rec)}</div>
-        <h3>The same four questions, every time</h3>${BA.form(fields.slice(3, 7), rec)}
-        <h3>What I heard</h3>${BA.form(fields.slice(7), rec)}
+        <h3>The same five questions, every time</h3>${BA.form(fields.slice(3, 8), rec)}
+        <h3>What I heard</h3>${BA.form(fields.slice(8), rec)}
         ${known.length ? `<p class="quiet">Themes so far: ${BA.chips(known)}</p>` : ""}
         <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("interview", id)}<button class="btn primary" type="submit">Save</button></div>
       </form>`;
@@ -686,7 +690,7 @@
               .join("") || '<p class="quiet">No themes tagged yet. Add them to each one-on-one.</p>'
           }</section>
         ${d.systems ? `<section class="card"><h2>Products and systems mentioned</h2>${d.systems.map((s) => `<span class="pill">${esc(s.system)} · ${s.count}</span>`).join(" ") || '<p class="quiet">None yet.</p>'}</section>` : ""}
-        <div class="cards">${notes("gaps", "Gaps")}${notes("opportunities", "Opportunities")}${notes("dont_change", "What not to change")}${notes("change_first", "What to change first")}</div>`;
+        <div class="cards">${notes("gaps", "Gaps")}${notes("opportunities", "Opportunities")}${notes("dont_change", "What not to change")}${notes("change_first", "What to change first")}${notes("if_you_were_me", "If you were me, I'd focus on")}</div>`;
       const md = main.querySelector("#md");
       if (md)
         md.onclick = BA.guard(async () => {
@@ -2186,7 +2190,7 @@
   const PLAN_KIND_TITLES = { outcome: "Outcomes", action: "Actions", measure: "How we'll know", keep: "What I won't change" };
   const PLAN_ITEM_STATUS = ["planned", "in progress", "done", "dropped"];
   const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "accent", agreed: "good" };
-  const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change" };
+  const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change", if_you_were_me: "If you were me" };
 
   BA.view("/plans", {
     title: "30/60/90 plans",
@@ -4917,7 +4921,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   }
 
   async function renderLearning(main) {
-    const [d, people] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people")]);
+    const [d, people, methods] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people"), BA.api("/api/first90/learning-methods")]);
     if (d.hidden) { main.innerHTML = `${f90Tabs("learning")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
     const f = (() => { try { return sessionStorage.getItem("ba-learn-filter") || "open"; } catch { return "open"; } })();
     const shown = d.questions.filter((q) => f === "all" || q.status === f);
@@ -4937,7 +4941,16 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
               <label>What would prove it wrong<textarea name="disprove_if" rows="2">${esc(q.disprove_if || "")}</textarea></label><label>Verdict<select name="verdict"><option value=""></option>${opts(["testing", "supported", "disproved", "mixed"], q.verdict)}</select></label></details>
             <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
         <form id="add-q" class="row" style="margin-top:10px"><select name="area" style="max-width:190px">${opts(LEARN_AREAS, "present")}</select><input name="question" required placeholder="What do you need to find out?" style="flex:1;min-width:240px"><input type="number" name="due_day" min="1" placeholder="By day" style="width:90px"><button class="btn" type="submit">Add</button>
-          ${d.questions.length ? "" : '<button class="btn" type="button" id="lq-starter">Start from suggested questions</button>'}</form></section>`;
+          ${d.questions.length ? "" : '<button class="btn" type="button" id="lq-starter">Start from suggested questions</button>'}</form></section>
+      <div class="cards">
+        <section class="card"><h2>Who you're learning from</h2><p class="quiet">Different vantage points, inside and outside the team. Tag people under Details on their page.</p>
+          ${d.sources.kinds.map((k) => `<div class="item"><span>${esc(k.label)}</span><span class="spacer"></span><span class="quiet">${k.people.length ? k.people.map((p) => `<a href="#/people/${p.id}"${p.heard ? "" : ' title="Not talked to yet"'}>${esc(p.name)}${p.heard ? "" : " (not yet)"}</a>`).join(", ") : "No one tagged"}</span></div>`).join("")}
+          ${d.sources.gaps.length ? `<p class="callout warn">No conversation yet with: ${d.sources.gaps.map((g) => esc(d.sources.kinds.find((k) => k.key === g).label.split(":")[0].toLowerCase())).join(", ")}.</p>` : ""}</section>
+        <section class="card"><h2>Ways to learn</h2><p class="quiet">Talking to people is only one method. A little structure gets you more, faster.</p>
+          ${methods.methods.map((m) => `<form class="row" data-method="${m.key}" style="align-items:center;margin-bottom:6px"><span style="flex:1;min-width:180px"><b>${m.link ? `<a href="${m.link}">${esc(m.label)}</a>` : esc(m.label)}</b><br><span class="quiet">${esc(m.about)}</span></span>
+            <select name="status" style="max-width:120px">${opts(methods.statuses, m.status)}</select><input name="notes" value="${esc(m.notes)}" placeholder="Notes" style="max-width:200px"><button class="btn" type="submit">Save</button></form>`).join("")}</section>
+      </div>`;
+    main.querySelectorAll("[data-method]").forEach((f) => (f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/first90/learning-methods/${f.dataset.method}`, { method: "PUT", body: { status: fd.get("status"), notes: fd.get("notes") } }); BA.toast("Saved."); })));
     main.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-learn-filter", b.dataset.f); } catch {} BA.rerender(); }));
     main.querySelectorAll("[data-q]").forEach((det) => {
       const form = det.querySelector("form");
