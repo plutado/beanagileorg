@@ -199,6 +199,65 @@ def put_learning_method(key: str, body: dict = Body(...), viewer: Viewer = Depen
     return saved[key]
 
 
+# A phased plan for how to learn, after the template in The First 90 Days, in our own words.
+LEARNING_PLAN_KEY = "first90.learning_plan"
+LEARNING_PLAN = [
+    ("Before day 1", [
+        ("research", 0, "Read what's public about the organization's strategy, structure, performance and people.", None),
+        ("outside", 0, "Talk to people who see the team from outside: internal customers and suppliers, former employees, partners. Ask about history, politics and culture.", None),
+        ("predecessor", 0, "Talk to your predecessor, if you can.", None),
+        ("boss", 0, "Talk to your new manager about the situation and what they expect.", "#/first90/mandates"),
+        ("hypotheses", 0, "Write down first impressions, early hypotheses, and the questions to ask once you arrive.", "#/first90/learning"),
+    ]),
+    ("Soon after you start", [
+        ("data", 7, "Review operating plans, performance data and team records.", None),
+        ("one-on-ones", 14, "Hold one-on-ones with each direct report, with the same questions each time.", "#/listening"),
+        ("interfaces", 14, "Ask the people at the team's edges (service, sales, product, vendors) how things go between you.", None),
+        ("top-down", 14, "Test alignment from the top down: ask leaders for the strategy, then see how far down it's understood.", None),
+        ("bottom-up", 14, "Test awareness from the bottom up: ask the frontline about challenges and opportunities, then see whether leaders see them too.", None),
+        ("boss-review-1", 20, "Review your hypotheses and findings with your manager.", "#/first90/mandates"),
+    ]),
+    ("By day 30", [
+        ("feedback", 30, "Bring your preliminary findings back to the team as a group, and invite challenge.", "#/rollup"),
+    ]),
+    ("Days 31 to 60", [
+        ("integrators", 40, "Meet the integrators: project and product managers who see across functions.", None),
+        ("historians", 40, "Find the natural historians for the history, culture and politics. They can become allies.", None),
+        ("outside-in", 45, "Look at the team from the outside in: how customers, vendors and partners see its strengths and weaknesses.", None),
+        ("processes", 45, "Map a couple of key processes end to end with the groups involved.", "#/sdlc"),
+        ("boss-review-2", 45, "Review what you've learned with your manager again.", "#/first90/mandates"),
+    ]),
+]
+
+
+def _plan_saved(conn) -> dict:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (LEARNING_PLAN_KEY,)).fetchone()
+    return json.loads(row["value"]) if row else {}
+
+
+@router.get("/api/first90/learning-plan")
+def learning_plan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    start, saved = _start(conn), _plan_saved(conn)
+    phases = [{"phase": name, "steps": [{"key": k, "day": d, "text": t, "link": link, "due": _due(start, d) if d else None,
+                                          "done": bool(saved.get(k, {}).get("done")), "notes": saved.get(k, {}).get("notes", "")} for k, d, t, link in steps]}
+              for name, steps in LEARNING_PLAN]
+    total = sum(len(p["steps"]) for p in phases)
+    return {"phases": phases, "done": sum(1 for p in phases for s in p["steps"] if s["done"]), "total": total}
+
+
+@router.put("/api/first90/learning-plan/{key}")
+def put_learning_step(key: str, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    if key not in {k for _, steps in LEARNING_PLAN for k, *_ in steps}:
+        raise HTTPException(404, "No such step.")
+    saved = _plan_saved(conn)
+    saved[key] = {"done": bool(body.get("done")), "notes": body.get("notes") or ""}
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (LEARNING_PLAN_KEY, json.dumps(saved)))
+    return saved[key]
+
+
 # ---- situation diagnosis ----
 
 

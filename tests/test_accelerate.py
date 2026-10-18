@@ -127,3 +127,12 @@ def test_listening_tour_fifth_question_rolls_up(client):
     p = client.post("/api/people", json={"name": "[Placeholder name 1]"}).json()["id"]
     client.post("/api/interviews", json={"person_id": p, "status": "done", "date": date.today().isoformat(), "if_you_were_me": "[Placeholder focus]", "how_answered": "[Placeholder]"})
     assert client.get("/api/rollup").json()["notes"]["if_you_were_me"][0]["text"] == "[Placeholder focus]"
+
+
+def test_learning_plan_phases(client):
+    p = client.get("/api/first90/learning-plan").json()
+    assert [x["phase"] for x in p["phases"]] == ["Before day 1", "Soon after you start", "By day 30", "Days 31 to 60"] and p["done"] == 0
+    client.put("/api/first90/learning-plan/top-down", json={"done": True})
+    assert client.put("/api/first90/learning-plan/nope", json={}).status_code == 404
+    p = client.get("/api/first90/learning-plan").json()
+    assert p["done"] == 1 and next(s for ph in p["phases"] for s in ph["steps"] if s["key"] == "top-down")["done"] is True

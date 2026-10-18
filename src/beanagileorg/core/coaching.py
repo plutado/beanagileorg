@@ -897,6 +897,7 @@ GUIDES = [
             "Culture: ask one or two long-tenured colleagues to be your culture guides. Read the culture in layers, from the visible symbols and language down to the norms and the assumptions about power, and expect each unit to differ.",
             "Ask about culture while you're still being recruited, start meeting people before your first day if you can, and recheck expectations in your first week.",
             "At day 30, ask your manager and a few peers how you're adapting.",
+            "Ask for help getting connected, and don't treat needing it as weakness. Moving to a new unit inside the same company is nearly as hard as joining from outside: a different culture, and none of your old connections.",
             "Be easy to get to know. Share who you are, why you're here and how you work, in your own words, in your first week.",
             "Bring your strengths with you, and say plainly why they help. Adapting to the culture doesn't mean dropping what you were hired for.",
             "Earn credibility with small promises kept: follow up on every question, and show what changed because of what people told you.",
@@ -1098,6 +1099,7 @@ TIPS = {
                  ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12),
                  ("As you learn, turn questions into hypotheses, and write down what would prove each one wrong.", "learn-fast", 18),
                  ("Learn from different vantage points: customers, integrators, the frontline and the people who remember how things came to be.", "learn-fast", 19),
+                 ("Your learning agenda says what to learn; the learning plan says how. Make learning the main job of your first 30 days.", "learn-fast", 21),
                  ("Joining from outside? Work on the business, the people, expectations and the culture at once, and find a culture guide early.", "joining-from-outside", 13)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
@@ -1220,6 +1222,7 @@ ANYTIME_PROMPTS = [
     "What did I learn from a mistake this week?",
     "Am I doing all I can to prepare myself, or am I retreating to my comfort zone?",
     "Who gives me political counsel and personal advice, not just technical answers?",
+    "Am I learning before acting, or rushing to prove myself?",
 ]
 
 
@@ -1236,7 +1239,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 20  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 21  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

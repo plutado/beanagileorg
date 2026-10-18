@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Learning plan. A phased checklist on the learning agenda (before day 1, soon after you start, by day 30, days 31 to 60) with top-down and bottom-up alignment checks and two reviews with your manager, each step showing its day and week. The joining-from-outside guide covers moving between units and asking for help; a new reflection prompt on learning before acting; 244 tests
+
 - [x] 2026-10-18: Search. A Search screen in both apps (sidebar, or Search everything in the command palette): keyword search over every record you can see, grouped by kind with links, using Ask's index, no model needed. The README gains install notes for uv and a Search and Ask section on setting up a local model, other providers, privacy and image generation; 243 tests
 
 - [x] 2026-10-18: Sources of insight. The listening tour gains a fifth question ("If you were me, what would you focus on first?", collected on the day-30 rollup) and a private note on how each person answered. People can be tagged by the insight they bring; the learning agenda shows whose views you've heard and flags gaps. A checklist of structured ways to learn (surveys, slice interviews, feeding back to the group, focus groups, analyzing a past decision, process analysis, tours, pilots, new-leader assimilation) with status and notes. Learn fast guide updates; 242 tests

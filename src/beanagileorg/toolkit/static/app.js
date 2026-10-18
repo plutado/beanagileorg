@@ -4921,7 +4921,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   }
 
   async function renderLearning(main) {
-    const [d, people, methods] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people"), BA.api("/api/first90/learning-methods")]);
+    const [d, people, methods, lplan] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people"), BA.api("/api/first90/learning-methods"), BA.api("/api/first90/learning-plan")]);
     if (d.hidden) { main.innerHTML = `${f90Tabs("learning")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
     const f = (() => { try { return sessionStorage.getItem("ba-learn-filter") || "open"; } catch { return "open"; } })();
     const shown = d.questions.filter((q) => f === "all" || q.status === f);
@@ -4942,6 +4942,9 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
             <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
         <form id="add-q" class="row" style="margin-top:10px"><select name="area" style="max-width:190px">${opts(LEARN_AREAS, "present")}</select><input name="question" required placeholder="What do you need to find out?" style="flex:1;min-width:240px"><input type="number" name="due_day" min="1" placeholder="By day" style="width:90px"><button class="btn" type="submit">Add</button>
           ${d.questions.length ? "" : '<button class="btn" type="button" id="lq-starter">Start from suggested questions</button>'}</form></section>
+      <section class="card"><div class="row"><h2>Learning plan</h2><span class="quiet">${lplan.done} of ${lplan.total} done</span></div>
+        <p class="quiet">The agenda says what to learn; the plan says how. Learning is the main job of the first 30 days. Collect, distill, form hypotheses and test them, and review them with your manager as you go.</p>
+        ${lplan.phases.map((p) => `<h3>${esc(p.phase)}</h3>${p.steps.map((s) => `<div class="item" data-step="${s.key}"><label class="check" style="flex:1"><input type="checkbox"${s.done ? " checked" : ""}> <span${s.done ? ' class="quiet"' : ""}>${s.link ? `${esc(s.text)} <a href="${s.link}">Open</a>` : esc(s.text)}</span></label><span class="quiet">${s.due ? BA.fmtDate(s.due) : BA.roleDay(s.day)}</span></div>`).join("")}`).join("")}</section>
       <div class="cards">
         <section class="card"><h2>Who you're learning from</h2><p class="quiet">Different vantage points, inside and outside the team. Tag people under Details on their page.</p>
           ${d.sources.kinds.map((k) => `<div class="item"><span>${esc(k.label)}</span><span class="spacer"></span><span class="quiet">${k.people.length ? k.people.map((p) => `<a href="#/people/${p.id}"${p.heard ? "" : ' title="Not talked to yet"'}>${esc(p.name)}${p.heard ? "" : " (not yet)"}</a>`).join(", ") : "No one tagged"}</span></div>`).join("")}
@@ -4950,6 +4953,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           ${methods.methods.map((m) => `<form class="row" data-method="${m.key}" style="align-items:center;margin-bottom:6px"><span style="flex:1;min-width:180px"><b>${m.link ? `<a href="${m.link}">${esc(m.label)}</a>` : esc(m.label)}</b><br><span class="quiet">${esc(m.about)}</span></span>
             <select name="status" style="max-width:120px">${opts(methods.statuses, m.status)}</select><input name="notes" value="${esc(m.notes)}" placeholder="Notes" style="max-width:200px"><button class="btn" type="submit">Save</button></form>`).join("")}</section>
       </div>`;
+    main.querySelectorAll("[data-step] input").forEach((cb) => (cb.onchange = BA.guard(async () => { await BA.api(`/api/first90/learning-plan/${cb.closest("[data-step]").dataset.step}`, { method: "PUT", body: { done: cb.checked } }); BA.rerender(); })));
     main.querySelectorAll("[data-method]").forEach((f) => (f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/first90/learning-methods/${f.dataset.method}`, { method: "PUT", body: { status: fd.get("status"), notes: fd.get("notes") } }); BA.toast("Saved."); })));
     main.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-learn-filter", b.dataset.f); } catch {} BA.rerender(); }));
     main.querySelectorAll("[data-q]").forEach((det) => {
