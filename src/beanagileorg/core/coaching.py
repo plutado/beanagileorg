@@ -35,6 +35,7 @@ GUIDES = [
             "Expect a dip. Feeling less capable for a while is normal when everything is new. It's a sign you're stretching, not that you chose wrong.",
             "Shift from doing to enabling. Your value now is in what the team does without you, not in what you do for them.",
             "Pick your pace on purpose. Move quickly on learning and relationships, and more slowly on changes to how people work.",
+            "Make a clear break. Transitions blur, so let go of the old role on purpose: think through what changes, mark the move with people close to you, and ask your informal advisors for their view.",
         ],
         "pitfalls": [
             "Arriving with the answer. A fix that worked elsewhere can fail here for reasons you can't see yet.",
@@ -1143,7 +1144,8 @@ TIPS = {
     "/landscape": [("Diagnose each area separately. Some parts need fixing; others need protecting.", "read-the-situation")],
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
-    "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself")],
+    "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
+            ("Moving into a new role? Make the break from the old one on purpose, instead of letting the two blur together.", "new-role-mindset", 15)],
     "/this-week": [("Send updates on a steady rhythm, even when there's little news. Consistency builds trust.", "honest-status")],
     "/messages": [("Put the most important sentence first. Most people read only the opening.", "honest-status")],
     "/templates": [("A template keeps your updates consistent, so changes stand out.", "honest-status")],
@@ -1208,7 +1210,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 14  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 15  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():
