@@ -2,8 +2,8 @@
 
 Local-first supporting apps for engineering leaders. Each app runs on your own machine, listens only on localhost, and keeps its data in a SQLite file outside this repository.
 
-- **Toolkit** (`beanagileorg toolkit`, port 8801): team, listening tour, sprints, roadmap, status and my development.
-- **Comms studio** (`beanagileorg comms`, port 8802): messages, templates, writing checks, presentations and media.
+- **Toolkit** (`beanagileorg toolkit`, port 8801): your first 90 days, people and culture, delivery and Scrum, reports, coaching and my development.
+- **Comms studio** (`beanagileorg comms`, port 8802): messages, templates, writing checks, presentations, images, infographics and media.
 
 Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) hub is optional: when configured, the apps use it for documents, local models and scheduled jobs.
 
@@ -26,15 +26,20 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Backups that are checked.** `beanagileorg backup all` snapshots each app's data and restores it to a scratch folder to prove it's good; `beanagileorg restore` puts one back without deleting what was there; `beanagileorg schedule` sets up nightly backups. See [docs/backups.md](docs/backups.md).
 - **Local domain.** Open the apps at https://toolkit.beanagile.org and https://comms.beanagile.org on your own machine, with Caddy and local certificates; requests addressed to any other name are refused. See [docs/local-domain.md](docs/local-domain.md).
 - **Placeholder data.** One click fills empty parts of an app with bracketed `[Placeholder]` values for trying things out.
+- **Ask.** A question box answers plain-language questions from the app's own data, with links to the records it used. Any model: a local one through Ollama by default, any OpenAI-compatible server (LM Studio, vLLM, Odysseus, OpenAI) or Anthropic, set under Settings. The model reaches the data through search and lookup tools at your privacy level; a cloud provider gets shareable data only unless you allow more, every cloud question is logged, and a local model can be unloaded after each answer to free memory.
 
 ### Toolkit
 
 **Team**
 
-- **Today:** overdue tasks and dev-sync items, what's due this week, obligations, this week's one-on-ones, learning goals at risk, vendor renewals and vendor concerns.
+- **Today:** an Ask box, a quick work log, and what needs you: overdue tasks and dev-sync items, what's due this week, obligations, one-on-ones and check-ins, commitments, change requests waiting, reports due, culture follow-ups and today's standard, First 90 days milestones and check-ins, mandate reviews, quiet peers, vendor renewals and learning goals at risk.
 - **People, a private CRM:** a page for everyone you work with: title, location, contact, who they report to, teams, how they like to communicate, what motivates them, things to remember and key dates. Log every one-on-one, meeting and call with notes, takeaways and follow-ups; see relationship health against a check-in cadence, a Before you meet summary and a timeline across the toolkit. Choose which fields to use; sensitive notes stay masked until you show them, and private fields never appear while presenting.
 - **Manager tools:** mark yourself, and your direct reports get a Manager tab: growth goals, a log of praise, feedback, wins and concerns (marked shared or not), and a drafted one-on-one agenda. Commitments both ways on anyone's page (what you owe them, what they owe you), with yours due and theirs late on Today.
 - **Org chart:** reporting lines drawn from each person's Reports to, with every person a link to their page.
+- **Placeholders and rosters:** stand-in people in [brackets] until you know who they are, marked and filterable; a real name clears the mark and keeps their history. Import a whole team from a roster file: people, reporting lines, team membership and which record is you.
+- **Relationship balance:** your conversations split up (your management chain), down (your reporting line), sideways (peers) and outward, against the period before, with peers listed quietest first. Each person can carry what you can offer them and what you need from them. Today nudges when conversations skew upward or a key peer goes quiet.
+- **Culture and trust:** your standards (one shown on Today each day, with a weekly self-check), a private log of what you notice (intimidation, chaos from missing process, quiet voices, blame, and the good moments), a trust pulse over time, team agreements, and a role brief.
+- **First 90 days:** three tracks side by side by day number: yours (plans, listening tour, reflections), each new hire's onboarding, and the team you inherit, whose first 90 days with you get milestones, a "Working with me" page, check-ins at days 30, 60 and 90, and a visible list of the changes you're bringing (announced, tried, reviewed, then kept or dropped). Also: mandates for you and each report (purpose, outcomes, decision rights, proposals and open questions, agreed with a review date), a situation diagnosis per area, a learning agenda, conversations with your manager, the managers you mentor, and a Momentum card.
 - **Onboarding:** a checklist template by track (Salesforce, MuleSoft, QA, employee, contractor) from the week before day 1 to day 90, copied for each new member with real dates, progress, items for you, the buddy and IT, a materials list, and a Markdown checklist to send them. Items due for you show on Today.
 - **Skills and learning:** a skills matrix and matches between who can teach and who wants to learn, each one proposable as a group learning session.
 - **Listening tour:** one record per one-on-one with the same four questions every time (what's working, what's frustrating, what to change first, what not to change), plus systems mentioned, gaps, opportunities and themes. Private end to end.
@@ -57,26 +62,28 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **RACI:** decisions by role, with editable roles, a confirm status per row and a check for exactly one accountable person.
 - **Tech debt:** a register classified by what fixing each item buys (maintainability, stability, performance, cleanup, revenue and conversion, observability, security, delivery speed, cost), scored by impact, risk and effort into quick wins, big bets, fill-ins and money pits; an agreed share of sprint capacity checked each sprint; a decision log with revisit dates; and a shareable summary for leadership.
 - **Risks and decisions:** risks by level, owner, next step and due date, and decisions needed with who decides, when, and the outcome.
-- **Metrics:** baseline, target and readings over time for each measure, with an on-target indicator. Starter metrics are cycle time, deployment frequency, change failure rate and escaped defects.
+- **Metrics:** baseline, target and readings over time for each measure, with an on-target indicator. Starter metrics are cycle time, deployment frequency, change failure rate, escaped defects, meetings per week and meeting reschedule rate.
 - **QA resources:** a manual test library anyone can follow (steps, expected result, owner, last result), test runs with pass, fail, blocked or skipped per case and failures sent to the dev-sync log, an inventory of automated suites (unit, Apex, MUnit, end-to-end) with coverage and latest result, regression plans for each Salesforce release and peak-season freeze with owner, backup and sign-off, and the definition of done.
-- **Dev-sync log:** every question raised after standup, with who raised it, owner, next action, due date, status, origin and private notes. Overdue items stand out, and the group-learning flag proposes a presentation.
+- **Dev-sync log:** every question raised after standup, with its kind (question, offer to present, decision needed, idea, action), who raised it, experts, decision maker, owner, next action, due date, status, origin and private notes. Overdue items stand out, and the group-learning flag proposes a presentation. Rows switched onto the dev-sync board copy out with only their shareable columns, and Make an update drafts a short script for a recorded update on any row.
+- **Change requests:** work that arrives mid-sprint, logged with its source, urgency, size and effect on the sprint goal; the sprint's capacity and unfinished stories beside it; a decision on Scrum's terms (swap, absorb, defer, reject, cancel the sprint) that moves the stories; a record of when the requester heard; a team policy; and scope change per sprint.
 - **Group learning:** a schedule of short team presentations, fed by the dev-sync log and by teach/learn matches.
 - **Vendors:** type, status, account contacts, support process, service promise, contract dates and renewal notice; commercial terms stay private. A private conversation log, open concerns with owners, and follow-ups that become dev-sync items.
 
 **Reporting**
 
 - **30/60/90 plans:** one plan per month for the first six months (add more for a finer step or a longer view), with a headline each and dates from the start date. Items are outcomes, actions, measures or things you won't change, each tagged with the listening-tour themes behind it. A side panel shows which themes no item answers yet. Copy the outline as Markdown, or build a deck from it in the Comms studio.
-- **Weekly status:** a draft built only from exportable data (current sprint, milestones, risks, decisions, what shipped, next week, metrics and reportable learning goals) with a suggested overall color and the reason. Copy it as Markdown, or pull it into the Comms studio.
+- **Work log:** wins, progress, blockers, decisions, asks and what's next, noted as they happen, each for leadership, your manager or just you.
+- **Weekly and sprint reports:** every date lands in its week, week in the role and sprint week (a two-week sprint has a week 1 and a week 2). A weekly report for any week, for leadership (exportable data only) or your manager, with a suggested overall color; a sprint report with the goal, points against commitment, what carried over, scope changes and each sprint week. Edit, copy, save, mark sent, or turn either into a short video script. Activity shows everything you moved forward in a week, with Add to log.
 
 **Knowledge**
 
 - **Architecture and tools:** one catalog of the systems we run and the tools we build with (what each is, how we use it, environments, stack, docs, owner, lifecycle, criticality, private known issues); the integrations between them, including the middleware they pass through; a system map drawn from those integrations; numbered architecture decision records; and plain-language guides in Markdown.
-- **Business landscape:** the products, services and internal platforms [employer] offers, with owner, customers, systems, vendors and maturity; the organization as a tree of divisions, departments and teams with leaders and people; a private strengths, weaknesses, opportunities and threats assessment for each, with evidence, source and confidence, and a combined matrix. Any point can become a roadmap item or a risk.
+- **Business landscape:** the products, services and internal platforms your company offers, with owner, customers, systems, vendors and maturity; the organization as a tree of divisions, departments and teams with leaders and people; a private strengths, weaknesses, opportunities and threats assessment for each, with evidence, source and confidence, and a combined matrix. Any point can become a roadmap item or a risk.
 - **Escalation playbook:** systems with owner, first responder, backup and linked vendor, business-hours and out-of-hours escalation chains, severity levels, and an incident log whose follow-ups become dev-sync items.
 
 **Coaching**
 
-- **Guides:** an editable library for engineering leaders in six themes, with a strong focus on the transition into a new role: mindset, assertiveness, learning fast, the manager relationship, early wins, managing yourself and earning trust, plus team leadership, agile practice, stakeholders, leading leaders and vendors. Each guide has what to do, what to watch out for, questions to ask yourself and things to try this week. Rewrite, delete or add guides, and note what inspired them.
+- **Guides:** an editable library for engineering leaders in seven themes, with a strong focus on the transition into a new role: mindset, assertiveness, learning fast, the manager relationship, early wins, managing yourself and earning trust, plus your mandate, leading change, leading upward, culture and trust, peer relationships, change mid-sprint, team leadership, agile practice, stakeholders, leading leaders and vendors. Each guide has what to do, what to watch out for, questions to ask yourself and things to try this week. Rewrite, delete or add guides, and note what inspired them.
 - **Coaching where you work:** guidance isn't confined to the Coaching section. Each screen offers tips and links to the guides that fit what you're doing there, and every new section ships with its own.
 - **Tips on every screen:** a short coaching tip at the top of each landing page in both apps, linking to a guide, edited per screen, hidden while presenting.
 - **Reflection journal:** private prompts for each stage of the role, with energy and confidence over time.
@@ -86,7 +93,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 
 - **My development:** learning goals with time logged and a report toggle that controls what reaches status reports, plus tasks, recurring obligations and the contract start date.
 
-**Starter content:** one click loads a generic Agile adoption roadmap, the five common RACI decisions and the four delivery metrics.
+**Starter content:** one click loads a generic Agile adoption roadmap, the five common RACI decisions and the delivery metrics.
 
 ### Comms studio
 
@@ -95,7 +102,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **This week:** messages due from your rhythms, drafts in progress and recently sent.
 - **Messages:** draft, review, ready, sent and archived states, with a saved version on every edit and one-click restore.
 - **Writing checks** that run as you type. Leftover placeholders block "ready"; jargon is flagged with a plainer word (built-in list plus your own glossary); long sentences and a missing opening summary get warnings.
-- **Templates:** a starter kit of nine (weekly note, weekly status, alert, release notes, decision announcement, day-30 diagnosis, day-90 and quarterly review, team announcement, sprint review), each with default audiences and channel.
+- **Templates:** a starter kit of ten (weekly note, weekly status, alert, release notes, decision announcement, day-30 diagnosis, day-90 and quarterly review, team announcement, sprint review, video pitch), each with default audiences and channel.
 - **Comms calendar:** rhythms (weekly, every two weeks, monthly, quarterly) that create due items with a start-drafting date and a one-click draft from the right template.
 - **Sent log:** the exact text, channel, audiences and check results of everything marked sent.
 - **Audiences and channels:** who needs what, at what level of detail, and where they usually hear it.
@@ -112,6 +119,12 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Versions and review:** save named versions, compare them slide by slide, restore one, and move a deck from draft to review to approved to presented, with each step saved. Approved decks are locked until you start a new draft; any saved version can be presented, and a deck can be copied for another audience.
 - **Present:** full screen from the same renderer as the editor, with reveal.js's speaker view (notes, next slide, timer).
 - **Media library:** uploads of video, audio, images, Lottie and WebVTT captions, with type checks, seekable playback, source and license recorded, and license details kept private.
+
+**Visuals**
+
+- **Images:** generate illustrations, slide backgrounds and thumbnails from a description through a local image service (FLUX.2 Klein on Apple Silicon by default), with a house style added to every prompt. Generated images are filed as such, with their prompt, model and seed.
+- **Infographics:** big numbers, bars, timelines, steps, before and after, and progress, drawn from data rather than generated, so every word and number is exact. The local model can draft one from a request and the toolkit's facts; edit it with a live preview and export a crisp PNG to the media library.
+- **Ask:** the same question box as the toolkit, with its own model settings.
 
 ## Run
 
