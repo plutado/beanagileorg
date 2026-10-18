@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_KEEP = 30
+STALE_HOURS = 48
 FILE_DIRS = ("media",)
 
 
@@ -25,6 +26,11 @@ def data_root() -> Path:
 
 def backup_root() -> Path:
     return Path(os.environ.get("BEANAGILEORG_BACKUP_DIR") or data_root() / "backups")
+
+
+def app_backup_dir(data_dir: Path) -> Path:
+    """Where a running app keeps its backups: BEANAGILEORG_BACKUP_DIR, or a backups folder beside the app folders."""
+    return Path(os.environ.get("BEANAGILEORG_BACKUP_DIR") or Path(data_dir).parent / "backups")
 
 
 def _counts(db: Path) -> dict[str, int]:
@@ -148,6 +154,27 @@ def list_backups(app: str, dest: Path | None = None) -> list[dict]:
                 continue
     return [{"file": p.name, "bytes": p.stat().st_size, **{k: v for k, v in log.get(p.name, {}).items() if k != "file"}}
             for p in sorted(out_dir.glob(f"{app}-*.tar.gz"), reverse=True)]
+
+
+def backup_warning(app: str, dest: Path | None = None, now: datetime | None = None, max_hours: int = STALE_HOURS) -> dict | None:
+    """None while the newest backup that passed its check is under `max_hours` old; otherwise what to warn about."""
+    now = now or datetime.now(timezone.utc)
+    good = []
+    for b in list_backups(app, dest):
+        if b.get("ok") is not True:
+            continue
+        try:
+            at = datetime.fromisoformat(b["at"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        good.append(at if at.tzinfo else at.replace(tzinfo=timezone.utc))
+    if not good:
+        return {"last_good": None, "days": None}
+    last = max(good)
+    hours = (now - last).total_seconds() / 3600
+    if hours <= max_hours:
+        return None
+    return {"last_good": last.isoformat(timespec="seconds"), "days": int(hours // 24)}
 
 
 def port_in_use(port: int) -> bool:

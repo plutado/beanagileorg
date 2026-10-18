@@ -1,6 +1,8 @@
 import io
+import json
 import sqlite3
 import tarfile
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +10,7 @@ from fastapi.testclient import TestClient
 from beanagileorg import cli
 from beanagileorg.core import backup
 from beanagileorg.core.config import Settings
+from beanagileorg.comms.app import build as build_comms
 from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
@@ -117,3 +120,65 @@ def test_cli_backup_list_verify_and_domain(data, capsys):
     assert "127.0.0.1  toolkit.beanagile.org" in text and "reverse_proxy 127.0.0.1:8802" in text
     plist = backup.launchd_plist("/usr/local/bin/beanagileorg", 3, 15)
     assert "<integer>3</integer>" in plist and "<string>all</string>" in plist
+
+
+# ---- the Today warning when the last good backup is more than two days old ----
+
+
+def test_today_warns_with_no_backups(data):
+    _, c = data
+    assert c.get("/api/today").json()["backup"] == {"last_good": None, "days": None}
+
+
+def test_today_is_quiet_after_a_fresh_good_backup(data):
+    _, c = data
+    assert c.post("/api/backups").json()["ok"]
+    assert c.get("/api/today").json()["backup"] is None
+
+
+def test_old_good_backup_warns(data):
+    tmp, _ = data
+    made = backup.create_backup("toolkit", tmp / "data" / "toolkit", tmp / "backups")
+    taken = datetime.fromisoformat(made["at"])
+    assert backup.backup_warning("toolkit", tmp / "backups", now=taken + timedelta(hours=47)) is None
+    late = backup.backup_warning("toolkit", tmp / "backups", now=taken + timedelta(days=3, hours=1))
+    assert late == {"last_good": made["at"], "days": 3}
+
+
+def test_failed_backup_does_not_count_as_good(data, monkeypatch):
+    tmp, c = data
+    monkeypatch.setattr(backup, "verify_backup", lambda archive: {"ok": False, "problems": ["[Placeholder problem]"], "manifest": None})
+    assert c.post("/api/backups").json()["ok"] is False
+    assert c.get("/api/backups").json()["count"] == 1
+    assert c.get("/api/today").json()["backup"] == {"last_good": None, "days": None}
+
+
+def test_a_recent_failure_does_not_hide_an_old_good_backup(data):
+    tmp, _ = data
+    good = backup.create_backup("toolkit", tmp / "data" / "toolkit", tmp / "backups")
+    out = tmp / "backups" / "toolkit"
+    old = (datetime.fromisoformat(good["at"]) - timedelta(days=5)).isoformat(timespec="seconds")
+    (out / "backup-log.jsonl").write_text((out / "backup-log.jsonl").read_text().replace(good["at"], old))
+    (out / "toolkit-29990101-000000.tar.gz").write_bytes(b"[placeholder broken archive]")
+    with open(out / "backup-log.jsonl", "a") as f:
+        f.write(json.dumps({"at": good["at"], "file": "toolkit-29990101-000000.tar.gz", "ok": False, "problems": ["[Placeholder problem]"]}) + "\n")
+    assert backup.backup_warning("toolkit", tmp / "backups") == {"last_good": old, "days": 5}
+
+
+def test_backup_warning_hidden_while_presenting(data):
+    _, c = data
+    c.post("/api/session/presentation", json={"on": True})
+    assert c.get("/api/today").json() == {"hidden": True}
+
+
+def test_comms_this_week_carries_the_warning(tmp_path, monkeypatch):
+    monkeypatch.setenv("BEANAGILEORG_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("BEANAGILEORG_BACKUP_DIR", str(tmp_path / "backups"))
+    c = TestClient(build_comms(Settings(app="comms", title="C", port=0, data_dir=tmp_path / "data" / "comms")), follow_redirects=False)
+    c.post("/setup", data={"password": PASSWORD, "confirm": PASSWORD})
+    assert c.get("/api/this-week").json()["backup"] == {"last_good": None, "days": None}
+    assert c.post("/api/backups").json()["ok"]
+    assert c.get("/api/this-week").json()["backup"] is None
+    (tmp_path / "backups" / "comms" / "backup-log.jsonl").unlink()
+    c.post("/api/session/presentation", json={"on": True})
+    assert c.get("/api/this-week").json()["backup"] is None

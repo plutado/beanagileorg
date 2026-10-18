@@ -4,9 +4,9 @@ import sqlite3
 from collections import Counter
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
-from beanagileorg.core.app import get_conn, get_viewer, require_full
+from beanagileorg.core.app import backup_status, get_conn, get_viewer, require_full
 from beanagileorg.core.dates import next_occurrence
 from beanagileorg.core.privacy import Level, Viewer
 
@@ -184,7 +184,7 @@ def onboarding_due(conn, t, week):
 
 
 @router.get("/api/today")
-def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+def today_view(request: Request = None, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor > Level.PRIVATE:
         return {"hidden": True}
     t, week = today().isoformat(), (today() + timedelta(days=7)).isoformat()
@@ -214,6 +214,7 @@ def today_view(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "first90": _first90_due(conn),
         "mandates": _mandate_due(conn),
         "accelerate": _accelerate_due(conn),
+        "backup": backup_status(request, viewer) if request else None,
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }
 

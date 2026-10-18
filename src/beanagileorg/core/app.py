@@ -1,7 +1,6 @@
 """App factory shared by every supporting app: sign-in, sessions, presentation mode, tokens and the UI shell."""
 
 import html
-import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -50,6 +49,14 @@ def require_full(viewer: Viewer = Depends(get_viewer)) -> Viewer:
     if not viewer.is_session or viewer.presentation:
         raise HTTPException(403, "Not available to tokens or in presentation mode.")
     return viewer
+
+
+def backup_status(request: Request, viewer: Viewer) -> dict | None:
+    """The stale-backup warning for Today-style pages. Like the Backups panel, only signed in directly and not presenting."""
+    if not viewer.is_session or viewer.presentation:
+        return None
+    settings = request.app.state.settings
+    return backup.backup_warning(settings.app, backup.app_backup_dir(settings.data_dir))
 
 
 def require_scope(scope: str):
@@ -378,7 +385,7 @@ def create_app(
         return recent_exports(conn)
 
     def backup_dest() -> Path:
-        return Path(os.environ.get("BEANAGILEORG_BACKUP_DIR") or settings.data_dir.parent / "backups")
+        return backup.app_backup_dir(settings.data_dir)
 
     @app.get("/api/backups")
     def backups_list(viewer: Viewer = Depends(require_full)):

@@ -6,9 +6,9 @@ import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
-from beanagileorg.core.app import get_conn, get_viewer, require_full
+from beanagileorg.core.app import backup_status, get_conn, get_viewer, require_full
 from beanagileorg.core.dates import next_occurrence
 from beanagileorg.core.db import transaction
 from beanagileorg.core.export import log_export
@@ -213,7 +213,7 @@ def due_items(conn, start: str, end: str) -> list[dict]:
 
 
 @router.get("/api/this-week")
-def this_week(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+def this_week(request: Request, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     ensure_due(conn)
     today = date.today()
     due = due_items(conn, (today - timedelta(days=30)).isoformat(), (today + timedelta(days=14)).isoformat())
@@ -221,7 +221,7 @@ def this_week(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     drafts = models.messages.visible_all(models.messages.fetch_all(conn, "state IN ('draft', 'in review', 'ready')"), viewer)
     sent = models.messages.visible_all(models.messages.fetch_all(conn, "state = 'sent'"), viewer)[:5]
     return {"today": today.isoformat(), "due": due if viewer.has_scope("full") else [], "drafts": drafts, "recently_sent": sent,
-            "starter_templates": len(STARTER_TEMPLATES)}
+            "starter_templates": len(STARTER_TEMPLATES), "backup": backup_status(request, viewer)}
 
 
 @router.get("/api/comms-due")

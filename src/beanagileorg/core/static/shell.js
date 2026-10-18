@@ -176,6 +176,14 @@
     return `<div class="md">${out.join("")}</div>`;
   };
 
+  // Today and This week: a warning when no backup has passed its check in the last two days.
+  BA.backupWarning = (b) =>
+    b
+      ? `<section class="card"><h2>Backups</h2><div class="item"><span class="pill bad">backup</span><a href="#/settings?section=backups">${
+          b.last_good ? `The last good backup is ${b.days} days old` : "No backup has passed its check yet"
+        }</a>${b.last_good ? `<span class="spacer"></span><span class="quiet">${BA.fmtDate(b.last_good.slice(0, 10))}</span>` : ""}</div></section>`
+      : "";
+
   // Backups: each one is restored to a scratch folder and checked before it counts.
   async function renderBackups(el) {
     const d = await BA.api("/api/backups");
@@ -637,6 +645,7 @@
 
       renderTotp(main.querySelector("#totp"));
       renderBackups(main.querySelector("#backups"));
+      if (new URLSearchParams(location.hash.split("?")[1] || "").get("section") === "backups") main.querySelector("#backups").scrollIntoView();
       main.querySelector("#coach-on").onchange = (e) => { BA.setCoaching(e.target.checked); BA.toast(e.target.checked ? "Coaching tips on." : "Coaching tips off."); };
 
       main.querySelector("#pw-form").onsubmit = async (e) => {

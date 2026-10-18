@@ -32,6 +32,8 @@ Puts a backup back. Stop the app first. The backup is checked before anything ch
 
 The app's Settings screen also has a **Back up now** button and shows the last ten backups.
 
+If no backup has passed its check, or the newest one that did is more than two days old, the toolkit's Today screen and the Comms studio's This week screen show a warning linking to the Backups settings. Like Settings, the warning is hidden while presenting.
+
 ## Where backups go
 
 `~/.beanagileorg/backups/<app>/` by default. To keep them elsewhere, such as an external drive, set `BEANAGILEORG_BACKUP_DIR`:
