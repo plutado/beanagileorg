@@ -120,9 +120,9 @@ In the order the 90-day plan needs them:
 
 ## Memory on David's Mac (measured by the Odysseus session, 2026-10-18)
 
-- [x] Ask unloads its local model right after each answer (Ollama keep_alive 0), on by default and switchable in Settings → Ask; the image screen says that generating unloads any loaded language model
+- [x] Ask unloads its local model right after each answer (Ollama keep_alive 0), on by default and switchable in Settings → Ask; the image screen notes that the 9B image model (not the everyday 4B) unloads any loaded language model
 - [ ] Decide Ask's model on this Mac: keep the official qwen3.6:35b-a3b and unload after each answer (current), switch to ajax:9b (5.6 GB, but abliterated), or pull a stock 8B-class model (needs a download). On the company device, the official model stays the default
-- [ ] David's call, outside this repo: set OLLAMA_MAX_LOADED_MODELS to 1 in both Ollama launchd plists (re-apply after brew upgrade); add an idle unload to flux-mlx-server, which holds flux2-klein-4b (about 32 GB) permanently. The voice server (about 11 GB) stays as it is for now
+- [x] Done in the Odysseus session, 2026-10-18: OLLAMA_MAX_LOADED_MODELS is 1 in both Ollama launchd plists (re-apply after brew upgrade), so a second model now evicts the first; Ask's unload-after-answer setting should stay on. flux-mlx-server now unloads after 10 idle minutes (FLUX_IDLE_UNLOAD_SEC=600): about 42 MB idle, about 20 GB while generating. The voice server (about 11 GB) stays as it is. To measure memory, use footprint -p or vmmap --summary, not ps rss, which misses the mapped Metal weights
 - [ ] Later: a small shared "who holds the GPU" lease service if contention stays a problem
 
 ## Shared base and platform
