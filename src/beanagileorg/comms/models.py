@@ -11,7 +11,8 @@ LAYOUTS = (
 )
 TRANSITIONS = ("none", "fade", "slide", "convex", "concave", "zoom")
 MEDIA_KINDS = ("video", "audio", "image", "lottie", "captions")
-MEDIA_SOURCES = ("mine", "licensed", "placeholder")
+MEDIA_SOURCES = ("mine", "licensed", "placeholder", "generated")
+INFOGRAPHIC_TEMPLATES = ("stats", "bars", "timeline", "steps", "compare", "progress")
 
 MESSAGE_TYPES = (
     "weekly note", "weekly status", "alert", "release notes", "stakeholder update",
@@ -162,6 +163,20 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        4,
+        """
+        ALTER TABLE media ADD COLUMN details TEXT;
+        CREATE TABLE infographics (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            template TEXT NOT NULL DEFAULT 'stats',
+            spec TEXT NOT NULL,
+            media_id INTEGER REFERENCES media (id) ON DELETE SET NULL,
+            created_on DATE NOT NULL DEFAULT CURRENT_DATE
+        );
+        """,
+    ),
 ]
 
 # Decks are made to be shown, so their content is presentable. Speaker notes are presentable too:
@@ -216,6 +231,23 @@ media = Record(
         "size_bytes": Field("int", S, required=True),
         "source": Field("text", S, choices=MEDIA_SOURCES, default="mine"),
         "license_ref": Field("text", P),
+        "details": Field("json", S),
+    },
+)
+
+# An infographic is data drawn by the page (stats, bars, a timeline, steps, a comparison, progress), so its words
+# and numbers are exactly what was entered or drafted from facts; a PNG export goes into the media library.
+infographics = Record(
+    entity="infographic",
+    table="infographics",
+    path="/api/infographics",
+    order_by="id DESC",
+    fields={
+        "title": Field("text", S, required=True),
+        "template": Field("text", S, choices=INFOGRAPHIC_TEMPLATES, default="stats"),
+        "spec": Field("json", S, required=True),
+        "media_id": Field("int", S),
+        "created_on": Field("date", S),
     },
 )
 

@@ -7,6 +7,9 @@ from . import models
 from .messaging import router as messaging_router
 from .routes import router
 from .versions import router as versions_router
+from .visuals import router as visuals_router
+from beanagileorg.core.ask import AskApp, build_router as build_ask_router
+from beanagileorg.core.help import COMMS
 
 NAV = [
     {"path": "/this-week", "icon": "calendar-clock", "label": "This week"},
@@ -19,6 +22,7 @@ NAV = [
     {"path": "/plain-language", "icon": "spell-check", "label": "Plain language"},
     {"group": "Presentations"},
     {"path": "/decks", "icon": "presentation", "label": "Decks"},
+    {"path": "/infographics", "icon": "chart-column", "label": "Infographics"},
     {"path": "/media", "icon": "film", "label": "Media library"},
     {"group": "Me"},
     {"path": "/connections", "icon": "send", "label": "Connections"},
@@ -37,8 +41,10 @@ def build(settings: Settings | None = None):
         routers=[
             messaging_router,
             versions_router,
+            visuals_router,
+            build_ask_router(lambda: AskApp(name="Comms studio", sections=[{"path": i["path"], "label": i["label"], "purpose": COMMS.get(i["path"], {}).get("purpose", "")} for i in NAV if i.get("path")], links={"message": "/messages/{id}", "deck": "/decks/{id}", "infographic": "/infographics"})),
             router,
-            *(r.router() for r in (models.decks, models.slides, models.media, models.messages, models.templates,
+            *(r.router() for r in (models.decks, models.slides, models.media, models.infographics, models.messages, models.templates,
                                    models.audiences, models.channels, models.cadences, models.glossary)),
         ],
         static_dir=Path(__file__).parent / "static",

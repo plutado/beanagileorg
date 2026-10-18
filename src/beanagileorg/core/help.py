@@ -309,9 +309,17 @@ COMMS = {
         "privacy": "Shareable.",
         "related": ["/media"],
     },
+    "/infographics": {
+        "purpose": "Clear, accurate infographics for messages and decks: big numbers, bars, timelines, steps, comparisons and progress, drawn from your data so every word and number is exact.",
+        "steps": ["Describe what it should show, and pick facts from the toolkit (the weekly or sprint report) if you want the numbers filled in.",
+                  "The model drafts it; check every number against the facts and edit anything in the form.",
+                  "Save it, then export a PNG into the media library for slides, email and video thumbnails."],
+        "privacy": "Built from the export-only toolkit connection, so only shareable data reaches it.",
+        "related": ["/media", "/decks", "/messages"],
+    },
     "/media": {
         "purpose": "Your library of video, audio, images, animations and captions for decks.",
-        "steps": ["Upload a file and record where it came from and its license.", "Use it in a deck slide."],
+        "steps": ["Upload a file and record where it came from and its license.", "Or generate an image from a description with the local image service; it's filed as generated, with its prompt.", "Use it in a deck slide."],
         "privacy": "License details are private.",
         "related": ["/decks"],
     },

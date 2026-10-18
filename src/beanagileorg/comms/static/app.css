@@ -55,3 +55,9 @@
 .drawer .compare { background: var(--panel-2); border-radius: 8px; padding: 6px 10px; margin-top: 6px; font-size: .88rem; }
 .drawer .compare ul { padding-left: 18px; list-style: disc; }
 .deck-lock { margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-size: .9rem; }
+
+.ig-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 16px; align-items: start; }
+.ig-preview svg, .ig-thumb svg { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line, #ddd); }
+.ig-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.ig-thumb { display: flex; flex-direction: column; gap: 6px; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font: inherit; }
+@media (max-width: 860px) { .ig-layout { grid-template-columns: 1fr; } }

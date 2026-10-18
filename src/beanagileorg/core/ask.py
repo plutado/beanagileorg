@@ -259,6 +259,23 @@ def _anthropic_turn(s: dict, key: str | None, system: str, messages: list, tools
     return text or None, calls, out.get("content", [])
 
 
+def complete(s: dict, key: str | None, system: str, user: str, max_tokens: int = 1500) -> str:
+    """One plain request and answer, no tools: for drafting text or structured JSON from facts the caller supplies."""
+    if s["provider"] == "anthropic":
+        out = _post_json(s["base_url"].rstrip("/") + "/v1/messages", {"x-api-key": key or "", "anthropic-version": "2023-06-01"},
+                         {"model": s["model"], "max_tokens": max_tokens, "system": system, "messages": [{"role": "user", "content": user}]})
+        text = "".join(b.get("text", "") for b in out.get("content", []) if b.get("type") == "text")
+    else:
+        out = _post_json(s["base_url"].rstrip("/") + "/chat/completions", {"Authorization": f"Bearer {key}"} if key else {},
+                         {"model": s["model"], "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}], "temperature": 0.3})
+        text = out["choices"][0]["message"].get("content") or ""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+
+
+def settings_and_key(conn, request: Request) -> tuple[dict, str | None]:
+    return _settings(conn), _read_key(request)
+
+
 def ask(app: AskApp, conn, viewer: Viewer, s: dict, key: str | None, question: str, history: list[dict] | None = None) -> dict:
     floor = effective_floor(viewer, s)
     tools = _base_tools(app)

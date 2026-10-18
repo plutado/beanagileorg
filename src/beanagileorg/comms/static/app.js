@@ -6,6 +6,7 @@
     ["mine", "Mine"],
     ["licensed", "Licensed (for example Envato Elements)"],
     ["placeholder", "Placeholder"],
+    ["generated", "Generated (AI)"],
   ];
 
   // ---- load reveal.js, lottie-web and the renderer once ----
@@ -921,7 +922,19 @@
     async render(main) {
       await loadAssets();
       const items = await BA.api("/api/media");
+      const imgSet = await BA.api("/api/images/settings");
       main.innerHTML = `
+        <section class="card"><h2>Generate an image</h2>
+          <p class="quiet">Illustrations, slide backgrounds and thumbnails from a description, made on this computer by the image service (${esc(imgSet.model)}). Images can't hold reliable words or numbers: use <a href="#/infographics">Infographics</a> for those. Use yourself, designed characters or animals as subjects, never a real colleague.</p>
+          <form id="gen" class="grid2"><label style="grid-column:1/-1">Describe the image<textarea name="prompt" rows="2" required placeholder="[Placeholder: a calm team at a whiteboard planning a sprint, seen from behind]"></textarea></label>
+            <label>Shape<select name="size"><option value="slide">Slide (16:9)</option><option value="thumbnail">Video thumbnail (16:9)</option><option value="square">Square</option><option value="portrait">Portrait</option></select></label>
+            <label>Model<select name="model"><option value="flux2-klein-4b">Klein 4B (fast, everyday)</option><option value="flux2-klein-9b">Klein 9B (finer; pauses the local language model while it runs)</option></select></label>
+            <label class="check"><input type="checkbox" name="use_style" checked> Use the house style</label>
+            <div class="actions"><button class="btn primary" type="submit">Generate</button></div></form>
+          <details><summary class="quiet">Image service and house style</summary><form id="img-set" class="grid2">
+            <label>Address<input name="base_url" value="${esc(imgSet.base_url)}"></label><label>Default model<input name="model" value="${esc(imgSet.model)}"></label>
+            <label style="grid-column:1/-1">House style <span class="quiet">(added to every prompt, so images look like one family)</span><textarea name="style" rows="2">${esc(imgSet.style)}</textarea></label>
+            <div class="actions"><button class="btn" type="submit">Save</button></div></form></details></section>
         <section class="card"><h2>Add media</h2>
           <p class="quiet">Video, audio, images, Lottie animations (.json) and captions (.vtt). Files stay on this computer. Licensed files, such as Envato Elements downloads, are never committed to the code repository.</p>
           <form id="up" class="grid2">
@@ -943,7 +956,7 @@
               }[m.kind];
               return `<div class="media-card"><div>${preview}</div>
                 <input value="${esc(m.name)}" data-rename="${m.id}" aria-label="Name">
-                <div class="row"><span class="pill">${esc(m.kind)}</span><span class="pill">${esc(m.source)}</span>
+                <div class="row"><span class="pill">${esc(m.kind)}</span><span class="pill${m.source === "generated" ? " accent" : ""}"${m.details && m.details.prompt ? ` title="${esc(m.details.prompt)} · ${esc(m.details.model || "")}"` : ""}>${esc(m.source)}</span>
                 <span class="quiet">${Math.max(1, Math.round(m.size_bytes / 1024))} KB</span><span class="spacer"></span>
                 <button class="btn danger" data-del="${m.id}">Delete</button></div></div>`;
             })
@@ -954,6 +967,19 @@
         anims.push(window.lottie.loadAnimation({ container: el, renderer: "svg", loop: true, autoplay: true, path: el.dataset.src }));
       });
       BA.cleanup = () => anims.forEach((a) => a.destroy());
+      const gen = main.querySelector("#gen");
+      gen.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(gen), btn = gen.querySelector("button[type=submit]");
+        btn.disabled = true; btn.textContent = "Generating… (up to a minute)";
+        try {
+          await BA.api("/api/media/generate", { method: "POST", body: { prompt: f.get("prompt"), size: f.get("size"), model: f.get("model"), use_style: gen.elements.use_style.checked } });
+          BA.toast("Added to the media library.");
+          BA.rerender();
+        } finally { btn.disabled = false; btn.textContent = "Generate"; }
+      });
+      const is = main.querySelector("#img-set");
+      is.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(is); await BA.api("/api/images/settings", { method: "PUT", body: { base_url: f.get("base_url"), model: f.get("model"), style: f.get("style") } }); BA.toast("Saved."); });
       main.querySelector("#up").onsubmit = BA.guard(async (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
@@ -1011,6 +1037,159 @@
           await BA.api("/api/connections", { method: "PUT", body: { toolkit_url: form.elements.toolkit_url.value, clear_token: true } });
           BA.rerender();
         });
+    },
+  });
+
+  // ---------------------------------------------------------------- Infographics
+
+  const IG = { w: 1200, h: 675, ink: "#1d2433", muted: "#5b6475", accent: "#3a6bd4", accent2: "#2f9e6f", bg: "#fbfaf7", rule: "#e2e0d8", font: "Inter, -apple-system, 'Helvetica Neue', Arial, sans-serif" };
+  const TEMPLATES = [["stats", "Big numbers"], ["bars", "Bars"], ["timeline", "Timeline"], ["steps", "Steps"], ["compare", "Before and after"], ["progress", "Progress"]];
+  const x = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const wrap = (text, max) => {
+    const words = String(text || "").split(/\s+/), lines = [];
+    let cur = "";
+    for (const w of words) { if ((cur + " " + w).trim().length > max && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }
+    if (cur) lines.push(cur);
+    return lines.slice(0, 4);
+  };
+  const tspans = (lines, xPos, lh) => lines.map((l, i) => `<tspan x="${xPos}" dy="${i ? lh : 0}">${x(l)}</tspan>`).join("");
+  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString();
+
+  function infographicSVG(s) {
+    const { w, h } = IG;
+    let body = "";
+    const top = s.subtitle ? 200 : 170;
+    if (s.template === "stats") {
+      const n = s.items.length, gap = 32, cw = (w - 128 - gap * (n - 1)) / n;
+      body = s.items.map((it, i) => { const cx = 64 + i * (cw + gap);
+        return `<rect x="${cx}" y="${top + 20}" width="${cw}" height="300" rx="18" fill="#fff" stroke="${IG.rule}"/>
+          <text x="${cx + 32}" y="${top + 150}" font-size="${it.value.length > 7 ? 64 : 84}" font-weight="800" fill="${IG.accent}">${x(it.value)}</text>
+          <text x="${cx + 32}" y="${top + 205}" font-size="24" fill="${IG.ink}">${tspans(wrap(it.label, Math.floor(cw / 13)), cx + 32, 30)}</text>`; }).join("");
+    } else if (s.template === "bars") {
+      const max = Math.max(...s.items.map((i) => i.value), 1), rowH = Math.min(58, (h - top - 80) / s.items.length), bx = 330, bw = w - bx - 160;
+      body = s.items.map((it, i) => { const y = top + 30 + i * rowH, len = Math.max(4, (it.value / max) * bw);
+        return `<text x="${bx - 20}" y="${y + rowH / 2 + 8}" font-size="22" text-anchor="end" fill="${IG.ink}">${x(it.label)}</text>
+          <rect x="${bx}" y="${y + 8}" width="${len}" height="${rowH - 18}" rx="6" fill="${i === s.items.length - 1 ? IG.accent : IG.accent + "99"}"/>
+          <text x="${bx + len + 14}" y="${y + rowH / 2 + 8}" font-size="22" font-weight="700" fill="${IG.ink}">${fmtNum(it.value)}${s.unit ? " " + x(s.unit) : ""}</text>`; }).join("");
+    } else if (s.template === "timeline") {
+      const n = s.items.length, y = top + 140, step = (w - 200) / Math.max(1, n - 1);
+      body = `<line x1="100" y1="${y}" x2="${w - 100}" y2="${y}" stroke="${IG.rule}" stroke-width="6" stroke-linecap="round"/>` + s.items.map((it, i) => { const cx = n === 1 ? w / 2 : 100 + i * step;
+        return `<circle cx="${cx}" cy="${y}" r="16" fill="${i === n - 1 ? IG.accent : "#fff"}" stroke="${IG.accent}" stroke-width="5"/>
+          <text x="${cx}" y="${y - 40}" font-size="22" font-weight="700" text-anchor="middle" fill="${IG.accent}">${x(it.date)}</text>
+          <text x="${cx}" y="${y + 56}" font-size="21" text-anchor="middle" fill="${IG.ink}">${wrap(it.label, Math.max(10, Math.floor(step / 12))).map((l, j) => `<tspan x="${cx}" dy="${j ? 27 : 0}">${x(l)}</tspan>`).join("")}</text>`; }).join("");
+    } else if (s.template === "steps") {
+      const n = s.items.length, gap = 24, cw = (w - 128 - gap * (n - 1)) / n;
+      body = s.items.map((it, i) => { const cx = 64 + i * (cw + gap);
+        return `<rect x="${cx}" y="${top + 20}" width="${cw}" height="270" rx="18" fill="#fff" stroke="${IG.rule}"/>
+          <circle cx="${cx + 44}" cy="${top + 70}" r="24" fill="${IG.accent}"/><text x="${cx + 44}" y="${top + 79}" font-size="24" font-weight="800" text-anchor="middle" fill="#fff">${i + 1}</text>
+          <text x="${cx + 24}" y="${top + 140}" font-size="26" font-weight="700" fill="${IG.ink}">${tspans(wrap(it.label, Math.floor(cw / 15)), cx + 24, 32)}</text>
+          <text x="${cx + 24}" y="${top + 200}" font-size="22" fill="${IG.muted}">${tspans(wrap(it.detail, Math.floor(cw / 12)), cx + 24, 29)}</text>
+          ${i < n - 1 ? `<path d="M${cx + cw + 4} ${top + 155} l${gap - 8} 0" stroke="${IG.muted}" stroke-width="3" marker-end="url(#ig-arrow)"/>` : ""}`; }).join("");
+    } else if (s.template === "compare") {
+      const col = (side, cx, strong) => `<rect x="${cx}" y="${top + 10}" width="520" height="360" rx="18" fill="${strong ? IG.accent + "14" : "#fff"}" stroke="${strong ? IG.accent : IG.rule}" stroke-width="${strong ? 3 : 1.5}"/>
+        <text x="${cx + 32}" y="${top + 64}" font-size="30" font-weight="800" fill="${strong ? IG.accent : IG.ink}">${x(side.heading)}</text>
+        ${side.points.map((p, i) => `<circle cx="${cx + 40}" cy="${top + 118 + i * 58}" r="6" fill="${strong ? IG.accent : IG.muted}"/><text x="${cx + 60}" y="${top + 126 + i * 58}" font-size="22" fill="${IG.ink}">${tspans(wrap(p, 36).slice(0, 2), cx + 60, 26)}</text>`).join("")}`;
+      body = col(s.left, 64, false) + `<path d="M${600 - 18} ${top + 190} l36 0" stroke="${IG.muted}" stroke-width="4" marker-end="url(#ig-arrow)"/>` + col(s.right, 616, true);
+    } else if (s.template === "progress") {
+      const pct = Math.min(1, s.done / s.total), r = 140, cx = 300, cy = top + 190, c = 2 * Math.PI * r;
+      body = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${IG.rule}" stroke-width="34"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${IG.accent}" stroke-width="34" stroke-linecap="round" stroke-dasharray="${c * pct} ${c}" transform="rotate(-90 ${cx} ${cy})"/>
+        <text x="${cx}" y="${cy + 24}" font-size="72" font-weight="800" text-anchor="middle" fill="${IG.ink}">${Math.round(pct * 100)}%</text>
+        <text x="560" y="${cy - 30}" font-size="30" font-weight="700" fill="${IG.ink}">${x(s.label)}</text>
+        <text x="560" y="${cy + 30}" font-size="44" font-weight="800" fill="${IG.accent}">${fmtNum(s.done)} of ${fmtNum(s.total)}${s.unit ? " " + x(s.unit) : ""}</text>`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" font-family="${IG.font}">
+      <defs><marker id="ig-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${IG.muted}"/></marker></defs>
+      <rect width="${w}" height="${h}" fill="${IG.bg}"/><rect x="64" y="56" width="72" height="8" rx="4" fill="${IG.accent}"/>
+      <text x="64" y="124" font-size="${s.title.length > 48 ? 38 : 46}" font-weight="800" fill="${IG.ink}">${x(s.title)}</text>
+      ${s.subtitle ? `<text x="64" y="166" font-size="24" fill="${IG.muted}">${x(s.subtitle)}</text>` : ""}
+      ${body}
+      ${s.note ? `<text x="64" y="${h - 36}" font-size="18" fill="${IG.muted}">${x(s.note)}</text>` : ""}</svg>`;
+  }
+
+  // Item lines in the editor: "value | label" and similar, one per line.
+  const LINE_FORMS = { stats: ["value", "label"], bars: ["label", "value"], timeline: ["date", "label"], steps: ["label", "detail"] };
+  const itemsToLines = (s) => (s.items || []).map((it) => LINE_FORMS[s.template].map((k) => it[k] ?? "").join(" | ")).join("\n");
+  const linesToItems = (tpl, text) => text.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => { const parts = l.split("|").map((p) => p.trim()); const o = {}; LINE_FORMS[tpl].forEach((k, i) => (o[k] = k === "value" && tpl === "bars" ? Number(parts[i]) : parts[i] || "")); return o; });
+  const BLANK = {
+    stats: { template: "stats", title: "[Placeholder: the point in one line]", items: [{ value: "8 of 10", label: "[Placeholder label]" }, { value: "3", label: "[Placeholder label]" }] },
+    bars: { template: "bars", title: "[Placeholder title]", unit: "points", items: [{ label: "[Sprint 1]", value: 18 }, { label: "[Sprint 2]", value: 21 }, { label: "[Sprint 3]", value: 24 }] },
+    timeline: { template: "timeline", title: "[Placeholder title]", items: [{ date: "Week 1", label: "[Placeholder]" }, { date: "Week 4", label: "[Placeholder]" }, { date: "Week 12", label: "[Placeholder]" }] },
+    steps: { template: "steps", title: "[Placeholder title]", items: [{ label: "[Step one]", detail: "[Placeholder]" }, { label: "[Step two]", detail: "[Placeholder]" }, { label: "[Step three]", detail: "[Placeholder]" }] },
+    compare: { template: "compare", title: "[Placeholder title]", left: { heading: "Today", points: ["[Placeholder]"] }, right: { heading: "Proposed", points: ["[Placeholder]"] } },
+    progress: { template: "progress", title: "[Placeholder title]", done: 18, total: 24, unit: "points", label: "[Sprint 1]" },
+  };
+
+  BA.view("/infographics", {
+    title: "Infographics",
+    async render(main) {
+      const saved = await BA.api("/api/infographics");
+      let cur = { id: null, spec: JSON.parse(JSON.stringify(BLANK.stats)) };
+      const ro = BA.session.presentation;
+      main.innerHTML = `
+        ${ro ? "" : `<section class="card"><h2>Draft with AI</h2><p class="quiet">Say what it should show. Pull in the toolkit's facts and the local model fills in the real numbers; anything it can't find comes back as [Placeholder]. Check every number before you use it.</p>
+          <form id="ig-draft" class="row"><input name="request" required placeholder="[Placeholder: show how much of the sprint is done, for leadership]" style="flex:1;min-width:260px">
+            <select name="facts" style="max-width:220px"><option value="none">No facts</option><option value="weekly">This week's report</option><option value="sprint">The current sprint</option><option value="status">The weekly status</option><option value="plans">The 30/60/90 plans</option></select>
+            <button class="btn primary" type="submit">Draft</button></form></section>`}
+        <div class="ig-layout"><section class="card ig-editor"${ro ? " hidden" : ""}><h2>Edit</h2><form id="ig-form">
+          <label>Template<select name="template">${TEMPLATES.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></label>
+          <label>Title <span class="quiet">(say the point)</span><input name="title"></label><label>Subtitle<input name="subtitle"></label>
+          <div id="ig-fields"></div><label>Note <span class="quiet">(source, date)</span><input name="note"></label>
+          <div class="actions"><button class="btn left" type="button" id="ig-new">New</button><button class="btn" type="button" id="ig-png">Export PNG</button><button class="btn primary" type="submit">Save</button></div></form></section>
+          <section class="card ig-preview-card"><div id="ig-preview" class="ig-preview"></div></section></div>
+        <section class="card"><h2>Saved</h2><div class="ig-grid">${saved.map((g) => `<button type="button" class="ig-thumb" data-ig="${g.id}"><div>${infographicSVG(g.spec)}</div><span>${esc(g.title)}</span>${g.media_id ? '<span class="pill good">PNG in media</span>' : ""}</button>`).join("") || '<p class="quiet">Nothing saved yet.</p>'}</div></section>`;
+      const form = main.querySelector("#ig-form"), fields = main.querySelector("#ig-fields"), prev = main.querySelector("#ig-preview");
+      const draw = () => { prev.innerHTML = infographicSVG(cur.spec); };
+      const fieldsFor = (s) => {
+        if (LINE_FORMS[s.template]) return `<label>Items <span class="quiet">(one per line: ${LINE_FORMS[s.template].join(" | ")})</span><textarea name="items" rows="6">${esc(itemsToLines(s))}</textarea></label>${s.template === "bars" ? `<label>Unit<input name="unit" value="${esc(s.unit || "")}"></label>` : ""}`;
+        if (s.template === "compare") return `<div class="grid2"><label>Left heading<input name="lh" value="${esc(s.left.heading)}"></label><label>Right heading<input name="rh" value="${esc(s.right.heading)}"></label>
+          <label>Left points <span class="quiet">(one per line)</span><textarea name="lp" rows="5">${esc(s.left.points.join("\n"))}</textarea></label><label>Right points<textarea name="rp" rows="5">${esc(s.right.points.join("\n"))}</textarea></label></div>`;
+        return `<div class="grid2"><label>Done<input type="number" name="done" value="${s.done}"></label><label>Total<input type="number" name="total" value="${s.total}"></label><label>Unit<input name="unit" value="${esc(s.unit || "")}"></label><label>Label<input name="label" value="${esc(s.label || "")}"></label></div>`;
+      };
+      const load = (spec) => {
+        cur.spec = spec;
+        form.elements.template.value = spec.template; form.elements.title.value = spec.title || ""; form.elements.subtitle.value = spec.subtitle || ""; form.elements.note.value = spec.note || "";
+        fields.innerHTML = fieldsFor(spec);
+        draw();
+      };
+      const read = () => {
+        const f = new FormData(form), t = f.get("template");
+        const s = { template: t, title: f.get("title"), subtitle: f.get("subtitle"), note: f.get("note") };
+        if (LINE_FORMS[t]) { s.items = linesToItems(t, f.get("items") || ""); if (t === "bars") s.unit = f.get("unit"); }
+        else if (t === "compare") { const pts = (k) => (f.get(k) || "").split("\n").map((p) => p.trim()).filter(Boolean); s.left = { heading: f.get("lh"), points: pts("lp") }; s.right = { heading: f.get("rh"), points: pts("rp") }; }
+        else Object.assign(s, { done: Number(f.get("done")), total: Number(f.get("total")), unit: f.get("unit"), label: f.get("label") });
+        return s;
+      };
+      const remember = (id) => { try { id ? sessionStorage.setItem("ba-ig-current", String(id)) : sessionStorage.removeItem("ba-ig-current"); } catch {} };
+      const lastId = (() => { try { return Number(sessionStorage.getItem("ba-ig-current")); } catch { return 0; } })();
+      const last = saved.find((g) => g.id === lastId);
+      if (last) { cur.id = last.id; cur.spec = last.spec; }
+      load(cur.spec);
+      form.oninput = (e) => { if (e.target.name === "template") return; try { cur.spec = read(); draw(); } catch {} };
+      form.elements.template.onchange = () => load(JSON.parse(JSON.stringify(BLANK[form.elements.template.value])));
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); const r = await BA.api("/api/infographics/save", { method: "POST", body: { id: cur.id, spec: read() } }); cur.id = r.id; remember(r.id); BA.toast("Saved."); BA.rerender(); });
+      main.querySelector("#ig-new").onclick = () => { cur.id = null; remember(null); load(JSON.parse(JSON.stringify(BLANK.stats))); };
+      main.querySelector("#ig-png").onclick = BA.guard(async () => {
+        const sv = await BA.api("/api/infographics/save", { method: "POST", body: { id: cur.id, spec: read() } }); cur.id = sv.id; remember(sv.id);
+        const svg = new Blob([infographicSVG(read())], { type: "image/svg+xml" }), url = URL.createObjectURL(svg);
+        const img = new Image();
+        await new Promise((ok, fail) => { img.onload = ok; img.onerror = () => fail(new Error("Couldn't draw the image.")); img.src = url; });
+        const canvas = Object.assign(document.createElement("canvas"), { width: IG.w * 2, height: IG.h * 2 });
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        await BA.api(`/api/infographics/${cur.id}/png`, { method: "POST", body: { png: canvas.toDataURL("image/png") } });
+        BA.toast("PNG added to the media library.");
+        BA.rerender();
+      });
+      const df = main.querySelector("#ig-draft");
+      if (df) df.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = new FormData(df), btn = df.querySelector("button");
+        btn.disabled = true; btn.textContent = "Drafting…";
+        try { const r = await BA.api("/api/infographics/draft", { method: "POST", body: { request: f.get("request"), facts: f.get("facts") } }); cur.id = null; load(r.spec); BA.toast("Drafted. Check every number."); }
+        finally { btn.disabled = false; btn.textContent = "Draft"; }
+      });
+      main.querySelectorAll("[data-ig]").forEach((b) => (b.onclick = () => { const g = saved.find((s) => s.id === Number(b.dataset.ig)); cur.id = g.id; remember(g.id); load(g.spec); window.scrollTo({ top: 0, behavior: "smooth" }); }));
     },
   });
 })();
