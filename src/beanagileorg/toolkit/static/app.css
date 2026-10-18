@@ -265,3 +265,10 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .sit-row { padding: 10px 0; border-bottom: 1px solid var(--line); } .sit-row:last-of-type { border-bottom: 0; }
 .sit-guide { padding: 8px 0; border-bottom: 1px solid var(--line); } .sit-guide p { margin: 4px 0; }
 .ask-pick { min-height: 34px; }
+
+.ask-card .ask-out:empty { display: none; }
+.ask-q { margin-top: 12px; font-style: italic; }
+.ask-a { margin-top: 6px; }
+.ask-cites { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ask-meta { font-size: .8rem; margin-top: 6px; }
+.ask-thinking { margin-top: 10px; }

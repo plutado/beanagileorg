@@ -501,6 +501,69 @@
 
   // ---- Settings: sign-in, tokens, history (core screen every app gets) ----
 
+  // ---- Ask: questions answered from the app's own data, by the model set up in Settings ----
+
+  BA.askBox = (host, opts = {}) => {
+    const history = [];
+    host.innerHTML = `<section class="card ask-card"><form class="ask-form row"><input name="q" placeholder="${BA.esc(opts.placeholder || "Ask anything about what's in here")}" autocomplete="off" style="flex:1;min-width:220px"><button class="btn primary" type="submit">Ask</button></form>
+      <div class="ask-out"></div></section>`;
+    const form = host.querySelector(".ask-form"), out = host.querySelector(".ask-out");
+    const linkify = (md, cites) => {
+      const by = Object.fromEntries(cites.map((c) => [`${c.entity}:${c.id}`, c]));
+      return md.replace(/\[([a-z_]+):(\d+)\]/g, (m, e, i) => { const c = by[`${e}:${i}`]; return c && c.path ? ` [↗](#${c.path})` : ""; });
+    };
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const q = form.elements.q.value.trim();
+      if (!q) return;
+      out.innerHTML = `<p class="quiet ask-thinking">Looking through the data…</p>`;
+      form.querySelector("button").disabled = true;
+      try {
+        const r = await BA.api("/api/ask", { method: "POST", body: { question: q, history } });
+        history.push({ role: "user", content: q }, { role: "assistant", content: r.answer });
+        out.innerHTML = `<div class="ask-q quiet">${BA.esc(q)}</div><div class="msg-preview ask-a">${BA.md(linkify(r.answer, r.citations))}</div>
+          ${r.citations.length ? `<p class="ask-cites">${r.citations.map((c) => (c.path ? `<a class="pill" href="#${c.path}">${BA.esc(c.title)}</a>` : `<span class="pill">${BA.esc(c.title)}</span>`)).join(" ")}</p>` : ""}
+          <p class="quiet ask-meta">${BA.esc(r.model)} · ${r.local ? "on this machine" : "cloud provider"} · sees ${r.floor === "private" ? "everything" : r.floor === "presentable" ? "presentable data" : "shareable data only"} · ${r.tools_used.length} lookups</p>`;
+        form.elements.q.value = "";
+      } catch (err) {
+        out.innerHTML = `<p class="error">${BA.esc(err.message)}</p><p class="quiet">Check the model under Settings → Ask.</p>`;
+      } finally {
+        form.querySelector("button").disabled = false;
+      }
+    });
+    return host;
+  };
+
+  async function renderAskSettings(main) {
+    let s;
+    try { s = await BA.api("/api/ask/settings"); } catch { return; }
+    for (let i = 0; i < 50 && !main.querySelector("section.card"); i++) await new Promise((r) => setTimeout(r, 40));  // wait for the settings page to draw
+    if (main.querySelector("#ask-set")) return;
+    const sec = document.createElement("section");
+    sec.className = "card";
+    sec.innerHTML = `<h2>Ask: the model</h2><p class="quiet">Which model answers questions about your data. It reaches the data through search and lookups, at your privacy level. A local model keeps everything on this machine; a cloud provider gets shareable data only unless you allow more, and every question sent to one is logged under Exports.</p>
+      <form id="ask-set" class="grid2"><label>Provider<select name="provider"><option value="openai"${s.provider === "openai" ? " selected" : ""}>OpenAI-compatible (Ollama, LM Studio, vLLM, Odysseus, OpenAI)</option><option value="anthropic"${s.provider === "anthropic" ? " selected" : ""}>Anthropic (Claude)</option></select></label>
+        <label>Address<input name="base_url" value="${BA.esc(s.base_url)}" placeholder="http://127.0.0.1:11434/v1"></label>
+        <label>Model<input name="model" value="${BA.esc(s.model)}" placeholder="qwen3.6:35b-a3b"></label>
+        <label>API key <span class="quiet">${s.has_key ? "(saved; leave blank to keep)" : "(not needed for a local model)"}</span><input type="password" name="api_key" autocomplete="off"></label>
+        <label class="check"><input type="checkbox" name="allow_private_cloud"${s.allow_private_cloud ? " checked" : ""}> Let a cloud provider see private data too</label>
+        <div class="actions"><span class="pill ${s.local ? "good" : "warn"}">${s.local ? "local" : "cloud"}</span>${s.has_key ? '<button class="btn" type="button" id="ask-forget">Forget the key</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>`;
+    main.querySelector("section.card")?.after(sec);
+    const f = sec.querySelector("#ask-set");
+    f.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(f);
+      const body = { provider: fd.get("provider"), base_url: fd.get("base_url"), model: fd.get("model"), allow_private_cloud: f.elements.allow_private_cloud.checked };
+      if (fd.get("api_key")) body.api_key = fd.get("api_key");
+      if (body.allow_private_cloud && !confirm("A cloud provider would then receive private notes about people when it looks them up. Allow it?")) return;
+      await BA.api("/api/ask/settings", { method: "PUT", body });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+    const fg = sec.querySelector("#ask-forget");
+    if (fg) fg.onclick = BA.guard(async () => { await BA.api("/api/ask/settings", { method: "PUT", body: { api_key: "" } }); BA.rerender(); });
+  }
+
   BA.view("/settings", {
     title: "Settings",
     async render(main) {
@@ -508,6 +571,7 @@
         main.innerHTML = '<p class="empty">Settings are hidden while presenting.</p>';
         return;
       }
+      setTimeout(() => renderAskSettings(main), 0);
       const [tokens, scopes, changes, exports] = await Promise.all([
         BA.api("/api/tokens"),
         BA.api("/api/scopes"),

@@ -16,6 +16,7 @@ In the order the 90-day plan needs them:
 
 ## Toolkit, later versions
 
+- [ ] Ask, next steps: semantic search with the local nomic-embed-text embeddings beside full-text search; streamed answers; Ask in the Comms studio (drafting from toolkit facts); suggested questions on Today; an MCP server exposing the same tools so Claude Desktop or Odysseus can query the toolkit directly; point the provider at Odysseus on the company device
 - [ ] Async asks: track who each video pitch went to, who responded and what was decided, with follow-ups on Today (needs the share site's view log)
 - [ ] First 90 days: turn learning agenda answers into Business landscape assessments; suggest learning questions from listening tour themes; a mentoring summary for my manager's weekly report
 - [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
@@ -130,6 +131,8 @@ In the order the 90-day plan needs them:
 - [ ] Fill in the LICENSE copyright holder (currently a placeholder)
 
 ## Done
+
+- [x] 2026-10-17: Ask. A question box at the top of Today (and "Ask the toolkit" in the command palette) answers plain-language questions from the toolkit's own data, with links to the records it used. Model-agnostic: any OpenAI-compatible API (Ollama by default with qwen3.6:35b-a3b, LM Studio, vLLM, Odysseus, OpenAI) or Anthropic, set under Settings → Ask. The model reaches data through tools: full-text search over every visible record, read a record, list records, Today, and the weekly report. Privacy follows the viewer; presentation mode sees presentable data only; a cloud provider gets shareable data only unless explicitly allowed, and every cloud question is logged under Exports. The API key is stored in a file readable only by the owner, never in the database or the browser. Tested end to end with the local model; 217 tests
 
 - [x] 2026-10-17: Dev-sync board, update scripts and async-first starters. The dev-sync log gains kind (question, offer to present, decision needed, idea, action), subject matter experts, a decision maker, an "on the dev-sync board" switch, and the latest update's link and date. The board can be copied as Markdown with only its shareable columns, ready for the share site later. "Make an update" drafts a two-to-three-minute script from a row's history. Weekly and sprint reports get a Video script button. The Comms studio gains a "video pitch" message type and template (script beats, on-screen notes, and the email to send with it). New starters: three async-first team agreements (no meetings to plan meetings, no agenda no meeting, status written or recorded); meetings-per-week and reschedule-rate metrics; and three SDLC communication policies (missed sprint commitment, release that breaks production, risk becoming likely); 214 tests
 

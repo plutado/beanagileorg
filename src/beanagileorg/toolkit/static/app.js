@@ -33,6 +33,7 @@
   BA.command({ label: "Open the org chart", hint: "People", icon: "users", run: () => BA.go("/people/org") });
   BA.command({ label: "Note something about the culture", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/noticing") });
   BA.command({ label: "Take the trust pulse", hint: "Culture and trust", icon: "heart-handshake", run: () => BA.go("/culture/pulse") });
+  BA.command({ label: "Ask the toolkit", hint: "Ask", icon: "sparkles", run: () => { BA.go("/today"); setTimeout(() => document.querySelector(".ask-form input")?.focus(), 400); } });
   BA.command({ label: "Weekly report", hint: "Reports", icon: "file-text", run: () => BA.go("/status") });
   BA.command({ label: "Sprint report", hint: "Reports", icon: "file-text", run: () => BA.go("/status/sprint") });
   BA.command({ label: "New change request", hint: "Change requests", icon: "arrow-left-right", run: () => BA.go("/changes/new") });
@@ -101,7 +102,7 @@
         <span class="quiet">${BA.fmtDate(t.due)}</span><button class="btn" data-task="${t.id}">Done</button></div>`;
       const empty = (msg) => `<p class="quiet">${msg}</p>`;
       const rep = d.reports || {};
-      main.innerHTML = `<div class="cards">
+      main.innerHTML = `<div id="ask-host"></div><div class="cards">
         <section class="card log-today"><h2>Work log</h2>
           <form id="quick-log" class="row"><select name="kind" style="max-width:120px">${LOG_KINDS.filter((k) => k !== "note").concat("note").map((k) => `<option value="${k}">${esc(LOG_LABELS[k])}</option>`).join("")}</select>
             <input name="text" required placeholder="What happened? It goes into this week's report" style="flex:1;min-width:200px"><button class="btn primary" type="submit">Log</button></form>
@@ -167,6 +168,7 @@
         <section class="card"><h2>Learning goals at risk</h2>${
           d.goals_at_risk.map((g) => `<div class="item"><a href="#/me">${esc(g.goal)}</a></div>`).join("") || empty("None at risk.")
         }</section></div>`;
+      BA.askBox(main.querySelector("#ask-host"), { placeholder: "Ask the toolkit, such as: what's overdue, who haven't I talked to, what decisions are open?" });
       const ql = main.querySelector("#quick-log");
       ql.onsubmit = BA.guard(async (e) => {
         e.preventDefault();

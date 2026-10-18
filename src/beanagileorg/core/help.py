@@ -10,7 +10,8 @@ from .privacy import Viewer
 TOOLKIT = {
     "/today": {
         "purpose": "Your starting point each morning: everything that needs you today or this week, pulled from the rest of the toolkit.",
-        "steps": ["Clear anything overdue first.", "Mark tasks and obligations done right here.", "Follow a link to deal with an item in its own section."],
+        "steps": ["Clear anything overdue first.", "Mark tasks and obligations done right here.", "Follow a link to deal with an item in its own section.",
+                  "Ask a question in plain words at the top; the answer comes from your own data, with links to the records it used."],
         "privacy": "Private. Hidden while presenting.",
         "related": ["/me", "/dev-sync", "/onboarding"],
     },
