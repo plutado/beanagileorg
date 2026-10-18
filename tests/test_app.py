@@ -166,3 +166,23 @@ def test_unknown_hosts_are_refused(tmp_path, monkeypatch):
                      ("comms.beanagile.org", False), ("evil.example", False)):
         status = TestClient(app, base_url=f"http://{host}").get("/health").status_code
         assert (status == 200) == ok, host
+
+
+def test_hash_path_treats_a_bare_slash_as_the_start_screen():
+    """"#/" used to route to "/", which matches no view and showed "There is no screen here"."""
+    import json
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    import beanagileorg.core as core
+
+    js = (Path(core.__file__).parent / "static/shell.js").read_text()
+    fn = re.search(r"function hashPath\(hash\) \{.*?\n  \}", js, re.S).group(0)
+    cases = ["", "#", "#/", "#//", "#/today", "#/today/", "#/people/12", "#/status?week=2026-10-12", "#/settings/?section=backups"]
+    out = subprocess.run([node, "-e", f"{fn}\nconsole.log(JSON.stringify({json.dumps(cases)}.map(hashPath)))"], capture_output=True, text=True, check=True)
+    assert json.loads(out.stdout) == ["", "", "", "", "/today", "/today", "/people/12", "/status", "/settings"]
