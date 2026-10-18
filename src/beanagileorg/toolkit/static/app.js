@@ -735,7 +735,7 @@
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every Jira key in the toolkit into a link. Use <b>Find a Jira key</b> (⌘K) to see everywhere a key is mentioned.</span></form></section>
 
         <section class="card"><h2>Learning goals</h2>
-          <p class="quiet">Goals marked "Report" are the ones Brian sees in status reports and presentation mode.</p>
+          <p class="quiet">Goals marked "Report" are the ones your manager sees in status reports and presentation mode.</p>
           <div class="tablewrap"><table class="data"><thead><tr><th>Track</th><th>Goal</th><th>Target</th><th>Status</th><th>Time</th><th>Report</th><th></th></tr></thead><tbody>${goals
             .map((g) => `<tr><td>${esc(g.track)}</td><td>${esc(g.goal)}<div class="quiet">${esc(g.evidence)}</div>${recentLog(g.id)}</td>
               <td>${dayDate(g.target_day)}</td>

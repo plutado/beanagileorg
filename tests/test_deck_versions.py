@@ -37,7 +37,7 @@ def test_save_versions_and_compare(client):
 
 def test_workflow_locks_approved_decks(client):
     d, a, b = deck(client)
-    r = client.post(f"/api/decks/{d['id']}/status", json={"status": "in review", "note": "[For Brian]"}).json()
+    r = client.post(f"/api/decks/{d['id']}/status", json={"status": "in review", "note": "[For my manager]"}).json()
     assert r["status"] == "in review" and r["version"]["kind"] == "sent for review"
     assert client.post(f"/api/decks/{d['id']}/status", json={"status": "presented"}).status_code == 400
     client.post(f"/api/decks/{d['id']}/status", json={"status": "approved"})

@@ -264,7 +264,7 @@ def release(s: dict) -> None:
     """On a shared machine, unload a local Ollama model right after use, so it doesn't hold ~20 GB while idle.
 
     Ollama's OpenAI-compatible API has no keep-alive setting, so this calls its native API with keep_alive 0, the
-    same way flux-mlx-server frees memory before loading an image model. Silent if it isn't Ollama.
+    same way a local image server can free memory before loading an image model. Silent if it isn't Ollama.
     """
     if not s.get("release_after") or s["provider"] == "anthropic" or not is_local(s["base_url"]):
         return

@@ -1,7 +1,7 @@
 """Images and infographics for messages and decks.
 
-Images come from an image service with an OpenAI-style API: by default David's local flux-mlx-server (FLUX.2
-Klein) on port 8710. Generated images go into the media library marked "generated", with the prompt, model and
+Images come from an image service with an OpenAI-style API: by default a local FLUX.2 Klein server on
+port 8710. Generated images go into the media library marked "generated", with the prompt, model and
 seed that made them.
 
 Infographics are not generated as pictures, because image models garble words and invent numbers. An infographic
