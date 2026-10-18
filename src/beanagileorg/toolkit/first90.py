@@ -53,6 +53,11 @@ STARTER_WORKING = """## Working with me
 - Feedback directly and privately, and I'll ask for yours on me.
 - A conversation about where you want your career to go, in our first month.
 
+**How to work with me without a meeting**
+- I share most updates as short videos and written notes, with a transcript, so you can take them in when it suits you.
+- Reply in writing, in the comments under a video, or with a quick message. I read everything and answer the same day.
+- I won't add meetings beyond our Scrum ceremonies and the dev sync. If something needs a conversation, I'll ask for one; it won't be a meeting to plan a meeting.
+
 **What I'll change, and how**
 - I'll bring changes one at a time. Each one is announced first, tried for a set time, and reviewed with you before we keep it or drop it.
 - You can see every change, and where it stands, in one place.
