@@ -124,7 +124,7 @@
       }
       const dueRow = (d) => `<div class="item">${pill(d.status)}<span><b>${esc(d.title)}</b> <span class="quiet">due ${BA.fmtDate(d.due)}</span></span><span class="spacer"></span>
         ${d.message_id ? `<a class="btn" href="#/messages/${d.message_id}">Open</a>` : `<button class="btn primary" data-draft="${d.id}">Start draft</button>`}</div>`;
-      main.innerHTML = `<div class="cards">${presenting() ? "" : BA.backupWarning(week.backup)}
+      main.innerHTML = `<div id="ask-host"></div><div class="cards">${presenting() ? "" : BA.backupWarning(week.backup)}
         <section class="card"><h2>Due</h2>${week.due.map(dueRow).join("") || '<p class="quiet">Nothing due in the next two weeks. Set rhythms in the <a href="#/calendar">comms calendar</a>.</p>'}</section>
         <section class="card"><h2>In progress</h2>${
           week.drafts.map((m) => `<div class="item">${pill(m.state)}<a href="#/messages/${m.id}">${esc(m.title)}</a></div>`).join("") || '<p class="quiet">No drafts.</p>'
@@ -133,6 +133,7 @@
           week.recently_sent.map((m) => `<div class="item"><a href="#/messages/${m.id}">${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${esc((m.sent_at || "").slice(0, 10))}</span></div>`).join("") ||
           '<p class="quiet">Nothing sent yet.</p>'
         }</section></div>`;
+      BA.askBox(main.querySelector("#ask-host"), { placeholder: "Ask the studio, such as: what did I tell leadership last week, which drafts mention the release?" });
       main.querySelectorAll("[data-draft]").forEach((b) => {
         b.onclick = BA.guard(async () => {
           const m = await BA.api(`/api/comms-due/${b.dataset.draft}/draft`, { method: "POST" });

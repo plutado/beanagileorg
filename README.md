@@ -61,7 +61,7 @@ To set Ask up with a local model:
 
    Larger models answer better but need more memory; a smaller tool-calling model works on modest hardware.
 2. In the app, open **Settings → Ask**. Keep the provider as OpenAI-compatible, the address as `http://127.0.0.1:11434/v1`, and set the model name you pulled.
-3. Ask a question from the box on Today (Toolkit) or the Ask page (Comms studio).
+3. Ask a question from the box on Today (Toolkit) or This week (Comms studio).
 
 Any OpenAI-compatible server works the same way (LM Studio, vLLM, a hosted endpoint). Anthropic is supported too: choose it and paste an API key, which is stored in a file in your data folder readable only by you, never in the database or the browser. A cloud provider sees shareable data only unless you explicitly allow more, and every question sent to one is logged under Exports. With a local model, an option unloads it after each answer to free memory.
 
