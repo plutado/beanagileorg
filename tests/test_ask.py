@@ -119,3 +119,11 @@ def test_release_only_for_local_ollama(monkeypatch):
     real({**a.DEFAULTS, "base_url": "https://api.example.com/v1"})
     real({**a.DEFAULTS, "provider": "anthropic"})
     assert calls == []
+
+
+def test_plain_search_returns_paths(setup):
+    client, _ = setup
+    p = client.post("/api/people", json={"name": "[Placeholder searchable person]"}).json()
+    r = client.get("/api/ask/search", params={"q": "searchable", "limit": 30}).json()
+    hit = next(x for x in r if x["entity"] == "person" and x["id"] == p["id"])
+    assert hit["path"] == f"/people/{p['id']}"

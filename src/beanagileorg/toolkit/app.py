@@ -32,6 +32,7 @@ from .routes import router
 
 NAV = [
     {"path": "/today", "icon": "sun", "label": "Today"},
+    {"path": "/search", "icon": "search", "label": "Search"},
     {"group": "Team"},
     {"path": "/people", "icon": "users", "label": "People"},
     {"path": "/culture", "icon": "heart-handshake", "label": "Culture and trust"},

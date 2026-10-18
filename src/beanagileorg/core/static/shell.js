@@ -36,6 +36,25 @@
     BA.views[path] = def;
   };
 
+  // ---- search: a plain keyword search over every record you can see, the same index Ask uses ----
+
+  BA.view("/search", {
+    title: "Search",
+    async render(main) {
+      const q = new URLSearchParams(location.hash.split("?")[1] || "").get("q") || "";
+      main.innerHTML = `<form id="search-form" class="card row"><input name="q" value="${BA.esc(q)}" placeholder="Search people, notes, decisions, risks, plans, messages…" style="flex:1" autofocus><button class="btn primary" type="submit">Search</button></form><div id="search-results"></div>`;
+      main.querySelector("#search-form").onsubmit = (e) => { e.preventDefault(); BA.go("/search?q=" + encodeURIComponent(new FormData(e.target).get("q").trim())); };
+      if (!q) { main.querySelector("#search-results").innerHTML = '<p class="quiet">Type a word or two. Search covers every record you can see, filtered by your privacy level; while presenting, private notes stay out of the results. No model is needed.</p>'; return; }
+      const results = await BA.api("/api/ask/search?limit=40&q=" + encodeURIComponent(q));
+      const kind = (e) => e.replace(/_/g, " ");
+      const groups = {};
+      for (const r of results) (groups[r.entity] = groups[r.entity] || []).push(r);
+      main.querySelector("#search-results").innerHTML = results.length
+        ? `<p class="quiet">${results.length} result${results.length === 1 ? "" : "s"}, best matches first.</p>${Object.entries(groups).map(([e, list]) => `<section class="card"><h2>${BA.esc(kind(e)[0].toUpperCase() + kind(e).slice(1))}</h2>${list.map((r) => `<div class="item" style="display:block">${r.path ? `<a href="#${BA.esc(r.path)}"><b>${BA.esc(r.title)}</b></a>` : `<b>${BA.esc(r.title)}</b>`}<div class="quiet">${BA.esc(r.snippet || "")}</div></div>`).join("")}</section>`).join("")}`
+        : `<p class="empty">Nothing matches "${BA.esc(q)}". Try fewer or different words.</p>`;
+    },
+  });
+
   // ---- small helpers shared by app screens ----
 
   BA.today = () => {
@@ -794,6 +813,7 @@
     const draw = () => {
       const q = input.value.trim().toLowerCase();
       shown = items.map((i) => [i, score(i.label, q)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([i]) => i);
+      if (q) shown.push({ label: `Search everything for "${input.value.trim()}"`, icon: "search", run: () => BA.go("/search?q=" + encodeURIComponent(input.value.trim())) });
       active = Math.min(active, Math.max(0, shown.length - 1));
       list.innerHTML =
         shown.map((i, n) => `<li role="option" data-n="${n}" class="${n === active ? "active" : ""}">${BA.icon(i.icon || "chevron-right")}${BA.esc(i.label)}${i.hint ? `<span class="hint">${BA.esc(i.hint)}</span>` : ""}</li>`).join("") ||

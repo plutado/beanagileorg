@@ -13,6 +13,7 @@ from beanagileorg.core.help import COMMS
 
 NAV = [
     {"path": "/this-week", "icon": "calendar-clock", "label": "This week"},
+    {"path": "/search", "icon": "search", "label": "Search"},
     {"group": "Messages"},
     {"path": "/messages", "icon": "mail", "label": "Messages"},
     {"path": "/templates", "icon": "layout-template", "label": "Templates"},

@@ -25,7 +25,7 @@ Actively developed and used daily by the author. It works end to end and has a t
 
 ## Quick start
 
-You need [uv](https://docs.astral.sh/uv/) and Python 3.12 or later.
+You need [uv](https://docs.astral.sh/uv/) (on macOS or Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`; see its docs for Windows). uv fetches Python 3.12 or later for you if it isn't already installed.
 
 ```bash
 git clone https://github.com/plutado/beanagileorg.git
@@ -44,6 +44,28 @@ Data goes to `~/.beanagileorg/<app>/`. To try the apps against a throwaway folde
 ```bash
 BEANAGILEORG_DATA=/tmp/beanagileorg-demo uv run beanagileorg toolkit
 ```
+
+## Search and Ask
+
+**Search** needs nothing extra. Open Search in the sidebar, or press ⌘K (or /), type a word or two and choose *Search everything*. It's a keyword search over every record you can see, best matches first, grouped by kind, each linking to the record.
+
+**Ask** answers questions in plain sentences ("what's overdue?", "who haven't I talked to this month?"), with links to the records it used. It needs a model. Under the hood it uses the same search, plus tools to read records and lists, so nothing needs indexing by hand: the index is built in memory from your data and rebuilt automatically whenever something changes.
+
+To set Ask up with a local model:
+
+1. Install [Ollama](https://ollama.com) and pull a model that supports tool calling, for example:
+
+   ```bash
+   ollama pull qwen3.6:35b-a3b
+   ```
+
+   Larger models answer better but need more memory; a smaller tool-calling model works on modest hardware.
+2. In the app, open **Settings → Ask**. Keep the provider as OpenAI-compatible, the address as `http://127.0.0.1:11434/v1`, and set the model name you pulled.
+3. Ask a question from the box on Today (Toolkit) or the Ask page (Comms studio).
+
+Any OpenAI-compatible server works the same way (LM Studio, vLLM, a hosted endpoint). Anthropic is supported too: choose it and paste an API key, which is stored in a file in your data folder readable only by you, never in the database or the browser. A cloud provider sees shareable data only unless you explicitly allow more, and every question sent to one is logged under Exports. With a local model, an option unloads it after each answer to free memory.
+
+Image generation in the Comms studio is also optional: point it at any local server with an OpenAI-style images API (the default address is `http://127.0.0.1:8710/v1`). Infographics need no model.
 
 ## Built with
 
@@ -74,6 +96,7 @@ BEANAGILEORG_DATA=/tmp/beanagileorg-demo uv run beanagileorg toolkit
 - **Local domain.** Open the apps at https://toolkit.beanagile.org and https://comms.beanagile.org on your own machine, with Caddy and local certificates; requests addressed to any other name are refused. See [docs/local-domain.md](docs/local-domain.md).
 - **Design specs.** The company-neutral plans the apps were built from, plus the video message platform still to come. See [docs/specs](docs/specs/README.md).
 - **Placeholder data.** One click fills empty parts of an app with bracketed `[Placeholder]` values for trying things out.
+- **Search.** A keyword search over every record you can see, from the sidebar or the command palette, with no model needed.
 - **Ask.** A question box answers plain-language questions from the app's own data, with links to the records it used. Any model: a local one through Ollama by default, any OpenAI-compatible server (LM Studio, vLLM, Odysseus) or a hosted provider, set under Settings. The model reaches the data through search and lookup tools at your privacy level; a cloud provider gets shareable data only unless you allow more, every cloud question is logged, and a local model can be unloaded after each answer to free memory.
 
 ### Toolkit

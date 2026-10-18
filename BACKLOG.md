@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Search. A Search screen in both apps (sidebar, or Search everything in the command palette): keyword search over every record you can see, grouped by kind with links, using Ask's index, no model needed. The README gains install notes for uv and a Search and Ask section on setting up a local model, other providers, privacy and image generation; 243 tests
+
 - [x] 2026-10-18: Sources of insight. The listening tour gains a fifth question ("If you were me, what would you focus on first?", collected on the day-30 rollup) and a private note on how each person answered. People can be tagged by the insight they bring; the learning agenda shows whose views you've heard and flags gaps. A checklist of structured ways to learn (surveys, slice interviews, feeding back to the group, focus groups, analyzing a past decision, process analysis, tours, pilots, new-leader assimilation) with status and notes. Learn fast guide updates; 242 tests
 
 - [x] 2026-10-18: Learning agenda, chapter 2. Questions can become hypotheses (what I think is going on, what would prove it wrong, a verdict); the agenda shows the split across technical, people, culture and politics and warns when technical crowds out the rest; seven more starter questions on history, missed goals, unmet asks, real versus stated strategy, landmines, pockets of excellence and culture to keep. The Learn fast guide gains practices on asking how things got this way, learning as an investment and balanced learning, and pitfalls on acting too soon and arriving with the answer. Also fixed business and culture questions not showing on the agenda; 240 tests

@@ -1107,6 +1107,7 @@ TIPS = {
                  ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6),
                  ("Read each unit's culture in three layers: what's visible, the everyday norms, and the assumptions underneath. Start the Culture map.", "joining-from-outside", 14),
                  ("Add acronyms and names to the Glossary as you hear them. Speaking like the locals builds trust quickly.", "joining-from-outside", 14)],
+    "/search": [("Search when you know the word; Ask when you have a question. Both see only what your privacy level allows.", "learn-fast", 20)],
     "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
     "/people": [("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
@@ -1235,7 +1236,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 19  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 20  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

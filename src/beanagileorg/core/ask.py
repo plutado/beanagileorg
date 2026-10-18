@@ -150,7 +150,7 @@ def _search(conn, floor: Level, query: str, limit: int) -> list[dict]:
         return []
     match = " OR ".join(f'"{t}"' for t in terms[:12])
     rows = idx.execute("SELECT entity, rid, title, snippet(docs, 3, '', '', ' … ', 24) FROM docs WHERE docs MATCH ? ORDER BY bm25(docs) LIMIT ?",
-                       (match, max(1, min(limit, 20)))).fetchall()
+                       (match, max(1, min(limit, 50)))).fetchall()
     return [{"entity": e, "id": i, "title": t, "snippet": s} for e, i, t, s in rows]
 
 
@@ -388,8 +388,14 @@ def build_router(app_info: Callable[[], AskApp]) -> APIRouter:
         return result
 
     @router.get("/api/ask/search")
-    def get_search(q: str, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-        """The same search the model uses, for checking what it can find."""
-        return search(conn, viewer.floor, q, 10)
+    def get_search(q: str, limit: int = 10, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+        """The same search the model uses: a plain keyword search over everything you can see, no model needed.
+        Each result carries the path to open it, where the app has one."""
+        links = app_info().links
+        out = search(conn, viewer.floor, q, max(1, min(limit, 50)))
+        for r in out:
+            path = links.get(r["entity"], "")
+            r["path"] = path.replace("{id}", str(r["id"])) if path else None
+        return out
 
     return router

@@ -8,6 +8,14 @@ from fastapi import APIRouter, Depends
 from .privacy import Viewer
 
 TOOLKIT = {
+    "/search": {
+        "purpose": "Find any record by keyword, without a model: people, notes, decisions, risks, plans, messages and more, with the best matches first.",
+        "steps": ["Type a word or two and press Search, or type in the command palette (⌘K) and choose Search everything.",
+                  "Results are grouped by kind; open one to go straight to it.",
+                  "For a question in plain sentences, use Ask instead; it uses this same search to find what it needs."],
+        "privacy": "Results follow your privacy level. While presenting, private fields and records never appear.",
+        "related": ["/today", "/coaching/learn-fast"],
+    },
     "/today": {
         "purpose": "Your starting point each morning: everything that needs you today or this week, pulled from the rest of the toolkit.",
         "steps": ["Clear anything overdue first.", "Mark tasks and obligations done right here.", "Follow a link to deal with an item in its own section.",
@@ -267,6 +275,14 @@ TOOLKIT = {
 }
 
 COMMS = {
+    "/search": {
+        "purpose": "Find any record by keyword, without a model: people, notes, decisions, risks, plans, messages and more, with the best matches first.",
+        "steps": ["Type a word or two and press Search, or type in the command palette (⌘K) and choose Search everything.",
+                  "Results are grouped by kind; open one to go straight to it.",
+                  "For a question in plain sentences, use Ask instead; it uses this same search to find what it needs."],
+        "privacy": "Results follow your privacy level. While presenting, private fields and records never appear.",
+        "related": ["/this-week", "/messages"],
+    },
     "/this-week": {
         "purpose": "What you need to send this week: messages due from your rhythms, drafts in progress and what you sent recently.",
         "steps": ["Start a draft from anything due.", "Finish drafts in progress.", "Check what went out recently."],
