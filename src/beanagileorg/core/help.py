@@ -249,7 +249,7 @@ TOOLKIT = {
     },
     "/me": {
         "purpose": "Your own development and workload: learning goals with time logged, ad hoc tasks, recurring obligations, your start date, and a problem preferences self-assessment.",
-        "steps": ["Set your start date; it turns day numbers into dates across the toolkit.", "Set your Jira address, so every Jira key in the toolkit becomes a link.", "Add learning goals and log time; tick 'show in report' for goals leadership should see.",
+        "steps": ["Set your start date once it's confirmed; it turns day numbers into dates. Until then everything stays as day and week numbers, and nothing is marked late.", "Set your Jira address, so every Jira key in the toolkit becomes a link.", "Add learning goals and log time; tick 'show in report' for goals leadership should see.",
                   "Track tasks and obligations; they show on Today.",
                   "Take the problem preferences assessment: rate your interest in fifteen kinds of problems. Low totals are likely blind spots, each with guides to help.",
                   "Name your hammer, and for each blind spot choose how you'll compensate: discipline, a backstop or an advisor.",

@@ -1,6 +1,8 @@
 // Toolkit version 1 screens: Today, People, Skills and learning, Listening tour, Day-30 rollup, My development.
 (function () {
   const { esc } = BA;
+  // A day of the role, for when there's no confirmed start date to turn it into a real one.
+  BA.roleDay = (n) => (n == null || n === "" ? "" : n < 1 ? "before day 1" : `Day ${n} · week ${Math.ceil(n / 7)}`);
   const presenting = () => BA.session.presentation;
   // Before sign-in finishes there's nothing on screen yet, so just remember the address; redraw only an open screen.
   BA.api("/api/toolkit/settings").then((s) => { if (s && s.jira_url && s.jira_url !== BA.jiraUrl) { BA.jiraUrl = s.jira_url; if (BA.session) BA.rerender(); } }).catch(() => {});
@@ -763,7 +765,7 @@
       const start = settings.start_date;
       const dayDate = (n) => {
         if (n == null) return "";
-        if (!start) return `Day ${n}`;
+        if (!start) return BA.roleDay(n);
         const d = new Date(start + "T12:00:00");
         d.setDate(d.getDate() + n - 1);
         return `Day ${n} · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
@@ -792,7 +794,7 @@
         <section class="card"><h2>My advice network</h2>${[["technical", "Technical"], ["political", "Political"], ["personal", "Personal"]].map(([k, l]) => `<div class="item"><b style="min-width:90px">${l}</b>${advice.kinds[k].map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ") || '<span class="quiet">No one yet</span>'}</div>`).join("")}
           ${advice.missing.length ? `<p class="callout warn">No ${advice.missing.join(" or ")} advisor yet. The higher you go, the more you need counsel on how the organization works and someone to keep you steady.</p>` : ""}
           <p class="quiet">Mark advisors on each person's page under Details. <a href="#/coaching/new-role-mindset">Why it matters</a></p></section>
-        <section class="card"><h2>Start date</h2>
+        <section class="card"><h2>Start date</h2><p class="quiet">Leave it blank until your start date is confirmed. Until then everything stays as "Day N · week N", and nothing is marked late or counted down.</p>
           <form id="start" class="row"><input type="date" name="start_date" value="${esc(start || "")}" style="max-width:200px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every "Day N" into a real date.</span></form></section>
         <section class="card"><h2>Jira</h2>
@@ -2198,7 +2200,7 @@
       const itemRow = (i) => `<details class="plan-item${i.status === "dropped" ? " dropped" : ""}" data-item="${i.id}"><summary>
           <span>${esc(i.title)}</span><span class="spacer"></span>
           ${i.themes?.length ? BA.chips(i.themes) : ""}
-          ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">day ${i.due_day}</span>` : ""}
+          ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">${BA.roleDay(i.due_day)}</span>` : ""}
           ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
           ${i.early_win ? '<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>' : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
         ${i.detail ? BA.md(i.detail) : ""}
@@ -4677,7 +4679,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       ${unstarted.length ? `<section class="card"><div class="row"><span>${unstarted.map((p) => esc(p.name)).join(", ")} ${unstarted.length === 1 ? "has" : "have"} no milestones yet.</span><span class="spacer"></span><button class="btn primary" id="f90-start">Give them the milestones</button></div></section>` : ""}
       ${d.people.filter((p) => p.total).map((p) => `<section class="card"><div class="row"><h2><a href="#/people/${p.id}">${esc(p.name)}</a></h2><span class="quiet">${esc(p.role || "")}</span><span class="spacer"></span>${p.late ? `<span class="pill bad">${p.late} late</span>` : ""}${f90Progress(p.done, p.total)}</div>
         ${p.milestones.map((m) => `<div class="item milestone${m.done ? " done" : ""}" data-ms="${m.id}"><label class="check"><input type="checkbox"${m.done ? " checked" : ""}${m.seen_in_data ? " disabled" : ""}></label>
-          <span class="ms-day">Day ${m.due_day}</span><span>${esc(m.title)}</span><span class="spacer"></span>
+          <span class="ms-day">${BA.roleDay(m.due_day)}</span><span>${esc(m.title)}</span><span class="spacer"></span>
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Set "Reports to" on each person under People.' : 'Pick your own record under <a href="#/people">People</a> ("This is me"), then set who reports to you.'}</p></section>` : ""}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
@@ -4927,7 +4929,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         ${d.balance ? `<div class="item"><span class="quiet">Open questions: ${["technical", "people", "culture", "politics"].map((k) => `${k} ${d.balance.counts[k]}`).join(" · ")}${d.balance.hypotheses ? ` · ${d.balance.hypotheses} hypotheses, ${d.balance.testing} being tested` : ""}</span></div>
           ${d.balance.technical_heavy ? '<p class="callout warn">Most of your questions are technical. Culture and politics are harder to see and easier to get wrong; add a few questions about how decisions really get made and what the culture rewards.</p>' : ""}` : ""}
         ${LEARN_AREAS.map((a) => [a, shown.filter((q) => q.area === a)]).filter(([, l]) => l.length).map(([a, l]) => `<h3>${esc(a[0].toUpperCase() + a.slice(1))}</h3>${l.map((q) => `<details class="plan-item${q.status !== "open" ? " dropped" : ""}" data-q="${q.id}"><summary>
-            ${q.late ? '<span class="pill warn">late</span>' : q.status === "answered" ? '<span class="pill good">answered</span>' : ""}${q.verdict ? `<span class="pill ${VERDICT_TONES[q.verdict] || ""}">${esc(q.verdict)}</span>` : ""}<span>${esc(q.question)}</span><span class="spacer"></span><span class="quiet">${q.ask_names.length ? esc(q.ask_names.join(", ")) + " · " : ""}${q.due ? BA.fmtDate(q.due) : q.due_day ? `day ${q.due_day}` : ""}</span></summary>
+            ${q.late ? '<span class="pill warn">late</span>' : q.status === "answered" ? '<span class="pill good">answered</span>' : ""}${q.verdict ? `<span class="pill ${VERDICT_TONES[q.verdict] || ""}">${esc(q.verdict)}</span>` : ""}<span>${esc(q.question)}</span><span class="spacer"></span><span class="quiet">${q.ask_names.length ? esc(q.ask_names.join(", ")) + " · " : ""}${q.due ? BA.fmtDate(q.due) : BA.roleDay(q.due_day)}</span></summary>
           <form><label>Question<input name="question" value="${esc(q.question)}"></label><div class="grid2"><label>Area<select name="area">${opts(LEARN_AREAS, q.area)}</select></label><label>By day<input type="number" min="1" name="due_day" value="${esc(q.due_day ?? "")}"></label>
             <label>Status<select name="status">${opts(["open", "answered", "dropped"], q.status)}</select></label></div><label>Who could answer it</label>${pick(q)}
             <label>What I learned<textarea name="answer" rows="3">${esc(q.answer || "")}</textarea></label>
