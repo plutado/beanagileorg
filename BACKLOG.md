@@ -10,13 +10,13 @@ Nothing right now.
 
 ## Next up
 
-In the order the 90-day plan needs them:
+In priority order:
 
-- [ ] **On the company device (David):** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
+- [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
 ## Toolkit, later versions
 
-- [ ] Ask, next steps: semantic search with the local nomic-embed-text embeddings beside full-text search; streamed answers; Ask in the Comms studio (drafting from toolkit facts); suggested questions on Today; an MCP server exposing the same tools so Claude Desktop or Odysseus can query the toolkit directly; point the provider at Odysseus on the company device
+- [ ] Ask, next steps: semantic search with the local nomic-embed-text embeddings beside full-text search; streamed answers; Ask in the Comms studio (drafting from toolkit facts); suggested questions on Today; an MCP server exposing the same tools so Claude Desktop or Odysseus can query the toolkit directly
 - [ ] Async asks: track who each video pitch went to, who responded and what was decided, with follow-ups on Today (needs the share site's view log)
 - [ ] First 90 days: turn learning agenda answers into Business landscape assessments; suggest learning questions from listening tour themes; a mentoring summary for my manager's weekly report
 - [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
@@ -26,13 +26,13 @@ In the order the 90-day plan needs them:
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
 - [ ] Change requests: who asks most often and what share of their requests were accepted; link a request to a Jira issue and import interruptions flagged in Jira; a stakeholder-facing summary of the policy to share
-- [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer), since reviews say there's no clear channel to leadership
+- [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer)
 - [ ] Culture: import outside culture signals (themes from public reviews) as organization-level notes with a source and date, so they sit beside what you see yourself
 - [ ] Culture: show agreed team agreements inside the retro view, and a growth-path page for direct reports (levels and what moves someone up)
 - [ ] People: a stakeholder map (influence against stance) drawn from the CRM fields; import contacts from a CSV; reminders before a one-on-one with an agenda drafted from open follow-ups
 - [ ] Teams: per-team PI objectives and an ART view across teams; a dependency map between teams drawn from Scrum of Scrums items; each team's metrics side by side; export a team's status pack for its own manager
 - [ ] Code: a proper code editor for code-heavy fields (indent with Tab, line numbers), and a dedicated Apex highlighter instead of borrowing Java's
-- [ ] **Releases (toolkit):** a record per release: the release branch, the Jira stories in it (from the sprint backlog), where it is on the sandbox path (shared sandbox, QA sandbox, production) with dates, the regression plan and QA sign-off, and the go/no-go decision. Needs David to confirm the shared sandbox's name and branch names first
+- [ ] **Releases (toolkit):** a record per release: the release branch, the Jira stories in it (from the sprint backlog), where it is on the sandbox path (shared sandbox, QA sandbox, production) with dates, the regression plan and QA sign-off, and the go/no-go decision. Sandbox and branch names come from settings, not code
 - [ ] Sprint planning: import the backlog and sprints from Jira through its API instead of pasting; burndown during the sprint; planning poker on a phone for the team
 - [ ] Jira: read issue status and summary through the Jira API (a read-only token) so keys show live status; create a Jira issue from a dev-sync item or a failed test; import sprint and story data from Jira into PI planning instead of typing it
 - [ ] Tech debt: placeholder seed data; link debt items to PI planning stories and epics; trend of debt opened and paid down per sprint; pull incident counts per system as evidence; custom categories
@@ -92,36 +92,31 @@ In the order the 90-day plan needs them:
 
 ## Possible outcomes to plan for (not committed)
 
-- [ ] If David becomes a manager of managers or chief Scrum of Scrums (raised 2026-10-17): each manager runs their own local install, with their own data on their own machine, trained by David. Points to settle when it happens:
+- [ ] Several managers using it together (raised 2026-10-17): each manager runs their own local install, with their own data on their own machine. Points to settle when it happens:
   - Install from releases and customise through settings and practice packs, rather than forking. Forks drift, and they make it hard to share improvements. Keep forks for managers who want to change the code.
-  - A roll-up for David across his managers that uses exported status packs only, never their raw data. This builds on the existing "status packs back" plan.
+  - A roll-up for a manager of managers that uses exported status packs only, never their raw data. This builds on the existing "status packs back" plan.
   - A short training path: install, first-week setup (roster, mandate, First 90 days), and the weekly rhythm (work log, reports, Scrum of Scrums).
-  - Whose device and whose data: each manager's data stays on their company machine, under the same privacy levels.
+  - Whose device and whose data: each manager's data stays on their own machine, under the same privacy levels.
 
 ## Async, one-to-many communication (from David's stated style, 2026-10-17)
 
 - [ ] Track async asks: who each pitch went to, who has responded, and what was decided, with follow-ups on Today; replies to a pitch can become decisions or dev-sync items
-- [ ] Video hosting and delivery (raised 2026-10-17, undecided). Options weighed:
-  - The company's own video platform. If [employer] is on Microsoft 365 (the interviews ran on Teams), that's Stream on SharePoint: sign-in, permissions, captions, transcripts and view counts, with Outlook and Teams previews. Nothing to build. Recommended for delivery.
-  - A white-label host bought on AppSumo: branding and analytics, but company videos would sit with a third party. It depends on a lifetime-deal vendor staying in business, and usually lacks company sign-in.
-  - Self-hosted HLS (ffmpeg to M3U8 segments, an hls.js player, built as in other projects): full control and fits local-first, but colleagues can't reach a personal device. Best kept for previews and a local library, or hosted on company infrastructure later.
-  - AppSumo shortlist (looked up 2026-10-17, from listings and reviews, to verify before buying): Gumlet (private, password-protected and DRM options, custom player, analytics; the most established), Livid (branded ad-free player, migration from Vimeo; launched January 2026), Videco (custom player and analytics; an unvetted early-stage listing). Not a fit: Viloud (TV-channel style), WP Video Magic (WordPress only), Publitio (general media hosting), KillerPlayer (a YouTube player). Before choosing one, check: company sign-in or domain-restricted viewing, per-viewer analytics, captions and transcripts, an API, and bulk export if the vendor folds.
-  - Tiered access (David's idea, 2026-10-17). Page access: a personal link per recipient email; optionally a one-time code sent to that email; later, company sign-in. Video protection, set per message: standard (HLS behind the gated page), protected (short-lived signed links, no download, the viewer's name as a watermark), or locked (DRM through a host such as Gumlet). Plus expiry dates, view limits, revocation and a viewing log. Needs a small internet-reachable gatekeeper app and video storage; the Comms studio stays local and creates the links, sends the messages and pulls back who watched. Write a spec before building.
-  - Leading option (2026-10-17): self-host on David's DreamHost account, as gunsafetyalliance.org already does (static HLS master.m3u8 playlists in the Drupal theme, played by hls.js and David's own hls-player.js). Add a small gatekeeper: files outside the public web folder; personal email-tied links with an optional one-time code; signed, expiring segment URLs and a viewer watermark for the protected tier; a viewing log reported back by the player. Likely a standalone PHP app (native on DreamHost shared hosting) at a subdomain such as watch.beanagile.org. Company videos on a personal host is David's call, like the M3 data question.
-  - Placement (planned 2026-10-17): share.beanagile.org on DreamHost carries videos, reveal.js presentations, pages and files behind one gate; revised the same day: every subdomain is its own Drupal CMS site in its own private repository, built like davidfugate.com and gunsafetyalliance.org (ddev locally, an HTML template copied into the Drupal root as the design reference, as web/brailie is on davidfugate.com and the gsa_nihilex theme is on GSA, chosen from the ~/Web/Templates library; deployed to the DreamHost VPS with git pull and drush). share.beanagile.org is a Drupal site with a custom `ba_share` module using private files as the gate, and Agile Cat is a separate Drupal site at beanagile.org. This repository keeps only the Comms studio side of the hand-off; beanagile.org stays registered at GoDaddy with its nameservers moved to DreamHost, which hosts the apex, www and share and keeps toolkit and comms at 127.0.0.1. Spec: https://claude.ai/code/artifact/b48bb608-2059-4f37-9912-1554490879eb
-  - Subdomain name (decided 2026-10-17): stay with share.beanagile.org for now. Not chosen yet: [employer].beanagile.org as a second name for the same gatekeeper, to revisit once David is inside and can judge how the organization would see its name on his domain. Either way: a wildcard certificate (*.beanagile.org), so subdomain names don't appear in public certificate logs, and the hostname kept in server configuration, never in the repository.
-  - Comments under each video (David's idea, 2026-10-17): private to David by default, like a one-on-one; the viewer can choose to share with the message's small named group, or share without their name (David still knows who). Pinned to video moments, editable by the author, moderated by David, saved to People conversations, never in leadership reports. In the spec.
-  - Dev-sync board (David's idea, 2026-10-17): a read-only, gated board on the share site mirroring dev-sync rows switched on for sharing. Each row links to its latest update presentation, with transcript and private-by-default comments. "Make an update" on a row drafts a script in the Comms studio. Offers to present become learning sessions, and their recordings are posted under the row. In the spec.
-  - Delivery whichever host is chosen: email can't reliably play video. Send a poster image or short animated preview linking to the video, a three-line summary, the ask and a respond-by date, plus the transcript. Post the same in Teams. The Comms studio drafts all of it and tracks responses.
+- [ ] Video hosting and delivery (raised 2026-10-17, undecided). Options to weigh in a spec before building:
+  - The organization's own video platform, where one exists: sign-in, permissions, captions and view counts with nothing to build.
+  - A third-party white-label host: branding and analytics, but videos sit with a vendor; check sign-in options, per-viewer analytics, captions, an API and bulk export.
+  - Self-hosted HLS (ffmpeg to M3U8 segments, an hls.js player) behind a small gatekeeper app: personal email-tied links with an optional one-time code, signed expiring segment URLs, a viewer watermark for a protected tier, expiry, view limits, revocation and a viewing log. The Comms studio stays local and creates the links, sends the messages and pulls back who watched.
+  - Comments under each video: private to the sender by default, like a one-on-one; the viewer can choose to share with the message's small named group, or share without their name. Pinned to video moments and never in leadership reports.
+  - A read-only, gated dev-sync board mirroring rows switched on for sharing, each linking to its latest update video with transcript.
+  - Delivery whichever host is chosen: email can't reliably play video, so send a poster image or short animated preview linking to the video, a three-line summary, the ask and a respond-by date, plus the transcript. The Comms studio drafts all of it and tracks responses.
 
 ## Agile Cat (the public face of beanagile.org)
 
-- [ ] Agile Cat (David's idea, 2026-10-17): the public site at beanagile.org becomes a series of short AI-generated cat videos about Agile, in place of the single cat video. It stays light, with no link to [employer] or the apps. Episodes could take on a sprint, a stand-up, a retro, a blocked story, or scope creep at 4:59 on a Friday. Hosted on DreamHost with the same HLS player and transcripts as the share platform. `site/` becomes the Agile Cat page.
+- [ ] Agile Cat (David's idea, 2026-10-17): the public site at beanagile.org becomes a series of short AI-generated cat videos about Agile, in place of the single cat video. It stays light, with no link to any employer or to the apps. Episodes could take on a sprint, a stand-up, a retro, a blocked story, or scope creep at 4:59 on a Friday. Hosted on DreamHost with the same HLS player and transcripts as the share platform. `site/` becomes the Agile Cat page.
 
-## Memory on David's Mac (measured by the Odysseus session, 2026-10-18)
+## Memory use on one Mac (measured 2026-10-18)
 
 - [x] Ask unloads its local model right after each answer (Ollama keep_alive 0), on by default and switchable in Settings → Ask; the image screen notes that the 9B image model (not the everyday 4B) unloads any loaded language model
-- [ ] Decide Ask's model on this Mac: keep the official qwen3.6:35b-a3b and unload after each answer (current), switch to ajax:9b (5.6 GB, but abliterated), or pull a stock 8B-class model (needs a download). On the company device, the official model stays the default
+- [ ] Decide Ask's model on this Mac: keep the official qwen3.6:35b-a3b and unload after each answer (current), or pull a stock 8B-class model (needs a download)
 - [x] Done in the Odysseus session, 2026-10-18: OLLAMA_MAX_LOADED_MODELS is 1 in both Ollama launchd plists (re-apply after brew upgrade), so a second model now evicts the first; Ask's unload-after-answer setting should stay on. flux-mlx-server now unloads after 10 idle minutes (FLUX_IDLE_UNLOAD_SEC=600): about 42 MB idle, about 20 GB while generating. The voice server (about 11 GB) stays as it is. To measure memory, use footprint -p or vmmap --summary, not ps rss, which misses the mapped Metal weights
 - [ ] Later: a small shared "who holds the GPU" lease service if contention stays a problem
 
@@ -134,11 +129,11 @@ In the order the 90-day plan needs them:
 - [ ] Nightly backups with a tested restore
 - [ ] Local domain setup: beanagile.org override, reverse proxy, wildcard certificate via DNS challenge
 - [ ] Packaging for other managers: lighter install, setup script, practice packs export and import
-- [ ] Docker setup for the company device
+- [ ] Docker setup for installs on managed machines
 
 ## Housekeeping
 
-- [ ] Fill in the LICENSE copyright holder (currently a placeholder)
+- [x] 2026-10-18: LICENSE copyright holder filled in
 
 ## Done
 
