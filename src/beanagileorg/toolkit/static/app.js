@@ -1920,7 +1920,7 @@
         <label>Date<input type="date" name="date" value="${esc(r.date || "")}"></label>
         <label>Summary<textarea name="summary">${esc(r.summary || "")}</textarea></label>
         <div><label>Who was there</label><div class="row">${people.map((p) => `<label class="check"><input type="checkbox" name="att" value="${p.id}"${r.attendee_ids.includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div></div>
-        <div class="actions"><button class="btn danger left" type="button" id="del">Delete retro</button>${BA.historyButton("retro", id)}${BA.historyButton("plan_item", i.id)}<button class="btn primary" type="submit">Save</button></div></form>`}`;
+        <div class="actions"><button class="btn danger left" type="button" id="del">Delete retro</button>${BA.historyButton("retro", id)}<button class="btn primary" type="submit">Save</button></div></form>`}`;
     main.querySelectorAll("[data-vote]").forEach((b) => (b.onclick = BA.guard(async () => (await BA.api(`/api/retro-items/${b.dataset.vote}/vote`, { method: "POST", body: {} }), BA.rerender()))));
     if (ro) return;
     main.querySelectorAll("form.add-item").forEach((form) => (form.onsubmit = BA.guard(async (e) => {

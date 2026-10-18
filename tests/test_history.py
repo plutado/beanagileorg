@@ -46,3 +46,16 @@ def test_history_is_private(client):
     assert anon.get(f"/api/history/person/{p['id']}").status_code == 403
     client.post("/api/session/presentation", json={"on": True})
     assert client.get(f"/api/history/person/{p['id']}").status_code == 403
+
+
+def test_retro_detail_history_button_points_at_the_retro():
+    """The retro form's actions row once referenced an undefined `i`, which crashed every retro page."""
+    import re
+    from pathlib import Path
+
+    from beanagileorg.toolkit import app as toolkit_app
+
+    js = (Path(toolkit_app.__file__).parent / "static/app.js").read_text()
+    start = js.index('id="del">Delete retro</button>')
+    actions = js[start : js.index("</div></form>", start)]
+    assert re.findall(r"BA\.historyButton\(([^)]*)\)", actions) == ['"retro", id']
