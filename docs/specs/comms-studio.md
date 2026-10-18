@@ -59,7 +59,7 @@ The spine is the **Message**: everything else is a template for it, a fact it re
 | Rehearsal | date, run time, notes | One Deck |
 | MediaProject | title, kind (highlights video, walkthrough, explainer), stage, due, where it's published | Audience; MediaAssets |
 | MediaAsset | kind (script, storyboard, shot list, footage, edit, captions, export), file path, version | One MediaProject |
-| Theme | name, source (Envato Elements or my own), item link, license reference, template file path, colors, fonts | ThemeLayouts; Decks |
+| Theme | name, source (a licensed template or my own), item link, license reference, template file path, colors, fonts | ThemeLayouts; Decks |
 | ThemeLayout | slide type (title, section, big number, chart, quote, timeline, comparison, people, closing), the template layout it uses | One Theme |
 | NarrativeTemplate | name, the arc's beats in order, the slide type suggested for each beat | Decks built from it |
 | Animation | name, Lottie file path, source (mine or licensed), license reference, length, named segments | Slides that place it |
@@ -183,11 +183,11 @@ Video is the format for one-to-many updates: a two-to-four-minute pitch with a w
 
 Many stakeholders respond to a well-told, good-looking story more than to raw data, so generated decks start from professionally designed themes and a narrative structure, and the numbers serve the story.
 
-**Themes from Envato Elements.** A template subscription such as Envato Elements is the main source of presentation designs.
+**Themes from licensed templates.** Professionally designed presentation templates, bought or licensed, are the main source of designs.
 
 - Templates are downloaded as PowerPoint where possible. The studio opens a template and fills its own slide layouts, so the design stays intact.
-- Template files live in a local themes folder on the device and never go into the MIT repository, because the Envato license doesn't allow redistribution.
-- Each template used is registered to the project in Envato Elements, and the theme record keeps the item link and license reference.
+- Template files live in a local themes folder on the device and never go into the MIT repository, because template licenses usually don't allow redistribution.
+- Each template used is licensed for the project as its terms require, and the theme record keeps the item link and license reference.
 - A theme maps its layouts to the slide types the studio generates: title, section break, one big number, chart, quote, timeline, comparison, team or people, closing. A layout with no match falls back to a plain one in the theme's colors and fonts.
 - The same theme's colors and fonts style the live HTML version of a deck, for presenting from the studio itself.
 
@@ -205,9 +205,9 @@ Many stakeholders respond to a well-told, good-looking story more than to raw da
 - **lottie-web** (MIT) plays Lottie animations, such as vector motion exported from After Effects, for animated titles, diagrams and transitions.
 - Charts are drawn as simple SVG from the toolkit's facts, so they animate in and stay sharp at any size.
 - Libraries are bundled locally with their licenses, not loaded from a CDN, so decks work offline on the device. Lottie files I didn't make myself stay in the local themes folder, like the templates.
-- Theme colors and fonts from the Envato template style the HTML deck, so both formats look like one design.
+- Theme colors and fonts from the licensed template style the HTML deck, so both formats look like one design.
 
-**Export.** PowerPoint built on the Envato template, the HTML deck (presented live or saved as a single file), and a PDF of either.
+**Export.** PowerPoint built on the licensed template, the HTML deck (presented live or saved as a single file), and a PDF of either.
 
 ## Deck builder
 
@@ -248,7 +248,7 @@ An interactive editor inside the Comms studio for building presentations visuall
 
 **Presenting:** present full screen from the builder with reveal.js's speaker view (notes, next slide, timer), and rehearsal runs logged with their time.
 
-**Export:** a single self-contained HTML file for offline presenting, a PDF, and PowerPoint on the Envato template, where Lottie animations become a still frame.
+**Export:** a single self-contained HTML file for offline presenting, a PDF, and PowerPoint on the licensed template, where Lottie animations become a still frame.
 
 ## Open questions
 
@@ -258,4 +258,4 @@ An interactive editor inside the Comms studio for building presentations visuall
 - [ ] Whether the studio should ever post to Teams or email directly, or always hand me the text to post
 - [ ] Target lengths per audience for the summary-first check
 - [ ] How long sent messages and their snapshots are kept, and what happens to them when the role ends
-- [ ] Which Envato Elements templates to start with: one theme for leadership reviews, one for team-facing decks
+- [ ] Which templates to start with: one theme for leadership reviews, one for team-facing decks

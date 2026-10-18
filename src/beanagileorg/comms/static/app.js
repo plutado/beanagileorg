@@ -4,7 +4,7 @@
   const TRANSITIONS = ["slide", "fade", "convex", "concave", "zoom", "none"];
   const SOURCES = [
     ["mine", "Mine"],
-    ["licensed", "Licensed (for example Envato Elements)"],
+    ["licensed", "Licensed"],
     ["placeholder", "Placeholder"],
     ["generated", "Generated (AI)"],
   ];
@@ -936,7 +936,7 @@
             <label style="grid-column:1/-1">House style <span class="quiet">(added to every prompt, so images look like one family)</span><textarea name="style" rows="2">${esc(imgSet.style)}</textarea></label>
             <div class="actions"><button class="btn" type="submit">Save</button></div></form></details></section>
         <section class="card"><h2>Add media</h2>
-          <p class="quiet">Video, audio, images, Lottie animations (.json) and captions (.vtt). Files stay on this computer. Licensed files, such as Envato Elements downloads, are never committed to the code repository.</p>
+          <p class="quiet">Video, audio, images, Lottie animations (.json) and captions (.vtt). Files stay on this computer. Licensed files, such as purchased templates, are never committed to the code repository.</p>
           <form id="up" class="grid2">
             <label>File<input type="file" name="file" required></label>
             <label>Name<input name="name" placeholder="[Placeholder name]"></label>

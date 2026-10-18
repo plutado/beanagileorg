@@ -85,7 +85,7 @@ In priority order:
 - [ ] Deck builder, full: theme layouts, narrative templates and outline-first skeletons, headline check, fact-bound numbers and charts, custom HTML slide in a sandbox, speaker view and rehearsal log
 - [ ] Media players: control playback from the speaker view (players work on the slide in the prototype)
 - [ ] Lottie: preview segments by frame in the inspector
-- [ ] Themes from Envato Elements: template folder outside the repo, layouts mapped to slide types
+- [ ] Themes from licensed templates: template folder outside the repo, layouts mapped to slide types
 - [ ] Export: single-file HTML deck, PDF, PowerPoint on the template
 - [ ] Media production board: script, storyboard, shot list, recording, edit, captions, review, publish
 - [ ] Questions log and communication measures

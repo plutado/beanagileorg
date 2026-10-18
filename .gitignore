@@ -12,7 +12,7 @@ data/
 secret.key
 .env
 .DS_Store
-# Licensed presentation templates (for example Envato Elements) are never committed
+# Licensed presentation templates are never committed
 themes/
 *.pptx
 *.key
