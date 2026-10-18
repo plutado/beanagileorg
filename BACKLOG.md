@@ -65,6 +65,8 @@ In the order the 90-day plan needs them:
 
 ## Comms studio, later versions
 
+- [ ] Media generation (raised 2026-10-17, from ComfyUI reference-to-video and Blender-blockout examples). A Generate panel in the Comms studio calling separate generation services through a provider setting, as Ask calls Ollama. Images first: David's flux-mlx-server (FLUX.2 Klein 4B and 9B on MLX, with an OpenAI-style images API for generations, edits and upscale) works on the M3 Max today. Video next: a ComfyUI provider (workflow JSON templates, a job queue) on a rented cloud GPU over Tailscale, or a hosted video API; NVIDIA-tuned video models run slowly on Apple Silicon or not at all. Results go to the media library marked "generated", with prompt, workflow and model. Use for slide visuals, video-email thumbnails and Agile Cat; only David, designed characters or cats as subjects for work media, labelled as AI-made. Odysseus can call the same services but isn't required.
+
 - [ ] Versions: named versions and a review workflow for ceremony notes and meeting summaries, and for 30/60/90 plans as a whole; compare two deck versions side by side visually; reviewer comments on a deck version
 - [ ] Generators layer (Comms studio): one connector per outside creative service, all delivering into the media library with provenance recorded (service, model, prompt, date, plan terms) and a "generated" label; prompts never carry confidential detail
 - [ ] Higgsfield connector: generate b-roll, motion backgrounds, animated title cards and short explainer clips from a prompt or still, straight into the media library
