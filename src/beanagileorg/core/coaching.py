@@ -868,6 +868,38 @@ GUIDES = [
         ],
         "related": ["/first90/mandates", "/plans", "/coaching/your-mandate"], "reading": [F90],
     },
+    {
+        "slug": "joining-from-outside", "theme": "transition", "minutes": 6, "since": 13,
+        "title": "Joining from outside",
+        "summary": "Coming in from another company is harder than being promoted. You don't know the informal networks or the culture yet, nobody knows your track record, and some places are slow to trust outsiders. Work on four things at once: the business, the people, expectations and the culture.",
+        "why": "An internal promotion arrives with relationships, a reputation and a feel for how things really get done. An outside hire has to build all three while also doing the job. Many outside hires who struggle don't lack skill; they misread how the place works, or move before anyone trusts them. Naming the gaps early lets you close them on purpose.",
+        "practices": [
+            "Business: learn how the company makes money, which products, customers and seasons matter most, and where your team's systems fit. Put these on your learning agenda with dates.",
+            "People: map who people actually go to, not just the org chart. Meet peers and stakeholders early, before you need anything from them.",
+            "Expectations: agree what success looks like with your manager in writing, and check it again at 30 and 60 days.",
+            "Culture: ask one or two long-tenured colleagues to be your culture guides. Ask them how things really work, and what newcomers usually get wrong.",
+            "Be easy to get to know. Share who you are, why you're here and how you work, in your own words, in your first week.",
+            "Bring your strengths with you, and say plainly why they help. Adapting to the culture doesn't mean dropping what you were hired for.",
+            "Earn credibility with small promises kept: follow up on every question, and show what changed because of what people told you.",
+        ],
+        "pitfalls": [
+            "Assuming what worked at your last company will work here, unchanged and unexplained.",
+            "Talking about your last company so often that people hear it as criticism of this one.",
+            "Learning only from your manager and your own team, and missing the informal networks.",
+            "Mistaking long tenure for resistance. Long-tenured people often know exactly why things are the way they are.",
+            "Pushing big changes before anyone knows you well enough to trust them.",
+        ],
+        "questions": [
+            "Which of the four (business, people, expectations, culture) do I know least about right now?",
+            "Who here could tell me what a newcomer usually gets wrong?",
+            "What would people say about me after my first two weeks, and is that what I want?",
+        ],
+        "try": [
+            "Ask a long-tenured colleague for twenty minutes on how decisions really get made here.",
+            "Write three questions about how the business makes money and add them to your learning agenda.",
+        ],
+        "related": ["/first90/learning", "/people", "/culture", "/onboarding", "/coaching/learn-fast"], "reading": [F90],
+    },
     # ---------------------------------------------------------------- culture and trust
     {
         "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
@@ -1044,7 +1076,8 @@ TIPS = {
                  ('Mark a few plan items as early wins: visible improvements people already want. They build the credibility for the bigger changes.', 'early-wins', 11),
                  ('Hold the five conversations with your manager early: situation, expectations, working style, resources and your development.', 'your-manager', 11),
                  ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11),
-                 ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12)],
+                 ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12),
+                 ("Joining from outside? Work on the business, the people, expectations and the culture at once, and find a culture guide early.", "joining-from-outside", 13)],
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
@@ -1059,7 +1092,8 @@ TIPS = {
                 ('Invest sideways as much as up. Your peers decide whether most of your changes stick.', "peer-relationships", 10)],
     "/onboarding": [("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
                     ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
-                    ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback")],
+                    ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback"),
+                    ("Hires from outside the company need a culture guide and a business orientation, not just accounts and tools.", "joining-from-outside", 13)],
     "/skills": [("Match stretch work to what people want to learn. Growth is one of the best reasons people stay.", "delegation")],
     "/listening": [("Ask everyone the same questions so you can compare answers. Listen more than you talk.", "learn-fast"),
                    ("Hold early impressions as hypotheses. Write down what would prove them wrong.", "read-the-situation")],
@@ -1168,7 +1202,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 12  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 13  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

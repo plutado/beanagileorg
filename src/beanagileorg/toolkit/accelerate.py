@@ -38,6 +38,13 @@ STARTER_QUESTIONS = [
     ("products and customers", "Which products and customers matter most to the business, and why?", 30),
     ("politics", "Where do stakeholders' priorities conflict, and who settles it?", 45),
     ("politics", "Which decisions are made formally, and which happen in hallways?", 45),
+    # Joining from outside: business orientation, stakeholder connection and cultural adaptation.
+    ("business", "How does the company make money, and which products, customers and seasons matter most?", 14),
+    ("business", "Which systems the team owns carry revenue or customer data, and what does it cost the business when they fail?", 14),
+    ("business", "How does this team's work connect to the company's goals for this year?", 21),
+    ("people", "Who could be my culture guides: one or two long-tenured colleagues willing to help me read how things really work?", 7),
+    ("people", "Who do people actually go to for answers and before decisions, whatever the org chart says?", 30),
+    ("culture", "What does the culture reward, what does it quietly discourage, and how are disagreements handled?", 30),
 ]
 
 SITUATION_GUIDE = {
