@@ -1,11 +1,58 @@
 # beanagileorg
 
-Local-first supporting apps for engineering leaders. Each app runs on your own machine, listens only on localhost, and keeps its data in a SQLite file outside this repository.
+[![CI](https://github.com/plutado/beanagileorg/actions/workflows/ci.yml/badge.svg)](https://github.com/plutado/beanagileorg/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 
-- **Toolkit** (`beanagileorg toolkit`, port 8801): your first 90 days, people and culture, delivery and Scrum, reports, coaching and my development.
-- **Comms studio** (`beanagileorg comms`, port 8802): messages, templates, writing checks, presentations, images, infographics and media.
+A private, local workspace for people who lead software teams. Two small web apps run on your own machine: a **Toolkit** for the day-to-day work of managing people and delivery (one-on-ones, an org chart, a new role's first 90 days, sprint planning, retros, risks, reports), and a **Comms studio** for writing the updates and decks that come out of it. Everything is stored in a SQLite file on your disk, the apps listen on localhost only, and every field carries a privacy level, so you can share your screen in a meeting without exposing private notes. No account, no cloud service and no telemetry.
 
-Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) hub is optional: when configured, the apps use it for documents, local models and scheduled jobs.
+| | |
+| --- | --- |
+| ![Toolkit: Today](docs/images/toolkit-today.png) | ![Toolkit: org chart](docs/images/toolkit-org-chart.png) |
+| **Today**: what needs you, across the whole toolkit | **People**: an org chart drawn from reporting lines |
+| ![Toolkit: sprint planning](docs/images/toolkit-sprint-planning.png) | ![Comms studio: deck builder](docs/images/comms-deck-builder.png) |
+| **Sprint planning**: capacity, availability and ready stories | **Comms studio**: the reveal.js deck builder |
+
+All screenshots use the built-in placeholder data; every value in brackets is invented.
+
+## Who it's for
+
+Engineering managers, Scrum Masters and delivery leads who want one place for the notes, people, plans and delivery records that usually end up scattered across documents, spreadsheets and chat, and who want that place to be private and under their own control. It suits someone starting a new leadership role (the First 90 days screens, listening tour and 30/60/90 plans are built for that), and someone running an established team week to week.
+
+## Status
+
+Actively developed and used daily by the author. It works end to end and has a test suite that runs on every push, but it is young: the database schema may still change between versions (upgrades are applied automatically on start), and there are no tagged releases yet. Back up your data before pulling a new version (`beanagileorg backup all`).
+
+## Quick start
+
+You need [uv](https://docs.astral.sh/uv/) and Python 3.12 or later.
+
+```bash
+git clone https://github.com/plutado/beanagileorg.git
+cd beanagileorg
+uv sync
+uv run beanagileorg toolkit    # http://127.0.0.1:8801
+uv run beanagileorg comms      # http://127.0.0.1:8802, in a second terminal
+```
+
+The first visit to each app asks you to choose a password (at least 12 characters); each app has its own. An authenticator code (TOTP) can be added later under Settings.
+
+To look around without entering anything real, press **Load placeholder data** on the Toolkit's empty Today screen, and **Load placeholder deck** under Decks in the Comms studio. Every placeholder value is in brackets so it can't pass for real data.
+
+Data goes to `~/.beanagileorg/<app>/`. To try the apps against a throwaway folder instead, set `BEANAGILEORG_DATA`:
+
+```bash
+BEANAGILEORG_DATA=/tmp/beanagileorg-demo uv run beanagileorg toolkit
+```
+
+## Built with
+
+- **Python 3.12+** with **FastAPI** and **Uvicorn**, and **SQLite** through the standard library. Three runtime dependencies in total.
+- **Plain JavaScript** front ends with no build step for the apps themselves.
+- **Tailwind CSS v4** (standalone CLI) for one shared design system with light and dark themes; the built CSS is committed.
+- **reveal.js** for decks, **lottie-web** (light player) for animations, **highlight.js** for code blocks, **Lucide** icons and the **Inter** typeface, all vendored with their licenses so the apps work offline.
+- **uv** for environments and the lockfile, **pytest** for the test suite.
+- Optional: a local model through **Ollama** or any OpenAI-compatible server for Ask, and a local image service for generated illustrations.
 
 ## Features
 
@@ -26,7 +73,7 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Backups that are checked.** `beanagileorg backup all` snapshots each app's data and restores it to a scratch folder to prove it's good; `beanagileorg restore` puts one back without deleting what was there; `beanagileorg schedule` sets up nightly backups. See [docs/backups.md](docs/backups.md).
 - **Local domain.** Open the apps at https://toolkit.beanagile.org and https://comms.beanagile.org on your own machine, with Caddy and local certificates; requests addressed to any other name are refused. See [docs/local-domain.md](docs/local-domain.md).
 - **Placeholder data.** One click fills empty parts of an app with bracketed `[Placeholder]` values for trying things out.
-- **Ask.** A question box answers plain-language questions from the app's own data, with links to the records it used. Any model: a local one through Ollama by default, any OpenAI-compatible server (LM Studio, vLLM, Odysseus, OpenAI) or Anthropic, set under Settings. The model reaches the data through search and lookup tools at your privacy level; a cloud provider gets shareable data only unless you allow more, every cloud question is logged, and a local model can be unloaded after each answer to free memory.
+- **Ask.** A question box answers plain-language questions from the app's own data, with links to the records it used. Any model: a local one through Ollama by default, any OpenAI-compatible server (LM Studio, vLLM, Odysseus) or a hosted provider, set under Settings. The model reaches the data through search and lookup tools at your privacy level; a cloud provider gets shareable data only unless you allow more, every cloud question is logged, and a local model can be unloaded after each answer to free memory.
 
 ### Toolkit
 
@@ -126,16 +173,18 @@ Both run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) h
 - **Infographics:** big numbers, bars, timelines, steps, before and after, and progress, drawn from data rather than generated, so every word and number is exact. The local model can draft one from a request and the toolkit's facts; edit it with a live preview and export a crisp PNG to the media library.
 - **Ask:** the same question box as the toolkit, with its own model settings.
 
-## Run
+## What's next
 
-```bash
-uv sync
-uv run beanagileorg toolkit
-```
+Headline items from the [backlog](BACKLOG.md), which lists everything planned in more detail:
 
-Then open http://127.0.0.1:8801. The first visit asks you to set a password.
-
-For development, `uv run beanagileorg toolkit --reload` restarts on code changes.
+- **Jira API sync:** read issue status and summary through a read-only Jira token so keys show live status, and import backlog, sprints and stories instead of pasting them.
+- **MCP server:** expose the toolkit's search and lookup tools to local assistants and LLM clients, scoped like the existing API tokens.
+- **Encrypted backups:** optional passphrase encryption of backup archives, a second backup location, and a warning on Today when the last good backup is more than two days old.
+- **Guided tours:** a first-run tour per app and per-screen tours from the command palette, built on Driver.js (MIT) and bundled locally.
+- **Accessibility pass:** a contrast check of every design token pair, screen reader labels, and focus order in dialogs.
+- **Packaging for other managers:** a lighter install, a setup script, and export and import of practice packs, so other managers can run their own install without forking.
+- **Timed sharing:** a read-only, presentable view shared on the same network or over Tailscale, with an access code, auto-timeout and a visit log.
+- **Smarter Ask:** semantic search with local embeddings beside full-text search, streamed answers, and suggested questions on Today.
 
 ## Shared base (`src/beanagileorg/core`)
 
@@ -163,24 +212,25 @@ The script uses Tailwind's standalone CLI from `.tools/` (not committed). Icons 
 
 | Command | What it does |
 | --- | --- |
-| `beanagileorg toolkit` / `beanagileorg comms` | Run an app (localhost only) |
+| `beanagileorg toolkit` / `beanagileorg comms` | Run an app (localhost only; `--port` to change the port, `--reload` for development) |
 | `beanagileorg backup all` | Back up every app and check each backup |
 | `beanagileorg backups toolkit` | List backups and their check results |
 | `beanagileorg verify FILE` | Check a backup without changing anything |
 | `beanagileorg restore FILE --app toolkit` | Put a backup back (stop the app first) |
-| `beanagileorg schedule [--write]` | Nightly backups with launchd |
+| `beanagileorg schedule [--write]` | Nightly backups with launchd (macOS) |
 | `beanagileorg domain [--caddyfile]` | Local beanagile.org setup |
 
 ## Data
 
 Data lives in `~/.beanagileorg/<app>/` (override with `BEANAGILEORG_DATA`). Nothing in this repository is real data; examples and samples are always marked `[Placeholder]`.
 
-Optional Odysseus link: set `BEANAGILEORG_ODYSSEUS_URL` and `BEANAGILEORG_ODYSSEUS_TOKEN`.
+Both apps run on their own. An [Odysseus](https://github.com/odysseus-dev/odysseus) hub is optional: set `BEANAGILEORG_ODYSSEUS_URL` and `BEANAGILEORG_ODYSSEUS_TOKEN` and the apps use it for documents, local models and scheduled jobs.
 
-## Test
+## Development
 
 ```bash
-uv run pytest
+uv run beanagileorg toolkit --reload   # restart on code changes
+uv run pytest -q                       # the test suite, also run by CI on every push
 ```
 
 ## License
