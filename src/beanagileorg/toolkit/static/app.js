@@ -4865,7 +4865,7 @@
     const ro = presenting();
     main.innerHTML = `${changeTabs("policy")}
       <section class="card"><h2>How we handle requests during a sprint</h2>${d.policy ? BA.md(d.policy) : '<p class="quiet">No policy yet.</p>'}</section>
-      ${ro ? "" : `<form id="policy" class="card"><h2>Edit</h2><p class="quiet">Agree it with your product owner and the team, then walk your stakeholders through it. Markdown works.</p>
+      ${ro ? "" : `<form id="policy" class="card"><h2>Edit the policy</h2><p class="quiet">Write the rules for what happens when someone asks for new work in the middle of a sprint. Before you use it, agree it with the product owner and the team, then explain it to the people who send requests. For headings and lists, start a line with # or -.</p>
         <textarea name="policy" rows="16">${esc(d.policy || "")}</textarea><div class="actions">${d.policy ? "" : '<button class="btn left" type="button" id="starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}`;
     if (ro) return;
     const form = main.querySelector("#policy");
