@@ -251,10 +251,14 @@ def html_to_markdown(html: str) -> str:
         def __init__(self):
             super().__init__()
             self.out, self.buf, self.started, self.skip = [], [], False, 0
+            self.lists = []  # open lists, innermost last: [kind, count]
+            self.pending = None  # the marker for the list item we're inside, until its first line is written
 
         def flush(self, prefix=""):
             text = " ".join("".join(self.buf).split())
             if text:
+                if self.pending:
+                    prefix, self.pending = self.pending, None
                 self.out.append(prefix + text)
             self.buf = []
 
@@ -265,7 +269,18 @@ def html_to_markdown(html: str) -> str:
                 self.started = True
             if not self.started or self.skip:
                 return
-            if tag in ("h1", "h2", "h3", "p", "li"):
+            if tag in ("ol", "ul"):
+                self.flush()
+                self.lists.append([tag, 0])
+            elif tag == "li":
+                self.flush()
+                indent = "   " * (len(self.lists) - 1) if self.lists else ""
+                if self.lists and self.lists[-1][0] == "ol":
+                    self.lists[-1][1] += 1
+                    self.pending = f"{indent}{self.lists[-1][1]}. "
+                else:
+                    self.pending = f"{indent}- "
+            elif tag in ("h1", "h2", "h3", "p"):
                 self.flush()
             elif tag in ("strong", "b"):
                 self.buf.append("**")
@@ -278,10 +293,14 @@ def html_to_markdown(html: str) -> str:
                 return
             if not self.started or self.skip:
                 return
-            prefix = {"h1": "# ", "h2": "## ", "h3": "### ", "li": "- "}.get(tag)
+            prefix = {"h1": "# ", "h2": "## ", "h3": "### "}.get(tag)
             if tag in ("strong", "b"):
                 self.buf.append("**")
-            elif prefix is not None or tag == "p":
+            elif tag in ("ol", "ul"):
+                self.flush()
+                if self.lists:
+                    self.lists.pop()
+            elif prefix is not None or tag in ("p", "li"):
                 self.flush(prefix or "")
 
         def handle_data(self, data):
@@ -294,7 +313,25 @@ def html_to_markdown(html: str) -> str:
     import re
 
     lines = [re.sub(r"\*\*\s*(.*?)\s*\*\*", r"**\1**", ln) if ln.count("**") % 2 == 0 else ln.replace("**", "") for ln in p.out]
-    return "\n\n".join(lines).strip()
+    return _join(lines)
+
+
+def _is_item(line: str) -> bool:
+    import re
+
+    return bool(re.match(r"^\s*(-|\d+\.)\s", line))
+
+
+def _join(lines: list[str]) -> str:
+    """Blank lines between blocks, but consecutive list items stay together so they render as one list."""
+    out = ""
+    for n, ln in enumerate(lines):
+        if n:
+            prev = lines[n - 1]
+            same_list = _is_item(ln) and _is_item(prev) and ln.lstrip()[0].isdigit() == prev.lstrip()[0].isdigit()
+            out += "\n" if same_list else "\n\n"
+        out += ln
+    return out.strip()
 
 
 def _sections(md: str) -> list[str]:
@@ -311,8 +348,8 @@ def _definition(md: str) -> str:
             inside = "definition" in ln.lower()
             continue
         if inside and ln.strip():
-            out.append(ln.strip())
-    return "\n\n".join(out)
+            out.append(ln.rstrip())
+    return _join(out)
 
 
 def _get_json(conn, key, default):

@@ -49,7 +49,8 @@ def test_every_toolkit_link_points_at_a_screen():
 
 
 FAKE_GUIDE = "<html><body><nav>skip me</nav><h1>[Placeholder guide title]</h1><h2>Purpose</h2><p>[Placeholder purpose]</p>" \
-    "<h2>Scrum Definition</h2><p>[Placeholder definition, <strong>with bold</strong>.]</p><h2>Scrum Theory</h2><h3>Transparency</h3>" \
+    "<h2>Scrum Definition</h2><p>[Placeholder definition, <strong>with bold</strong>.]</p>" \
+    "<ol><li><p>[Step one]</p></li><li><p>[Step two]</p></li></ol><ul><li>[A bullet]</li></ul><h2>Scrum Theory</h2><h3>Transparency</h3>" \
     + "".join(f"<p>[Placeholder paragraph {n}] Scrum</p>" for n in range(120)) + "<p>Creative Commons notice</p></body></html>"
 
 
@@ -62,7 +63,7 @@ def test_import_guide_and_study_plan(client, monkeypatch):
     assert r["sections"] == 4
     g = client.get("/api/agile/guide").json()
     assert g["markdown"].startswith("# [Placeholder guide title]") and "skip me" not in g["markdown"]
-    assert g["definition"] == "[Placeholder definition, **with bold**.]" and g["how"] == "imported"
+    assert g["definition"] == "[Placeholder definition, **with bold**.]\n\n1. [Step one]\n2. [Step two]\n\n- [A bullet]" and g["how"] == "imported"
     assert client.post("/api/agile/guide/study-plan").json()["created"] == 4
     assert client.post("/api/agile/guide/study-plan").json()["created"] == 0
 
