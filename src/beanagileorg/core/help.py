@@ -68,6 +68,7 @@ TOOLKIT = {
                   "Hold check-ins at days 30, 60 and 90: a trust pulse, what you heard, and what changed because of it.",
                   "Under Mandates, write down what your role is for, what it must deliver and what you can decide, then agree it with your manager. Do the same with each report.",
                   "Track where each conversation with your manager stands, their top three priorities, and three things for your next one-on-one.",
+                  "Under The team I inherit, track the five conversations with each report: situation, expectations, resources, style and development.",
                   "Diagnose each area's situation, keep a learning agenda of what to find out and from whom, and track the managers you mentor. Momentum shows on the overview.",
                   "As answers come in, turn questions into hypotheses with what would prove them wrong. The agenda warns when technical questions crowd out culture and politics.",
                   "Tag people by the insight they bring (customers, integrators, natural historians and more) to see whose view you're missing, and track which ways to learn you've used.",

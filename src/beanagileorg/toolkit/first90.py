@@ -308,3 +308,42 @@ def first90_due(conn) -> dict:
     reviews = [{"id": c["id"], "title": c["title"], "review_on": c["review_on"]}
                for c in models.team_changes.fetch_all(conn, "status IN ('trial', 'review') AND review_on IS NOT NULL AND review_on <= ?", (week,))]
     return {"late": late[:8], "checkpoint": soon[0] if soon else None, "reviews": reviews}
+
+
+# ---- the five conversations with each of your reports ----
+# Transition others as you'd want to be transitioned: the same five conversations you hold with your manager.
+
+REPORT_CONV_KEY = "first90.report_conversations"
+FIVE_CONVERSATIONS = ["situation", "expectations", "resources", "style", "development"]
+FIVE_STATUS = ("not started", "in progress", "settled")
+
+
+@router.get("/api/first90/report-conversations")
+def report_conversations(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    me = me_id(conn)
+    saved = _setting(conn, REPORT_CONV_KEY, {}) or {}
+    reports = models.people.fetch_all(conn, "manager_id = ? AND active = 1", (me,)) if me else []
+    rows = []
+    for p in reports:
+        mine = saved.get(str(p["id"]), {})
+        rows.append({"id": p["id"], "name": p["name"], "role": p.get("role"),
+                     "cells": {t: {"status": mine.get(t, {}).get("status", "not started"), "priority": bool(mine.get(t, {}).get("priority"))} for t in FIVE_CONVERSATIONS}})
+    return {"topics": FIVE_CONVERSATIONS, "statuses": list(FIVE_STATUS), "reports": rows, "has_me": bool(me)}
+
+
+@router.put("/api/first90/report-conversations/{person_id}/{topic}")
+def put_report_conversation(person_id: int, topic: str, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    if topic not in FIVE_CONVERSATIONS:
+        raise HTTPException(404, "No such conversation.")
+    if not models.people.fetch(conn, person_id):
+        raise HTTPException(404, "No such person.")
+    status = body.get("status", "not started")
+    if status not in FIVE_STATUS:
+        raise HTTPException(400, "Unknown status.")
+    saved = _setting(conn, REPORT_CONV_KEY, {}) or {}
+    saved.setdefault(str(person_id), {})[topic] = {"status": status, "priority": bool(body.get("priority"))}
+    _put(conn, REPORT_CONV_KEY, saved)
+    return saved[str(person_id)][topic]

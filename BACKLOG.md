@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Five conversations with your team. The team I inherit gains a grid of each report against the five conversations (situation, expectations, resources, style, development), each with a status and a priority star, after Table 4-3. The Keep it focused card gains how your manager likes to work. The Your manager guide gains style, the decision box, playing or changing the game, the development conversation, multiple bosses and distance; tips on the decision box and the golden rule; 251 tests
+
 - [x] 2026-10-18: Expectations and resources. The Keep it focused card gains a private note of what your manager is protective of and a resource menu (option, cost, what it delivers) that copies as Markdown. Two starter learning questions on what your manager protects and how their boss judges them. The Your manager guide gains practices on untouchables, educating carefully, underpromising, clarifying, the menu approach and asking early; 250 tests
 
 - [x] 2026-10-18: Negotiating success, chapter 4. Manager conversations gain a status and priorities for the next 30 days, shown as a table with guidance on order. A Keep it focused card holds your manager's top three priorities and three things for the next one-on-one, and lists what to ask your manager for given the situations in your portfolio (after Table 4-2, in our own words). The Your manager guide gains the book's do's and don'ts; the Comms studio's weekly note opens with the manager's top three; 249 tests

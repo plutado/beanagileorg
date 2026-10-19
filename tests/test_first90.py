@@ -106,3 +106,15 @@ def test_template(client):
     me, old, new = team(client)
     client.post("/api/first90/team/start", json={})
     assert [m["title"] for m in client.get("/api/first90/team").json()["people"][0]["milestones"]] == ["[Sooner]", "[Later]"]
+
+
+def test_five_conversations_with_reports(client):
+    me = client.post("/api/people", json={"name": "[Placeholder me]"}).json()["id"]
+    client.put("/api/people/me", json={"person_id": me})
+    r = client.post("/api/people", json={"name": "[Placeholder report]", "manager_id": me}).json()["id"]
+    g = client.get("/api/first90/report-conversations").json()
+    assert g["topics"] == ["situation", "expectations", "resources", "style", "development"]
+    assert client.put(f"/api/first90/report-conversations/{r}/situation", json={"status": "settled", "priority": True}).status_code == 200
+    assert client.put(f"/api/first90/report-conversations/{r}/nope", json={}).status_code == 404
+    row = next(x for x in client.get("/api/first90/report-conversations").json()["reports"] if x["id"] == r)
+    assert row["cells"]["situation"] == {"status": "settled", "priority": True} and row["cells"]["style"]["status"] == "not started"

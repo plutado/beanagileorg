@@ -444,7 +444,7 @@ def manager_focus(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     for k in kinds:
         asks += [a for a in MANAGER_SUPPORT.get(k, []) if a not in asks]
     return {"priorities": (saved.get("priorities") or [])[:3], "next_three": (saved.get("next_three") or [])[:3], "kinds": kinds, "asks": asks,
-            "protective": saved.get("protective") or "", "menu": saved.get("menu") or []}
+            "protective": saved.get("protective") or "", "menu": saved.get("menu") or [], "style": saved.get("style") or ""}
 
 
 @router.put("/api/first90/manager-focus")
@@ -459,6 +459,8 @@ def put_manager_focus(body: dict = Body(...), viewer: Viewer = Depends(get_viewe
         saved["next_three"] = clean(body.get("next_three"))
     if "protective" in body:
         saved["protective"] = (body.get("protective") or "").strip()
+    if "style" in body:
+        saved["style"] = (body.get("style") or "").strip()
     if "menu" in body:
         saved["menu"] = [{k: str(r.get(k) or "").strip() for k in ("option", "cost", "delivers")} for r in (body.get("menu") or [])
                          if isinstance(r, dict) and str(r.get("option") or "").strip()][:8]

@@ -4681,7 +4681,11 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   });
 
   async function renderF90Team(main) {
-    const d = await BA.api("/api/first90/team");
+    const [d, rc] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations")]);
+    const RC_TONES = { "not started": "", "in progress": "warn", settled: "good" };
+    const rcCard = rc.hidden || !rc.reports.length ? "" : `<section class="card"><h2>The five conversations with each person</h2>
+      <p class="quiet">Transition others as you'd want to be transitioned. Introduce the five conversations in week one, start with the situation and expectations, and mark the ones that are priorities. Click a cell to move it along.</p>
+      <div class="tablewrap"><table class="data"><thead><tr><th>Person</th>${rc.topics.map((t) => `<th>${esc(t)}</th>`).join("")}</tr></thead><tbody>${rc.reports.map((r) => `<tr><td><a href="#/people/${r.id}">${esc(r.name)}</a></td>${rc.topics.map((t) => `<td><span class="row" style="gap:4px;flex-wrap:nowrap"><button type="button" class="pill ${RC_TONES[r.cells[t].status]}" data-rc="${r.id}" data-topic="${t}" data-status="${r.cells[t].status}" style="cursor:pointer;border:0">${esc(r.cells[t].status)}</button><button type="button" class="icon-btn" data-rcp="${r.id}" data-topic="${t}" data-prio="${r.cells[t].priority ? 1 : 0}" title="${r.cells[t].priority ? "A priority" : "Mark as a priority"}">${r.cells[t].priority ? "★" : "☆"}</button></span></td>`).join("")}</tr>`).join("")}</tbody></table></div></section>`;
     if (d.hidden) { main.innerHTML = `${f90Tabs("team")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
     const unstarted = d.people.filter((p) => !p.total);
     main.innerHTML = `${f90Tabs("team")}
@@ -4693,6 +4697,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <span class="ms-day">${BA.roleDay(m.due_day)}</span><span>${esc(m.title)}</span><span class="spacer"></span>
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Set "Reports to" on each person under People.' : 'Pick your own record under <a href="#/people">People</a> ("This is me"), then set who reports to you.'}</p></section>` : ""}
+      ${rcCard}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
         ${d.checkpoints.map((c) => `<details class="plan-item${c.done_on ? " dropped" : ""}" data-cp="${c.day}"${!c.done_on && c.due && c.due <= BA.today() ? " open" : ""}><summary><b>Day ${c.day}</b><span class="quiet">${c.due ? BA.fmtDate(c.due) : ""}</span><span class="spacer"></span>${c.pulse_on ? `<span class="pill good">pulse ${BA.fmtDate(c.pulse_on)}</span>` : '<span class="pill">no pulse</span>'}${c.done_on ? `<span class="pill good">held ${BA.fmtDate(c.done_on)}</span>` : ""}</summary>
           <form><label>What I heard<textarea name="heard" rows="2">${esc(c.heard || "")}</textarea></label><label>What changed because of it <span class="quiet">(tell the team this)</span><textarea name="changed" rows="2">${esc(c.changed || "")}</textarea></label>
@@ -4702,6 +4707,12 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         <form id="tpl"><textarea name="tpl" rows="10" class="mono">${esc(d.template.map((m) => `${m.due_day} | ${m.title}${m.auto ? ` | auto:${m.auto}` : ""}`).join("\n"))}</textarea><div class="actions"><button class="btn primary" type="submit">Save template</button></div></form></details>`;
     const st = main.querySelector("#f90-start");
     if (st) st.onclick = BA.guard(async () => { await BA.api("/api/first90/team/start", { method: "POST", body: {} }); BA.rerender(); });
+    const cell = (pid, t) => rc.reports.find((r) => r.id === Number(pid)).cells[t];
+    main.querySelectorAll("[data-rc]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const next = rc.statuses[(rc.statuses.indexOf(b.dataset.status) + 1) % rc.statuses.length];
+      await BA.api(`/api/first90/report-conversations/${b.dataset.rc}/${b.dataset.topic}`, { method: "PUT", body: { status: next, priority: cell(b.dataset.rc, b.dataset.topic).priority } }); BA.rerender(); })));
+    main.querySelectorAll("[data-rcp]").forEach((b) => (b.onclick = BA.guard(async () => {
+      await BA.api(`/api/first90/report-conversations/${b.dataset.rcp}/${b.dataset.topic}`, { method: "PUT", body: { status: cell(b.dataset.rcp, b.dataset.topic).status, priority: b.dataset.prio !== "1" } }); BA.rerender(); })));
     main.querySelectorAll("[data-ms] input").forEach((cb) => (cb.onchange = BA.guard(async () => {
       await BA.api(`/api/first90-milestones/${cb.closest("[data-ms]").dataset.ms}`, { method: "PATCH", body: { done_on: cb.checked ? BA.today() : null } });
       BA.rerender();
@@ -4816,6 +4827,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       fbox.innerHTML = ro ? `<h2>My manager's top three</h2>${focus.hidden ? "" : `<ol>${focus.priorities.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>`}` : `<h2>Keep it focused</h2>
         <form id="mfocus"><div class="grid2"><div><b>My manager's top three priorities</b><p class="quiet">Aim early wins at these and touch on them every time you talk.</p>${three("priorities", focus.priorities, "[Placeholder: priority]")}</div>
           <div><b>Three things for our next one-on-one</b><p class="quiet">At most three. Everything else goes in the written note.</p>${three("next_three", focus.next_three, "[Placeholder: thing]")}</div></div>
+          <label><b>How my manager likes to work</b> <span class="quiet">(how they prefer to communicate, how often, how much detail, and which decisions they want to be consulted on. Ask someone they trust; then adapt.)</span><textarea name="style" rows="2">${esc(focus.style)}</textarea></label>
           <label><b>What my manager is protective of</b> <span class="quiet">(private: things they built, people they're loyal to. Find out before proposing changes; float ideas as trial balloons.)</span><textarea name="protective" rows="2">${esc(focus.protective)}</textarea></label>
           <p><b>Resource menu</b> <span class="quiet">Lay out what different levels of support buy, all at once and early, rather than going back for more.</span></p>
           <div class="tablewrap"><table class="data"><thead><tr><th>Option</th><th>What it costs</th><th>What it delivers</th></tr></thead><tbody>${[...focus.menu, {}, {}].slice(0, Math.max(3, focus.menu.length + 1)).map((r) => `<tr class="menu-row"><td><input name="m_option" value="${esc(r.option || "")}" placeholder="[Placeholder: e.g. current team]"></td><td><input name="m_cost" value="${esc(r.cost || "")}" placeholder="[Placeholder]"></td><td><input name="m_delivers" value="${esc(r.delivers || "")}" placeholder="[Placeholder]"></td></tr>`).join("")}</tbody></table></div>
@@ -4826,7 +4838,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       const mf = fbox.querySelector("#mfocus");
       if (mf) mf.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(mf);
         const menu = [...mf.querySelectorAll(".menu-row")].map((r) => ({ option: r.querySelector('[name="m_option"]').value, cost: r.querySelector('[name="m_cost"]').value, delivers: r.querySelector('[name="m_delivers"]').value }));
-        await BA.api("/api/first90/manager-focus", { method: "PUT", body: { priorities: f.getAll("priorities"), next_three: f.getAll("next_three"), protective: f.get("protective"), menu } }); BA.toast("Saved."); BA.rerender(); });
+        await BA.api("/api/first90/manager-focus", { method: "PUT", body: { priorities: f.getAll("priorities"), next_three: f.getAll("next_three"), protective: f.get("protective"), style: f.get("style"), menu } }); BA.toast("Saved."); BA.rerender(); });
       const mmd = fbox.querySelector("#menu-md");
       if (mmd) mmd.onclick = () => { navigator.clipboard.writeText(["| Option | What it costs | What it delivers |", "| --- | --- | --- |", ...focus.menu.map((r) => `| ${r.option} | ${r.cost} | ${r.delivers} |`)].join("\n")); BA.toast("Copied."); };
       const box = document.createElement("section");

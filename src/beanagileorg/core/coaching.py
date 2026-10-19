@@ -190,6 +190,12 @@ GUIDES = [
             "Underpromise and overdeliver. Promise what the team's capacity for change can actually carry.",
             "Clarify expectations again and again, in different ways, until there's no ambiguity. Understand how their own boss judges them.",
             "Ask for resources with a menu: what each level of support buys. Put it all on the table early rather than going back for more.",
+            "Know whether you're playing the game or changing it. Bigger changes need bigger asks: back them with data, keep coming back, and enlist allies. Negotiate on interests, and look for trades that help both of you.",
+            "Diagnose their style: how they like to hear things, how often, in how much detail, and which decisions they want in on. Ask people who've worked with them, carefully, and watch how they treat others.",
+            "Learn the size of your decision box: what you decide alone, what you decide and tell them, what you consult on first. Expect it small at first and to grow with trust.",
+            "When your styles really differ, raise it early, framed around results: we may work differently, judge me on what we agreed to deliver. Building some credibility first helps.",
+            "Around day 90, ask how you're doing and what to develop next, including the softer skills that matter more as you move up.",
+            "With more than one boss, balance wins and losses between them, and get them in a room together when they disagree. At a distance, over-communicate, agree clear measures, and meet in person early.",
         ],
         "pitfalls": [
             "Waiting for them to define success for you.",
@@ -1126,6 +1132,8 @@ TIPS = {
                  ('Hold the five conversations with your manager early: situation, expectations, working style, resources and your development.', 'your-manager', 11),
                  ("When another manager adopts one of your practices, note it. It's the clearest sign the wider role is working.", 'mentoring-managers', 11),
                  ("Turn questions for your manager into proposals. Keep genuine questions for what only they can know.", "leading-upward", 12),
+                 ("Expect a small decision box at first. It grows as your manager's confidence in you grows; agree when you'll review it.", "your-manager", 26),
+                 ("Transition your reports the way you'd want to be transitioned: the same five conversations you hold with your manager.", "leading-change", 26),
                  ("As you learn, turn questions into hypotheses, and write down what would prove each one wrong.", "learn-fast", 18),
                  ("Learn from different vantage points: customers, integrators, the frontline and the people who remember how things came to be.", "learn-fast", 19),
                  ("Your learning agenda says what to learn; the learning plan says how. Make learning the main job of your first 30 days.", "learn-fast", 21),
@@ -1271,7 +1279,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 25  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 26  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():
