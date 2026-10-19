@@ -35,6 +35,27 @@ SUPPORTERS = [
 OPPONENTS = "Probe the reasons before labeling anyone an opponent. A converted skeptic, or someone written off who proves themselves, makes a story that travels."
 PHASING = "If people doubt that promises will be kept, phase the change in, each step tied to success on the one before."
 STATUS_QUO = "If someone believes resisting can keep things as they are, show them the status quo is no longer an option. Once change looks certain, opposition often turns into a contest over what kind of change."
+FRAMING = [
+    ("logos", "Logos: data and reasoning", ["What data or analysis would they find persuasive?", "What logic appeals to them?", "Is a bias getting in their way, and how could you show it?"]),
+    ("ethos", "Ethos: principles and rules", ["Which principles or policies could they agree should apply here?", "If you're asking for an exception, how can you help them justify it?"]),
+    ("pathos", "Pathos: emotion and meaning", ["Which feelings could you appeal to, such as loyalty or contributing to something bigger?", "Can supporting this give them a sense of meaning?", "If they're reacting too emotionally, how can you help them step back?"]),
+]
+SOCIAL_CHECKS = [
+    ("values", "Would this ask clash with values they hold strongly?"),
+    ("commitments", "Would it go against something they've already committed to, or set a precedent they'd dislike?"),
+    ("reputation", "Could it hurt their reputation or standing, or draw disapproval from people they respect?"),
+]
+TECHNIQUES = {
+    "consult": "Consult with active listening: ask questions, let people voice their real concerns, then summarize back what you heard. The questions you ask and how you summarize also frame the choice.",
+    "themes": "Pick a few core themes and repeat them until people start echoing them, but vary and elaborate the words: repeating the exact same lines sounds like a sales pitch.",
+    "inoculate": "Inoculate: raise the weak form of each counterargument you expect, and answer it well, before opponents raise the strong form.",
+    "choice": "Shape the choice: frame it narrowly if it might look like a precedent, broadly if trades could make both sides better off. Set toxic issues aside explicitly, or settle them up front.",
+    "social": "Win respected supporters first and ask them to bring their networks. Avoid asks that clash with people's values, commitments or reputation; if someone has a competing commitment, help them out of it gracefully. Favors done earlier are remembered.",
+    "incremental": "Go step by step: explore the problem together, diagnose it together, define the options, agree the criteria, then decide. Shape the early steps, before the decision is a foregone conclusion.",
+    "sequence": "Sequence: see the right people first so each ally makes the next easier. One-on-ones to learn the ground and shape views; group meetings to get the final commitments.",
+    "forcing": "Set action-forcing events: meetings, reviews and deadlines that make putting it off impossible, so one person's delay doesn't stall everyone.",
+}
+PATH_STARTER = ["Explore the problem together", "Diagnose it together", "Define the options", "Agree the criteria", "Decide"]
 FORCES = "We tend to blame personality and overlook the situation. Look at the pressures on each person: goals, incentives, peers. Strengthen what pushes them your way and remove what holds them back."
 
 
@@ -42,7 +63,22 @@ FORCES = "We tend to blame personality and overlook the situation. Look at the p
 def guide(viewer: Viewer = Depends(get_viewer)):
     return {"stances": PLAN_STANCES, "motivators": MOTIVATORS, "power_sources": models.POWER_SOURCES,
             "resist": [{"key": k, "reason": r, "response": a} for k, r, a in RESIST], "persuadable": [{"key": k, "name": n, "approach": a} for k, n, a in PERSUADABLE],
-            "supporters": SUPPORTERS, "opponents": OPPONENTS, "phasing": PHASING, "status_quo": STATUS_QUO, "forces": FORCES}
+            "supporters": SUPPORTERS, "opponents": OPPONENTS, "phasing": PHASING, "status_quo": STATUS_QUO, "forces": FORCES,
+            "framing": [{"key": k, "name": n, "prompts": p} for k, n, p in FRAMING], "social_checks": [{"key": k, "question": q} for k, q in SOCIAL_CHECKS],
+            "techniques": TECHNIQUES, "path_starter": PATH_STARTER}
+
+
+def alliances_due(conn) -> list[dict]:
+    """For Today: action-forcing events in alliance plans due within a week, or overdue, and not done."""
+    from datetime import date, timedelta
+
+    soon = (date.today() + timedelta(days=7)).isoformat()
+    out = []
+    for p in models.alliance_plans.fetch_all(conn):
+        for e in ((p.get("strategy") or {}).get("events") or []):
+            if e.get("date") and not e.get("done") and e["date"] <= soon:
+                out.append({"plan_id": p["id"], "plan": p["title"], "title": e.get("title") or "", "date": e["date"]})
+    return sorted(out, key=lambda e: e["date"])[:8]
 
 
 @router.get("/api/alliance-plans/{plan_id}/diagram")

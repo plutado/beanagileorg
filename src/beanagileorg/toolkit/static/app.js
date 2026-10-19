@@ -133,6 +133,7 @@
           ${d.first90.checkpoint ? `<div class="item"><span class="pill warn">check-in</span><a href="#/first90/team">Day-${d.first90.checkpoint.day} team check-in</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.first90.checkpoint.due)}</span></div>` : ""}
           ${d.first90.reviews.map((c) => `<div class="item"><span class="pill">review</span><a href="#/first90/changes">Review with the team: ${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.review_on)}</span></div>`).join("")}
           ${d.first90.late.map((m) => `<div class="item"><span class="pill bad">late</span><a href="#/first90/team">${esc(m.person)}: ${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.due)}</span></div>`).join("")}</section>` : ""}
+        ${d.alliances && d.alliances.length ? `<section class="card"><h2>Alliances</h2>${d.alliances.map((e) => `<div class="item"><span class="pill ${e.date < BA.today() ? "bad" : "warn"}">${e.date < BA.today() ? "overdue" : "due"}</span><a href="#/alliances/${e.plan_id}">${esc(e.title)}</a><span class="quiet">${esc(e.plan)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(e.date)}</span></div>`).join("")}</section>` : ""}
         ${d.changes && (d.changes.waiting.length || d.changes.untold.length) ? `<section class="card"><h2>Change requests</h2>
           ${d.changes.waiting.map((c) => `<div class="item"><span class="pill ${c.urgency === "emergency" ? "bad" : "warn"}">decide</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${c.days ? `${c.days} day${c.days === 1 ? "" : "s"} waiting` : "today"}</span></div>`).join("")}
           ${d.changes.untold.map((c) => `<div class="item"><span class="pill">tell them</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.decision)}</span></div>`).join("")}</section>` : ""}
@@ -2002,6 +2003,7 @@
             <label>Early win it supports<select name="plan_item_id"><option value=""></option>${items.map((i) => `<option value="${i.id}">${esc(i.title)}</option>`).join("")}</select></label>
             <label>Or a change you're bringing<select name="team_change_id"><option value=""></option>${changes.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join("")}</select></label>
             <div class="actions"><button class="btn primary" type="submit">Start an alliance plan</button></div></form></section>
+        ${allianceQuestionsCard(plans, links, coalitions, leaders)}
         <section class="card"><h2>Influence network</h2><p class="quiet">The shadow organization: who people defer to, and on what. Watch who people look at when an issue comes up, whom they go to for advice, and who shares what news. Mark opinion leaders and sources of power on each person's page.</p>
           ${links.map((l) => `<div class="item" data-link="${l.id}"><span>${esc(l.from_name || "")} <span class="quiet">influences</span> ${esc(l.to_name || "")}${l.topic ? ` <span class="quiet">on ${esc(l.topic)}</span>` : ""}</span><span class="spacer"></span><span class="pill">${["", "some", "strong", "very strong"][l.strength] || l.strength}</span><button class="icon-btn" title="Delete" data-link-del>${BA.icon("x")}</button></div>`).join("") || '<p class="quiet">No links yet.</p>'}
           <form id="add-link" class="row" style="margin-top:8px"><select name="from_id" required style="max-width:200px"><option value="">Who</option>${people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select><span class="quiet">influences</span>
@@ -2020,6 +2022,67 @@
       main.querySelectorAll("[data-coal-del]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/power-coalitions/${b.closest("[data-coal]").dataset.coal}`, { method: "DELETE" }); BA.rerender(); })));
     },
   });
+
+  function strategySection(a, g, people) {
+    const st = a.strategy || {}, T = g.techniques;
+    const pOpts = (sel) => `<option value=""></option>${people.map((p) => `<option value="${p.id}"${sel === p.id ? " selected" : ""}>${esc(p.name)}</option>`).join("")}`;
+    const lines = (list, render) => list.map(render).join("");
+    return `<section class="card" id="strategy"><h2>Influence strategy</h2><p class="quiet">${esc(T.consult)}</p>
+      <h3>Counterarguments to head off</h3><p class="quiet">${esc(T.inoculate)}</p>
+      <div data-list="counter">${lines(st.counter || [{}], (c) => `<div class="row" data-row style="margin-bottom:6px"><input name="argument" value="${esc(c.argument || "")}" placeholder="The objection you expect" style="flex:1;min-width:200px"><input name="answer" value="${esc(c.answer || "")}" placeholder="Your answer" style="flex:1;min-width:200px"></div>`)}</div>
+      <button class="btn" type="button" data-add="counter">Add a counterargument</button>
+      <h3>Shaping the choice</h3><p class="quiet">${esc(T.choice)}</p>
+      <div class="grid2"><label>Frame it<select name="scope" style="max-width:240px"><option value=""></option>${opts(["narrowly: a one-off", "broadly: part of a bigger set of issues"], st.scope)}</select></label><label>Trades that could enlarge the pie<input name="trades" value="${esc(st.trades || "")}"></label>
+        <label>Toxic issues to set aside or settle up front<input name="toxic" value="${esc(st.toxic || "")}"></label><label>Respected supporters to enlist first<input name="social" value="${esc(st.social || "")}"></label></div>
+      <p class="quiet">${esc(T.social)} ${esc(T.themes)}</p>
+      <h3>Step by step</h3><p class="quiet">${esc(T.incremental)}</p>
+      <div data-list="path">${lines(st.path || [], (x) => `<div class="row" data-row style="margin-bottom:6px;align-items:center"><input type="checkbox" name="done"${x.done ? " checked" : ""}><input name="step" value="${esc(x.step || "")}" style="flex:1;min-width:220px"></div>`)}</div>
+      <button class="btn" type="button" data-add="path">Add a step</button>${(st.path || []).length ? "" : ' <button class="btn" type="button" id="path-starter">Start from the usual path</button>'}
+      <h3>Who to see, in what order</h3><p class="quiet">${esc(T.sequence)}</p>
+      <div data-list="sequence">${lines(st.sequence || [], (x) => `<div class="row" data-row style="margin-bottom:6px;align-items:center"><input type="checkbox" name="done"${x.done ? " checked" : ""}><select name="person_id" style="max-width:220px">${pOpts(x.person_id)}</select><select name="mode" style="max-width:150px">${opts(["one to one", "in a group"], x.mode || "one to one")}</select><input name="purpose" value="${esc(x.purpose || "")}" placeholder="Why, and what you'll ask" style="flex:1;min-width:180px"></div>`)}</div>
+      <button class="btn" type="button" data-add="sequence">Add someone</button>
+      <h3>Action-forcing events</h3><p class="quiet">${esc(T.forcing)} Events due within a week show on Today.</p>
+      <div data-list="events">${lines(st.events || [], (x) => `<div class="row" data-row style="margin-bottom:6px;align-items:center"><input type="checkbox" name="done"${x.done ? " checked" : ""}><input name="title" value="${esc(x.title || "")}" placeholder="A meeting, review or deadline" style="flex:1;min-width:200px"><input type="date" name="date" value="${esc(x.date || "")}" style="max-width:170px"></div>`)}</div>
+      <button class="btn" type="button" data-add="events">Add an event</button>
+      <div class="actions"><button class="btn primary" type="button" id="strategy-save">Save the strategy</button></div></section>`;
+  }
+
+  function bindStrategy(main, a, g, id) {
+    const box = main.querySelector("#strategy");
+    if (!box) return;
+    const read = () => {
+      const rows = (name) => [...box.querySelectorAll(`[data-list="${name}"] [data-row]`)].map((r) => Object.fromEntries([...r.querySelectorAll("input,select")].map((el) => [el.name, el.type === "checkbox" ? el.checked : el.name === "person_id" ? (el.value ? Number(el.value) : null) : el.value.trim()])));
+      const q = (n) => box.querySelector(`[name="${n}"]`).value;
+      return { counter: rows("counter").filter((c) => c.argument || c.answer), path: rows("path").filter((x) => x.step), sequence: rows("sequence").filter((x) => x.person_id), events: rows("events").filter((x) => x.title),
+        scope: q("scope") || null, trades: q("trades"), toxic: q("toxic"), social: q("social") };
+    };
+    const save = async (st) => { await BA.api(`/api/alliance-plans/${id}`, { method: "PATCH", body: { strategy: st } }); };
+    box.querySelectorAll("[data-add]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const st = read(), k = b.dataset.add;
+      st[k] = [...(st[k] || []), k === "counter" ? { argument: " " } : k === "path" ? { step: " " } : k === "sequence" ? { person_id: null, mode: "one to one" } : { title: " " }];
+      a.strategy = st; const host = main.querySelector("#strategy"); host.outerHTML = strategySection(a, g, await BA.api("/api/people")); bindStrategy(main, a, g, id);
+    })));
+    const ps = box.querySelector("#path-starter");
+    if (ps) ps.onclick = BA.guard(async () => { const st = read(); st.path = g.path_starter.map((step) => ({ step, done: false })); await save(st); BA.rerender(); });
+    box.querySelector("#strategy-save").onclick = BA.guard(async () => { await save(read()); BA.toast("Saved."); BA.rerender(); });
+  }
+
+  function allianceQuestionsCard(plans, links, coalitions, leaders) {
+    const rows = plans.flatMap((p) => ((p.rows || {}).rows || []));
+    const count = (s) => rows.filter((r) => r.stance === s).length;
+    const piv = plans.flatMap((p) => Object.values(p.pivotal || {}));
+    const strat = plans.filter((p) => { const s = p.strategy || {}; return (s.counter || []).length || (s.path || []).length || (s.sequence || []).length || (s.events || []).length; });
+    const answers = [
+      ["What critical alliances do you need, inside and outside the organization?", [plans.length ? `${plans.length} alliance plan${plans.length === 1 ? "" : "s"}, ${plans.reduce((n, p) => n + p.winning_ids.length, 0)} people in winning alliances` : ""]],
+      ["What agendas are other key players pursuing, and where do they meet or clash with yours?", [coalitions.filter((c) => c.agenda).length ? `${coalitions.filter((c) => c.agenda).length} coalition agendas noted` : ""]],
+      ["Where can you build long-term alliances, and where are short-term agreements enough?", [coalitions.length ? `${coalitions.length} power coalitions` : ""]],
+      ["How does influence work here? Who defers to whom?", [links.length ? `${links.length} influence links` : "", leaders.length ? `${leaders.length} opinion leaders` : ""]],
+      ["Who is likely to support you, oppose you, or be persuadable?", [rows.length ? `${count("for")} for, ${count("undecided")} undecided, ${count("against")} against` : ""]],
+      ["What motivates the pivotal people, what pressures are on them, and what choices do they see?", [piv.length ? `${piv.length} pivotal people analyzed` : ""]],
+      ["What's your influence strategy: framing, step by step, sequence, action-forcing events?", [strat.length ? `${strat.length} plan${strat.length === 1 ? "" : "s"} with a strategy` : ""]],
+    ];
+    return `<section class="card"><h2>Seven questions on alliances</h2><p class="quiet">Answered from what you've filled in.</p><div class="md"><ol>${answers.map(([q, a]) => { const got = a.filter(Boolean); return `<li><b>${esc(q)}</b><br>${got.length ? esc(got.join(" · ")) : '<span class="quiet">Nothing yet.</span>'}</li>`; }).join("")}</ol></div></section>`;
+  }
 
   async function renderAlliancePlan(main, id) {
     const [a, g, people, dg] = await Promise.all([BA.api(`/api/alliance-plans/${id}`), BA.api("/api/alliances/guide"), BA.api("/api/people"), BA.api(`/api/alliance-plans/${id}/diagram`)]);
@@ -2042,6 +2105,10 @@
         ${r.stance === "against" ? `<label>Why they resist</label>${g.resist.map((x) => `<label class="check"><input type="checkbox" name="resist" value="${x.key}"${(v.resist || []).includes(x.key) ? " checked" : ""}> ${esc(x.reason)} <span class="quiet">→ ${esc(x.response)}</span></label>`).join("")}` : ""}
         ${r.stance === "undecided" ? `<label>Why they're undecided<select name="persuadable"><option value=""></option>${g.persuadable.map((x) => `<option value="${x.key}"${v.persuadable === x.key ? " selected" : ""}>${esc(x.name)}: ${esc(x.approach)}</option>`).join("")}</select></label>` : ""}
         <label>What you could offer in return<input name="trade" value="${esc(v.trade || "")}"></label>
+        <h4>How to frame it for them</h4>${g.framing.map((fr) => `<label><b>${esc(fr.name)}</b> <span class="quiet">${fr.prompts.map(esc).join(" ")}</span><textarea name="f.${fr.key}" rows="2">${esc((v.framing || {})[fr.key] || "")}</textarea></label>`).join("")}
+        <h4>Would the ask cost them something?</h4>${g.social_checks.map((c) => `<label class="check"><input type="checkbox" name="sc" value="${c.key}"${(v.conflicts || []).includes(c.key) ? " checked" : ""}> ${esc(c.question)}</label>`).join("")}
+        ${(v.conflicts || []).length ? '<p class="callout warn">This ask conflicts with what matters to them. Reframe it, narrow it, or help them out of the competing commitment gracefully.</p>' : ""}
+        <label>Favors that could help <span class="quiet">(what you've done for them, or could)</span><input name="reciprocity" value="${esc(v.reciprocity || "")}"></label>
         <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></details>`; };
     const draw = () => {
       main.innerHTML = `<p><a href="#/alliances">Alliances</a></p>
@@ -2050,6 +2117,7 @@
           <div class="tablewrap"><table class="data" id="ap-rows"><thead><tr><th>Who</th><th>What</th><th>When</th><th>Stance on this</th><th>Winning</th><th>Blocking</th><th></th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table></div>
           <div class="actions"><button class="btn left" type="button" id="ap-add">Add a person</button><button class="btn primary" type="button" id="ap-save">Save</button></div></section>
         <section class="card"><h2>Pivotal people</h2><p class="quiet">${esc(g.forces)}</p>${pivotal.map(pivCard).join("") || '<p class="quiet">People who are undecided, against, or in the winning alliance show here once saved.</p>'}</section>
+        ${strategySection(a, g, people)}
         <section class="card"><h2>Objective and notes</h2><form id="ap-meta"><label>Plan<input name="title" value="${esc(a.title)}"></label><label>What you need agreed<textarea name="objective" rows="2">${esc(a.objective || "")}</textarea></label><label>Notes<textarea name="notes" rows="2">${esc(a.notes || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" id="ap-del">Delete</button><button class="btn" type="submit">Save</button></div></form></section>
         <section class="card"><h2>Playbook</h2><h3>Supporters</h3><div class="md"><ul>${g.supporters.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
@@ -2070,11 +2138,13 @@
         const f = det.querySelector("form");
         f.onsubmit = BA.guard(async (e) => {
           e.preventDefault();
-          const fd = new FormData(f), next = { ...pv, [det.dataset.pv]: { motivators: fd.getAll("motivators"), driving: fd.get("driving"), restraining: fd.get("restraining"), alternatives: fd.get("alternatives"), status_quo: fd.get("status_quo") === "on", resist: fd.getAll("resist"), persuadable: fd.get("persuadable") || null, trade: fd.get("trade") } };
+          const fd = new FormData(f), next = { ...pv, [det.dataset.pv]: { motivators: fd.getAll("motivators"), driving: fd.get("driving"), restraining: fd.get("restraining"), alternatives: fd.get("alternatives"), status_quo: fd.get("status_quo") === "on", resist: fd.getAll("resist"), persuadable: fd.get("persuadable") || null, trade: fd.get("trade"),
+            framing: Object.fromEntries(g.framing.map((fr) => [fr.key, fd.get(`f.${fr.key}`) || ""])), conflicts: fd.getAll("sc"), reciprocity: fd.get("reciprocity") } };
           await BA.api(`/api/alliance-plans/${id}`, { method: "PATCH", body: { pivotal: next } });
           BA.toast("Saved."); BA.rerender();
         });
       });
+      bindStrategy(main, a, g, id);
       main.querySelector("#ap-meta").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api(`/api/alliance-plans/${id}`, { method: "PATCH", body: { title: fd.get("title"), objective: fd.get("objective"), notes: fd.get("notes") } }); BA.toast("Saved."); BA.rerender(); });
       main.querySelector("#ap-del").onclick = BA.guard(async () => { if (!confirm("Delete this alliance plan?")) return; await BA.api(`/api/alliance-plans/${id}`, { method: "DELETE" }); BA.go("/alliances"); });
     };

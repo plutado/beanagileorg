@@ -247,6 +247,15 @@ GUIDES = [
             "Persuade the undecided: trade with the indifferent, educate the undecided, and show momentum to those waiting to see which way the wind blows.",
             "For the pivotal people, understand what motivates them, the pressures pushing and holding them, and the choices they believe they have. We tend to blame personality and overlook the situation.",
             "If someone thinks resistance can keep things as they are, show that the status quo is no longer an option. If people doubt promises will be kept, phase the change in, each step tied to the last.",
+            "Consult with active listening: ask questions, let people voice their real concerns, and summarize back what you heard. It builds acceptance, and the questions you ask and how you summarize also frame the choice.",
+            "Frame your case person by person, drawing on logos (data and reasoning), ethos (principles and fair rules) and pathos (emotion and meaning).",
+            "Repeat a few core themes until people echo them without noticing, but vary and elaborate the words; the exact same lines start to sound like a sales pitch.",
+            "Inoculate: raise the weak form of each counterargument you expect, and answer it well, before others raise the strong form.",
+            "Shape the choice so it's hard to say no: narrow it if it might look like a precedent, broaden it if trades could make everyone better off, and set toxic issues aside or settle them up front.",
+            "Use social influence: respected supporters move others. Avoid asks that clash with people's values, prior commitments or reputation, help them out of competing commitments gracefully, and remember that favors are repaid.",
+            "Move step by step: explore the problem together, diagnose it together, then define options and criteria before deciding. Shape the early steps; by the time the options are set, the choice may already be made.",
+            "Sequence your conversations: see the right people first so each ally makes the next easier. Use one-on-ones to learn and shape views, and group meetings for final commitments.",
+            "Set action-forcing events, such as meetings, reviews and deadlines, so that putting it off stops being an option.",
         ],
         "pitfalls": [
             "Assuming a good business case will win on its own.",
@@ -1419,7 +1428,8 @@ TIPS = {
     "/team-align": [("Every goal needs an owner and a number: from where, to where, by when.", "building-the-team", 42),
                     ("In a realignment, push alone won't create urgency. Put more into pull: a shared vision the team helped write.", "building-the-team", 42)],
     "/alliances": [("You need a critical mass of support, not everyone. Who together can say yes, and who together can say no?", "building-alliances", 44),
-                   ("Build support one to one before you present to a large group.", "building-alliances", 44)],
+                   ("Build support one to one before you present to a large group.", "building-alliances", 44),
+                   ("Repeat your core themes, but vary the words. The exact same lines start to sound like a pitch.", "building-alliances", 45)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
@@ -1533,7 +1543,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 44  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 45  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

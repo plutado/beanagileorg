@@ -245,3 +245,14 @@ def test_alliances(client):
     g = client.get("/api/alliances/guide").json()
     assert len(g["resist"]) == 5 and len(g["persuadable"]) == 3
     assert client.post("/api/power-coalitions", json={"name": "[Placeholder coalition]", "member_ids": [c, d]}).status_code == 201
+
+
+def test_influence_strategy_and_today(client):
+    plan = client.post("/api/alliance-plans", json={"title": "[Placeholder early win]"}).json()
+    st = {"counter": [{"argument": "[More meetings]", "answer": "[None beyond Scrum]"}], "path": [{"step": "[Explore]", "done": True}],
+          "events": [{"title": "[Review]", "date": date.today().isoformat(), "done": False}, {"title": "[Later]", "date": "2099-01-01"}]}
+    client.patch(f"/api/alliance-plans/{plan['id']}", json={"strategy": st})
+    due = client.get("/api/today").json()["alliances"]
+    assert [e["title"] for e in due] == ["[Review]"]
+    g = client.get("/api/alliances/guide").json()
+    assert [f["key"] for f in g["framing"]] == ["logos", "ethos", "pathos"] and len(g["social_checks"]) == 3 and len(g["path_starter"]) == 5

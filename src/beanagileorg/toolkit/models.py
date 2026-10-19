@@ -1767,6 +1767,12 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        57,
+        """
+        ALTER TABLE alliance_plans ADD COLUMN strategy TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -3578,6 +3584,7 @@ alliance_plans = Record(
         "blocking_ids": Field("ids", P),
         "pivotal": Field("json", P),
         "notes": Field("text", P),
+        "strategy": Field("json", P),
     },
     hide_when_empty=True,
 )

@@ -138,6 +138,12 @@ def _first90_due(conn):
     return first90_due(conn)
 
 
+def _alliances_due(conn):
+    from .alliances import alliances_due
+
+    return alliances_due(conn)
+
+
 def _changes_due(conn):
     from .changes import changes_due
 
@@ -215,6 +221,7 @@ def today_view(request: Request = None, viewer: Viewer = Depends(get_viewer), co
         "reports": _reports_due(conn),
         "changes": _changes_due(conn),
         "first90": _first90_due(conn),
+        "alliances": _alliances_due(conn),
         "mandates": _mandate_due(conn),
         "accelerate": _accelerate_due(conn),
         "backup": backup_status(request, viewer) if request else None,
