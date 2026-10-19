@@ -290,6 +290,14 @@ TOOLKIT = {
         "privacy": "Private. Hidden while presenting and never exported.",
         "related": ["/people", "/plans", "/coaching/building-alliances"],
     },
+    "/releases": {
+        "purpose": "Run every release the same way: what's in it, where it is on the path to production, the regression plan and QA sign-off, a go/no-go decision against a readiness check, and how it went.",
+        "steps": ["Add a release with its sprint, branch and planned date; its path comes from your SDLC environments or the list under The path to production.",
+                  "Fill it from the sprint's stories, link the regression plan, and record QA sign-off.", "Mark each step on the path as it's done, then decide go or no-go against the readiness check.",
+                  "After release, record the outcome; the release log turns that into deployment frequency and change failure rate for Metrics."],
+        "privacy": "Shareable, so release notes and status can go to stakeholders; notes are private.",
+        "related": ["/sdlc", "/qa", "/metrics", "/coaching/quality-culture"],
+    },
     "/alignment": {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
         "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",

@@ -32,7 +32,6 @@ In priority order:
 - [ ] People: a stakeholder map (influence against stance) drawn from the CRM fields; import contacts from a CSV; reminders before a one-on-one with an agenda drafted from open follow-ups
 - [ ] Teams: per-team PI objectives and an ART view across teams; a dependency map between teams drawn from Scrum of Scrums items; each team's metrics side by side; export a team's status pack for its own manager
 - [ ] Code: a proper code editor for code-heavy fields (indent with Tab, line numbers), and a dedicated Apex highlighter instead of borrowing Java's
-- [ ] **Releases (toolkit):** a record per release: the release branch, the Jira stories in it (from the sprint backlog), where it is on the sandbox path (shared sandbox, QA sandbox, production) with dates, the regression plan and QA sign-off, and the go/no-go decision. Sandbox and branch names come from settings, not code
 - [ ] Sprint planning: import the backlog and sprints from Jira through its API instead of pasting; burndown during the sprint; planning poker on a phone for the team
 - [ ] Jira: read issue status and summary through the Jira API (a read-only token) so keys show live status; create a Jira issue from a dev-sync item or a failed test; import sprint and story data from Jira into PI planning instead of typing it
 - [ ] Tech debt: placeholder seed data; link debt items to PI planning stories and epics; trend of debt opened and paid down per sprint; pull incident counts per system as evidence; custom categories
@@ -43,7 +42,7 @@ In priority order:
 - [ ] QA: placeholder seed data; pull automated suite results from Bitbucket Pipelines or another CI instead of typing them; a test-run section in the weekly status draft; per-story QA sign-off tied to PI planning stories; flaky-test tracking over time
 - [ ] Business landscape: placeholder seed data; link assessments to listening-tour themes, incidents and metrics as evidence; a shareable summary of selected points for leadership; an org chart drawing; capabilities each system supports (a capability map)
 - [ ] Plans: a version history of each plan as presented, so a later review can show what changed and why; a day-30/60/90 check-in that marks each item met, moved or dropped with a note
-- [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket or the release log
+- [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket (readings from the release log are done)
 - [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
 - [ ] Roadmap: drag to reorder, and a timeline view
 
@@ -137,6 +136,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Releases (#16). A record per release with the path to production from settings or SDLC environments, stories and Jira keys from the sprint, regression plan, QA sign-off, a go/no-go readiness check, outcome, release notes, release-log metrics recorded to Metrics, and Today reminders (migration 58). Tips on Releases; 288 tests
 - [x] 2026-10-19: Influence strategies. Alliance plans gain framing per pivotal person (Table 8-3) with social-influence checks, counterarguments, choice shaping, an incremental path, a sequence and action-forcing events shown on Today; seven closing questions on Alliances; the Comms studio's video pitch template gains logos, ethos and pathos framing and counterarguments (migration 57). Guide practices and a themes tip; 285 tests
 - [x] 2026-10-19: Alliances. A new page with an alliance plan per early win (Table 8-1, winning and blocking alliances, pivotal people after Table 8-2), an influence diagram (after Figure 8-1), an influence network, power coalitions and a playbook; people gain opinion leader and sources of power (migration 56). New guide, Building alliances; tips on Alliances and People; 284 tests
 - [x] 2026-10-19: Leading the team. Vision gains non-negotiables, stories, channels, core themes with a usage log and a live-it check; an Offsite tab; How the team worked before you and six closing questions on First 90 days; a decision process on each decision with a suggestion guide; suggested agreements for distributed teams (migration 55). Guide practices; a tip on Risks; 283 tests

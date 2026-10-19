@@ -46,6 +46,9 @@ MOTIVATION = ("push", "pull", "both")
 TEAM_GOAL_STATUS = ("open", "on track", "at risk", "met", "dropped")
 DECISION_PROCESSES = ("decide alone", "consult and decide", "build consensus", "unanimous")
 POWER_SOURCES = ("expertise", "information", "connections", "resources", "loyalty")
+RELEASE_STATUS = ("planned", "in progress", "in QA", "ready", "released", "cancelled")
+RELEASE_DECISIONS = ("pending", "go", "no-go")
+RELEASE_OUTCOMES = ("clean", "hotfix", "rollback", "incident")
 OWNERSHIP = ("owns problems", "makes excuses", "points at others")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
@@ -1771,6 +1774,35 @@ MIGRATIONS = [
         57,
         """
         ALTER TABLE alliance_plans ADD COLUMN strategy TEXT;
+        """,
+    ),
+    (
+        58,
+        """
+        CREATE TABLE releases (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'planned',
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            branch TEXT,
+            story_ids TEXT,
+            jira_keys TEXT,
+            path TEXT,
+            planned_on TEXT,
+            regression_plan_id INTEGER REFERENCES regression_plans (id) ON DELETE SET NULL,
+            qa_signoff_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            qa_signoff_on TEXT,
+            decision TEXT NOT NULL DEFAULT 'pending',
+            decided_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            decided_on TEXT,
+            decision_notes TEXT,
+            released_on TEXT,
+            outcome TEXT,
+            outcome_notes TEXT,
+            incident_id INTEGER REFERENCES incidents (id) ON DELETE SET NULL,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            notes TEXT
+        );
         """,
     ),
 ]
@@ -3589,6 +3621,45 @@ alliance_plans = Record(
     hide_when_empty=True,
 )
 
+# A release: what's in it, where it is on the path to production, the regression plan and QA sign-off, the
+# go/no-go decision, and how it went. Shareable, so release notes and status can go to stakeholders.
+releases = Record(
+    entity="release",
+    table="releases",
+    path="/api/releases",
+    order_by="status IN ('released', 'cancelled'), COALESCE(released_on, planned_on) DESC, id DESC",
+    fields={
+        "name": Field("text", E, required=True),
+        "status": Field("text", E, choices=RELEASE_STATUS, default="planned"),
+        "sprint_id": Field("int", E),
+        "branch": Field("text", E),
+        "story_ids": Field("ids", E),
+        "jira_keys": Field("keys", E),
+        "path": Field("json", E),
+        "planned_on": Field("date", E),
+        "regression_plan_id": Field("int", E),
+        "qa_signoff_by_id": Field("int", E),
+        "qa_signoff_on": Field("date", E),
+        "decision": Field("text", E, choices=RELEASE_DECISIONS, default="pending"),
+        "decided_by_id": Field("int", E),
+        "decided_on": Field("date", E),
+        "decision_notes": Field("text", E),
+        "released_on": Field("date", E),
+        "outcome": Field("text", E, choices=RELEASE_OUTCOMES),
+        "outcome_notes": Field("text", E),
+        "incident_id": Field("int", S),
+        "team_id": Field("int", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = releases.sprint_id)", E),
+        "qa_signoff_by_name": ("(SELECT name FROM people p WHERE p.id = releases.qa_signoff_by_id)", E),
+        "decided_by_name": ("(SELECT name FROM people p WHERE p.id = releases.decided_by_id)", E),
+        "regression_title": ("(SELECT title FROM regression_plans r WHERE r.id = releases.regression_plan_id)", E),
+        "regression_status": ("(SELECT status FROM regression_plans r WHERE r.id = releases.regression_plan_id)", E),
+    },
+)
+
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
 preference_assessments = Record(
     entity="preference_assessment",
@@ -3924,7 +3995,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, influence_links, power_coalitions, alliance_plans, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, influence_links, power_coalitions, alliance_plans, releases, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,

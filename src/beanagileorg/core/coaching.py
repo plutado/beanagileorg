@@ -1430,6 +1430,8 @@ TIPS = {
     "/alliances": [("You need a critical mass of support, not everyone. Who together can say yes, and who together can say no?", "building-alliances", 44),
                    ("Build support one to one before you present to a large group.", "building-alliances", 44),
                    ("Repeat your core themes, but vary the words. The exact same lines start to sound like a pitch.", "building-alliances", 45)],
+    "/releases": [("Decide go or no-go against the same checks every time: stories done, regression signed off, QA sign-off, every step before production done.", "quality-culture", 46),
+                  ("Record how every release went, clean or not. The change failure rate only tells the truth if the bad ones are logged too.", "metrics-without-blame", 46)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
@@ -1543,7 +1545,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 45  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 46  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

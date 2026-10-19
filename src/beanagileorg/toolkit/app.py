@@ -32,6 +32,7 @@ from .skillbase import router as skillbase_router
 from .team_assess import router as team_assess_router
 from .team_align import router as team_align_router
 from .alliances import router as alliances_router
+from .releases import router as releases_router
 from .ask_info import info as ask_info
 from beanagileorg.core.ask import build_router as build_ask_router
 from .reporting import router as reporting_router
@@ -59,6 +60,7 @@ NAV = [
     {"path": "/processes", "icon": "workflow", "label": "Core processes"},
     {"path": "/planning", "icon": "list-ordered", "label": "Sprint planning"},
     {"path": "/changes", "icon": "arrow-left-right", "label": "Change requests"},
+    {"path": "/releases", "icon": "rocket", "label": "Releases"},
     {"path": "/sprints", "icon": "notebook-pen", "label": "Sprint notebook"},
     {"path": "/retros", "icon": "refresh-ccw", "label": "Retrospectives"},
     {"path": "/pi", "icon": "kanban", "label": "PI planning"},
@@ -96,7 +98,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, alignment_router, processes_router, skillbase_router, team_assess_router, team_align_router, alliances_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
+        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, alignment_router, processes_router, skillbase_router, team_assess_router, team_align_router, alliances_router, releases_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

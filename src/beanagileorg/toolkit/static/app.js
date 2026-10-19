@@ -133,6 +133,7 @@
           ${d.first90.checkpoint ? `<div class="item"><span class="pill warn">check-in</span><a href="#/first90/team">Day-${d.first90.checkpoint.day} team check-in</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.first90.checkpoint.due)}</span></div>` : ""}
           ${d.first90.reviews.map((c) => `<div class="item"><span class="pill">review</span><a href="#/first90/changes">Review with the team: ${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.review_on)}</span></div>`).join("")}
           ${d.first90.late.map((m) => `<div class="item"><span class="pill bad">late</span><a href="#/first90/team">${esc(m.person)}: ${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.due)}</span></div>`).join("")}</section>` : ""}
+        ${d.releases && d.releases.length ? `<section class="card"><h2>Releases</h2>${d.releases.map((x) => `<div class="item"><span class="pill ${x.kind === "outcome" ? "" : "warn"}">${x.kind === "outcome" ? "outcome?" : `${x.missing} open`}</span><a href="#/releases/${x.id}">${x.kind === "outcome" ? `Record how ${esc(x.name)} went` : `${esc(x.name)} isn't ready yet`}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.date)}</span></div>`).join("")}</section>` : ""}
         ${d.alliances && d.alliances.length ? `<section class="card"><h2>Alliances</h2>${d.alliances.map((e) => `<div class="item"><span class="pill ${e.date < BA.today() ? "bad" : "warn"}">${e.date < BA.today() ? "overdue" : "due"}</span><a href="#/alliances/${e.plan_id}">${esc(e.title)}</a><span class="quiet">${esc(e.plan)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(e.date)}</span></div>`).join("")}</section>` : ""}
         ${d.changes && (d.changes.waiting.length || d.changes.untold.length) ? `<section class="card"><h2>Change requests</h2>
           ${d.changes.waiting.map((c) => `<div class="item"><span class="pill ${c.urgency === "emergency" ? "bad" : "warn"}">decide</span><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${c.days ? `${c.days} day${c.days === 1 ? "" : "s"} waiting` : "today"}</span></div>`).join("")}
@@ -2149,6 +2150,92 @@
       main.querySelector("#ap-del").onclick = BA.guard(async () => { if (!confirm("Delete this alliance plan?")) return; await BA.api(`/api/alliance-plans/${id}`, { method: "DELETE" }); BA.go("/alliances"); });
     };
     draw();
+  }
+
+  // ---------------------------------------------------------------- Releases
+
+  const REL_TONES = { planned: "", "in progress": "accent", "in QA": "warn", ready: "good", released: "good", cancelled: "" };
+  const OUTCOME_TONES = { clean: "good", hotfix: "warn", rollback: "bad", incident: "bad" };
+
+  BA.view("/releases", {
+    title: "Releases",
+    async render(main, param) {
+      if (param) return renderRelease(main, Number(param));
+      const [list, sprints, m, cfg] = await Promise.all([BA.api("/api/releases"), BA.api("/api/sprints"), BA.api("/api/releases/metrics"), BA.api("/api/releases/settings")]);
+      const ro = presenting();
+      main.innerHTML = `<p class="quiet">Every release, from the stories in it to how it went: where it is on the path to production, the regression plan and QA sign-off, a go/no-go decision with a readiness check, and the outcome. Stable releases come from doing this the same way every time.</p>
+        <section class="card"><h2>Releases</h2>${list.map((r) => `<div class="item"><a href="#/releases/${r.id}"><b>${esc(r.name)}</b></a>${tonePill(r.status, REL_TONES)}${r.decision !== "pending" ? `<span class="pill ${r.decision === "go" ? "good" : "bad"}">${esc(r.decision)}</span>` : ""}${r.outcome ? `<span class="pill ${OUTCOME_TONES[r.outcome]}">${esc(r.outcome)}</span>` : ""}
+            <span class="spacer"></span>${r.sprint_number ? `<span class="quiet">Sprint ${r.sprint_number}</span>` : ""}<span class="quiet">${r.released_on ? "released " + BA.fmtDate(r.released_on) : r.planned_on ? "planned " + BA.fmtDate(r.planned_on) : ""}</span></div>`).join("") || '<p class="quiet">No releases yet.</p>'}
+          ${ro ? "" : `<form id="add-rel" class="row" style="margin-top:10px"><input name="name" required placeholder="Release name or version" style="max-width:240px"><select name="sprint_id" style="max-width:160px"><option value="">Sprint</option>${sprints.map((s) => `<option value="${s.id}">Sprint ${s.number}</option>`).join("")}</select>
+            <input type="date" name="planned_on" style="max-width:170px" title="Planned production date"><input name="branch" placeholder="Release branch" style="max-width:200px"><button class="btn primary" type="submit">Add release</button></form>`}</section>
+        <section class="card"><h2>From the release log</h2><p class="quiet">Last ${m.weeks} weeks: ${m.released} release${m.released === 1 ? "" : "s"} to production, about ${m.per_week} a week. ${m.change_failure_rate != null ? `${m.failed} of ${m.judged} with an outcome needed a hotfix, a rollback or caused an incident: a change failure rate of ${m.change_failure_rate}%.` : "Record each release's outcome to see the change failure rate."}</p>
+          ${ro ? "" : `<button class="btn" id="rec-metrics"${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "" : " disabled"}>Record as metric readings</button> <span class="quiet">${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "Adds today's values to Deployment frequency and Change failure rate under Metrics." : 'Load the starter metrics under <a href="#/metrics">Metrics</a> first.'}</span>`}</section>
+        <details class="card"><summary><b>The path to production</b> <span class="quiet">· ${cfg.path.map(esc).join(" → ")}</span></summary>
+          <p class="quiet">${cfg.custom ? "Your own list." : cfg.from_sdlc.length ? "Taken from your SDLC environments." : "A generic sandbox path; set your own, or add environments under SDLC."} One step per line; the last is production.</p>
+          ${ro ? "" : `<form id="rel-path"><textarea name="path" rows="6">${esc(cfg.path.join("\n"))}</textarea><div class="actions">${cfg.custom ? '<button class="btn left" type="button" id="rel-path-reset">Use the SDLC environments</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
+      if (ro) return;
+      const n = (v) => (v ? Number(v) : null);
+      main.querySelector("#add-rel").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); const r = await BA.api("/api/releases", { method: "POST", body: { name: fd.get("name"), sprint_id: n(fd.get("sprint_id")), planned_on: fd.get("planned_on") || null, branch: fd.get("branch"), team_id: newTeamId() } }); await BA.api(`/api/releases/${r.id}/start-path`, { method: "POST", body: {} }); BA.go(`/releases/${r.id}`); });
+      const rec = main.querySelector("#rec-metrics");
+      if (rec) rec.onclick = BA.guard(async () => { const r = await BA.api("/api/releases/metrics/record", { method: "POST", body: {} }); BA.toast(`Recorded: ${r.recorded.join(", ")}.`); });
+      main.querySelector("#rel-path").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/releases/settings", { method: "PUT", body: { path: new FormData(e.target).get("path").split("\n") } }); BA.toast("Saved."); BA.rerender(); });
+      const reset = main.querySelector("#rel-path-reset");
+      if (reset) reset.onclick = BA.guard(async () => { await BA.api("/api/releases/settings", { method: "PUT", body: { path: [] } }); BA.rerender(); });
+    },
+  });
+
+  async function renderRelease(main, id) {
+    const [d, sprints, people, plans, incidents] = await Promise.all([BA.api(`/api/releases/${id}/detail`), BA.api("/api/sprints"), BA.api("/api/people"), BA.api("/api/regression-plans"), BA.api("/api/incidents")]);
+    const r = d.release, ro = presenting();
+    document.getElementById("view-title").textContent = r.name;
+    const steps = (r.path || {}).steps || [];
+    const cur = steps.findIndex((s) => !s.done_on);
+    const pipe = steps.length ? `<div class="row" style="gap:6px;flex-wrap:wrap;align-items:stretch">${steps.map((s, i) => `<div class="card" style="margin:0;padding:8px 10px;min-width:100px;flex:1;border-color:${s.done_on ? "var(--good)" : i === cur ? "var(--accent)" : "var(--line)"};background:${s.done_on ? "var(--good-soft)" : i === cur ? "var(--accent-soft)" : "var(--panel)"}">
+        <b>${esc(s.step)}</b><br><span class="quiet">${s.done_on ? "done " + BA.fmtDate(s.done_on) : s.planned ? "planned " + BA.fmtDate(s.planned) : i === cur ? "next" : ""}</span></div>${i < steps.length - 1 ? '<span class="quiet" style="align-self:center">→</span>' : ""}`).join("")}</div>` : '<p class="quiet">No path yet.</p>';
+    const rd = d.readiness;
+    main.innerHTML = `<p><a href="#/releases">Releases</a></p>
+      <section class="card"><div class="row"><h2>${esc(r.name)}</h2>${tonePill(r.status, REL_TONES)}<span class="spacer"></span>${r.branch ? `<span class="quiet">branch ${esc(r.branch)}</span>` : ""}${r.sprint_number ? `<span class="quiet">Sprint ${r.sprint_number}</span>` : ""}</div>
+        ${pipe}${ro || !steps.length ? "" : `<details style="margin-top:8px"><summary class="quiet">Update the path</summary><form id="rel-steps">${steps.map((s, i) => `<div class="row" data-step="${i}" style="align-items:center;margin-bottom:4px"><b style="min-width:170px">${esc(s.step)}</b><label class="quiet">planned <input type="date" name="planned" value="${esc(s.planned || "")}" style="max-width:160px"></label><label class="quiet">done <input type="date" name="done_on" value="${esc(s.done_on || "")}" style="max-width:160px"></label><input name="notes" value="${esc(s.notes || "")}" placeholder="Notes" style="flex:1;min-width:160px"></div>`).join("")}<div class="actions"><button class="btn primary" type="submit">Save the path</button></div></form></details>`}
+        ${!steps.length && !ro ? '<button class="btn" id="rel-start">Start the path</button>' : ""}</section>
+      <section class="card"><h2>Ready to go to production?</h2>${rd.checks.map((c) => `<div class="item"><span class="pill ${c.ok ? "good" : "warn"}">${c.ok ? "yes" : "not yet"}</span><span>${esc(c.label)}${c.detail ? ` <span class="quiet">(${esc(c.detail)})</span>` : ""}</span></div>`).join("")}
+        ${r.decision === "go" && !rd.ready ? '<p class="callout warn">Marked go while some checks are still open. Record why in the decision notes.</p>' : ""}</section>
+      <section class="card"><div class="row"><h2>What's in it</h2><span class="spacer"></span>${BA.keysEditor(`/api/releases/${id}`, r.jira_keys)}</div>
+        ${d.stories.map((s) => `<div class="item"><span>${esc(s.title)}</span>${s.jira_key ? BA.issueKeys([s.jira_key]) : ""}<span class="spacer"></span>${s.points != null ? `<span class="quiet">${s.points} pts</span>` : ""}<span class="pill ${s.status === "done" ? "good" : ""}">${esc(s.status)}</span></div>`).join("") || '<p class="quiet">No stories linked yet.</p>'}
+        ${ro ? "" : `<div class="actions"><button class="btn left" id="rel-notes">Copy release notes</button><button class="btn" id="rel-from-sprint">Fill from the sprint</button></div>`}</section>
+      <form id="rel-form" class="card"><h2>Release details</h2><div class="grid2">
+        <label>Name<input name="name" value="${esc(r.name)}"${ro ? " disabled" : ""}></label><label>Status<select name="status"${ro ? " disabled" : ""}>${opts(["planned", "in progress", "in QA", "ready", "released", "cancelled"], r.status)}</select></label>
+        <label>Sprint<select name="sprint_id"${ro ? " disabled" : ""}><option value=""></option>${sprints.map((s) => `<option value="${s.id}"${s.id === r.sprint_id ? " selected" : ""}>Sprint ${s.number}</option>`).join("")}</select></label><label>Release branch<input name="branch" value="${esc(r.branch || "")}"${ro ? " disabled" : ""}></label>
+        <label>Planned production date<input type="date" name="planned_on" value="${esc(r.planned_on || "")}"${ro ? " disabled" : ""}></label>
+        <label>Regression plan<select name="regression_plan_id"${ro ? " disabled" : ""}><option value=""></option>${plans.map((p) => `<option value="${p.id}"${p.id === r.regression_plan_id ? " selected" : ""}>${esc(p.title)} (${esc(p.status)})</option>`).join("")}</select></label>
+        <label>QA signed off by<select name="qa_signoff_by_id"${ro ? " disabled" : ""}>${personOptions(people, r.qa_signoff_by_id)}</select></label><label>QA signed off on<input type="date" name="qa_signoff_on" value="${esc(r.qa_signoff_on || "")}"${ro ? " disabled" : ""}></label></div>
+        <h3>Go or no-go</h3><div class="grid2"><label>Decision<select name="decision"${ro ? " disabled" : ""}>${opts(["pending", "go", "no-go"], r.decision)}</select></label><label>Decided by<select name="decided_by_id"${ro ? " disabled" : ""}>${personOptions(people, r.decided_by_id)}</select></label>
+          <label>Decided on<input type="date" name="decided_on" value="${esc(r.decided_on || "")}"${ro ? " disabled" : ""}></label><label>Why<input name="decision_notes" value="${esc(r.decision_notes || "")}"${ro ? " disabled" : ""}></label></div>
+        <h3>How it went</h3><div class="grid2"><label>Released on<input type="date" name="released_on" value="${esc(r.released_on || "")}"${ro ? " disabled" : ""}></label><label>Outcome<select name="outcome"${ro ? " disabled" : ""}><option value=""></option>${opts(["clean", "hotfix", "rollback", "incident"], r.outcome)}</select></label>
+          <label>What happened<input name="outcome_notes" value="${esc(r.outcome_notes || "")}"${ro ? " disabled" : ""}></label>${ro ? "" : `<label>Incident<select name="incident_id"><option value=""></option>${incidents.map((x) => `<option value="${x.id}"${x.id === r.incident_id ? " selected" : ""}>${esc(x.title || x.summary || "Incident " + x.id)}</option>`).join("")}</select></label>`}</div>
+        ${ro ? "" : `<label>Private notes<textarea name="notes" rows="2">${esc(r.notes || "")}</textarea></label><div class="actions"><button class="btn danger left" type="button" id="rel-del">Delete</button>${BA.historyButton("release", id)}<button class="btn primary" type="submit">Save</button></div>`}</form>`;
+    if (ro) return;
+    const n = (v) => (v ? Number(v) : null);
+    const start = main.querySelector("#rel-start");
+    if (start) start.onclick = BA.guard(async () => { await BA.api(`/api/releases/${id}/start-path`, { method: "POST", body: {} }); BA.rerender(); });
+    const sf = main.querySelector("#rel-steps");
+    if (sf) sf.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const next = steps.map((s, i) => { const row = sf.querySelector(`[data-step="${i}"]`); return { ...s, planned: row.querySelector("[name=planned]").value || null, done_on: row.querySelector("[name=done_on]").value || null, notes: row.querySelector("[name=notes]").value }; });
+      await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { path: { steps: next } } });
+      BA.toast("Saved."); BA.rerender();
+    });
+    main.querySelector("#rel-from-sprint").onclick = BA.guard(async () => { await BA.api(`/api/releases/${id}/from-sprint`, { method: "POST", body: {} }); BA.rerender(); });
+    main.querySelector("#rel-notes").onclick = BA.guard(async () => { const x = await BA.api(`/api/releases/${id}/notes`); await navigator.clipboard.writeText(x.markdown); BA.toast("Release notes copied as Markdown."); });
+    const form = main.querySelector("#rel-form");
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { name: fd.get("name"), status: fd.get("status"), sprint_id: n(fd.get("sprint_id")), branch: fd.get("branch"), planned_on: fd.get("planned_on") || null, regression_plan_id: n(fd.get("regression_plan_id")),
+        qa_signoff_by_id: n(fd.get("qa_signoff_by_id")), qa_signoff_on: fd.get("qa_signoff_on") || null, decision: fd.get("decision"), decided_by_id: n(fd.get("decided_by_id")), decided_on: fd.get("decided_on") || null, decision_notes: fd.get("decision_notes"),
+        released_on: fd.get("released_on") || null, outcome: fd.get("outcome") || null, outcome_notes: fd.get("outcome_notes"), incident_id: n(fd.get("incident_id")), notes: fd.get("notes") } });
+      BA.toast("Saved."); BA.rerender();
+    });
+    main.querySelector("#rel-del").onclick = BA.guard(async () => { if (!confirm("Delete this release?")) return; await BA.api(`/api/releases/${id}`, { method: "DELETE" }); BA.go("/releases"); });
   }
 
   // ---------------------------------------------------------------- Organizational alignment
