@@ -111,6 +111,16 @@ SITUATION_PLAYBOOK = {
                     "Build alliances sideways and down, so changes are actually carried out."],
 }
 
+# What to ask your manager for in each situation, after Table 4-2 in The First 90 Days, in our own words.
+MANAGER_SUPPORT_BASE = ["Help getting the resources you need quickly", "Clear, measurable goals", "Guidance at the big decision points", "Help staying focused"]
+MANAGER_SUPPORT = {
+    "start-up": [],
+    "turnaround": ["Backing for tough calls about people", "Help changing how the team is seen outside it", "A push to cut deep enough, fast enough"],
+    "accelerated growth": ["Support for investment at the right pace, in the right places", "Help making the case for new systems and structure"],
+    "realignment": ["Help making the case for change, especially if you're new to the organization"],
+    "sustaining success": ["Constant reality checks: is this really doing well, or quietly drifting?", "Support for playing good defense and avoiding damaging mistakes", "Help finding the next level"],
+}
+
 STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
 
 BOSS_TOPICS = [
@@ -304,7 +314,7 @@ def put_learning_step(key: str, body: dict = Body(...), viewer: Viewer = Depends
 def situation_guide(viewer: Viewer = Depends(get_viewer)):
     return {k: {"what": w, "approach": a, "mood": m, "mood_job": j, "pace": p, "pace_label": pl,
                 "challenges": SITUATION_FACTORS[k][0], "opportunities": SITUATION_FACTORS[k][1],
-                "style": SITUATION_STYLE[k], "style_label": STYLE_LABELS[SITUATION_STYLE[k]],
+                "style": SITUATION_STYLE[k], "style_label": STYLE_LABELS[SITUATION_STYLE[k]], "from_manager": MANAGER_SUPPORT_BASE + MANAGER_SUPPORT[k],
                 "playbook": [{"lever": l, "move": mv} for l, mv in zip(PLAYBOOK_LEVERS, SITUATION_PLAYBOOK[k])] if k in SITUATION_PLAYBOOK else []}
             for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
 
@@ -414,6 +424,33 @@ def agree_plan(plan_id: int, body: dict = Body(default={}), viewer: Viewer = Dep
         row = conn.execute("SELECT manager_id FROM people WHERE id = ?", (me_id(conn),)).fetchone()
         who = row["manager_id"] if row else None
     return models.plans.update(conn, plan_id, {"status": "agreed", "agreed_on": body.get("on") or today().isoformat(), "agreed_with_id": who}, viewer.source)
+
+
+MANAGER_FOCUS_KEY = "first90.manager_focus"
+
+
+@router.get("/api/first90/manager-focus")
+def manager_focus(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Your manager's top three priorities, the three things for your next one-on-one, and what to ask them for given
+    the situations in your portfolio."""
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (MANAGER_FOCUS_KEY,)).fetchone()
+    saved = json.loads(row["value"]) if row else {}
+    kinds = [r["kind"] for r in conn.execute("SELECT DISTINCT kind FROM situations WHERE kind IS NOT NULL")]
+    asks = list(MANAGER_SUPPORT_BASE)
+    for k in kinds:
+        asks += [a for a in MANAGER_SUPPORT.get(k, []) if a not in asks]
+    return {"priorities": (saved.get("priorities") or [])[:3], "next_three": (saved.get("next_three") or [])[:3], "kinds": kinds, "asks": asks}
+
+
+@router.put("/api/first90/manager-focus")
+def put_manager_focus(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    clean = lambda xs: [str(x).strip() for x in (xs or []) if str(x).strip()][:3]
+    saved = {"priorities": clean(body.get("priorities")), "next_three": clean(body.get("next_three"))}
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (MANAGER_FOCUS_KEY, json.dumps(saved)))
+    return saved
 
 
 # ---- managers you mentor ----

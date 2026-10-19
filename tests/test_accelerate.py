@@ -175,3 +175,17 @@ def test_hero_steward_fit_and_team_mix(client):
     p = client.get("/api/situations/portfolio").json()
     assert p["my_style"] == "hero" and p["style_mismatch"] == "hero"
     assert client.get("/api/preferences").json()["my_style"] == "hero"
+
+
+def test_manager_focus_and_conversation_status(client):
+    f = client.get("/api/first90/manager-focus").json()
+    assert f["priorities"] == [] and len(f["asks"]) == 4
+    client.post("/api/situations", json={"area": "[Area]", "kind": "realignment"})
+    f = client.get("/api/first90/manager-focus").json()
+    assert any("case for change" in a for a in f["asks"])
+    saved = client.put("/api/first90/manager-focus", json={"priorities": ["[P1]", "[P2]", "[P3]", "[P4]"], "next_three": ["[T1]", ""]}).json()
+    assert saved == {"priorities": ["[P1]", "[P2]", "[P3]"], "next_three": ["[T1]"]}
+    client.post("/api/boss-conversations/starter")
+    c = client.get("/api/boss-conversations").json()[0]
+    assert c["status"] == "not started"
+    assert client.patch(f"/api/boss-conversations/{c['id']}", json={"status": "settled", "next_30": "[Placeholder]"}).json()["status"] == "settled"

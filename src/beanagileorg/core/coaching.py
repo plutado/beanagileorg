@@ -178,11 +178,21 @@ GUIDES = [
             "Bring bad news early, with what you're doing about it. Surprises cost more trust than problems.",
             "Ask what they're worried about. It tells you what matters most to them.",
             "Bring options, not only problems, and make clear what you need from them.",
+            "Take full responsibility for the relationship. Get on their calendar regularly, and don't wait for them to reach out.",
+            "Negotiate time to diagnose before you're asked to act, and hold to it when pressed for an early big decision.",
+            "Find their top three priorities, aim your early wins at them, and touch on them every time you talk.",
+            "Bring at most three things to each meeting: what matters most and how they can help.",
+            "Adapt to their style rather than expecting them to adapt to yours.",
+            "Remember that people they trust shape their view of you, including your peers and your team.",
+            "Ask for the support your situation needs. In a realignment, that's often help making the case for change.",
         ],
         "pitfalls": [
             "Waiting for them to define success for you.",
             "Only sharing good news.",
             "Over-reporting activity instead of outcomes.",
+            "Staying away because the relationship feels uncomfortable, or because you've been given lots of rope.",
+            "Letting them hear about a problem from someone else first.",
+            "Running down your checklist of everything you've done.",
         ],
         "questions": [
             "Could I describe my manager's top three priorities right now?",
@@ -1162,7 +1172,8 @@ TIPS = {
     "/pi": [("Make cross-team dependencies visible early, each with an owner and a needed-by date.", "scrum-of-scrums")],
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
     "/raci": [("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
-    "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager")],
+    "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
+               ("Don't just bring your manager a problem; bring a plan for starting to address it, even if it's only finding out more.", "your-manager", 25)],
     "/debt": [("Describe each debt item by what leaving it costs the business, not by how ugly the code is.", "tech-debt-case", 2),
               ("Agree a standing share of each sprint for debt, then report against it, instead of arguing every item.", "tech-debt-case", 2)],
     "/metrics": [("Measure the system, never individuals. Set a baseline before a target.", "metrics-without-blame"),
@@ -1255,7 +1266,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 24  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 25  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

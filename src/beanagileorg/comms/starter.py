@@ -52,7 +52,7 @@ Questions or pushback: [Placeholder: how to reach me]"""
 
 TEMPLATES = [
     ("Weekly note to leadership", "weekly note", [0],
-     "[Placeholder: one line on the week]\n\n## What I learned\n- [Placeholder]\n\n## What I'm watching\n- [Placeholder]\n\n## What I need\n- [Placeholder]"),
+     "[Placeholder: one line on the week]\n\n## Your top three\n- [Placeholder: your first priority, and where it stands]\n- [Placeholder: second]\n- [Placeholder: third]\n\n## What I learned\n- [Placeholder]\n\n## What I'm watching\n- [Placeholder]\n\n## What I need\n- [Placeholder]"),
     ("Weekly status", "weekly status", [0, 1, 2], WEEKLY_STATUS),
     ("Risk or incident alert", "alert", [0],
      "[Placeholder: what happened or is at risk, in one sentence]\n\n**Impact:** [Placeholder]\n\n**Owner:** [Placeholder name]\n\n**What we're doing:** [Placeholder]\n\n**Next update:** [Placeholder time]"),

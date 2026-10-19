@@ -118,6 +118,7 @@ HYPOTHESIS_VERDICTS = ("testing", "supported", "disproved", "mixed")
 SITUATION_KINDS = ("start-up", "turnaround", "accelerated growth", "realignment", "sustaining success")
 SITUATION_ELEMENTS = ("product", "process", "project", "system", "team")
 CHANGE_STYLES = ("hero", "steward", "both")
+CONVERSATION_STATUS = ("not started", "in progress", "settled")
 PRACTICE_STATUS = ("shared", "trying", "adopted", "dropped")
 MANDATE_ITEM_KINDS = ("outcome", "decision")
 AUTHORITY = ("to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine")
@@ -1476,6 +1477,13 @@ MIGRATIONS = [
         38,
         """
         ALTER TABLE people ADD COLUMN change_style TEXT;
+        """,
+    ),
+    (
+        39,
+        """
+        ALTER TABLE boss_conversations ADD COLUMN status TEXT;
+        ALTER TABLE boss_conversations ADD COLUMN next_30 TEXT;
         """,
     ),
 ]
@@ -3314,8 +3322,10 @@ boss_conversations = Record(
         "topic": Field("text", P, required=True),
         "prompt": Field("text", P),
         "held_on": Field("date", P),
+        "status": Field("text", P, choices=CONVERSATION_STATUS, default="not started"),
         "agreed": Field("text", P),
         "open_points": Field("text", P),
+        "next_30": Field("text", P),
         "next_on": Field("date", P),
         "notes": Field("text", P),
         "position": Field("int", P, default=0),
