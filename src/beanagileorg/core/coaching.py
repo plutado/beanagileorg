@@ -511,6 +511,15 @@ GUIDES = [
             "Expect a mix of strong, average and struggling performers, and a group with its own dynamics and politics; someone may have wanted your job. Within 30 to 60 days, sort out who's who, the roles people have played, and how the group has worked.",
             "Don't suppress your first impressions, but don't stop there. Write them down, then step back and form a more rigorous view with evidence.",
             "Be conscious of the criteria you judge people by: competence, judgment, energy, focus, relationships and trust. Decide how much each weighs with you, and which one is a threshold where nothing else matters. Then look for the blind spots your weights suggest.",
+            "Be conscious of your assumptions about what you can change in people. Making trust a threshold because you believe it can't be changed may be right, but know it's an assumption.",
+            "Adjust your weights to the work. Where people work largely alone, a high-performing group may be enough; where the work is interdependent, as in a Scrum team, how people work together deserves real weight.",
+            "Factor in the situation. In a turnaround you need people who perform well now; in a realignment or sustaining success you may have time to develop a promising B player. Match people's experience to the situation, too.",
+            "Rate how critical each position is. A B player in a position that isn't critical may be fine; in a critical one it isn't.",
+            "For functions outside your expertise, build a short template (what to measure, what the measures should and shouldn't show, what to ask, warning signs) and ask respected people in that function for their read.",
+            "Prepare for each early one-on-one the same way and ask everyone the same questions. Notice words, tone, body language, hot buttons, what isn't said, whether they volunteer information, and whether they own problems or point elsewhere.",
+            "Test judgment, not only intelligence. Look for sound predictions and strategies to avoid problems. To learn faster, ask someone to predict something in a subject they love outside work, press them to commit, and probe their reasoning.",
+            "Assess the team as a whole: read reports and meeting notes, compare answers across one-on-ones (too uniform may mean a party line; too scattered, no shared picture), and watch for alliances and who defers to whom.",
+            "By about day 30, place each person provisionally: keep in place, keep and develop, move to another role, replace (low or high priority), or observe. Only place someone when you're at least 90% sure; otherwise keep observing.",
         ],
         "pitfalls": [
             "Criticizing the previous leadership. Assess current behavior and results instead, and make the changes that improve them.",
@@ -1466,7 +1475,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 40  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 41  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

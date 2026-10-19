@@ -3,6 +3,8 @@ and a private, person-by-person view built from a first impression and then evid
 in our own words.
 """
 
+import json
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from beanagileorg.core.app import get_conn, get_viewer
@@ -28,6 +30,50 @@ REFLECTION = [
     "Why is your threshold the one where nothing else matters? Would everyone on your team agree it should be?",
 ]
 LOW = 2  # a score at or below this on your threshold criterion is below the bar
+CRITICAL = 7  # positions rated this or higher can't carry a B or C player for long
+DYNAMICS_KEY = "team.dynamics"
+ASSUMPTION = ("Your weights rest on beliefs about what you can and can't change in people. If you made trust your threshold because "
+              "you believe trustworthiness can't be changed, you may be right, but be conscious that it's an assumption.")
+INTERDEPENDENCE_ADVICE = {
+    "independent": "People mostly work on their own, so a high-performing group may be enough; how well they work together matters less.",
+    "mixed": "Some work is shared and some independent. Weigh relationships for the people whose work depends on others.",
+    "interdependent": "The work depends on people working together, as in a Scrum team, so relationships deserve real weight: a team, not a group of individuals.",
+}
+SITUATION_ADVICE = {
+    "turnaround": "In a turnaround you need people who can perform at a high level now, and whose experience fits a turnaround.",
+    "start-up": "In a start-up you need people who can build from nothing and live with ambiguity.",
+    "accelerated growth": "In fast growth you need people who can scale what works and bring discipline to it.",
+    "realignment": "In a realignment there's usually time to develop a promising B player, especially in a less critical role.",
+    "sustaining success": "In a sustaining success you may have time to develop one or two high-potential people from B to A.",
+}
+DISPOSITION_HELP = "Place each person provisionally by about day 30, but only when you're at least 90% sure. If you're not, they stay in observe until you learn more."
+STARTER_TEMPLATES = [
+    {"name": "Software developer",
+     "measures": ["Cycle time on their stories", "Review turnaround, given and received", "Escaped defects traced to their changes", "Share of sprint commitments finished"],
+     "should_show": "A steady flow of small changes, reviews given as well as received, and problems raised early.",
+     "should_not_show": "Story points used to rank people. Points estimate work for planning; they don't measure a person.",
+     "questions": ["Walk me through a recent change, from ticket to production.", "How do you know your change works?", "What would you fix first in our codebase, and why?"],
+     "warning_signs": ["Large changes merged at the end of the sprint", "Reviews that are always approved without comment", "Can't explain how their code is tested"]},
+    {"name": "Salesforce developer",
+     "measures": ["Apex tests with meaningful assertions, not only coverage (the platform requires 75% coverage to deploy to production)", "Failed deployments to higher sandboxes", "Governor limit errors", "Balance of declarative tools and code"],
+     "should_show": "Choosing configuration or flows where they fit and code where it's needed, and changes moving cleanly through the sandboxes.",
+     "should_not_show": "Coverage reached by tests that assert nothing.",
+     "questions": ["When would you use a flow instead of Apex?", "How do you make a trigger safe for bulk data?", "How does a change get from your sandbox to production here?"],
+     "warning_signs": ["Tests written only to reach coverage", "Hard-coded record IDs", "Changes made directly in production"]},
+    {"name": "Integration (MuleSoft) developer",
+     "measures": ["Integration error rate", "Time to detect and recover from a failed integration", "APIs reused rather than rebuilt", "APIs documented"],
+     "should_show": "Integrations that fail visibly and recover cleanly, with monitoring and clear ownership.",
+     "should_not_show": "Silent failures discovered by the business days later.",
+     "questions": ["What happens when the system downstream is down?", "How do you version an API without breaking its users?", "How would you know an integration had stopped working?"],
+     "warning_signs": ["No monitoring or alerts", "The same point-to-point integration built twice", "Credentials kept in code"]},
+    {"name": "QA engineer",
+     "measures": ["Escaped defects", "Share of the regression suite automated", "Time from a build to test feedback", "Defects caught in refinement rather than at the end"],
+     "should_show": "Involvement from refinement onward, risk-based test plans, and a regression suite that gets faster over time.",
+     "should_not_show": "Bug counts used as a measure of a person, or QA as a gate only at the end.",
+     "questions": ["When time is short, how do you decide what to test?", "What would you automate first, and why?", "How should QA shape the definition of done?"],
+     "warning_signs": ["Testing starts only after development finishes", "Regression run by hand every release with no plan to change it", "No say in the definition of done"]},
+]
+
 
 
 def latest_profile(conn) -> dict | None:
@@ -44,7 +90,10 @@ def weighted(ratings: dict, weights: dict) -> float | None:
 
 @router.get("/api/team-assessment/guide")
 def guide(viewer: Viewer = Depends(get_viewer)):
-    return {"criteria": [{"key": k, "name": n, "question": q} for k, n, q in CRITERIA], "reflection": REFLECTION, "placements": models.PLACEMENTS}
+    return {"criteria": [{"key": k, "name": n, "question": q} for k, n, q in CRITERIA], "reflection": REFLECTION, "placements": models.PLACEMENTS,
+            "changeable": models.CHANGEABLE, "interdependence": models.INTERDEPENDENCE, "interdependence_advice": INTERDEPENDENCE_ADVICE,
+            "assumption": ASSUMPTION, "situation_fit": models.SITUATION_FIT, "dispositions": models.DISPOSITIONS, "disposition_help": DISPOSITION_HELP,
+            "critical": CRITICAL}
 
 
 @router.post("/api/team-assessment/criteria", status_code=201)
@@ -57,8 +106,10 @@ def save_criteria(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), 
         raise HTTPException(400, f"The weights add up to {sum(weights.values())}; they need to add up to 100.")
     if body.get("threshold") not in models.EVAL_CRITERIA:
         raise HTTPException(400, "Pick one threshold criterion.")
+    changeable = {k: v for k, v in (body.get("changeable") or {}).items() if k in models.EVAL_CRITERIA and v in models.CHANGEABLE}
     return models.criteria_profiles.create(conn, {"date": today().isoformat(), "weights": weights, "threshold": body["threshold"],
-                                                  "reflection": body.get("reflection") or ""}, viewer.source)
+                                                  "reflection": body.get("reflection") or "", "changeable": changeable,
+                                                  "interdependence": body.get("interdependence") or None}, viewer.source)
 
 
 @router.get("/api/team-assessment")
@@ -74,16 +125,49 @@ def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         a = by_person.get(p["id"])
         ratings = (a or {}).get("ratings") or {}
         th = (ratings.get(threshold) or {}).get("score") if threshold else None
+        crit = (a or {}).get("criticality")
         people.append({"id": p["id"], "name": p["name"], "role": p.get("role"), "assessment": a,
                        "score": weighted(ratings, weights) if a else None, "below_threshold": isinstance(th, (int, float)) and th <= LOW,
-                       "considered": bool(a and a.get("considered_on"))})
+                       "considered": bool(a and a.get("considered_on")),
+                       "critical_gap": bool(a and a.get("placement") in ("B", "C") and isinstance(crit, int) and crit >= CRITICAL),
+                       "disposition": (a.get("disposition") if a and a.get("confident") and a.get("disposition") else "observe")})
     plan = team_plan(conn)
+    kinds = sorted({s["kind"] for s in models.situations.fetch_all(conn) if s.get("kind")})
+    inter = (prof or {}).get("interdependence")
+    warn_rel = bool(prof and inter == "interdependent" and (prof.get("weights") or {}).get("relationships", 0) < 15)
     return {"profile": prof, "profiles": len(models.criteria_profiles.fetch_all(conn)), "people": people,
             "conclusions_due": plan["conclusions_due"], "conclusions_day": plan["conclusions_day"],
-            "missing": [x["name"] for x in people if not x["considered"]]}
+            "missing": [x["name"] for x in people if not x["considered"]],
+            "situations": [{"kind": k, "advice": SITUATION_ADVICE.get(k, "")} for k in kinds],
+            "interdependence_advice": INTERDEPENDENCE_ADVICE.get(inter), "relationships_low": warn_rel,
+            "dynamics": _dynamics(conn), "templates": [{"id": t["id"], "name": t["name"]} for t in models.role_templates.fetch_all(conn)]}
 
 
-@router.put("/api/team-assessment/{person_id}")
+def _dynamics(conn) -> dict:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (DYNAMICS_KEY,)).fetchone()
+    return json.loads(row["value"]) if row else {}
+
+
+@router.put("/api/team-assessment/dynamics")
+def put_dynamics(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """How the team works as a whole: alliances, who defers to whom, and whether one-on-one answers were too uniform or too scattered."""
+    require_write(viewer)
+    keep = {k: str(body.get(k) or "") for k in ("alliances", "deference", "consistency", "notes")}
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (DYNAMICS_KEY, json.dumps(keep)))
+    return keep
+
+
+@router.post("/api/role-templates/starter", status_code=201)
+def starter_templates(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    have = {t["name"] for t in models.role_templates.fetch_all(conn)}
+    added = [models.role_templates.create(conn, t, viewer.source)["id"] for t in STARTER_TEMPLATES if t["name"] not in have]
+    if not added:
+        raise HTTPException(409, "You already have the starter templates.")
+    return {"templates": len(added)}
+
+
+@router.put("/api/team-assessment/{person_id:int}")
 def put_assessment(person_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """Create or update the assessment of one person. The first impression, once dated, is kept as written."""
     require_write(viewer)
@@ -94,7 +178,11 @@ def put_assessment(person_id: int, body: dict = Body(...), viewer: Viewer = Depe
         sc = (v or {}).get("score")
         if k not in models.EVAL_CRITERIA or (sc is not None and (not isinstance(sc, int) or not 1 <= sc <= 5)):
             raise HTTPException(400, "Score each criterion from 1 to 5.")
-    fields = {k: body[k] for k in ("ratings", "placement", "group_role", "considered_on", "notes") if k in body}
+    crit = body.get("criticality")
+    if crit is not None and (not isinstance(crit, int) or not 1 <= crit <= 10):
+        raise HTTPException(400, "Rate how critical the position is from 1 to 10.")
+    fields = {k: body[k] for k in ("ratings", "placement", "group_role", "considered_on", "notes", "criticality", "situation_fit",
+                                   "situation_notes", "judgment", "disposition", "confident", "template_id") if k in body}
     row = conn.execute("SELECT id FROM team_assessments WHERE person_id = ?", (person_id,)).fetchone()
     existing = models.team_assessments.fetch(conn, row["id"]) if row else None
     if "first_impression" in body and not (existing and existing.get("first_on")):

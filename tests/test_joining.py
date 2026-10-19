@@ -171,3 +171,25 @@ def test_criteria_and_team_assessment(client):
     row = next(x for x in o["people"] if x["id"] == p)
     assert row["below_threshold"] and row["score"] == 3.8 and row["considered"] and o["missing"] == []
     assert client.put(f"/api/team-assessment/{p}", json={"ratings": {"competence": {"score": 9}}}).status_code == 400
+
+
+def test_assessment_context_dispositions_and_templates(client):
+    w = {"competence": 30, "judgment": 25, "energy": 10, "focus": 15, "relationships": 5, "trust": 15}
+    client.post("/api/team-assessment/criteria", json={"weights": w, "threshold": "trust", "changeable": {"trust": "no", "energy": "bogus"}, "interdependence": "interdependent"})
+    prof = client.get("/api/criteria-profiles").json()[0]
+    assert prof["changeable"] == {"trust": "no"} and prof["interdependence"] == "interdependent"
+    me = client.post("/api/people", json={"name": "[Placeholder me]"}).json()["id"]
+    client.put("/api/people/me", json={"person_id": me})
+    p = client.post("/api/people", json={"name": "[Placeholder name 1]", "manager_id": me}).json()["id"]
+    client.put(f"/api/team-assessment/{p}", json={"placement": "B", "criticality": 8, "disposition": "keep and develop"})
+    o = client.get("/api/team-assessment").json()
+    row = o["people"][0]
+    assert o["relationships_low"] and row["critical_gap"] and row["disposition"] == "observe"
+    client.put(f"/api/team-assessment/{p}", json={"confident": True})
+    assert client.get("/api/team-assessment").json()["people"][0]["disposition"] == "keep and develop"
+    assert client.put(f"/api/team-assessment/{p}", json={"criticality": 11}).status_code == 400
+    assert client.put("/api/team-assessment/dynamics", json={"alliances": "[Placeholder]"}).json()["alliances"] == "[Placeholder]"
+    assert client.post("/api/role-templates/starter").json()["templates"] == 4
+    assert client.post("/api/role-templates/starter").status_code == 409
+    i = client.post("/api/interviews", json={"person_id": p, "status": "done", "how_we_work": "[Placeholder]", "ownership": "owns problems"}).json()
+    assert i["ownership"] == "owns problems" and client.get("/api/rollup").json()["notes"]["how_we_work"][0]["text"] == "[Placeholder]"

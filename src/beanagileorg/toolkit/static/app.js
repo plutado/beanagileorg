@@ -74,11 +74,17 @@
     { name: "change_first", label: "What would you change first?", type: "textarea" },
     { name: "dont_change", label: "What should I not change?", type: "textarea" },
     { name: "if_you_were_me", label: "If you were me, what would you focus on first?", type: "textarea" },
+    { name: "how_we_work", label: "Optional: what are the strengths and weaknesses of how we work today?", type: "textarea" },
+    { name: "resources", label: "Optional: what resources could we use better?", type: "textarea" },
     { name: "systems", label: "Products and systems mentioned", type: "list", hint: "comma separated" },
     { name: "gaps", label: "Gaps", type: "textarea" },
     { name: "opportunities", label: "Opportunities", type: "textarea" },
     { name: "themes", label: "Themes", type: "list", hint: "comma separated; these roll up into the day-30 diagnosis" },
-    { name: "how_answered", label: "How they answered (private)", type: "textarea", hint: "direct or evasive, takes responsibility or points fingers, whole business or one silo" },
+    { name: "how_answered", label: "How they answered (private)", type: "textarea", hint: "words, tone and body language; direct or evasive; whole business or one silo" },
+    { name: "volunteered", label: "Did they volunteer information? (private)", type: "select", options: ["volunteered it", "had to draw it out"] },
+    { name: "ownership", label: "Problems in their area (private)", type: "select", options: ["owns problems", "makes excuses", "points at others"] },
+    { name: "hot_buttons", label: "Hot buttons (private)", type: "textarea", hint: "topics that drew a strong reaction: clues to what motivates them and what change would energize them" },
+    { name: "unsaid", label: "What they didn't say (private)", type: "textarea" },
   ];
 
   // ---------------------------------------------------------------- Today
@@ -705,7 +711,8 @@
       <form id="iv" class="card">
         <div class="grid2">${BA.form(fields.slice(0, 3), rec)}</div>
         <h3>The same five questions, every time</h3>${BA.form(fields.slice(3, 8), rec)}
-        <h3>What I heard</h3>${BA.form(fields.slice(8), rec)}
+        <h3>Optional follow-ups</h3><p class="quiet">Ask these when there's time; the five above come first.</p>${BA.form(fields.slice(8, 10), rec)}
+        <h3>What I heard</h3>${BA.form(fields.slice(10), rec)}
         ${known.length ? `<p class="quiet">Themes so far: ${BA.chips(known)}</p>` : ""}
         <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("interview", id)}<button class="btn primary" type="submit">Save</button></div>
       </form>`;
@@ -748,7 +755,8 @@
               .join("") || '<p class="quiet">No themes tagged yet. Add them to each one-on-one.</p>'
           }</section>
         ${d.systems ? `<section class="card"><h2>Products and systems mentioned</h2>${d.systems.map((s) => `<span class="pill">${esc(s.system)} · ${s.count}</span>`).join(" ") || '<p class="quiet">None yet.</p>'}</section>` : ""}
-        <div class="cards">${notes("gaps", "Gaps")}${notes("opportunities", "Opportunities")}${notes("dont_change", "What not to change")}${notes("change_first", "What to change first")}${notes("if_you_were_me", "If you were me, I'd focus on")}</div>`;
+        <div class="cards">${notes("gaps", "Gaps")}${notes("opportunities", "Opportunities")}${notes("dont_change", "What not to change")}${notes("change_first", "What to change first")}${notes("if_you_were_me", "If you were me, I'd focus on")}${notes("how_we_work", "How we work today")}${notes("resources", "Resources we could use better")}</div>
+        <p class="quiet">Compare the answers: if they're nearly identical, ask whether it's a shared view or a party line; if they barely overlap, the team may lack a shared picture. Note what you conclude under <a href="#/first90/team">The team as a whole</a>.</p>`;
       const md = main.querySelector("#md");
       if (md)
         md.onclick = BA.guard(async () => {
@@ -764,12 +772,19 @@
   async function renderCriteria(main) {
     if (presenting()) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
     document.getElementById("view-title").textContent = "My evaluation criteria";
-    const [g, profiles] = await Promise.all([BA.api("/api/team-assessment/guide"), BA.api("/api/criteria-profiles")]);
-    const last = profiles[0], w = (last && last.weights) || {};
+    const [g, profiles, ov] = await Promise.all([BA.api("/api/team-assessment/guide"), BA.api("/api/criteria-profiles"), BA.api("/api/team-assessment")]);
+    const last = profiles[0], w = (last && last.weights) || {}, ch = (last && last.changeable) || {};
     main.innerHTML = `<p class="quiet">Everyone judges the people who work for them by some set of criteria, said or unsaid. Make yours explicit before you assess your team: divide 100 points among the six by how much each weighs with you, then pick your threshold, the one where if someone falls short, nothing else matters. Private.</p>
-      <form id="crit" class="card"><div class="tablewrap"><table class="data"><thead><tr><th>Criterion</th><th>Weight</th><th>Threshold</th></tr></thead><tbody>${g.criteria.map((c) => `<tr><td><b>${esc(c.name)}</b><br><span class="quiet">${esc(c.question)}</span></td>
-          <td><input type="number" min="0" max="100" step="1" name="w.${c.key}" value="${w[c.key] ?? ""}" style="max-width:90px"></td><td style="text-align:center"><input type="radio" name="threshold" value="${c.key}"${last && last.threshold === c.key ? " checked" : ""}></td></tr>`).join("")}
-          <tr><td><b>Total</b></td><td id="crit-total"></td><td></td></tr></tbody></table></div>
+      <form id="crit" class="card"><div class="tablewrap"><table class="data"><thead><tr><th>Criterion</th><th>Weight</th><th>Threshold</th><th>Can you change it in someone?</th></tr></thead><tbody>${g.criteria.map((c) => `<tr><td><b>${esc(c.name)}</b><br><span class="quiet">${esc(c.question)}</span></td>
+          <td><input type="number" min="0" max="100" step="1" name="w.${c.key}" value="${w[c.key] ?? ""}" style="max-width:90px"></td><td style="text-align:center"><input type="radio" name="threshold" value="${c.key}"${last && last.threshold === c.key ? " checked" : ""}></td>
+          <td><select name="c.${c.key}" style="max-width:130px"><option value=""></option>${opts(g.changeable, ch[c.key])}</select></td></tr>`).join("")}
+          <tr><td><b>Total</b></td><td id="crit-total"></td><td></td><td></td></tr></tbody></table></div>
+        <p class="callout">${esc(g.assumption)}</p>
+        <h3>Your context</h3>
+        <label>How much does your team's work depend on working together?<select name="interdependence" style="max-width:260px"><option value=""></option>${opts(g.interdependence, last && last.interdependence)}</select></label>
+        ${last && last.interdependence ? `<p class="quiet">${esc(g.interdependence_advice[last.interdependence])}</p>` : ""}
+        ${ov.relationships_low ? '<p class="callout warn">Your team\'s work is interdependent, but relationships carries less than 15 points. In a Scrum team, how people support decisions made together matters a lot.</p>' : ""}
+        ${ov.situations && ov.situations.length ? `<p><b>Your situations:</b></p><div class="md"><ul>${ov.situations.map((x) => `<li><b>${esc(x.kind)}.</b> ${esc(x.advice)}</li>`).join("")}</ul></div>` : '<p class="quiet">Set your areas\' situations in the <a href="#/first90/situation">situation diagnosis</a> to see what they mean for the people you need.</p>'}
         <h3>Step back</h3><div class="md"><ul>${g.reflection.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div>
         <label>What this tells me <span class="quiet">(blind spots, and what I'll watch for)</span><textarea name="reflection" rows="3"></textarea></label>
         <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>
@@ -781,7 +796,8 @@
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      await BA.api("/api/team-assessment/criteria", { method: "POST", body: { weights: Object.fromEntries(g.criteria.map((c) => [c.key, Number(fd.get(`w.${c.key}`)) || 0])), threshold: fd.get("threshold"), reflection: fd.get("reflection") } });
+      await BA.api("/api/team-assessment/criteria", { method: "POST", body: { weights: Object.fromEntries(g.criteria.map((c) => [c.key, Number(fd.get(`w.${c.key}`)) || 0])), threshold: fd.get("threshold"), reflection: fd.get("reflection"),
+        changeable: Object.fromEntries(g.criteria.map((c) => [c.key, fd.get(`c.${c.key}`)]).filter(([, v]) => v)), interdependence: fd.get("interdependence") || null } });
       BA.toast("Saved.");
       BA.rerender();
     });
@@ -5261,7 +5277,8 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     const row = (x) => { const a = x.assessment || {}, r = a.ratings || {};
       return `<details class="plan-item" data-ta="${x.id}"><summary><b>${esc(x.name)}</b><span class="quiet">${esc(x.role || "")}</span><span class="spacer"></span>
         ${x.below_threshold ? `<span class="pill bad" title="Below your threshold on ${esc(th)}">below threshold</span>` : ""}${a.placement ? `<span class="pill ${a.placement === "A" ? "good" : a.placement === "B" ? "" : "warn"}">${esc(a.placement)} player</span>` : ""}
-        ${x.score != null ? `<span class="quiet">${x.score} of 5</span>` : ""}${x.considered ? `<span class="quiet">considered ${BA.fmtDate(a.considered_on)}</span>` : '<span class="pill warn">no considered view yet</span>'}</summary>
+        ${x.critical_gap ? `<span class="pill bad" title="A ${esc(a.placement)} player in a position rated ${a.criticality} of 10">critical role</span>` : ""}
+        ${x.score != null ? `<span class="quiet">${x.score} of 5</span>` : ""}<span class="pill ${x.disposition === "observe" ? "" : x.disposition.startsWith("replace") ? "warn" : "good"}">${esc(x.disposition)}</span>${x.considered ? `<span class="quiet">considered ${BA.fmtDate(a.considered_on)}</span>` : '<span class="pill warn">no considered view yet</span>'}</summary>
         <form class="ta-form">
           <label>First impression <span class="quiet">${a.first_on ? `(written ${BA.fmtDate(a.first_on)} and kept as written, so you can see later how it held up)` : "(your early read; once saved it's kept as written)"}</span>
             <textarea name="first_impression" rows="2"${a.first_on ? " readonly" : ""}>${esc(a.first_impression || "")}</textarea></label>
@@ -5269,14 +5286,62 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <h4>Considered view</h4><p class="quiet">Score 1 (weak) to 5 (strong), with evidence from the work itself, not just conversations.</p>
           ${tg.criteria.map((c) => { const v = r[c.key] || {}; return `<div class="row" style="align-items:flex-start;margin-bottom:6px"><span style="flex:0 0 220px"><b>${esc(c.name)}</b>${th === c.key ? ' <span class="pill">threshold</span>' : ""}${prof ? ` <span class="quiet">${(prof.weights || {})[c.key] ?? 0} pts</span>` : ""}<br><span class="quiet">${esc(c.question)}</span></span>
             <select name="s.${c.key}" style="max-width:90px"><option value="">–</option>${[1, 2, 3, 4, 5].map((n) => `<option${v.score === n ? " selected" : ""}>${n}</option>`).join("")}</select><input name="e.${c.key}" value="${esc(v.evidence || "")}" placeholder="Evidence" style="flex:1;min-width:180px"></div>`; }).join("")}
-          <div class="grid2"><label>Placement<select name="placement"><option value=""></option>${tg.placements.map((pl) => `<option${a.placement === pl ? " selected" : ""}>${pl}</option>`).join("")}</select></label>
-            <label>Considered view as of<input type="date" name="considered_on" value="${esc(a.considered_on || "")}"></label></div>
+          <label>Judgment <span class="quiet">(not the same as intelligence: predictions they made and how they turned out, problems they saw coming)</span><textarea name="judgment" rows="2">${esc(a.judgment || "")}</textarea></label>
+          <div class="grid2"><label>How critical the position is <span class="quiet">(1 to 10)</span><input type="number" min="1" max="10" name="criticality" value="${a.criticality ?? ""}"></label>
+            <label>Role template<select name="template_id"><option value=""></option>${(ta.templates || []).map((t) => `<option value="${t.id}"${a.template_id === t.id ? " selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
+            <label>Fit with the situation<select name="situation_fit"><option value=""></option>${opts(tg.situation_fit, a.situation_fit)}</select></label>
+            <label>Their experience of situations <span class="quiet">(turnaround, growth, realignment…)</span><input name="situation_notes" value="${esc(a.situation_notes || "")}"></label>
+            <label>Placement<select name="placement"><option value=""></option>${tg.placements.map((pl) => `<option${a.placement === pl ? " selected" : ""}>${pl}</option>`).join("")}</select></label>
+            <label>Considered view as of<input type="date" name="considered_on" value="${esc(a.considered_on || "")}"></label>
+            <label>Where they stand<select name="disposition"><option value=""></option>${opts(tg.dispositions, a.disposition)}</select></label>
+            <label class="check" style="align-self:end"><input type="checkbox" name="confident"${a.confident ? " checked" : ""}> I'm at least 90% sure <span class="quiet">(otherwise they stay in observe)</span></label></div>
           <label>Private notes<textarea name="notes" rows="2">${esc(a.notes || "")}</textarea></label>
           <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></details>`; };
     return `<section class="card"><h2>Assessing the team</h2><p class="quiet">Your private read on each person you inherited. Keep your first impressions, then step back and form a considered view on six criteria, weighted the way you set them. Never exported or shown while presenting.</p>
       ${prof ? `<p class="quiet">Using your criteria from ${BA.fmtDate(prof.date)}${th ? `, with ${esc(th)} as your threshold` : ""}. <a href="#/me/criteria">Change them</a></p>` : '<p class="callout">Set <a href="#/me/criteria">your evaluation criteria</a> first, so scores are weighted the way you judge people. Until then, the six count equally.</p>'}
       ${ta.missing.length && ta.people.length ? `<p class="callout warn">No considered view yet for ${ta.missing.map(esc).join(", ")}. Your conclusions are due ${ta.conclusions_due ? BA.fmtDate(ta.conclusions_due) : `on ${BA.roleDay(ta.conclusions_day)}`}.</p>` : ""}
-      ${ta.people.map(row).join("") || '<p class="quiet">No inherited team members yet.</p>'}</section>`;
+      ${ta.interdependence_advice ? `<p class="quiet">${esc(ta.interdependence_advice)}</p>` : ""}${ta.relationships_low ? '<p class="callout warn">Your team\'s work is interdependent, but your criteria give relationships little weight.</p>' : ""}
+      ${ta.situations.length ? `<p class="quiet">${ta.situations.map((x) => esc(x.advice)).join(" ")}</p>` : ""}
+      <p class="quiet">${esc(tg.disposition_help)} A B or C player in a position rated ${tg.critical} or higher is flagged.</p>
+      ${ta.people.map(row).join("") || '<p class="quiet">No inherited team members yet.</p>'}
+      ${teamDynamicsBlock(ta.dynamics || {})}</section>
+      ${roleTemplatesCard(ta.templates || [])}`;
+  }
+
+  function teamDynamicsBlock(dy) {
+    return `<h3>The team as a whole</h3><p class="quiet">Read reports, meeting notes and any climate surveys, and watch the early meetings. Compare answers across the <a href="#/rollup">one-on-ones</a>: too uniform may mean a party line, too scattered may mean no shared picture. The <a href="#/culture/pulse">trust pulse</a> tracks the climate.</p>
+      <form id="dynamics"><div class="grid2"><label>Alliances and coalitions<textarea name="alliances" rows="2">${esc(dy.alliances || "")}</textarea></label><label>Who defers to whom, on what<textarea name="deference" rows="2">${esc(dy.deference || "")}</textarea></label>
+        <label>How consistent were the one-on-one answers?<textarea name="consistency" rows="2">${esc(dy.consistency || "")}</textarea></label><label>Other notes<textarea name="notes" rows="2">${esc(dy.notes || "")}</textarea></label></div>
+        <div class="actions"><button class="btn" type="submit">Save</button></div></form>`;
+  }
+
+  function roleTemplatesCard(list) {
+    return `<details class="card" id="role-templates"><summary><b>Role templates</b> <span class="quiet">· how to judge someone in a particular function</span></summary>
+      <p class="quiet">For each function: what to measure, what the measures should and shouldn't show, questions to ask and warning signs. Especially useful for roles outside your own expertise; ask experienced people in that function what they look for.</p>
+      <div id="rt-list"></div>${list.length ? "" : '<button class="btn" type="button" id="rt-starter">Load starter templates</button>'}
+      <form id="rt-add" class="row" style="margin-top:8px"><input name="name" placeholder="A function, such as data engineer" required style="max-width:300px"><button class="btn" type="submit">Add a template</button></form></details>`;
+  }
+
+  async function bindRoleTemplates(main) {
+    const box = main.querySelector("#rt-list");
+    if (!box) return;
+    const list = await BA.api("/api/role-templates");
+    const lines = (xs) => (xs || []).join("\n");
+    box.innerHTML = list.map((t) => `<details class="plan-item" data-rt="${t.id}"><summary><b>${esc(t.name)}</b></summary><form>
+      <label>Measures to watch <span class="quiet">(one per line)</span><textarea name="measures" rows="3">${esc(lines(t.measures))}</textarea></label>
+      <div class="grid2"><label>What they should show<textarea name="should_show" rows="2">${esc(t.should_show || "")}</textarea></label><label>What they shouldn't show<textarea name="should_not_show" rows="2">${esc(t.should_not_show || "")}</textarea></label></div>
+      <label>Questions to ask <span class="quiet">(one per line)</span><textarea name="questions" rows="3">${esc(lines(t.questions))}</textarea></label>
+      <label>Warning signs <span class="quiet">(one per line)</span><textarea name="warning_signs" rows="3">${esc(lines(t.warning_signs))}</textarea></label>
+      <div class="actions"><button class="btn danger left" type="button" data-rt-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("");
+    const split = (v) => (v || "").split("\n").map((x) => x.trim()).filter(Boolean);
+    box.querySelectorAll("[data-rt]").forEach((d) => {
+      const f = d.querySelector("form"), id = d.dataset.rt;
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/role-templates/${id}`, { method: "PATCH", body: { measures: split(fd.get("measures")), should_show: fd.get("should_show"), should_not_show: fd.get("should_not_show"), questions: split(fd.get("questions")), warning_signs: split(fd.get("warning_signs")) } }); BA.toast("Saved."); });
+      d.querySelector("[data-rt-del]").onclick = BA.guard(async () => { if (!confirm("Delete this template?")) return; await BA.api(`/api/role-templates/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    const st = main.querySelector("#rt-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/role-templates/starter", { method: "POST", body: {} }); BA.rerender(); });
+    main.querySelector("#rt-add").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/role-templates", { method: "POST", body: { name: new FormData(e.target).get("name") } }); BA.rerender(); });
   }
 
   function teamPlanCard(tp, unrec) {
@@ -5336,11 +5401,16 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         e.preventDefault();
         const fd = new FormData(form);
         const ratings = Object.fromEntries(tg.criteria.map((c) => [c.key, { score: fd.get(`s.${c.key}`) ? Number(fd.get(`s.${c.key}`)) : null, evidence: fd.get(`e.${c.key}`) || "" }]));
-        await BA.api(`/api/team-assessment/${det.dataset.ta}`, { method: "PUT", body: { first_impression: fd.get("first_impression"), group_role: fd.get("group_role"), ratings, placement: fd.get("placement") || null, considered_on: fd.get("considered_on") || null, notes: fd.get("notes") } });
+        await BA.api(`/api/team-assessment/${det.dataset.ta}`, { method: "PUT", body: { first_impression: fd.get("first_impression"), group_role: fd.get("group_role"), ratings, placement: fd.get("placement") || null, considered_on: fd.get("considered_on") || null, notes: fd.get("notes"),
+          judgment: fd.get("judgment"), criticality: fd.get("criticality") ? Number(fd.get("criticality")) : null, template_id: numOrNull(fd.get("template_id")), situation_fit: fd.get("situation_fit") || null, situation_notes: fd.get("situation_notes"),
+          disposition: fd.get("disposition") || null, confident: fd.get("confident") === "on" } });
         BA.toast("Saved.");
         BA.rerender();
       });
     });
+    const dyf = main.querySelector("#dynamics");
+    if (dyf) dyf.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/team-assessment/dynamics", { method: "PUT", body: Object.fromEntries(new FormData(dyf)) }); BA.toast("Saved."); });
+    bindRoleTemplates(main);
     const tpf = main.querySelector("#team-plan");
     if (tpf && !presenting()) tpf.onsubmit = BA.guard(async (e) => {
       e.preventDefault();

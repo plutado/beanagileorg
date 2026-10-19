@@ -37,6 +37,12 @@ GAP_PLANS = ("train", "pair", "hire", "partner", "spread a practice", "other")
 GAP_STATUS = ("open", "in progress", "closed")
 EVAL_CRITERIA = ("competence", "judgment", "energy", "focus", "relationships", "trust")
 PLACEMENTS = ("A", "B", "C")
+CHANGEABLE = ("yes", "somewhat", "no")
+INTERDEPENDENCE = ("independent", "mixed", "interdependent")
+SITUATION_FIT = ("fits", "partly", "doesn't fit")
+DISPOSITIONS = ("keep in place", "keep and develop", "move to another role", "replace, low priority", "replace, high priority", "observe")
+VOLUNTEERED = ("volunteered it", "had to draw it out")
+OWNERSHIP = ("owns problems", "makes excuses", "points at others")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
@@ -1662,6 +1668,36 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        53,
+        """
+        ALTER TABLE criteria_profiles ADD COLUMN changeable TEXT;
+        ALTER TABLE criteria_profiles ADD COLUMN interdependence TEXT;
+        ALTER TABLE team_assessments ADD COLUMN criticality INTEGER;
+        ALTER TABLE team_assessments ADD COLUMN situation_fit TEXT;
+        ALTER TABLE team_assessments ADD COLUMN situation_notes TEXT;
+        ALTER TABLE team_assessments ADD COLUMN judgment TEXT;
+        ALTER TABLE team_assessments ADD COLUMN disposition TEXT;
+        ALTER TABLE team_assessments ADD COLUMN confident INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE team_assessments ADD COLUMN template_id INTEGER;
+        ALTER TABLE interviews ADD COLUMN how_we_work TEXT;
+        ALTER TABLE interviews ADD COLUMN resources TEXT;
+        ALTER TABLE interviews ADD COLUMN hot_buttons TEXT;
+        ALTER TABLE interviews ADD COLUMN unsaid TEXT;
+        ALTER TABLE interviews ADD COLUMN volunteered TEXT;
+        ALTER TABLE interviews ADD COLUMN ownership TEXT;
+        CREATE TABLE role_templates (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            measures TEXT,
+            should_show TEXT,
+            should_not_show TEXT,
+            questions TEXT,
+            warning_signs TEXT,
+            notes TEXT
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1736,6 +1772,12 @@ interviews = Record(
         "gaps": Field("text", P),
         "opportunities": Field("text", P),
         "themes": Field("list", P),
+        "how_we_work": Field("text", P),
+        "resources": Field("text", P),
+        "hot_buttons": Field("text", P),
+        "unsaid": Field("text", P),
+        "volunteered": Field("text", P, choices=VOLUNTEERED),
+        "ownership": Field("text", P, choices=OWNERSHIP),
     },
     computed={"person_name": ("(SELECT name FROM people p WHERE p.id = interviews.person_id)", P)},
 )
@@ -3337,6 +3379,8 @@ criteria_profiles = Record(
         "weights": Field("json", P),
         "threshold": Field("text", P, choices=EVAL_CRITERIA),
         "reflection": Field("text", P),
+        "changeable": Field("json", P),
+        "interdependence": Field("text", P, choices=INTERDEPENDENCE),
     },
     hide_when_empty=True,
 )
@@ -3357,9 +3401,34 @@ team_assessments = Record(
         "group_role": Field("text", P),
         "considered_on": Field("date", P),
         "notes": Field("text", P),
+        "criticality": Field("int", P),
+        "situation_fit": Field("text", P, choices=SITUATION_FIT),
+        "situation_notes": Field("text", P),
+        "judgment": Field("text", P),
+        "disposition": Field("text", P, choices=DISPOSITIONS),
+        "confident": Field("bool", P, default=False),
+        "template_id": Field("int", P),
     },
     computed={"person_name": ("(SELECT name FROM people p WHERE p.id = team_assessments.person_id)", P)},
     hide_when_empty=True,
+)
+
+# How to judge someone in a particular function: what to measure, what the measures should and shouldn't show,
+# what to ask, and warning signs. Shareable, so other managers can reuse them.
+role_templates = Record(
+    entity="role_template",
+    table="role_templates",
+    path="/api/role-templates",
+    order_by="name",
+    fields={
+        "name": Field("text", S, required=True),
+        "measures": Field("list", S),
+        "should_show": Field("text", S),
+        "should_not_show": Field("text", S),
+        "questions": Field("list", S),
+        "warning_signs": Field("list", S),
+        "notes": Field("text", P),
+    },
 )
 
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
@@ -3697,7 +3766,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,
