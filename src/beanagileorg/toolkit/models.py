@@ -1443,6 +1443,13 @@ MIGRATIONS = [
         ALTER TABLE people ADD COLUMN insight TEXT;
         """,
     ),
+    (
+        34,
+        """
+        ALTER TABLE situations ADD COLUMN history TEXT;
+        ALTER TABLE situations ADD COLUMN mood TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -3255,6 +3262,8 @@ situations = Record(
         "area": Field("text", S, required=True),
         "kind": Field("text", S, choices=SITUATION_KINDS),
         "evidence": Field("text", P),
+        "history": Field("text", P),
+        "mood": Field("text", P),
         "approach": Field("text", S),
         "position": Field("int", S, default=0),
     },

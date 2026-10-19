@@ -139,11 +139,16 @@ GUIDES = [
             "Judge urgency honestly. Is there a fire, a slow leak, or mostly room to improve?",
             "Match your pace to the situation: decisive where things are failing, patient where they're mostly sound.",
             "Different parts of your area can be in different situations. Diagnose each.",
+            "Set the pace per area. Where something is failing and everyone knows it, act on what you know and adjust as you learn. Where things are drifting or doing well, learn first and act once you understand.",
+            "Read the mood and work on it. A struggling team needs a concrete plan and a reason to believe; a comfortable one needs to see the problem; a new effort needs focus; a successful one needs a new challenge.",
+            "Put on your historian's hat: you can't decide where to take a team without knowing how it got here.",
+            "Use this at any level. A project, a product launch or a system rollout can be a start-up, a turnaround or a realignment just as a whole company can.",
         ],
         "pitfalls": [
             "Assuming the team needs fixing because you were hired.",
             "Ignoring signs of real trouble to avoid seeming negative.",
             "Applying one plan to every part of a mixed situation.",
+            "Bringing the playbook from your last situation: a fast turnaround style can do damage where people need to be convinced first.",
         ],
         "questions": [
             "If I changed nothing for a month, what would get worse?",
@@ -1092,6 +1097,7 @@ TIPS = {
                  ("Bring changes one at a time, as trials with a review date, and review them with the team.", "leading-change", 8),
                  ("Show the team what changed because of what they told you. It's the fastest way to earn the next conversation.", "leading-change", 8),
                  ("Match your approach to each area's situation. A turnaround and a sustaining success call for opposite moves.", 'read-the-situation', 11),
+                 ("Set the pace per area: act fast where things are failing and everyone knows it, learn first where they're drifting or doing well.", "read-the-situation", 22),
                  ('Keep a learning agenda: the questions you need answered, who can answer them, and by when.', 'learn-fast', 11),
                  ('Mark a few plan items as early wins: visible improvements people already want. They build the credibility for the bigger changes.', 'early-wins', 11),
                  ('Hold the five conversations with your manager early: situation, expectations, working style, resources and your development.', 'your-manager', 11),
@@ -1239,7 +1245,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 21  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 22  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

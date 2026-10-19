@@ -64,15 +64,20 @@ STARTER_QUESTIONS = [
 
 SITUATION_GUIDE = {
     "start-up": ("Something new is being built: a team, a product or a way of working. There's little to protect yet, and energy is high but unfocused.",
-                 "Bring people, structure and a clear first goal quickly. Decide more yourself at first, then hand over as the team forms."),
+                 "Bring people, structure and a clear first goal quickly. Decide more yourself at first, then hand over as the team forms.",
+                   'Excited but scattered: lots of energy, little focus yet.', 'Channel the energy: set a clear first goal and decide what not to do.', 'fast', 'Build quickly'),
     "turnaround": ("Something important is in trouble and people know it. Delay makes it worse.",
-                   "Act early and visibly on the few things that matter most. Be direct about the problem, protect what still works, and show progress fast."),
+                   "Act early and visibly on the few things that matter most. Be direct about the problem, protect what still works, and show progress fast.",
+                   "People know it's in trouble and may be close to despair, or arguing about the fix.", 'Give them a concrete plan and a reason to believe it will work. Make the tough calls with what you know, then adjust.', 'fast', 'Act fast: ready, fire, aim'),
     "accelerated growth": ("Things work, and demand is growing faster than the way of working can handle.",
-                           "Add structure, process and people at the pace of growth, without losing what made it work."),
+                           "Add structure, process and people at the pace of growth, without losing what made it work.",
+                   'Busy and stretched; structure feels like it slows things down.', 'Help people see why discipline now protects what made it work: shared processes and systems, and onboarding newcomers into the culture.', 'fast', 'Move fast, with structure'),
     "realignment": ("Things are drifting toward trouble, but many people don't see it yet, or don't want to.",
-                    "Build a shared understanding of the problem before pushing solutions. Make the case with evidence, and enlist the people who already see it."),
+                    "Build a shared understanding of the problem before pushing solutions. Make the case with evidence, and enlist the people who already see it.",
+                   "Comfortable or in denial: many don't see the clouds gathering.", 'Make the problem visible with facts, create urgency without blame, and build on the islands of strength.', 'learn', 'Learn first: ready, aim, fire'),
     "sustaining success": ("Things are going well and the job is to keep them that way, and find the next step.",
-                           "Learn deeply before changing anything. Protect what works, avoid needless disruption, and look for the next opportunity."),
+                           "Learn deeply before changing anything. Protect what works, avoid needless disruption, and look for the next opportunity.",
+                   'Proud and possibly complacent.', 'Invent the challenge: keep people stretched, find the next direction for growth, and protect what works.', 'learn', 'Learn deeply first: ready, aim, fire'),
 }
 STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
 
@@ -263,7 +268,7 @@ def put_learning_step(key: str, body: dict = Body(...), viewer: Viewer = Depends
 
 @router.get("/api/situations/guide")
 def situation_guide(viewer: Viewer = Depends(get_viewer)):
-    return {k: {"what": w, "approach": a} for k, (w, a) in SITUATION_GUIDE.items()}
+    return {k: {"what": w, "approach": a, "mood": m, "mood_job": j, "pace": p, "pace_label": pl} for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
 
 
 @router.post("/api/situations/starter", status_code=201)

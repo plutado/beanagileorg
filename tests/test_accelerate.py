@@ -136,3 +136,10 @@ def test_learning_plan_phases(client):
     assert client.put("/api/first90/learning-plan/nope", json={}).status_code == 404
     p = client.get("/api/first90/learning-plan").json()
     assert p["done"] == 1 and next(s for ph in p["phases"] for s in ph["steps"] if s["key"] == "top-down")["done"] is True
+
+
+def test_situation_guide_mood_pace_and_history(client):
+    g = client.get("/api/situations/guide").json()
+    assert g["turnaround"]["pace"] == "fast" and g["realignment"]["pace"] == "learn" and g["realignment"]["mood_job"]
+    s = client.post("/api/situations", json={"area": "[Placeholder area]", "kind": "turnaround", "history": "[Placeholder]", "mood": "[Placeholder]"}).json()
+    assert s["history"] == "[Placeholder]" and s["mood"] == "[Placeholder]"
