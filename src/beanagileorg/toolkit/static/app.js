@@ -318,11 +318,20 @@
       ${ro ? "" : `<section class="card"><h2>Import a roster</h2><p class="quiet">Add a whole team at once from a roster file: people, who reports to whom, who's on your team, and which record is you. Stand-ins in [brackets] are marked as placeholders. Anyone already here with the same name is left alone, so importing twice adds nothing.</p>
         <div class="row"><input type="file" id="roster-file" accept=".json,application/json"></div><textarea id="roster-text" rows="6" class="mono" placeholder='{"me": "me", "people": [{"key": "me", "name": "[Me]"}, {"key": "a", "name": "[Engineer 1]", "relationship": "employee", "reports_to": "me", "on_team": true}]}'></textarea>
         <div class="actions"><button class="btn primary" id="roster-go">Import</button></div></section>
-      <section class="card"><h2>Export a roster</h2><p class="quiet">Save People as a roster file another manager can import into their own copy: names, roles, relationships, who reports to whom and who's on your team. Private fields go only if you tick the box; notes, conversations, feedback and assessments never do. Each export is recorded in the export log.</p>
+      <section class="card"><h2>Export a roster</h2><p class="quiet">Save People as a roster file another manager can import into their own copy: names, roles, relationships, who reports to whom and who's on your team. Private fields go only if you tick the box and confirm them; notes, conversations, feedback, assessments, support notes and anything that records your judgment of a person (stance, influence, motivations, personal context) never do. Each export is recorded in the export log.</p>
         <div class="row" style="align-items:center"><select id="roster-scope" style="max-width:260px"><option value="team">My team, my manager and me</option><option value="everyone">Everyone in People</option></select>
-          <label class="check"><input type="checkbox" id="roster-private"> Include private fields <span class="quiet">(tags, background, working style, support notes, start date)</span></label></div>
+          <label class="check"><input type="checkbox" id="roster-private"> Include private fields <span class="quiet">(tags, background, working style, start date; you'll be asked to check them first)</span></label></div>
         <div class="actions"><button class="btn" id="roster-copy">Copy</button><button class="btn primary" id="roster-download">Download the file</button></div></section>`}`;
-    const exportRoster = async () => BA.api("/api/people/roster/export", { method: "POST", body: { scope: main.querySelector("#roster-scope").value, include_private: main.querySelector("#roster-private").checked } });
+    const exportRoster = async () => {
+      const body = { scope: main.querySelector("#roster-scope").value, include_private: main.querySelector("#roster-private").checked };
+      const { checks } = body.include_private ? await BA.api("/api/people/roster/check", { method: "POST", body }) : { checks: [] };
+      if (checks.length) {
+        const lines = checks.slice(0, 8).map((c) => `• ${c.name}: ${c.findings.map((f) => f.field.replace(/_/g, " ")).join(", ")}`).join("\n");
+        if (!confirm(`Private fields for ${checks.length} ${checks.length === 1 ? "person" : "people"} may carry a judgment or personal information:\n\n${lines}${checks.length > 8 ? "\n…" : ""}\n\nWorking style, tags and background are your impressions and their history. Shared with another manager they can be unfair to the person and can breach HR policy. Export them anyway? (Cancel, then untick private fields, to share names, roles and reporting lines only.)`)) throw new Error("Nothing was exported.");
+        body.acknowledged = true;
+      }
+      return BA.api("/api/people/roster/export", { method: "POST", body });
+    };
     const rd = main.querySelector("#roster-download");
     if (rd) {
       rd.onclick = BA.guard(async () => {
@@ -2391,6 +2400,19 @@
     },
   });
 
+  // Records that may carry a judgment about a person or personal information, from the pack checks. Shown on export
+  // (with a way to leave each one out) and on import (where they start as skipped).
+  function sensitiveChecks(checks, kinds, exporting) {
+    if (!checks || !checks.length) return "";
+    const label = (k) => (kinds.find((x) => x.key === k) || {}).label || k;
+    const warn = checks.filter((c) => c.level === "warn");
+    return `<div class="callout ${warn.length ? "warn" : ""}" style="margin:12px 0"><p><b>${warn.length ? (exporting ? "Before you share: a second look" : "Before you bring it in: a second look") : "Worth a glance"}</b></p>
+      <p class="quiet">${exporting ? "Share facts about work, not judgments about people. Opinions about someone's character, trustworthiness, loyalties, health, family or plans to leave don't belong in a pack: they can be unfair to the person and can breach HR policy, and once shared they can't be taken back. This check looks for wording, so it can miss things and flag harmless ones; you decide." : "This pack may carry judgments about people or personal information. Records marked for a second look start as skipped; add them only if they're facts about work."}</p>
+      ${checks.map((c) => `<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row" style="align-items:center"><span class="pill ${c.level === "warn" ? "warn" : ""}">${c.level === "warn" ? "Second look" : "Note"}</span><b>${esc(c.label || "")}</b><span class="quiet">${esc(label(c.kind))}</span><span class="spacer"></span>
+        ${exporting && c.id ? `<button class="btn" type="button" data-leave="${c.kind}:${c.id}">Leave it out</button>` : ""}</div>
+        <ul style="margin:4px 0 0 18px">${c.findings.map((f) => `<li>${esc(f.field.replace(/_/g, " "))} ${esc(f.reason)}${f.words.length ? `: <i>${f.words.map(esc).join(", ")}</i>` : ""}</li>`).join("")}</ul></div>`).join("")}</div>`;
+  }
+
   async function renderShareExport(main, head) {
     const d = await BA.api("/api/packs/kinds");
     const draw = () => {
@@ -2433,8 +2455,13 @@
         const val = (v) => (v == null || v === "" ? "–" : Array.isArray(v) ? (v.length && typeof v[0] === "object" ? `${v.length} row${v.length === 1 ? "" : "s"}` : v.map((x) => esc(String(x))).join("; ")) : typeof v === "object" ? "(details)" : esc(String(v)).slice(0, 140));
         main.querySelector("#pk-out").innerHTML = Object.values(pack.kinds).map((kd) => `<h3>${esc(kd.label)}: ${kd.records.length} record${kd.records.length === 1 ? "" : "s"}</h3>
           <div class="tablewrap"><table class="data"><thead><tr>${kd.fields.map((f) => `<th>${esc(f.replace(/_/g, " "))}${kd.private_fields.includes(f) ? ' <span class="pill warn">private</span>' : ""}</th>`).join("")}<th>People</th></tr></thead><tbody>${kd.records.map((r) => `<tr>${kd.fields.map((f) => `<td>${val(r.values[f])}</td>`).join("")}<td class="quiet">${r.people ? Object.values(r.people).map(esc).join(", ") : ""}</td></tr>`).join("")}</tbody></table></div>`).join("")
-          + `<p class="quiet">This is exactly what the pack will contain.</p><div class="actions"><button class="btn" id="pk-copy">Copy</button><button class="btn primary" id="pk-download">Download the pack</button></div>`;
-        const make = () => BA.api("/api/packs/export", { method: "POST", body: { selection: selection(), ...meta(), passphrase: main.querySelector("#pk-pass").value } });
+          + `<p class="quiet">This is exactly what the pack will contain.</p>${sensitiveChecks(pack.checks, d.kinds, true)}<div class="actions"><button class="btn" id="pk-copy">Copy</button><button class="btn primary" id="pk-download">Download the pack</button></div>`;
+        const warn = pack.checks.filter((c) => c.level === "warn");
+        main.querySelectorAll("#pk-out [data-leave]").forEach((b) => (b.onclick = () => { const [k, id] = b.dataset.leave.split(":"); shareSel[k]?.ids.delete(Number(id)); if (shareSel[k] && !shareSel[k].ids.size) delete shareSel[k]; draw(); main.querySelector("#pk-review")?.click(); }));
+        const make = () => {
+          if (warn.length && !confirm(`${warn.length} record${warn.length === 1 ? "" : "s"} in this pack may carry a judgment about a person or personal information.\n\nOnce it's shared you can't take it back, and sharing judgments about people with another manager can be unfair to them and can breach HR policy.\n\nShare anyway?`)) return Promise.reject(new Error("Nothing was shared."));
+          return BA.api("/api/packs/export", { method: "POST", body: { selection: selection(), ...meta(), passphrase: main.querySelector("#pk-pass").value, acknowledged: warn.length > 0 } });
+        };
         main.querySelector("#pk-copy").onclick = BA.guard(async () => { const p = await make(); await navigator.clipboard.writeText(JSON.stringify(p, null, 2)); BA.toast("Pack copied. It's recorded in the export log."); });
         main.querySelector("#pk-download").onclick = BA.guard(async () => { const p = await make(); const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }));
           const a = document.createElement("a"); a.href = url; a.download = `pack-${p.created}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); BA.toast("Pack saved. It's recorded in the export log."); });
@@ -2458,8 +2485,9 @@
       const counts = (k) => ["new", "changed", "conflict", "unchanged"].map((st) => [st, k.records.filter((r) => r.status === st).length]).filter(([, n]) => n).map(([st, n]) => `${n} ${st}`).join(" · ");
       main.querySelector("#pk-preview").innerHTML = `<section class="card"><h2>From ${esc(v.from || "an unnamed manager")}</h2><p class="quiet">${v.created ? `Made ${BA.fmtDate(v.created)}. ` : ""}${esc(v.about || "")}</p>
           ${v.signed ? (v.verified === true ? '<p><span class="pill good">signed and verified</span> The passphrase matches, so the pack is unchanged since it was signed.</p>' : v.verified === false ? '<p class="callout warn">The passphrase doesn\'t match this pack\'s signature. Check it with the sender before importing.</p>' : '<p class="callout">This pack is signed. Enter the passphrase above and preview again to verify it; importing needs it.</p>') : '<p class="quiet">Not signed.</p>'}</section>
+        ${(() => { const cs = v.kinds.flatMap((k) => k.records.filter((r) => r.check).map((r) => ({ ...r.check, kind: k.key, label: r.label }))); return cs.length ? `<section class="card">${sensitiveChecks(cs, v.kinds.map((k) => ({ key: k.key, label: k.label })), false)}</section>` : ""; })()}
         ${v.kinds.map((k) => `<section class="card"><h2>${esc(k.label)}</h2><p class="quiet">${counts(k)}</p>${k.records.map((r) => `<div class="plan-item" data-imp="${k.key}|${r.uid}" style="padding:8px 0;border-top:1px solid var(--line)">
-          <div class="row" style="align-items:center"><b>${esc(r.label || "")}</b><span class="pill ${STATUS_TONES[r.status]}">${esc(r.status)}</span><span class="spacer"></span>
+          <div class="row" style="align-items:center"><b>${esc(r.label || "")}</b><span class="pill ${STATUS_TONES[r.status]}">${esc(r.status)}</span>${r.check ? `<span class="pill ${r.check.level === "warn" ? "warn" : ""}" title="${esc(r.check.findings.map((f) => f.field.replace(/_/g, " ") + " " + f.reason).join("; "))}">${r.check.level === "warn" ? "second look" : "note"}</span>` : ""}<span class="spacer"></span>
             <select data-action style="max-width:220px">${(r.mine_id ? ["update", "merge", "keep", "copy", "skip"] : ["add", "skip"]).map((a) => `<option value="${a}"${a === r.default ? " selected" : ""}>${ACTION_LABELS[a]}</option>`).join("")}</select></div>
           ${r.diffs.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Field</th><th>Mine</th><th>Theirs</th><th data-merge-col style="display:${r.default === "merge" ? "" : "none"}">Keep</th></tr></thead><tbody>${r.diffs.map((x) => `<tr><td>${esc(x.field.replace(/_/g, " "))}${x.conflict ? ' <span class="pill warn">both changed</span>' : ""}</td><td>${val(x.mine)}</td><td>${val(x.theirs)}</td>
             <td data-merge-col style="display:none"><select data-field="${x.field}" style="max-width:110px"><option value="theirs"${x.conflict ? "" : " selected"}>theirs</option><option value="mine"${x.conflict ? " selected" : ""}>mine</option></select></td></tr>`).join("")}</tbody></table></div>` : ""}
@@ -2471,6 +2499,8 @@
         main.querySelectorAll("[data-imp]").forEach((row) => { const [kind, uid] = row.dataset.imp.split("|"), action = row.querySelector("[data-action]").value;
           const fields = Object.fromEntries([...row.querySelectorAll("select[data-field]")].map((s) => [s.dataset.field, s.value]));
           (decisions[kind] = decisions[kind] || {})[uid] = { action, fields }; });
+        const flagged = v.kinds.flatMap((k) => k.records.filter((r) => r.check?.level === "warn" && !["skip", "keep"].includes(decisions[k.key]?.[r.uid]?.action)));
+        if (flagged.length && !confirm(`You're bringing in ${flagged.length} record${flagged.length === 1 ? "" : "s"} that may carry a judgment about a person or personal information. Keep only what's a fact about work.\n\nBring ${flagged.length === 1 ? "it" : "them"} in anyway?`)) return;
         const r = await BA.api("/api/packs/apply", { method: "POST", body: { pack, decisions, passphrase: main.querySelector("#pk-pass-in").value } });
         main.querySelector("#pk-preview").innerHTML = `<section class="card"><h2>Done</h2><p>${r.added} added, ${r.updated} updated, ${r.copied} added as copies, ${r.kept} kept as they were, ${r.skipped} skipped.</p>
           ${r.unmatched_people.length ? `<p class="quiet">Not found here, so those links were left empty: ${r.unmatched_people.map(esc).join(", ")}.</p>` : ""}<p class="quiet">Recorded in the <a href="#/sharing/log">log</a>.</p></section>`;

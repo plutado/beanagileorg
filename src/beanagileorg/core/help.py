@@ -307,10 +307,10 @@ TOOLKIT = {
     },
     "/sharing": {
         "purpose": "Share a small, chosen part of what you hold with another manager through a pack file, without either of you getting into the other's copy.",
-        "steps": ["Under Export, tick the kinds of record, then the records, then the fields; private fields need their own tick, and some never leave.", "Choose whether links to people go as a name or not at all, review the pack, then download or copy it.",
+        "steps": ["Under Export, tick the kinds of record, then the records, then the fields; private fields need their own tick, and some never leave.", "Choose whether links to people go as a name or not at all, then review the pack. Wording that may judge a person is flagged: rewrite it, leave the record out, or confirm.",
                   "Under Import, open a pack to preview it: new, changed, conflicting and unchanged records, field by field.", "Decide for each record (add, update, keep mine, merge field by field, add as a copy, skip), then apply. The Log keeps every pack in and out."],
-        "privacy": "Hidden while presenting. Packs carry only what you choose; notes and private records never leave.",
-        "related": ["/people", "/sdlc", "/qa", "/coaching"],
+        "privacy": "Hidden while presenting. Packs carry only what you choose; notes, assessments, influence maps and other judgments about people never leave.",
+        "related": ["/people", "/sdlc", "/qa", "/coaching/facts-not-judgments"],
     },
     "/alignment": {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",

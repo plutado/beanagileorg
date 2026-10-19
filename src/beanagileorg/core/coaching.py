@@ -1344,6 +1344,32 @@ GUIDES = [
         ],
         "related": ['/culture', '/sos', '/coaching/your-manager'], "reading": [],
     },
+    {
+        "slug": 'facts-not-judgments', "theme": "culture", "minutes": 4, "since": 50,
+        "title": 'Facts, not judgments, when you share about people',
+        "summary": "What you write about people is for helping them. When anything leaves your hands, keep it to observable facts about work, and leave your opinions of people out.",
+        "why": "Managers note impressions: who seems guarded, who resists, who might leave. Those notes help you lead, but they're partial and they can be wrong. Passed to another manager they harden into a reputation the person never had a chance to answer, and they can breach HR policy or privacy law. Once shared, they can't be taken back.",
+        "practices": [
+            "Describe what happened, not what someone is: \"the release slipped two days after the review was skipped\", never \"careless\".",
+            "Keep health, family, pay, someone's plans to leave and anything said in confidence out of anything you share.",
+            "Share about work and systems: risks, decisions, processes, measures. Keep your read of people in your own notes.",
+            "If another manager needs to understand a person, introduce them, and let them form their own view.",
+            "When the toolkit flags wording for a second look, rewrite it as a fact, or leave the record out.",
+        ],
+        "pitfalls": [
+            "Labels in tags or titles (\"blocker\", \"difficult\") that travel further than the note behind them.",
+            "Sharing a whole roster with private fields because it's quicker than choosing.",
+            "Assuming a quiet word between managers is harmless because it's informal.",
+        ],
+        "questions": [
+            "Would I be comfortable if this person read what I'm about to share?",
+            "Is this something I saw, or something I concluded?",
+        ],
+        "try": [
+            "Before your next pack or roster export, reread every free-text field as if the person it mentions were reading it.",
+        ],
+        "related": ['/sharing', '/people', '/coaching/culture-of-trust'], "reading": [],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -1433,7 +1459,8 @@ TIPS = {
                    ("Repeat your core themes, but vary the words. The exact same lines start to sound like a pitch.", "building-alliances", 45)],
     "/releases": [("Decide go or no-go against the same checks every time: stories done, regression signed off, QA sign-off, every step before production done.", "quality-culture", 46),
                   ("Record how every release went, clean or not. The change failure rate only tells the truth if the bad ones are logged too.", "metrics-without-blame", 46)],
-    "/sharing": [("Share the smallest useful slice: a few records, a few fields. It's easier to add to a pack later than to take something back.", "scrum-of-scrums", 49)],
+    "/sharing": [("Share the smallest useful slice: a few records, a few fields. It's easier to add to a pack later than to take something back.", "scrum-of-scrums", 49),
+                 ("Share facts about work, not judgments about people. If wording is flagged for a second look, rewrite it as something you saw, or leave the record out.", "facts-not-judgments", 50)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
@@ -1548,7 +1575,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 49  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 50  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

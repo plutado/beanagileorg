@@ -17,6 +17,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Level, Viewer
+from beanagileorg.core.sensitivity import JUDGMENT_TABLES, check_record, people_names
 
 from . import models
 from .routes import require_write, today
@@ -62,6 +63,27 @@ class Kind:
         return [{c: r[c] for c in cols} for r in rec.fetch_all(conn, f"{fk} = ?", (rid,))]
 
 
+POLITICS = {"field": "surprise_area", "reason": "is filed under politics, which is often about people", "words": ["politics"]}
+
+
+def _extra(key: str, values: dict) -> list:
+    return [POLITICS] if key == "risks" and values.get("surprise_area") == "politics" else []
+
+
+def pack_checks(conn, pack: dict) -> list[dict]:
+    """Records in a pack that deserve a second look: wording that may judge a person or be personal information."""
+    names = people_names(conn)
+    out = []
+    for key, data in (pack.get("kinds") or {}).items():
+        for rec in data.get("records") or []:
+            people = list((rec.get("people") or {}).values())
+            values = rec.get("values") or {}
+            found = check_record(values, sorted(set(names) | set(people), key=len, reverse=True), people, _extra(key, values))
+            if found:
+                out.append({"kind": key, "uid": rec.get("uid"), "label": values.get(KINDS[key].natural) if key in KINDS else None, **found})
+    return out
+
+
 KINDS = {k.key: k for k in (
     Kind("role_templates", "Role templates", models.role_templates, "name", describe=("name",)),
     Kind("sdlc_policies", "SDLC policies", models.sdlc_policies, "title", people_links=("owner_id",), describe=("category", "status")),
@@ -74,6 +96,10 @@ KINDS = {k.key: k for k in (
     Kind("core_processes", "Core processes", models.core_processes, "name", people_links=("owner_id",), never=("notes", "team_id", "position"), describe=("importance", "aim")),
     Kind("metrics", "Metrics", models.metrics, "name", describe=("unit",), children=("readings", models.metric_readings, "metric_id", ("date", "value"))),
 )}
+
+# Judgments about people never travel, whatever kinds are added later.
+if {k.record.table for k in KINDS.values()} & JUDGMENT_TABLES:
+    raise RuntimeError("A pack kind would carry judgments about people.")
 
 
 def _kind(key: str) -> Kind:
@@ -125,7 +151,7 @@ def kinds(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     return {"kinds": out, "actions": ACTIONS}
 
 
-def build_pack(conn, viewer: Viewer, selection: dict, from_name: str = "", about: str = "", assign: bool = False, passphrase: str = "") -> dict:
+def build_pack(conn, viewer: Viewer, selection: dict, from_name: str = "", about: str = "", assign: bool = False, passphrase: str = "", idmap: dict | None = None) -> dict:
     """Build a pack from a selection: {kind: {ids, fields, private_fields, links: {field: name|drop}}}."""
     if not isinstance(selection, dict) or not selection:
         raise HTTPException(400, "Choose at least one kind of record to share.")
@@ -152,6 +178,8 @@ def build_pack(conn, viewer: Viewer, selection: dict, from_name: str = "", about
                 uid = secrets.token_hex(8)
                 if assign:
                     conn.execute(f"UPDATE {k.record.table} SET pack_uid = ? WHERE id = ?", (uid, rid))
+            if idmap is not None:
+                idmap[(key, uid)] = rid
             rec = {"uid": uid, "values": {c: (k.child_rows(conn, rid) if k.children and c == k.children[0] else r.get(c)) for c in cols}}
             named = {f: names[t].get(r.get(f)) for f, t in k.links.items() if links.get(f, "name") == "name" and r.get(f)}
             if named:
@@ -172,14 +200,22 @@ def build_pack(conn, viewer: Viewer, selection: dict, from_name: str = "", about
 @router.post("/api/packs/review")
 def review(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """What a pack would contain, without writing anything or recording an export."""
-    return build_pack(conn, viewer, body.get("selection") or {}, body.get("from") or "", body.get("about") or "")
+    idmap = {}
+    pack = build_pack(conn, viewer, body.get("selection") or {}, body.get("from") or "", body.get("about") or "", idmap=idmap)
+    return {**pack, "checks": [{**c, "id": idmap.get((c["kind"], c["uid"]))} for c in pack_checks(conn, pack)]}
 
 
 @router.post("/api/packs/export")
 def export(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     pack = build_pack(conn, viewer, body.get("selection") or {}, body.get("from") or "", body.get("about") or "", assign=True, passphrase=body.get("passphrase") or "")
+    warn = [c for c in pack_checks(conn, pack) if c["level"] == "warn"]
+    if warn and not body.get("acknowledged"):
+        raise HTTPException(409, f"{len(warn)} record{'s' if len(warn) != 1 else ''} may carry a judgment about a person or personal information. "
+                                 "Review them, then leave them out or confirm they're fit to share.")
     summary = ", ".join(f"{len(v['records'])} {v['label'].lower()}" for v in pack["kinds"].values())
+    if warn:
+        summary += f"; {len(warn)} caution{'s' if len(warn) != 1 else ''} acknowledged"
     log_export(conn, "pack", f"Pack: {summary}", [r for v in pack["kinds"].values() for r in v["records"]], viewer.source)
     return pack
 
@@ -265,6 +301,7 @@ def inspect(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=D
     pack = body.get("pack")
     kinds_in = _check(pack)
     names = {"people": _ids_by_name(conn, "people"), "teams": _ids_by_name(conn, "teams")}
+    checks = {(c["kind"], c["uid"]): c for c in pack_checks(conn, pack)}
     out = []
     for key, data in kinds_in.items():
         k = KINDS[key]
@@ -273,7 +310,10 @@ def inspect(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=D
             mine = _current(conn, k, _match(conn, k, rec))
             cmp = compare(k, rec, mine)
             people = {f: {"name": n, "found": n.lower() in names[k.links[f]], "kind": k.links[f]} for f, n in (rec.get("people") or {}).items() if f in k.links and n}
-            rows.append({"uid": rec.get("uid"), "label": (rec.get("values") or {}).get(k.natural), "mine_id": mine["id"] if mine else None, **cmp, "people": people})
+            check = checks.get((key, rec.get("uid")))
+            if check and check["level"] == "warn" and cmp["default"] in ("add", "update"):
+                cmp["default"] = "skip" if cmp["status"] == "new" else "keep"  # opt in, never by default
+            rows.append({"uid": rec.get("uid"), "label": (rec.get("values") or {}).get(k.natural), "mine_id": mine["id"] if mine else None, **cmp, "people": people, "check": check})
         out.append({"key": key, "label": k.label, "fields": data.get("fields") or [], "records": rows})
     return {"from": pack.get("from"), "about": pack.get("about"), "created": pack.get("created"), "kinds": out, "actions": ACTIONS,
             "signed": bool(pack.get("signature")), "verified": verified(pack, body.get("passphrase") or "")}

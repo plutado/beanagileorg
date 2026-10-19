@@ -12,6 +12,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 
 from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.privacy import Level, Viewer
+from beanagileorg.core.sensitivity import PERSON_CAUTION, PERSON_NEVER, check_record
 
 from . import models
 from .routes import create_action, require_write
@@ -488,7 +489,9 @@ def advice_network(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn))
 
 
 ROSTER_SHAREABLE = ("role", "relationship")
-ROSTER_PRIVATE = ("tags", "background", "working_style", "support_notes", "start_date")
+ROSTER_PRIVATE = ("tags", "background", "working_style", "start_date")  # support notes can hold health or personal context: never
+if set(ROSTER_SHAREABLE + ROSTER_PRIVATE) & PERSON_NEVER:
+    raise RuntimeError("The roster would carry judgments about people.")
 
 
 def _roster_key(name: str, taken: set) -> str:
@@ -506,8 +509,8 @@ def build_roster(conn, scope: str = "team", include_private: bool = False) -> di
     """People as a roster file in the same format the roster import reads, so a team can move between installs.
 
     By default only names, roles, relationships, reporting lines and team membership go out; private fields
-    (tags, background, working style, support notes, start date) only when asked for. Notes, conversations,
-    feedback and assessments never do.
+    (tags, background, working style, start date) only when asked for. Notes, conversations, feedback, assessments,
+    support notes and every field that records judgment or personal context never do.
     """
     me = me_id(conn)
     people = models.people.fetch_all(conn, "active = 1")
@@ -548,6 +551,26 @@ def build_roster(conn, scope: str = "team", include_private: bool = False) -> di
     return roster
 
 
+def roster_checks(roster: dict) -> list[dict]:
+    """People in a roster whose private fields may carry a judgment or personal information."""
+    out = []
+    for p in roster.get("people") or []:
+        findings = [{"field": f, "reason": why, "words": []} for f, why in PERSON_CAUTION.items() if p.get(f) not in (None, "", [])]
+        found = check_record({f: p.get(f) for f in PERSON_CAUTION if p.get(f)})
+        findings += [x for x in (found or {}).get("findings", []) if x not in findings]
+        if findings:
+            out.append({"name": p["name"], "level": "warn", "findings": findings})
+    return out
+
+
+@router.post("/api/people/roster/check")
+def check_roster(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """What in a roster export deserves a second look before it goes. Writes and records nothing."""
+    scope = body.get("scope") if body.get("scope") in ("team", "everyone") else "team"
+    include_private = bool(body.get("include_private")) and viewer.floor == Level.PRIVATE
+    return {"checks": roster_checks(build_roster(conn, scope, include_private)) if include_private else []}
+
+
 @router.post("/api/people/roster/export")
 def export_roster(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """Export People as a roster file. Shareable fields by default; private ones only when asked, and never in presentation mode."""
@@ -557,5 +580,10 @@ def export_roster(body: dict = Body(default={}), viewer: Viewer = Depends(get_vi
     scope = body.get("scope") if body.get("scope") in ("team", "everyone") else "team"
     include_private = bool(body.get("include_private")) and viewer.floor == Level.PRIVATE
     roster = build_roster(conn, scope, include_private)
-    log_export(conn, "people:roster", f"Roster ({scope}{', with private fields' if include_private else ''})", roster["people"], viewer.source)
+    checks = roster_checks(roster) if include_private else []
+    if checks and not body.get("acknowledged"):
+        raise HTTPException(409, f"Private fields for {len(checks)} {'person' if len(checks) == 1 else 'people'} may carry a judgment or personal information. "
+                                 "Review them first, or export without private fields.")
+    note = f", {len(checks)} cautions acknowledged" if checks else ""
+    log_export(conn, "people:roster", f"Roster ({scope}{', with private fields' if include_private else ''}{note})", roster["people"], viewer.source)
     return roster

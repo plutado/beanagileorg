@@ -30,7 +30,11 @@ def test_roster_round_trip(tmp_path):
     assert names["[Engineer 1]"]["reports_to"] == "me" and names["[Engineer 1]"]["on_team"] and names["[Engineer 1]"]["placeholder"]
     assert "tags" not in names["[Engineer 1]"] and "background" not in names["[Engineer 1]"]
     assert names["[Me]"]["reports_to"] == names["[Boss]"]["key"]
-    full = a.post("/api/people/roster/export", json={"scope": "everyone", "include_private": True}).json()
+    held = a.post("/api/people/roster/export", json={"scope": "everyone", "include_private": True})
+    assert held.status_code == 409  # tags and background may carry judgments: a second look first
+    checks = a.post("/api/people/roster/check", json={"scope": "everyone", "include_private": True}).json()["checks"]
+    assert [c["name"] for c in checks] == ["[Engineer 1]"] and {f["field"] for f in checks[0]["findings"]} == {"tags", "background"}
+    full = a.post("/api/people/roster/export", json={"scope": "everyone", "include_private": True, "acknowledged": True}).json()
     eng = next(p for p in full["people"] if p["name"] == "[Engineer 1]")
     assert len(full["people"]) == 4 and eng["tags"] == ["[tag]"] and eng["background"] == "[Private]"
     assert any(e["kind"] == "people:roster" for e in a.get("/api/exports").json())
