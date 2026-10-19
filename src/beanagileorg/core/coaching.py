@@ -143,12 +143,15 @@ GUIDES = [
             "Read the mood and work on it. A struggling team needs a concrete plan and a reason to believe; a comfortable one needs to see the problem; a new effort needs focus; a successful one needs a new challenge.",
             "Put on your historian's hat: you can't decide where to take a team without knowing how it got here.",
             "Use this at any level. A project, a product launch or a system rollout can be a start-up, a turnaround or a realignment just as a whole company can.",
+            "Treat it as a portfolio: sort each product, process, project, system and team into its situation, decide how much of your effort each gets, and use that picture with your manager and team.",
+            "Check your preferences. If the situation you enjoy most is getting the most effort, make sure that's what the work needs.",
         ],
         "pitfalls": [
             "Assuming the team needs fixing because you were hired.",
             "Ignoring signs of real trouble to avoid seeming negative.",
             "Applying one plan to every part of a mixed situation.",
             "Bringing the playbook from your last situation: a fast turnaround style can do damage where people need to be convinced first.",
+            "Treating a realignment as a turnaround. Radical moves where people don't yet see the problem breed resistance, active and passive, and leave an outsider isolated.",
         ],
         "questions": [
             "If I changed nothing for a month, what would get worse?",

@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Situation portfolio. Each area records what kind of piece it is (product, process, project, system, team) and its share of your effort over the next 90 days. A portfolio view groups areas by situation with pace and effort, warns when effort doesn't total 100%, flags when your favorite kind of situation is getting the most effort, works in presentation mode and copies as Markdown. Guide practices on the portfolio and on not treating a realignment as a turnaround; 246 tests
+
 - [x] 2026-10-18: Situation challenges and opportunities. Each kind of situation lists its typical challenges and opportunities (after the STARS table, in our own words), shown in the guide and beside each area, and each area gains an "Opportunities I see" field; 245 tests
 
 - [x] 2026-10-18: Situation, chapter 3. Each kind of situation now shows its usual mood, the leader's job with that mood and its pace (ready-fire-aim or ready-aim-fire). Each area records how it got here and the mood you see, and the Situation tab warns when areas need different paces. The Read the situation guide gains practices on pace, mood, history and using the model at any level; 245 tests

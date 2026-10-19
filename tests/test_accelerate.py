@@ -144,3 +144,15 @@ def test_situation_guide_mood_pace_and_history(client):
     assert all(g[k]["challenges"] and g[k]["opportunities"] for k in g)
     s = client.post("/api/situations", json={"area": "[Placeholder area]", "kind": "turnaround", "history": "[Placeholder]", "mood": "[Placeholder]", "opportunities": "[Placeholder]"}).json()
     assert s["history"] == "[Placeholder]" and s["mood"] == "[Placeholder]"
+
+
+def test_situation_portfolio_and_preference_check(client):
+    client.post("/api/situations", json={"area": "[Area A]", "kind": "turnaround", "element": "process", "effort": 60})
+    client.post("/api/situations", json={"area": "[Area B]", "kind": "realignment", "effort": 30})
+    client.post("/api/situations", json={"area": "[Area C]"})
+    p = client.get("/api/situations/portfolio").json()
+    assert p["total"] == 90 and [a["area"] for a in p["undecided"]] == ["[Area C]"] and p["preference_check"] is False
+    assert client.put("/api/situations/preferred", json={"kind": "nope"}).status_code == 400
+    client.put("/api/situations/preferred", json={"kind": "turnaround"})
+    p = client.get("/api/situations/portfolio").json()
+    assert p["preferred"] == "turnaround" and p["preference_check"] is True

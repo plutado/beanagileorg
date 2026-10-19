@@ -286,6 +286,39 @@ def situation_guide(viewer: Viewer = Depends(get_viewer)):
                 "challenges": SITUATION_FACTORS[k][0], "opportunities": SITUATION_FACTORS[k][1]} for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
 
 
+PREFERRED_KEY = "first90.preferred_situation"
+
+
+@router.get("/api/situations/portfolio")
+def portfolio(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Your areas sorted into the five situations, with the share of your effort each gets over the next 90 days.
+    A check that the situation you enjoy most isn't quietly getting the most effort."""
+    areas = models.situations.visible_all(models.situations.fetch_all(conn), viewer)
+    kinds = list(models.SITUATION_KINDS)
+    groups = {k: [a for a in areas if a.get("kind") == k] for k in kinds}
+    effort = {k: sum(a.get("effort") or 0 for a in groups[k]) for k in kinds}
+    total = sum(effort.values())
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (PREFERRED_KEY,)).fetchone()
+    preferred = row["value"] if row and viewer.floor == Level.PRIVATE else None
+    top = max(kinds, key=lambda k: effort[k]) if total else None
+    return {"groups": [{"kind": k, "areas": groups[k], "effort": effort[k]} for k in kinds],
+            "undecided": [a for a in areas if not a.get("kind")], "total": total, "preferred": preferred,
+            "preference_check": bool(preferred and top == preferred and len([k for k in kinds if effort[k]]) > 1)}
+
+
+@router.put("/api/situations/preferred")
+def put_preferred(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    k = body.get("kind")
+    if k and k not in models.SITUATION_KINDS:
+        raise HTTPException(400, "Unknown situation.")
+    if k:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (PREFERRED_KEY, k))
+    else:
+        conn.execute("DELETE FROM settings WHERE key = ?", (PREFERRED_KEY,))
+    return {"preferred": k}
+
+
 @router.post("/api/situations/starter", status_code=201)
 def situation_starter(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)

@@ -116,6 +116,7 @@ LEARNING_AREAS = ("business", "past", "present", "future", "people", "culture", 
 LEARNING_STATUS = ("open", "answered", "dropped")
 HYPOTHESIS_VERDICTS = ("testing", "supported", "disproved", "mixed")
 SITUATION_KINDS = ("start-up", "turnaround", "accelerated growth", "realignment", "sustaining success")
+SITUATION_ELEMENTS = ("product", "process", "project", "system", "team")
 PRACTICE_STATUS = ("shared", "trying", "adopted", "dropped")
 MANDATE_ITEM_KINDS = ("outcome", "decision")
 AUTHORITY = ("to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine")
@@ -1454,6 +1455,13 @@ MIGRATIONS = [
         35,
         """
         ALTER TABLE situations ADD COLUMN opportunities TEXT;
+        """,
+    ),
+    (
+        36,
+        """
+        ALTER TABLE situations ADD COLUMN element TEXT;
+        ALTER TABLE situations ADD COLUMN effort INTEGER;
         """,
     ),
 ]
@@ -3267,6 +3275,8 @@ situations = Record(
     fields={
         "area": Field("text", S, required=True),
         "kind": Field("text", S, choices=SITUATION_KINDS),
+        "element": Field("text", S, choices=SITUATION_ELEMENTS),
+        "effort": Field("int", S),
         "evidence": Field("text", P),
         "history": Field("text", P),
         "mood": Field("text", P),
