@@ -222,6 +222,10 @@ GUIDES = [
         "summary": "Pick a few visible improvements that solve real problems people already feel, and deliver them well.",
         "why": "Early wins give people a reason to believe change is possible and give you the credibility to take on harder work. The wrong early win, one that ignores how the team works or solves a problem nobody has, costs more than it earns.",
         "practices": [
+            "Focus on a few. You can deliver results in only a couple of areas during a transition; pick enough to be sure of one real success, and no more.",
+            "Make sure some wins matter to your manager, even if their priorities aren't exactly yours.",
+            "Win in the right way. A result reached in a way that clashes with the culture, or with the behavior you're asking for, costs more than it gains.",
+            "Fit wins to the situation and the culture. In a realignment, getting people talking about the problem can be the win; in a team-first culture, solo glory reads as grandstanding.",
             "Plan change in waves: learn, design, build support, implement, observe results, then consolidate before the next wave. Early wins are the first wave; deeper changes to systems and skills come next.",
             "Make every early win do double duty: it should serve a goal you've agreed with your manager and start to shift a behavior the team needs to change.",
             "Name the behaviors that stand in the way (lack of focus, discipline, innovation, teamwork or urgency) and how you want people to work by the end of your time in the role.",
@@ -283,6 +287,11 @@ GUIDES = [
         "summary": "Teams that have lost people and leaders before will wait to see if you're different. Consistency wins them over.",
         "why": "After turnover, people are tired of new leaders with new plans. Trust comes from small promises kept, honest answers and showing that you've listened before you change things.",
         "practices": [
+            "Know the reputation that arrives ahead of you, and decide whether to confirm it or confound it. People notice what fits their picture and miss what doesn't.",
+            "Credibility comes from balance: demanding but able to be satisfied, accessible but not too familiar, decisive but judicious, focused but flexible, active without commotion, and tough but humane.",
+            "Plan how you'll engage in your first days: a few messages per audience about who you are, and the best way to reach each.",
+            "Remove small, persistent irritants quickly. Shortening a pointless meeting can earn more trust than a big speech.",
+            "Look for teachable moments: a question, a decision or a response that shows what you stand for. Early actions become stories.",
             "Make small promises and keep every one of them.",
             "Say what you heard in the listening tour, back to the team, before you announce changes.",
             "Be honest about what you don't know and what you can't change.",
@@ -959,6 +968,35 @@ GUIDES = [
         ],
         "related": ["/first90/learning", "/people", "/culture", "/onboarding", "/coaching/learn-fast"], "reading": [F90],
     },
+    {
+        "slug": "leading-former-peers", "theme": "transition", "minutes": 5, "since": 28,
+        "title": "Leading former peers",
+        "summary": "Being promoted over the people you worked beside changes every relationship. Accept it early, mark the change clearly, and make your decisions plainly about what's good for the work.",
+        "why": "Former peers know you well in your old role and may expect you to stay the same. Some wanted the job. Everyone is watching for favoritism. Handled well, the knowledge you share becomes an advantage; handled badly, it becomes the thing that undermines you.",
+        "practices": [
+            "Accept that relationships have to change. Close friendships rarely survive becoming someone's manager unchanged.",
+            "Mark the transition: ask your manager to introduce you to the team in your new role and hand over clearly.",
+            "Expect disappointed colleagues to need time. Talk with each one, and work out who can work with you and who can't.",
+            "Establish your authority carefully: neither too strong nor too timid. On key issues, consult first and then decide, while people adjust.",
+            "Be relentlessly principled about doing what's right for the business, so nobody can read your decisions as favors.",
+            "Expect early tests of your authority, and meet them firmly and fairly.",
+        ],
+        "pitfalls": [
+            "Trying to stay one of the gang.",
+            "Over-correcting by being harsh with old friends to prove you're fair.",
+            "Avoiding the conversation with the colleague who wanted your job.",
+        ],
+        "questions": [
+            "Which relationships will have to change, and have I said so?",
+            "Who wanted this role, and how are they doing?",
+            "Would anyone read my last decision as a favor?",
+        ],
+        "try": [
+            "Have a one-on-one with each former peer this week about how working together will change.",
+            "Ask your manager to introduce you formally to the team in your new role.",
+        ],
+        "related": ["/first90", "/people", "/coaching/earning-trust"], "reading": [F90],
+    },
     # ---------------------------------------------------------------- culture and trust
     {
         "slug": 'culture-of-trust', "theme": "culture", "minutes": 6, "since": 6,
@@ -1238,12 +1276,18 @@ REFLECTION_PHASES = [
         "What surprised me this week?",
         "Who did I meet who I want to learn more from?",
         "Where did I talk when I should have listened?",
+        "Was I demanding this week, and did I also notice and celebrate what went well?",
+        "Was I accessible without becoming one of the gang?",
     ]),
     ("Weeks 2 to 4", 8, 30, [
         "What pattern am I starting to see in what people tell me?",
         "Which of my early impressions has changed?",
         "What's one thing I said I'd do that I haven't done yet?",
         "Where did I hold back my view when it would have helped?",
+        "Did I decide the small things quickly and hold off on the big ones until I knew enough?",
+        "Did I stay focused on the key issues while leaving room for other people's ideas?",
+        "Did I keep things moving without wearing people out?",
+        "If I made a hard call, did I make it in a way people saw as fair and humane?",
     ]),
     ("Days 31 to 60", 31, 60, [
         "Is my first early win on track? What's in the way?",
@@ -1285,7 +1329,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 27  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 28  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

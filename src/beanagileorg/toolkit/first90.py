@@ -347,3 +347,32 @@ def put_report_conversation(person_id: int, topic: str, body: dict = Body(...), 
     saved.setdefault(str(person_id), {})[topic] = {"status": status, "priority": bool(body.get("priority"))}
     _put(conn, REPORT_CONV_KEY, saved)
     return saved[str(person_id)][topic]
+
+
+# ---- how you'll engage in your first days ----
+# Who you're introducing yourself to, what you want them to know about who you are (not your plans yet), and how.
+
+ENGAGE_KEY = "first90.engagement"
+ENGAGE_MODES = ("one-on-one", "group", "video", "written", "walk around")
+STARTER_ENGAGEMENT = [
+    {"audience": "My team", "messages": "", "mode": "one-on-one", "when": "Week 1"},
+    {"audience": "Peers and other managers", "messages": "", "mode": "one-on-one", "when": "Weeks 1 to 2"},
+    {"audience": "The wider engineering group", "messages": "", "mode": "video", "when": "Week 1"},
+    {"audience": "Business stakeholders", "messages": "", "mode": "written", "when": "Weeks 1 to 3"},
+]
+
+
+@router.get("/api/first90/engagement")
+def engagement(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    rows = _setting(conn, ENGAGE_KEY, None)
+    return {"rows": rows if rows is not None else STARTER_ENGAGEMENT, "modes": list(ENGAGE_MODES), "saved": rows is not None}
+
+
+@router.put("/api/first90/engagement")
+def put_engagement(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    rows = [{k: str(r.get(k) or "").strip() for k in ("audience", "messages", "mode", "when")} for r in (body.get("rows") or []) if isinstance(r, dict) and str(r.get("audience") or "").strip()][:20]
+    _put(conn, ENGAGE_KEY, rows)
+    return {"rows": rows}

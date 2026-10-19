@@ -122,3 +122,11 @@ def test_five_conversations_with_reports(client):
     assert client.put(f"/api/first90/report-conversations/{r}/nope", json={}).status_code == 404
     row = next(x for x in client.get("/api/first90/report-conversations").json()["reports"] if x["id"] == r)
     assert row["cells"]["situation"] == {"status": "settled", "priority": True} and row["cells"]["style"]["status"] == "not started"
+
+
+def test_engagement_plan(client):
+    e = client.get("/api/first90/engagement").json()
+    assert len(e["rows"]) == 4 and e["saved"] is False
+    client.put("/api/first90/engagement", json={"rows": [{"audience": "[Audience]", "messages": "[Placeholder]", "mode": "video", "when": "[Week 1]"}, {"audience": ""}]})
+    e = client.get("/api/first90/engagement").json()
+    assert e["saved"] is True and [r["audience"] for r in e["rows"]] == ["[Audience]"]

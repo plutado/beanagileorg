@@ -64,7 +64,7 @@ TOOLKIT = {
         "purpose": "Your first 90 days, each new hire's, and the team you inherit, side by side by day: for them it's the first 90 days with a new manager who is bringing change.",
         "steps": ["Set your start date in Settings and pick your own record under People, so the team and the day count are known.",
                   "Give your inherited team their milestones: first one-on-one, career conversation, growth goal, feedback both ways, a day-90 check-in.",
-                  "Write 'Working with me' and share it in week one: how you work, what you've been asked to do, what you'll change and protect.",
+                  "Write 'Working with me' and share it in week one: how you work, what you've been asked to do, what you'll change and protect. Plan how you'll engage each audience in your first days.",
                   "Add each change you're bringing. Announce it, try it for a set time, review it with the team, then keep or drop it.",
                   "Hold check-ins at days 30, 60 and 90: a trust pulse, what you heard, and what changed because of it.",
                   "Under Mandates, write down what your role is for, what it must deliver and what you can decide, then agree it with your manager. Do the same with each report.",

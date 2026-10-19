@@ -2249,10 +2249,11 @@
         <datalist id="plan-themes">${themeNames.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
         <section class="card"><div class="row"><h2>Plans for the first six months</h2><span class="spacer"></span>
           ${ro ? "" : `<button class="btn" id="copy-outline">Copy outline as Markdown</button>`}</div>
-          <p class="quiet">${d.start_date ? `Starting ${BA.fmtDate(d.start_date)}.` : 'Set the contract start date in <a href="#/me">My development</a> to turn days into dates.'}
+          <p class="quiet">${d.start_date ? `Starting ${BA.fmtDate(d.start_date)}.` : 'Set your start date in <a href="#/me">My development</a> once it\'s confirmed, to turn days into dates.'}
             Built from the listening tour: ${ev.done} conversation${ev.done === 1 ? "" : "s"} done${ev.planned ? `, ${ev.planned} still planned` : ""}. The Comms studio can turn the outline into a deck.</p>
           ${ro ? "" : `<form id="presented" class="row"><input type="date" name="presented_on" value="${BA.today()}" style="max-width:170px"><input name="audience" placeholder="Who you presented to" style="max-width:260px">
             <button class="btn" type="submit">Mark all presented</button></form>`}</section>
+        ${(() => { const open = d.horizons.flatMap((h) => h.items).filter((i) => i.early_win && ["planned", "in progress"].includes(i.status)); return !ro && open.length > 3 ? `<p class="callout warn">${open.length} early wins are open at once. You can only deliver results in a couple of areas during a transition; pick the most promising few and treat the rest as later or supporting work.</p>` : ""; })()}
         <div class="plan-layout"><div class="plan-horizons">${d.horizons.map(horizon).join("")}
           ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">For a finer step (a two-week check-in) or a longer view (month 9, month 12). Each plan runs from the day after the one before it.</p>
             <form id="add-plan" class="row"><input name="title" placeholder="Name, such as Month 9" required style="max-width:260px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" required style="max-width:90px"></label><button class="btn primary" type="submit">Add plan</button></form></section>`}</div>
@@ -4807,14 +4808,21 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   }
 
   async function renderWorking(main) {
-    const d = await BA.api("/api/first90/working-with-me");
+    const [d, eg] = await Promise.all([BA.api("/api/first90/working-with-me"), BA.api("/api/first90/engagement")]);
     const ro = presenting();
+    const egCard = ro || eg.hidden ? "" : `<form id="eng" class="card"><h2>How I'll engage in the first days</h2><p class="quiet">Early actions shape how people see you, and they turn into stories. For each audience, a few messages about who you are, what you value and how you work (not your plans yet), and how you'll reach them.</p>
+      <div class="tablewrap"><table class="data"><thead><tr><th>Audience</th><th>What I want them to know about me</th><th>How</th><th>When</th></tr></thead><tbody>${[...eg.rows, {}].map((r) => `<tr class="eng-row"><td><input name="audience" value="${esc(r.audience || "")}" placeholder="Another audience"></td><td><textarea name="messages" rows="2">${esc(r.messages || "")}</textarea></td><td><select name="mode"><option value=""></option>${opts(eg.modes, r.mode || "")}</select></td><td><input name="when" value="${esc(r.when || "")}" style="max-width:120px"></td></tr>`).join("")}</tbody></table></div>
+      <p class="quiet">Also look for small, persistent irritants you can remove quickly, and for teachable moments that show what you're about.</p>
+      <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`;
     main.innerHTML = `${f90Tabs("working")}
+      ${egCard}
       <section class="card working-doc">${d.text ? BA.md(d.text) : '<p class="quiet">Not written yet.</p>'}</section>
       ${ro ? "" : `<form id="ww" class="card"><h2>Edit</h2><p class="quiet">A page about how you work, what you've been asked to do, and how you'll bring change, in your own words. Share it in week one and ask what they'd add. It can be shown while presenting.</p>
         <textarea name="text" rows="20">${esc(d.text || "")}</textarea>
         <div class="actions">${d.text ? '<button class="btn left" type="button" id="ww-copy">Copy Markdown</button>' : '<button class="btn left" type="button" id="ww-starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}`;
     if (ro) return;
+    const eng = main.querySelector("#eng");
+    if (eng) eng.onsubmit = BA.guard(async (e) => { e.preventDefault(); const rows = [...eng.querySelectorAll(".eng-row")].map((r) => ({ audience: r.querySelector('[name="audience"]').value, messages: r.querySelector('[name="messages"]').value, mode: r.querySelector('[name="mode"]').value, when: r.querySelector('[name="when"]').value })); await BA.api("/api/first90/engagement", { method: "PUT", body: { rows } }); BA.toast("Saved."); BA.rerender(); });
     const form = main.querySelector("#ww");
     form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/first90/working-with-me", { method: "PUT", body: { text: form.elements.text.value } }); BA.toast("Saved."); BA.rerender(); });
     const st = main.querySelector("#ww-starter");

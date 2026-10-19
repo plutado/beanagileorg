@@ -12,6 +12,7 @@ Nothing right now.
 
 In priority order:
 
+- [ ] **Agile reference (#14):** every Scrum role, event, artifact and commitment, common practices around them, and SAFe concepts, each in original words with how the team does it here, links to where the toolkit supports it, and a view of which the team practices today. Links to the official Scrum Guide rather than copying it.
 - [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
 ## Toolkit, later versions
@@ -98,7 +99,7 @@ In priority order:
   - A short training path: install, first-week setup (roster, mandate, First 90 days), and the weekly rhythm (work log, reports, Scrum of Scrums).
   - Whose device and whose data: each manager's data stays on their own machine, under the same privacy levels.
 
-## Async, one-to-many communication (from David's stated style, 2026-10-17)
+## Async, one-to-many communication (from the author's stated style, 2026-10-17)
 
 - [ ] Track async asks: who each pitch went to, who has responded, and what was decided, with follow-ups on Today; replies to a pitch can become decisions or dev-sync items
 - [ ] Video hosting and delivery (raised 2026-10-17, undecided). Options to weigh in a spec before building:
@@ -136,6 +137,8 @@ In priority order:
 - [x] 2026-10-18: LICENSE copyright holder filled in
 
 ## Done
+
+- [x] 2026-10-18: Credibility and engagement. A first-days engagement plan on Working with me (audience, what you want them to know about you, how, when). Plans warn when more than three early wins are open. Six credibility prompts in the reflection journal. Early wins and Earning trust guides gain the book's principles; a new Leading former peers guide. A test now syntax-checks every app script; 258 tests
 
 - [x] 2026-10-18: Early wins, chapter 5. Early wins link to the agreed outcome they serve and the behavior they start to change, flagged when they serve none. Behaviors to change under Culture and trust (lack of focus, discipline, innovation, teamwork, urgency, after Table 5-1 in our own words). Changes I'm bringing gain a wave and a warning when more than three are under way. Early wins guide on waves, double duty and the low-hanging fruit trap. Also fixed First 90 days milestones that couldn't be unticked; 252 tests
 
