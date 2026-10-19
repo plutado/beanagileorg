@@ -1530,6 +1530,13 @@ MIGRATIONS = [
         ALTER TABLE people ADD COLUMN change_agent INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        44,
+        """
+        ALTER TABLE team_changes ADD COLUMN readiness TEXT;
+        ALTER TABLE culture_reads ADD COLUMN keep TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -3102,6 +3109,7 @@ culture_reads = Record(
         "ends_means": Field("text", P),
         "power": Field("text", P),
         "adapt_or_change": Field("text", P),
+        "keep": Field("text", P),
     },
     hide_when_empty=True,
 )
@@ -3263,6 +3271,7 @@ team_changes = Record(
         "what_changes": Field("text", S),
         "how_we_try": Field("text", S),
         "wave": Field("int", S),
+        "readiness": Field("json", S),  # the five planks for planned change: awareness, diagnosis, vision, plan, support
         "status": Field("text", S, choices=CHANGE_STATUS, default="idea"),
         "announced_on": Field("date", S),
         "trial_start": Field("date", S),

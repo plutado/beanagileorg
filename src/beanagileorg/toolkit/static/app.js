@@ -4531,7 +4531,8 @@
       ["ends_means", "Ends and means", "Do results excuse how they were reached, or are the methods held to a standard too? Are the stated values backed by real consequences, good and bad?"],
     ]],
     ["Assumptions underneath", [["power", "Power and authority", "Does authority come with the position, with seniority, or from the ability to persuade and build consensus?"]]],
-    ["So what", [["adapt_or_change", "Adapt or change", "Where will I adapt, and where will I deliberately work to change things? Say why."]]],
+    ["So what", [["keep", "What's good here", "The parts of this culture to keep and praise. They're the bridge that carries people from the old way to the new."],
+      ["adapt_or_change", "Adapt or change", "Where will I adapt, and where will I deliberately work to change things? Say why."]]],
   ];
 
   async function renderCultureMap(main) {
@@ -4862,6 +4863,20 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     });
   }
 
+  // Can this change simply be planned and implemented? After Figure 5-2 in The First 90 Days: each plank that's missing
+  // calls for collective learning first, in this order.
+  const PLANKS = [["awareness", "Awareness", "Enough people see the need for change", "Raise awareness and overcome denial: share data, outside benchmarks and customer views"],
+    ["diagnosis", "Diagnosis", "The problem or opportunity is well understood", "Diagnose root causes together with the people closest to the work"],
+    ["vision", "Vision", "There's a clear picture of the new way of working", "Envision it together: a session to design how the new way should work"],
+    ["plan", "Plan", "There's a detailed plan for putting it in place", "Plan it together, with everyone the change touches"],
+    ["support", "Support", "A critical mass of support for carrying it out", "Build the coalition: bring opinion leaders and peers on board"]];
+  const readinessBlock = (c, ro) => {
+    const r = c.readiness || {};
+    const next = PLANKS.find(([k]) => !r[k]);
+    return `<div class="readiness"><p class="quiet"><b>Ready to plan and implement?</b> ${next ? `Not yet. <b>Next:</b> ${esc(next[3])}.` : "Yes: all five are in place, so plan it and put it in."}</p>
+      <div class="row" style="flex-wrap:wrap;gap:10px">${PLANKS.map(([k, l, q]) => `<label class="check" title="${esc(q)}"><input type="checkbox" data-plank="${k}"${r[k] ? " checked" : ""}${ro ? " disabled" : ""}> ${l}</label>`).join("")}</div></div>`;
+  };
+
   async function renderF90Changes(main) {
     const list = await BA.api("/api/team-changes");
     const ro = presenting();
@@ -4876,6 +4891,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; if (form.elements.wave) o.wave = f.get("wave") ? Number(f.get("wave")) : null; o.review_on = f.get("review_on") || null; return o; };
     const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b><span class="quiet">${esc(c.area)}${c.wave ? ` · wave ${c.wave}` : ""}</span><span class="spacer"></span>
         <span class="quiet">${c.status === "trial" && c.review_on ? `review ${BA.fmtDate(c.review_on)}` : c.decided_on ? BA.fmtDate(c.decided_on) : c.trial_start ? `trial from ${BA.fmtDate(c.trial_start)}` : c.announced_on ? `announced ${BA.fmtDate(c.announced_on)}` : ""}</span></summary>
+      ${readinessBlock(c, ro)}
       ${c.why ? `<p><b>Why:</b> ${esc(c.why)}</p>` : ""}${c.what_changes ? `<p><b>What changes:</b> ${esc(c.what_changes)}</p>` : ""}${c.how_we_try ? `<p><b>How we'll try it:</b> ${esc(c.how_we_try)}</p>` : ""}
       ${c.team_feedback ? `<p><b>What the team said:</b> ${esc(c.team_feedback)}</p>` : ""}${c.outcome ? `<p><b>Outcome:</b> ${esc(c.outcome)}</p>` : ""}
       ${ro ? "" : `<div class="actions">${NEXT_STAGE[c.status] ? `<button class="btn primary" data-next="${NEXT_STAGE[c.status][0]}">${NEXT_STAGE[c.status][1]}</button>` : ""}
@@ -4906,6 +4922,11 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       })));
       const form = det.querySelector("form");
       form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/team-changes/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      det.querySelectorAll("[data-plank]").forEach((cb) => (cb.onchange = BA.guard(async () => {
+        const readiness = Object.fromEntries([...det.querySelectorAll("[data-plank]")].map((x) => [x.dataset.plank, x.checked]));
+        await BA.api(`/api/team-changes/${id}`, { method: "PATCH", body: { readiness } });
+        const box = det.querySelector(".readiness"); box.outerHTML = readinessBlock({ readiness }, false);
+        det.querySelectorAll("[data-plank]").forEach((x) => (x.onchange = cb.onchange)); })));
       det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this change? Dropping it keeps the record.")) return; await BA.api(`/api/team-changes/${id}`, { method: "DELETE" }); BA.rerender(); });
     });
   }

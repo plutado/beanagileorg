@@ -827,6 +827,10 @@ GUIDES = [
             "Keep every change visible in one place, with where it stands.",
             "Give each person their own first 90 days with you: a first one-on-one, a career conversation, a growth goal and feedback both ways.",
             "Fit team changes to the situation. In a realignment, make a few high-payoff changes and promote promising people from within; it shows you value the team's strengths, not only its gaps.",
+            "Decide between planning and learning. Plan and implement only when people see the need, the problem is understood, the new way is clear, a plan exists and enough people support it. Where any of those is missing, build it together first.",
+            "Where people don't see the need, chip away rather than charge: share data and outside benchmarks, show how others work, and invite people to imagine better ways.",
+            "The means matter as much as the ends. Make the way you get early wins model the behavior you want.",
+            "Don't throw out the whole culture. Name what's good in it, praise it, and use it as the bridge from the old way to the new.",
         ],
         "pitfalls": [
             "Arriving with the answers and changing everything in the first month.",
@@ -1340,7 +1344,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 31  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 32  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

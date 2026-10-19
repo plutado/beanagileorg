@@ -130,3 +130,10 @@ def test_engagement_plan(client):
     client.put("/api/first90/engagement", json={"rows": [{"audience": "[Audience]", "messages": "[Placeholder]", "mode": "video", "when": "[Week 1]"}, {"audience": ""}]})
     e = client.get("/api/first90/engagement").json()
     assert e["saved"] is True and [r["audience"] for r in e["rows"]] == ["[Audience]"]
+
+
+def test_change_readiness_and_culture_keep(client):
+    c = client.post("/api/team-changes", json={"title": "[Change]", "readiness": {"awareness": True, "diagnosis": False}}).json()
+    assert c["readiness"] == {"awareness": True, "diagnosis": False}
+    r = client.post("/api/culture-reads", json={"unit": "[Unit]", "keep": "[Placeholder]"}).json()
+    assert r["keep"] == "[Placeholder]"

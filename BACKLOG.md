@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Planning versus learning. Each change you're bringing has a readiness check on the five planks (awareness, diagnosis, vision, plan, support, after Figure 5-2 in our own words) that names the next step: build the first missing piece together, or plan and implement once all five are in place. The culture map gains What's good here, to keep and praise. Leading change guide practices on planning versus learning, chipping away at denial, means and ends, and keeping the culture's good parts; 268 tests
+
 - [x] 2026-10-18: Early win projects and change agents. FOG LAMP project plans on early wins (after Table 5-3, in our own words) with a lead and team; change agents flagged on People, listed on The team I inherit and offered first as leads; two starter learning questions on focal points and change agents; Early wins guide practices, including running projects the Scrum way. Also: Scrum event timeboxes scaled to the team's sprint length, two weeks by default; 267 tests
 
 - [x] 2026-10-18: The Scrum Guide in the toolkit. Import the official guide from scrumguides.org into your own data (with a curl fallback for Pythons that can't verify certificates), or paste it; read it by section with its CC BY-SA attribution; the Scrum tab opens with the guide's definition of Scrum plus any definitions you add; one click plans four team reading sessions in Group learning. The text lives in user data, never in the MIT code; 264 tests
