@@ -11,7 +11,6 @@ Nothing right now.
 ## Next up
 
 In priority order:
-- [ ] Person-by-person team assessment (waiting on the next chapter 7 passage on how to assess people)
 
 - [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
@@ -138,6 +137,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Assessing the team (#15). My evaluation criteria under My development (Table 7-1: 100 points across six criteria, a threshold, reflection, kept over time) and a private assessment of each inherited person on First 90 days: first impression kept as written, considered view on the six criteria with evidence, weighted score, threshold flag, placement and group role, with a warning when views are missing before the conclusions deadline (migration 52). Guide practices; tips on First 90 days and My development; 280 tests
 - [x] 2026-10-19: Building the team. First 90 days gains team decision deadlines with Today reminders, a two-track view of alignment and team building (after Figure 7-1) with an out-of-step warning, and key people with a reminder to recognize them early (migration 51). New guide, Building the team you inherit; tips on People and Group learning; 279 tests
 - [x] 2026-10-19: Skill bases. Skills and learning gains the four kinds of knowledge, skills each core process needs with coverage, gaps and underused resources with plans, and where to go for outside knowledge (migration 50). The alignment page answers the six closing questions from the check. Guide practices; tips on Skills and Culture; 278 tests
 - [x] 2026-10-19: Core processes. A new page lists the team's processes with owner, importance, aim (execution or innovation), ratings on productivity, timeliness, reliability and quality linked to metrics, a focus-now limit of three, and a swimlane workflow map (after Figure 6-2) that can start from the SDLC; bottlenecks and failing handoffs become dev-sync items or risks (migration 49). Guide practices; tips on Core processes and SDLC; 277 tests

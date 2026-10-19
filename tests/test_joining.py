@@ -153,3 +153,21 @@ def test_team_plan_and_key_people(client):
     assert [x["id"] for x in client.get("/api/today").json()["first90"]["unrecognized"]] == [p["id"]]
     client.post("/api/manager-notes", json={"person_id": p["id"], "date": date.today().isoformat(), "note": "[Placeholder praise]", "kind": "praise"})
     assert client.get("/api/today").json()["first90"]["unrecognized"] == []
+
+
+def test_criteria_and_team_assessment(client):
+    w = {"competence": 30, "judgment": 20, "energy": 10, "focus": 10, "relationships": 10, "trust": 20}
+    assert client.post("/api/team-assessment/criteria", json={"weights": {**w, "trust": 25}, "threshold": "trust"}).status_code == 400
+    assert client.post("/api/team-assessment/criteria", json={"weights": w}).status_code == 400
+    assert client.post("/api/team-assessment/criteria", json={"weights": w, "threshold": "trust"}).status_code == 201
+    me = client.post("/api/people", json={"name": "[Placeholder me]"}).json()["id"]
+    client.put("/api/people/me", json={"person_id": me})
+    p = client.post("/api/people", json={"name": "[Placeholder name 1]", "manager_id": me}).json()["id"]
+    r = client.put(f"/api/team-assessment/{p}", json={"first_impression": "[Placeholder first read]"}).json()
+    assert r["first_on"]
+    again = client.put(f"/api/team-assessment/{p}", json={"first_impression": "[Rewritten]", "ratings": {"competence": {"score": 5}, "trust": {"score": 2}}, "considered_on": date.today().isoformat()}).json()
+    assert again["first_impression"] == "[Placeholder first read]"
+    o = client.get("/api/team-assessment").json()
+    row = next(x for x in o["people"] if x["id"] == p)
+    assert row["below_threshold"] and row["score"] == 3.8 and row["considered"] and o["missing"] == []
+    assert client.put(f"/api/team-assessment/{p}", json={"ratings": {"competence": {"score": 9}}}).status_code == 400

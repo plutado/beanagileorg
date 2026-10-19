@@ -761,6 +761,32 @@
 
   // ---------------------------------------------------------------- My development
 
+  async function renderCriteria(main) {
+    if (presenting()) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    document.getElementById("view-title").textContent = "My evaluation criteria";
+    const [g, profiles] = await Promise.all([BA.api("/api/team-assessment/guide"), BA.api("/api/criteria-profiles")]);
+    const last = profiles[0], w = (last && last.weights) || {};
+    main.innerHTML = `<p class="quiet">Everyone judges the people who work for them by some set of criteria, said or unsaid. Make yours explicit before you assess your team: divide 100 points among the six by how much each weighs with you, then pick your threshold, the one where if someone falls short, nothing else matters. Private.</p>
+      <form id="crit" class="card"><div class="tablewrap"><table class="data"><thead><tr><th>Criterion</th><th>Weight</th><th>Threshold</th></tr></thead><tbody>${g.criteria.map((c) => `<tr><td><b>${esc(c.name)}</b><br><span class="quiet">${esc(c.question)}</span></td>
+          <td><input type="number" min="0" max="100" step="1" name="w.${c.key}" value="${w[c.key] ?? ""}" style="max-width:90px"></td><td style="text-align:center"><input type="radio" name="threshold" value="${c.key}"${last && last.threshold === c.key ? " checked" : ""}></td></tr>`).join("")}
+          <tr><td><b>Total</b></td><td id="crit-total"></td><td></td></tr></tbody></table></div>
+        <h3>Step back</h3><div class="md"><ul>${g.reflection.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div>
+        <label>What this tells me <span class="quiet">(blind spots, and what I'll watch for)</span><textarea name="reflection" rows="3"></textarea></label>
+        <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>
+      <section class="card"><h2>Over time</h2>${profiles.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Date</th>${g.criteria.map((c) => `<th>${esc(c.name)}</th>`).join("")}<th>Reflection</th></tr></thead><tbody>${profiles.map((p) => `<tr><td>${BA.fmtDate(p.date)}</td>${g.criteria.map((c) => `<td>${(p.weights || {})[c.key] ?? "–"}${p.threshold === c.key ? " *" : ""}</td>`).join("")}<td class="quiet">${esc((p.reflection || "").slice(0, 140))}</td></tr>`).join("")}</tbody></table></div><p class="quiet">* your threshold</p>` : '<p class="quiet">Not done yet.</p>'}</section>`;
+    const form = main.querySelector("#crit"), totalCell = main.querySelector("#crit-total");
+    const sum = () => g.criteria.reduce((a, c) => a + (Number(form.elements[`w.${c.key}`].value) || 0), 0);
+    const show = () => { const t = sum(); totalCell.innerHTML = `<b>${t}</b>${t === 100 ? "" : ` <span class="pill warn">${t < 100 ? 100 - t + " to place" : t - 100 + " too many"}</span>`}`; };
+    form.oninput = show; show();
+    form.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      await BA.api("/api/team-assessment/criteria", { method: "POST", body: { weights: Object.fromEntries(g.criteria.map((c) => [c.key, Number(fd.get(`w.${c.key}`)) || 0])), threshold: fd.get("threshold"), reflection: fd.get("reflection") } });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+  }
+
   async function renderPreferences(main) {
     if (presenting()) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
     const [d, people] = await Promise.all([BA.api("/api/preferences"), BA.api("/api/people")]);
@@ -819,6 +845,7 @@
     title: "My development",
     async render(main, param) {
       if (param === "preferences") return renderPreferences(main);
+      if (param === "criteria") return renderCriteria(main);
       const [settings, goals, log, tasks, obligations, advice] = await Promise.all([
         BA.api("/api/toolkit/settings"),
         BA.api("/api/learning-goals"),
@@ -854,6 +881,7 @@
           .join("");
 
       main.innerHTML = `
+        <section class="card"><div class="row"><h2>How I judge people</h2><span class="spacer"></span><a class="btn" href="#/me/criteria">My evaluation criteria</a></div><p class="quiet">Divide 100 points among six criteria and pick the one where nothing else matters. Do it before you assess anyone on your team.</p></section>
         <section class="card"><div class="row"><h2>Problem preferences</h2><span class="spacer"></span><a class="btn" href="#/me/preferences">Take the assessment</a></div>
           <p class="quiet">Which kinds of problems you're drawn to, and which you tend to avoid. Low scores point to likely blind spots, each with guides to strengthen it.</p></section>
         <section class="card"><h2>My advice network</h2>${[["technical", "Technical"], ["political", "Political"], ["personal", "Personal"]].map(([k, l]) => `<div class="item"><b style="min-width:90px">${l}</b>${advice.kinds[k].map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ") || '<span class="quiet">No one yet</span>'}</div>`).join("")}
@@ -5227,6 +5255,30 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       ${labels}${down(310)}${down(535)}${across}${col(310, tp.alignment_stage, "Organizational alignment")}${col(535, tp.team_stage, "The team")}</svg>`;
   }
 
+  function teamAssessCard(ta, tg) {
+    if (!ta || ta.hidden) return "";
+    const prof = ta.profile, th = prof && prof.threshold;
+    const row = (x) => { const a = x.assessment || {}, r = a.ratings || {};
+      return `<details class="plan-item" data-ta="${x.id}"><summary><b>${esc(x.name)}</b><span class="quiet">${esc(x.role || "")}</span><span class="spacer"></span>
+        ${x.below_threshold ? `<span class="pill bad" title="Below your threshold on ${esc(th)}">below threshold</span>` : ""}${a.placement ? `<span class="pill ${a.placement === "A" ? "good" : a.placement === "B" ? "" : "warn"}">${esc(a.placement)} player</span>` : ""}
+        ${x.score != null ? `<span class="quiet">${x.score} of 5</span>` : ""}${x.considered ? `<span class="quiet">considered ${BA.fmtDate(a.considered_on)}</span>` : '<span class="pill warn">no considered view yet</span>'}</summary>
+        <form class="ta-form">
+          <label>First impression <span class="quiet">${a.first_on ? `(written ${BA.fmtDate(a.first_on)} and kept as written, so you can see later how it held up)` : "(your early read; once saved it's kept as written)"}</span>
+            <textarea name="first_impression" rows="2"${a.first_on ? " readonly" : ""}>${esc(a.first_impression || "")}</textarea></label>
+          <label>Role they've played in the group <span class="quiet">(how the group has worked; who may have wanted your job)</span><input name="group_role" value="${esc(a.group_role || "")}"></label>
+          <h4>Considered view</h4><p class="quiet">Score 1 (weak) to 5 (strong), with evidence from the work itself, not just conversations.</p>
+          ${tg.criteria.map((c) => { const v = r[c.key] || {}; return `<div class="row" style="align-items:flex-start;margin-bottom:6px"><span style="flex:0 0 220px"><b>${esc(c.name)}</b>${th === c.key ? ' <span class="pill">threshold</span>' : ""}${prof ? ` <span class="quiet">${(prof.weights || {})[c.key] ?? 0} pts</span>` : ""}<br><span class="quiet">${esc(c.question)}</span></span>
+            <select name="s.${c.key}" style="max-width:90px"><option value="">–</option>${[1, 2, 3, 4, 5].map((n) => `<option${v.score === n ? " selected" : ""}>${n}</option>`).join("")}</select><input name="e.${c.key}" value="${esc(v.evidence || "")}" placeholder="Evidence" style="flex:1;min-width:180px"></div>`; }).join("")}
+          <div class="grid2"><label>Placement<select name="placement"><option value=""></option>${tg.placements.map((pl) => `<option${a.placement === pl ? " selected" : ""}>${pl}</option>`).join("")}</select></label>
+            <label>Considered view as of<input type="date" name="considered_on" value="${esc(a.considered_on || "")}"></label></div>
+          <label>Private notes<textarea name="notes" rows="2">${esc(a.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></details>`; };
+    return `<section class="card"><h2>Assessing the team</h2><p class="quiet">Your private read on each person you inherited. Keep your first impressions, then step back and form a considered view on six criteria, weighted the way you set them. Never exported or shown while presenting.</p>
+      ${prof ? `<p class="quiet">Using your criteria from ${BA.fmtDate(prof.date)}${th ? `, with ${esc(th)} as your threshold` : ""}. <a href="#/me/criteria">Change them</a></p>` : '<p class="callout">Set <a href="#/me/criteria">your evaluation criteria</a> first, so scores are weighted the way you judge people. Until then, the six count equally.</p>'}
+      ${ta.missing.length && ta.people.length ? `<p class="callout warn">No considered view yet for ${ta.missing.map(esc).join(", ")}. Your conclusions are due ${ta.conclusions_due ? BA.fmtDate(ta.conclusions_due) : `on ${BA.roleDay(ta.conclusions_day)}`}.</p>` : ""}
+      ${ta.people.map(row).join("") || '<p class="quiet">No inherited team members yet.</p>'}</section>`;
+  }
+
   function teamPlanCard(tp, unrec) {
     if (!tp) return "";
     const ro = presenting();
@@ -5248,7 +5300,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   }
 
   async function renderF90Team(main) {
-    const [d, rc, allPeople] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations"), BA.api("/api/people")]);
+    const [d, rc, allPeople, ta, tg] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations"), BA.api("/api/people"), BA.api("/api/team-assessment"), BA.api("/api/team-assessment/guide")]);
     const agents = allPeople.filter((p) => p.change_agent && p.active !== false);
     const agentsCard = `<section class="card"><h2>Change agents</h2><p class="quiet">People at any level with the drive to help lead change. Ask them to lead early win projects; giving promising people real ownership early also helps them stay. Mark them under Details on their page.</p>
       ${agents.map((p) => `<div class="item"><a href="#/people/${p.id}">${esc(p.name)}</a><span class="quiet">${esc(p.role || "")}</span></div>`).join("") || '<p class="quiet">None marked yet.</p>'}</section>`;
@@ -5268,6 +5320,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Open each report\'s page under People, go to Details, and set Reports to.' : 'Open your own page under <a href="#/people">People</a> and press This is me, then set who reports to you.'}</p></section>` : ""}
       ${teamPlanCard(d.team_plan, d.unrecognized)}
+      ${teamAssessCard(ta, tg)}
       ${rcCard}
       ${agentsCard}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
@@ -5277,6 +5330,17 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <label>Notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label><div class="actions"><label class="left">Held on <input type="date" name="done_on" value="${esc(c.done_on || "")}"></label><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}</section>
       <details class="card"><summary><b>Milestone template</b></summary><p class="quiet">What every inherited team member gets. Changes apply to people you start from now on. One per line: day, then the milestone.</p>
         <form id="tpl"><textarea name="tpl" rows="10" class="mono">${esc(d.template.map((m) => `${m.due_day} | ${m.title}${m.auto ? ` | auto:${m.auto}` : ""}`).join("\n"))}</textarea><div class="actions"><button class="btn primary" type="submit">Save template</button></div></form></details>`;
+    main.querySelectorAll("[data-ta]").forEach((det) => {
+      const form = det.querySelector(".ta-form");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const ratings = Object.fromEntries(tg.criteria.map((c) => [c.key, { score: fd.get(`s.${c.key}`) ? Number(fd.get(`s.${c.key}`)) : null, evidence: fd.get(`e.${c.key}`) || "" }]));
+        await BA.api(`/api/team-assessment/${det.dataset.ta}`, { method: "PUT", body: { first_impression: fd.get("first_impression"), group_role: fd.get("group_role"), ratings, placement: fd.get("placement") || null, considered_on: fd.get("considered_on") || null, notes: fd.get("notes") } });
+        BA.toast("Saved.");
+        BA.rerender();
+      });
+    });
     const tpf = main.querySelector("#team-plan");
     if (tpf && !presenting()) tpf.onsubmit = BA.guard(async (e) => {
       e.preventDefault();

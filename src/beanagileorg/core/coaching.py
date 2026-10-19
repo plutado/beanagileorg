@@ -508,6 +508,9 @@ GUIDES = [
             "Hold off on decisions that the people you'll bring in will have to carry out, unless they can't wait. People commit to what they helped shape.",
             "Get help. Changing a team brings emotional, legal and policy complications; a good HR partner is indispensable.",
             "If you can't change the team, get the most from the people you have, for example by defining roles clearly.",
+            "Expect a mix of strong, average and struggling performers, and a group with its own dynamics and politics; someone may have wanted your job. Within 30 to 60 days, sort out who's who, the roles people have played, and how the group has worked.",
+            "Don't suppress your first impressions, but don't stop there. Write them down, then step back and form a more rigorous view with evidence.",
+            "Be conscious of the criteria you judge people by: competence, judgment, energy, focus, relationships and trust. Decide how much each weighs with you, and which one is a threshold where nothing else matters. Then look for the blind spots your weights suggest.",
         ],
         "pitfalls": [
             "Criticizing the previous leadership. Assess current behavior and results instead, and make the changes that improve them.",
@@ -1275,7 +1278,8 @@ GUIDES = [
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
-    "/first90": [("Agree your mandate early: what success looks like, and decision by decision, what you can do on your own.", "your-mandate", 9),
+    "/first90": [("Assess people on evidence from the work itself, not just conversations. Keep first impressions, then step back.", "building-the-team", 40),
+                 ("Agree your mandate early: what success looks like, and decision by decision, what you can do on your own.", "your-mandate", 9),
                  ("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
                  ("Bring changes one at a time, as trials with a review date, and review them with the team.", "leading-change", 8),
                  ("Show the team what changed because of what they told you. It's the fastest way to earn the next conversation.", "leading-change", 8),
@@ -1382,7 +1386,8 @@ TIPS = {
                    ("Check the direction before anything else, unless the area is a realignment: there the trouble is usually in processes and skills.", "org-as-a-system", 35)],
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
-    "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
+    "/me": [("Make your evaluation criteria explicit before you assess anyone: how much each of six weighs with you, and your threshold.", "building-the-team", 40),
+            ("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
             ("Moving into a new role? Make the break from the old one on purpose, instead of letting the two blur together.", "new-role-mindset", 15),
             ("Rate which kinds of problems you're drawn to under Problem preferences. The ones you avoid are where blind spots grow.", "new-role-mindset", 16),
             ("Check your advice network. Higher up, political counsel and personal advice matter as much as technical expertise.", "new-role-mindset", 17)],
@@ -1461,7 +1466,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 39  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 40  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

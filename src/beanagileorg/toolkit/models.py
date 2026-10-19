@@ -35,6 +35,8 @@ GAP_ENTRIES = ("gap", "underused")
 GAP_SPEEDS = ("quick fix", "longer work")
 GAP_PLANS = ("train", "pair", "hire", "partner", "spread a practice", "other")
 GAP_STATUS = ("open", "in progress", "closed")
+EVAL_CRITERIA = ("competence", "judgment", "energy", "focus", "relationships", "trust")
+PLACEMENTS = ("A", "B", "C")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
@@ -1635,6 +1637,29 @@ MIGRATIONS = [
         51,
         """
         ALTER TABLE people ADD COLUMN key_person INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
+    (
+        52,
+        """
+        CREATE TABLE criteria_profiles (
+            id INTEGER PRIMARY KEY,
+            date TEXT NOT NULL,
+            weights TEXT,
+            threshold TEXT,
+            reflection TEXT
+        );
+        CREATE TABLE team_assessments (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL UNIQUE REFERENCES people (id) ON DELETE CASCADE,
+            first_impression TEXT,
+            first_on TEXT,
+            ratings TEXT,
+            placement TEXT,
+            group_role TEXT,
+            considered_on TEXT,
+            notes TEXT
+        );
         """,
     ),
 ]
@@ -3301,6 +3326,42 @@ knowledge_sources = Record(
     },
 )
 
+# How you weigh people when you judge them (Table 7-1), saved each time so you can see it shift. Private.
+criteria_profiles = Record(
+    entity="criteria_profile",
+    table="criteria_profiles",
+    path="/api/criteria-profiles",
+    order_by="date DESC, id DESC",
+    fields={
+        "date": Field("date", P, required=True),
+        "weights": Field("json", P),
+        "threshold": Field("text", P, choices=EVAL_CRITERIA),
+        "reflection": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
+# Your private read on each person you inherit: a first impression kept as written, then a considered view on
+# the six criteria with evidence. Never exported.
+team_assessments = Record(
+    entity="team_assessment",
+    table="team_assessments",
+    path="/api/team-assessments",
+    order_by="id",
+    fields={
+        "person_id": Field("int", P, required=True),
+        "first_impression": Field("text", P),
+        "first_on": Field("date", P),
+        "ratings": Field("json", P),
+        "placement": Field("text", P, choices=PLACEMENTS),
+        "group_role": Field("text", P),
+        "considered_on": Field("date", P),
+        "notes": Field("text", P),
+    },
+    computed={"person_name": ("(SELECT name FROM people p WHERE p.id = team_assessments.person_id)", P)},
+    hide_when_empty=True,
+)
+
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
 preference_assessments = Record(
     entity="preference_assessment",
@@ -3636,7 +3697,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, skill_gaps, knowledge_sources, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,

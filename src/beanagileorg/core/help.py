@@ -75,6 +75,7 @@ TOOLKIT = {
         "steps": ["Set your start date in Settings and pick your own record under People, so the team and the day count are known.",
                   "Give your inherited team their milestones: first one-on-one, career conversation, growth goal, feedback both ways, a day-90 check-in.",
                   "Under Team decisions, set the days for conclusions about the team and for acting on them, mark where alignment and the team stand, and recognize key people early.",
+                  "Under Assessing the team, keep a first impression of each person, then a considered view on six criteria weighted by your own (set under My development).",
                   "Write 'Working with me' and share it in week one: how you work, what you've been asked to do, what you'll change and protect. Plan how you'll engage each audience in your first days.",
                   "Add each change you're bringing. Announce it, try it for a set time, review it with the team, then keep or drop it.",
                   "Check each change's readiness: awareness, diagnosis, vision, plan and support. Missing pieces are built together before planning.",
