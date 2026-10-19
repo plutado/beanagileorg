@@ -169,6 +169,41 @@ GUIDES = [
         "related": ["/rollup", "/landscape/swot", "/plans"], "reading": [F90],
     },
     {
+        "slug": "org-as-a-system", "theme": "transition", "minutes": 6, "since": 34,
+        "title": "The organization as a system",
+        "summary": "Direction, structure, processes and skills have to fit together. Diagnose how they fit before you change any of them.",
+        "why": "However good a leader you are, you can't get far in an area that's out of alignment; every day feels like pushing uphill. And the obvious fix is often the wrong one: a new structure won't solve a process, skills or culture problem.",
+        "practices": [
+            "Think of your area as an open system. Outside it are customers, partners, vendors, competitors, regulators, owners and the media; inside it is the climate and culture. Your choices have to respond to both, and can shape both.",
+            "Look at four elements together: strategic direction (mission, vision, strategy), structure (how people are grouped, coordinated, measured and rewarded), core processes (how work turns into value) and skill bases (what key groups can do).",
+            "Change one element and think through the others. A new direction usually means changes to structure, processes and skills too.",
+            "Find the root cause before choosing a fix. Ask which element the problem really sits in; fixing a neighbor just moves it.",
+            "In the first months, aim for a solid diagnosis and maybe a start on the most pressing misalignment. Use what you learn to aim your early wins and to plan the deeper wave of change that follows.",
+            "Even without authority over structure, diagnose how your piece fits the bigger picture. When a misalignment above you is the real blocker, make the case: evidence of where it causes harm, examples of how others have handled it, and patience to keep coming back.",
+            "Watch incentives. Measures and rewards that set groups against each other produce conflict that looks like a people problem but isn't.",
+            "Keep structures as simple as the goals allow, with clear lines of accountability. Shared accountability can work, but not at the cost of nobody deciding.",
+            "In Scrum terms: a product goal and one ordered backlog are direction; team boundaries, roles and how people are measured are structure; the events, the definition of done and the release path are core processes; cross-functional skills inside the team are skill bases.",
+            "Understanding the organization as a system builds credibility with senior people, and shows you can handle a bigger role.",
+        ],
+        "pitfalls": [
+            "Changing things to leave your mark before you understand the business.",
+            "Using the same approach in every situation: radical change where step-by-step change would work better, or the reverse.",
+            "Restructuring when the real problems are processes, skills or culture. It costs you credibility when you have to backtrack.",
+            "Overestimating how much change people can absorb, especially after a string of recent changes.",
+            "Blaming people for what the structure or incentives make them do.",
+        ],
+        "questions": [
+            "Which of the four elements is the weakest fit in my area right now, and what's my evidence?",
+            "If a Scrum practice won't stick, is it the team, or the structure and incentives around it?",
+            "What misalignment above me should my manager hear about, and how would I make the case?",
+        ],
+        "try": [
+            "Start an alignment check for your area and judge the fit of each element, with evidence.",
+            "Write down one misalignment that sits above you, and the evidence you'd need to make the case.",
+        ],
+        "related": ["/alignment", "/teams", "/raci", "/sdlc"], "reading": [F90],
+    },
+    {
         "slug": "your-manager", "theme": "transition", "minutes": 6,
         "title": "Building the relationship with your manager",
         "summary": "Agree early on what success looks like, how you'll keep them informed, and what support you need.",
@@ -1223,12 +1258,14 @@ TIPS = {
                    ("Hold early impressions as hypotheses. Write down what would prove them wrong.", "read-the-situation")],
     "/rollup": [("Share what you heard with the team before announcing changes. It shows you listened.", "earning-trust"),
                 ("The 'don't change' notes matter as much as the complaints. Plan to keep them.", "read-the-situation")],
-    "/agile": [("Scrum is deliberately small. Get the events, artifacts and commitments working before adding more practices.", "introducing-scrum", 29),
+    "/agile": [("When a Scrum practice won't stick, look at structure and incentives before the team. Individual targets and split ownership undo team practices.", "org-as-a-system", 34),
+               ("Scrum is deliberately small. Get the events, artifacts and commitments working before adding more practices.", "introducing-scrum", 29),
                ("Mark what the team really practices, not what it's supposed to. The gaps are your agenda for the next retro.", "introducing-scrum", 29)],
     "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
               ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
-    "/teams": [("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4),
+    "/teams": [("Before blaming a team for a practice that won't stick, check its structure and incentives: who it serves, how it's measured, what it owns.", "org-as-a-system", 34),
+               ("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4),
                ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6),
                ("Know what each peer team is trying to achieve. It's the start of every useful trade.", "peer-relationships", 10)],
     "/sos": [("Every cross-team item needs one owner, a due date and the outcome you expect. Otherwise it just gets discussed again next week.", "scrum-of-scrums", 4),
@@ -1268,6 +1305,8 @@ TIPS = {
                 ("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
     "/architecture": [("Read the artifacts: the system map, past decisions and incidents show how things really work.", "learn-fast")],
     "/landscape": [("Diagnose each area separately. Some parts need fixing; others need protecting.", "read-the-situation")],
+    "/alignment": [("Find the element where the problem really sits before you fix anything. A new structure won't solve a process or skills problem.", "org-as-a-system", 34),
+                   ("Go step by step where you can. People who've been through recent upheaval can absorb less change.", "org-as-a-system", 34)],
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
     "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
@@ -1349,7 +1388,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 33  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 34  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

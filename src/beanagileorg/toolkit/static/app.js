@@ -1626,6 +1626,104 @@
     },
   });
 
+  // ---------------------------------------------------------------- Organizational alignment
+
+  const FIT_TONE = { aligned: "good", strained: "warn", misaligned: "bad" };
+  const ALIGN_POS = { direction: [320, 126], structure: [468, 235], skills: [320, 336], processes: [172, 235] };
+  const EXT_ANGLE = { customers: -90, distributors: -40, ngos: 0, governments: 40, suppliers: 90, investors: 140, media: 180, competitors: -140 };
+
+  // The open system: outside players around the four elements, with climate and culture at the center (after Figure 6-1).
+  function alignmentDiagram(g, check) {
+    const els = (check && check.elements) || {}, ext = (check && check.external) || {};
+    const fill = (k) => { const t = FIT_TONE[(els[k] || {}).fit]; return t ? `var(--${t}-soft)` : "var(--panel)"; };
+    const stroke = (k) => { const t = FIT_TONE[(els[k] || {}).fit]; return t ? `var(--${t})` : "var(--line-strong)"; };
+    const words = (text, x, y, size = 12) => { const lines = text.split("\n"); return lines.map((l, i) => `<text x="${x}" y="${y + (i - (lines.length - 1) / 2) * (size + 2)}" text-anchor="middle" dominant-baseline="middle" font-size="${size}" fill="var(--ink)">${esc(l)}</text>`).join(""); };
+    const short = { direction: "Strategic\ndirection", structure: "Structure", processes: "Core\nprocesses", skills: "Skill\nbases" };
+    const extShort = { customers: "Customers", distributors: "Distributors", suppliers: "Suppliers", competitors: "Competitors", governments: "Governments", ngos: "NGOs", investors: "Investors", media: "Media" };
+    const arrows = g.links.map(([a, b]) => {
+      const [x1, y1] = ALIGN_POS[a], [x2, y2] = ALIGN_POS[b], dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), cut = 44;
+      return `<line x1="${x1 + (dx / len) * cut}" y1="${y1 + (dy / len) * cut}" x2="${x2 - (dx / len) * cut}" y2="${y2 - (dy / len) * cut}" stroke="var(--muted)" stroke-width="2" marker-start="url(#al-arrow)" marker-end="url(#al-arrow)"/>`;
+    }).join("");
+    const extNodes = g.external.map((e) => {
+      const a = (EXT_ANGLE[e.key] * Math.PI) / 180, x = 320 + 262 * Math.cos(a), y = 235 + 192 * Math.sin(a), noted = (ext[e.key] || "").trim();
+      return `<g class="al-node" data-jump="al-external" style="cursor:pointer"><title>${esc(e.name)}${noted ? ": " + esc(noted) : ""}</title><ellipse cx="${x}" cy="${y}" rx="50" ry="20" fill="${noted ? "var(--accent-soft)" : "var(--bg)"}" stroke="${noted ? "var(--accent)" : "var(--line-strong)"}"/>${words(extShort[e.key], x, y, 11)}</g>`;
+    }).join("");
+    const elNodes = g.elements.map((e) => { const [x, y] = ALIGN_POS[e.key]; return `<g class="al-node" data-jump="al-${e.key}" style="cursor:pointer"><title>${esc(e.name)}${(els[e.key] || {}).fit ? ": " + esc(els[e.key].fit) : ""}</title><ellipse cx="${x}" cy="${y}" rx="60" ry="27" fill="${fill(e.key)}" stroke="${stroke(e.key)}" stroke-width="${check && check.root_cause === e.key ? 3 : 1.5}"/>${words(short[e.key], x, y)}</g>`; }).join("");
+    return `<svg viewBox="0 0 640 470" role="img" aria-label="Organizational architecture: four elements inside the external environment, with climate and culture at the center" style="width:100%;max-width:640px;display:block;margin:0 auto">
+      <defs><marker id="al-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+      <ellipse cx="320" cy="235" rx="314" ry="230" fill="none" stroke="var(--line-strong)"/>
+      <text x="320" y="22" text-anchor="middle" font-size="12" fill="var(--muted)">External environment</text>
+      <ellipse cx="320" cy="235" rx="205" ry="150" fill="var(--accent-soft)" fill-opacity=".35" stroke="var(--line-strong)"/>
+      <text x="320" y="378" text-anchor="middle" font-size="11" fill="var(--muted)">Organizational architecture</text>
+      <g class="al-node" data-jump="al-climate" style="cursor:pointer"><title>Internal environment: climate and culture</title><ellipse cx="320" cy="235" rx="78" ry="50" fill="var(--bg)" stroke="var(--line-strong)"/>${words("Internal environment:\nclimate and culture", 320, 235, 11)}</g>
+      ${arrows}${elNodes}${extNodes}</svg>`;
+  }
+
+  BA.view("/alignment", {
+    title: "Organizational alignment",
+    async render(main) {
+      const g = await BA.api("/api/alignment/guide");
+      const intro = `<p class="quiet">Direction, structure, processes and skills have to fit together. Change one and think through the others. Diagnose here before you restructure anything, and build the case when a misalignment above you is the real blocker.</p>`;
+      if (presenting()) { main.innerHTML = `${intro}<section class="card">${alignmentDiagram(g, null)}</section><p class="empty">Your diagnosis is private, so it's hidden while presenting.</p>`; return; }
+      const checks = await BA.api("/api/alignment-checks");
+      const teams = BA.teamList || [];
+      let sel = Number(sessionStorage.getItem("ba-align") || 0);
+      const check = checks.find((c) => c.id === sel) || checks[0];
+      const startForm = `<form id="al-new" class="row"><input name="area" placeholder="Area: a team, a product, a group" required style="max-width:320px">
+        ${teams.length ? `<select name="team_id" style="max-width:200px"><option value="">No team</option>${teams.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select>` : ""}<button class="btn primary" type="submit">Start an alignment check</button></form>`;
+      if (!check) {
+        main.innerHTML = `${intro}<section class="card">${alignmentDiagram(g, null)}</section><section class="card"><h2>Start a check</h2><p class="quiet">One check per area. Diagnose your own piece, and how it fits the bigger picture.</p>${startForm}</section>${trapsCard(g)}`;
+      } else {
+        const els = check.elements || {}, ext = check.external || {};
+        main.innerHTML = `${intro}
+          <div class="row" style="align-items:center">${checks.length > 1 ? `<select id="al-pick" style="max-width:320px">${checks.map((c) => `<option value="${c.id}"${c.id === check.id ? " selected" : ""}>${esc(c.area)}${c.date ? " · " + BA.fmtDate(c.date) : ""}</option>`).join("")}</select>` : `<b>${esc(check.area)}</b>`}
+            <span class="spacer"></span><details><summary class="btn">New check</summary><div class="card" style="margin-top:8px">${startForm}</div></details></div>
+          <section class="card">${alignmentDiagram(g, check)}<p class="quiet" style="text-align:center">Click any part to jump to it. Elements take the color of their fit; the root cause has a heavier outline.</p></section>
+          <form id="al-form">
+            <section class="card grid2"><label>Area<input name="area" value="${esc(check.area)}" required></label><label>Date of this read<input type="date" name="date" value="${esc(check.date || BA.today())}"></label></section>
+            ${g.elements.map((e) => { const v = els[e.key] || {}; return `<section class="card" id="al-${e.key}"><h2>${esc(e.name)} ${v.fit ? `<span class="pill ${FIT_TONE[v.fit]}">${esc(v.fit)}</span>` : ""}</h2><p class="quiet">${esc(e.what)}</p>
+              <ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>
+              <p class="quiet">Look at: ${e.look.map((l) => `<a href="#${l.path}">${esc(l.label)}</a>`).join(" · ")}</p>
+              <div class="row" style="align-items:flex-start"><select name="fit.${e.key}" style="max-width:160px"><option value="">Fit: not judged</option>${opts(g.fits, v.fit)}</select>
+              <textarea name="notes.${e.key}" rows="3" placeholder="What you see, with evidence" style="flex:1;min-width:220px">${esc(v.notes || "")}</textarea></div></section>`; }).join("")}
+            <section class="card" id="al-climate"><h2>Internal environment: climate and culture</h2><p class="quiet">${esc(g.climate)} <a href="#/culture/map">Culture map</a></p><textarea name="climate" rows="3">${esc(check.climate || "")}</textarea></section>
+            <section class="card" id="al-external"><h2>External environment</h2><p class="quiet">The people and forces the area influences and is influenced by. Note only the ones that matter here.</p>
+              <div class="grid2">${g.external.map((e) => `<label>${esc(e.name)}<input name="ext.${e.key}" value="${esc(ext[e.key] || "")}"></label>`).join("")}</div></section>
+            <section class="card"><h2>What to do about it</h2>
+              <label>Root cause <span class="quiet">(the element where the real problem sits; fixing another one moves the problem)</span><select name="root_cause"><option value="">Not sure yet</option>${g.elements.map((e) => `<option value="${e.key}"${check.root_cause === e.key ? " selected" : ""}>${esc(e.name)}</option>`).join("")}</select></label>
+              <label>The case to make <span class="quiet">(when the fix sits above you: the evidence, where the misalignment causes harm, and how others have handled it)</span><textarea name="the_case" rows="4">${esc(check.the_case || "")}</textarea></label>
+              <label>Next step<input name="next_step" value="${esc(check.next_step || "")}"></label>
+              <div class="actions"><button class="btn danger left" type="button" id="al-del">Delete</button>${BA.historyButton("alignment_check", check.id)}<button class="btn primary" type="submit">Save</button></div></section>
+          </form>${trapsCard(g)}`;
+        const pick = main.querySelector("#al-pick");
+        if (pick) pick.onchange = () => { sessionStorage.setItem("ba-align", pick.value); BA.rerender(); };
+        const form = main.querySelector("#al-form");
+        form.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const fd = new FormData(form);
+          const elements = Object.fromEntries(g.elements.map((x) => [x.key, { fit: fd.get(`fit.${x.key}`) || null, notes: fd.get(`notes.${x.key}`) || "" }]));
+          const external = Object.fromEntries(g.external.map((x) => [x.key, fd.get(`ext.${x.key}`) || ""]).filter(([, v]) => v.trim()));
+          await BA.api(`/api/alignment-checks/${check.id}`, { method: "PATCH", body: { area: fd.get("area"), date: fd.get("date") || null, elements, external, climate: fd.get("climate"), root_cause: fd.get("root_cause") || null, the_case: fd.get("the_case"), next_step: fd.get("next_step") } });
+          BA.toast("Saved.");
+          BA.rerender();
+        });
+        main.querySelector("#al-del").onclick = BA.guard(async () => { if (!confirm("Delete this alignment check?")) return; await BA.api(`/api/alignment-checks/${check.id}`, { method: "DELETE" }); sessionStorage.removeItem("ba-align"); BA.rerender(); });
+      }
+      main.querySelectorAll("[data-jump]").forEach((n) => (n.onclick = () => { const t = main.querySelector("#" + n.dataset.jump); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+      main.querySelectorAll("#al-new").forEach((f) => (f.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(f);
+        const c = await BA.api("/api/alignment-checks", { method: "POST", body: { area: fd.get("area"), team_id: numOrNull(fd.get("team_id")), date: BA.today() } });
+        sessionStorage.setItem("ba-align", c.id);
+        BA.rerender();
+      })));
+    },
+  });
+
+  function trapsCard(g) {
+    return `<section class="card"><h2>Traps to avoid</h2>${g.traps.map((t) => `<p><b>${esc(t.name)}.</b> ${esc(t.what)}</p>`).join("")}<p class="quiet"><a href="#/coaching/org-as-a-system">The organization as a system</a></p></section>`;
+  }
+
   // ---------------------------------------------------------------- Risks and decisions
 
   BA.view("/risks", {

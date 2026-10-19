@@ -94,3 +94,14 @@ def test_predictable_surprises_scan(client):
     assert r["surprise_area"] == "internal"
     assert next(a for a in client.get("/api/risks/surprise-scan").json()["areas"] if a["key"] == "internal")["open"] == 1
     assert client.post("/api/risks", json={"title": "[Placeholder]", "surprise_area": "weather"}).status_code == 400
+
+
+def test_alignment_check(client):
+    g = client.get("/api/alignment/guide").json()
+    assert [e["key"] for e in g["elements"]] == ["direction", "structure", "processes", "skills"] and len(g["external"]) == 8 and len(g["traps"]) == 5
+    assert all(e["prompts"] and e["scrum"] and e["look"] for e in g["elements"])
+    c = client.post("/api/alignment-checks", json={"area": "[Placeholder area]"}).json()
+    body = {"elements": {"structure": {"fit": "misaligned", "notes": "[Placeholder]"}}, "external": {"customers": "[Placeholder]"}, "root_cause": "structure", "the_case": "[Placeholder case]"}
+    r = client.patch(f"/api/alignment-checks/{c['id']}", json=body).json()
+    assert r["elements"]["structure"]["fit"] == "misaligned" and r["root_cause"] == "structure"
+    assert client.patch(f"/api/alignment-checks/{c['id']}", json={"root_cause": "people"}).status_code == 400

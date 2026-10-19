@@ -261,6 +261,13 @@ TOOLKIT = {
         "privacy": "Structure can be shown; the assessment is private and never exported.",
         "related": ["/architecture", "/coaching/read-the-situation"],
     },
+    "/alignment": {
+        "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
+        "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",
+                  "Note the climate and the outside players that matter.", "Name the root cause, and write the case to make when the fix sits above you."],
+        "privacy": "Private. The diagram shows while presenting, but your diagnosis doesn't.",
+        "related": ["/teams", "/raci", "/coaching/org-as-a-system"],
+    },
     "/escalation": {
         "purpose": "Who to call when something breaks: systems with owners and backups, escalation chains, severity levels and an incident log.",
         "steps": ["Add each system with owner, first responder and backup.", "Link each system's business contacts to People. Today lists anyone named on a system you haven't talked to yet, so you meet them before an incident.", "Set business-hours and out-of-hours escalation steps.", "Log incidents and turn follow-ups into dev-sync items."],

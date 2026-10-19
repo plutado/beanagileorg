@@ -26,6 +26,7 @@ RACI_LETTERS = ("R", "A", "C", "I")
 RISK_STATUS = ("open", "watching", "closed")
 RISK_LEVELS = ("high", "medium", "low")
 SURPRISE_AREAS = ("external", "market", "internal", "politics")
+ALIGNMENT_ELEMENTS = ("direction", "structure", "processes", "skills")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
     "went well / didn't / ideas": ("Went well", "Didn't go well", "Ideas"),
@@ -1542,6 +1543,23 @@ MIGRATIONS = [
         45,
         """
         ALTER TABLE risks ADD COLUMN surprise_area TEXT;
+        """,
+    ),
+    (
+        46,
+        """
+        CREATE TABLE alignment_checks (
+            id INTEGER PRIMARY KEY,
+            area TEXT NOT NULL,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            date TEXT,
+            elements TEXT,
+            external TEXT,
+            climate TEXT,
+            root_cause TEXT,
+            the_case TEXT,
+            next_step TEXT
+        );
         """,
     ),
 ]
@@ -3122,6 +3140,27 @@ culture_reads = Record(
     hide_when_empty=True,
 )
 
+# How well direction, structure, processes and skills fit together in one area, and what's around it. Private:
+# a diagnosis of where the organization is out of alignment.
+alignment_checks = Record(
+    entity="alignment_check",
+    table="alignment_checks",
+    path="/api/alignment-checks",
+    order_by="date DESC, id DESC",
+    fields={
+        "area": Field("text", P, required=True),
+        "team_id": Field("int", P),
+        "date": Field("date", P),
+        "elements": Field("json", P),
+        "external": Field("json", P),
+        "climate": Field("text", P),
+        "root_cause": Field("text", P, choices=ALIGNMENT_ELEMENTS),
+        "the_case": Field("text", P),
+        "next_step": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
 preference_assessments = Record(
     entity="preference_assessment",
@@ -3457,7 +3496,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,
