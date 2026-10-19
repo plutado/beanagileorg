@@ -116,7 +116,7 @@
         ${BA.backupWarning(d.backup)}
         ${d.accelerate && (d.accelerate.learning_late_count || d.accelerate.boss_unheld.length || d.accelerate.mentoring.length) ? `<section class="card"><h2>Getting up to speed</h2>
           ${d.accelerate.boss_unheld.length ? `<div class="item"><span class="pill warn">manager</span><a href="#/first90/mandates">Not yet discussed with your manager: ${esc(d.accelerate.boss_unheld.join(", ").toLowerCase())}</a></div>` : ""}
-          ${d.accelerate.learning_late.map((q) => `<div class="item"><span class="pill">learn</span><a href="#/first90/learning">${esc(q.question)}</a></div>`).join("")}${d.accelerate.learning_late_count > d.accelerate.learning_late.length ? `<p class="quiet">and ${d.accelerate.learning_late_count - d.accelerate.learning_late.length} more open questions past their day</p>` : ""}
+          ${d.accelerate.learning_late.map((q) => `<div class="item"><span class="pill">learn</span><a href="#/first90/learning">${esc(q.question)}</a></div>`).join("")}${d.accelerate.learning_late_count > d.accelerate.learning_late.length ? `<p class="quiet">and ${d.accelerate.learning_late_count - d.accelerate.learning_late.length} more open questions past the day you planned to answer them</p>` : ""}
           ${d.accelerate.mentoring.map((m) => `<div class="item"><span class="pill">mentoring</span><a href="#/first90/mentoring">${esc(m.name || "")}: ${esc(m.next_step || "follow up")}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.next_on)}</span></div>`).join("")}</section>` : ""}
         ${d.mandates && (d.mandates.agree_mine || d.mandates.reviews.length) ? `<section class="card"><h2>Mandates</h2>
           ${d.mandates.agree_mine ? `<div class="item"><span class="pill warn">day ${d.mandates.agree_mine.day}</span><a href="#/first90/${d.mandates.agree_mine.id ? `mandate/${d.mandates.agree_mine.id}` : "mandates"}">${d.mandates.agree_mine.exists ? "Agree your mandate with your manager" : "Write down your mandate, then agree it with your manager"}</a></div>` : ""}
@@ -232,13 +232,13 @@
       const tags = [...new Set(d.people.flatMap((p) => p.tags || []))].sort();
       const shown = d.people.filter((p) => (f.inactive || p.active) && (!f.rel || p.relationship === f.rel) && (!f.tag || (p.tags || []).includes(f.tag)) && (!f.due || p.due) && (!f.ph || p.placeholder));
       const youCard = !d.private ? "" : rep.me == null
-        ? `<section class="card"><h2>You and your reports</h2><p class="quiet">Pick your own record, so anyone whose Reports to is you shows up here as a direct report, with commitments, goals and feedback.</p>
+        ? `<section class="card"><h2>You and your reports</h2><p class="quiet">Tell the toolkit which person is you. Then anyone whose <b>Reports to</b> is set to you shows up here as a direct report, with commitments, goals and feedback.</p>
             ${ro ? "" : `<div class="row"><select id="me-pick" style="max-width:260px"><option value="">Which of these people is you?</option>${d.people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></div>`}</section>`
         : `<section class="card"><div class="row"><h2>Your direct reports</h2><span class="spacer"></span><a href="#/people/${rep.me}" class="quiet">your page</a></div>${rep.reports.length
             ? `<div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Last talked</th><th>I owe</th><th>They owe</th><th>Goals</th><th>Feedback to share</th></tr></thead><tbody>${rep.reports.map((r) => `<tr class="clickable" data-id="${r.id}">
                 <td><b>${esc(r.name)}</b><div class="quiet">${esc(r.role || "")}</div></td><td>${ago(r.days_since)}${r.next_meeting ? `<div class="quiet">next ${BA.fmtDate(r.next_meeting)}</div>` : ""}</td>
                 <td>${r.i_owe || ""}</td><td>${r.they_owe || ""}${r.late ? ` <span class="pill bad">${r.late} late</span>` : ""}</td><td>${r.goals || ""}</td><td>${r.unshared ? `<span class="pill warn">${r.unshared}</span>` : ""}</td></tr>`).join("")}</tbody></table></div>`
-            : '<p class="quiet">No one reports to you yet. Set <b>Reports to</b> on your reports\' Details tabs.</p>'}</section>`;
+            : '<p class="quiet">No one reports to you yet. Open each report\'s page, go to Details, and set <b>Reports to</b> to you.</p>'}</section>`;
       main.innerHTML = `${peopleTabs("")}${youCard}
         ${d.private ? `<div class="row"><select id="pf-rel" style="max-width:180px"><option value="">Every relationship</option>${opts(RELATIONSHIPS, f.rel)}</select>
           ${tags.length ? `<select id="pf-tag" style="max-width:180px"><option value="">Every tag</option>${opts(tags, f.tag)}</select>` : ""}
@@ -269,13 +269,13 @@
     const total = Object.values(d.counts).reduce((a, b) => a + b, 0);
     const delta = (k) => { const n = d.counts[k] - d.previous[k]; return n ? `<span class="quiet">${n > 0 ? "+" : ""}${n} vs the ${d.days} days before</span>` : `<span class="quiet">same as before</span>`; };
     main.innerHTML = `${peopleTabs("balance")}
-      ${d.has_me ? "" : '<section class="card"><p>Pick your own record ("This is me") and set who you report to, so the toolkit knows who is up, down and sideways.</p></section>'}
+      ${d.has_me ? "" : '<section class="card"><p>Open your own page under People and press <b>This is me</b>, then set who you report to, so the toolkit knows who is up, down and sideways.</p></section>'}
       <section class="card"><div class="row"><h2>Where your conversations go</h2><span class="spacer"></span><select id="bal-days" style="max-width:150px">${[14, 30, 60, 90].map((n) => `<option value="${n}"${n === d.days ? " selected" : ""}>Last ${n} days</option>`).join("")}</select></div>
         <p class="quiet">Conversations logged under People, counted once for each direction they touch. A new leader tends to spend too much time upward; peers decide whether most of what you're changing will stick.</p>
         ${total ? `<div class="balance-bar">${["up", "down", "sideways", "outward"].map((k) => d.counts[k] ? `<span class="b-${k}" style="flex:${d.counts[k]}" title="${labels[k][0]}: ${d.counts[k]}">${labels[k][0]}</span>` : "").join("")}</div>` : ""}
         <div class="stat-row">${["up", "down", "sideways", "outward"].map((k) => `<div class="b-tile b-${k}-tile"><b>${d.counts[k]}</b><span>${labels[k][0]}: ${labels[k][1]}</span>${delta(k)}</div>`).join("")}</div>
-        ${d.top_heavy ? `<p class="callout warn">More of your conversations went up than sideways. Pick one peer from the list below and set up a conversation this week.</p>` : d.counts.sideways ? '<p class="quiet">Sideways is holding its own.</p>' : ""}</section>
-      <section class="card"><h2>Peers</h2><p class="quiet">Quietest first. Mark someone as a peer under their Details to see them here. Write down what you can offer each one and what you need from them: peer relationships run on exchange.</p>
+        ${d.top_heavy ? `<p class="callout warn">More of your conversations went up than sideways. Pick one peer from the list below and set up a conversation this week.</p>` : d.counts.sideways ? '<p class="quiet">You\'re talking with peers at least as often as upward. Good.</p>' : ""}</section>
+      <section class="card"><h2>Peers</h2><p class="quiet">The people you\'ve talked to least come first. To add someone, open their page, go to Details, and set the relationship to peer. Write down what you can offer each one and what you need from them: peer relationships run on exchange.</p>
         ${d.peers.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Peer</th><th>Influence</th><th>Last talked</th><th>What I can offer</th><th>What I need</th></tr></thead><tbody>${d.peers.map((p) => `<tr class="clickable" data-id="${p.id}">
             <td><b>${esc(p.name)}</b>${p.placeholder ? ' <span class="pill warn">placeholder</span>' : ""}<div class="quiet">${esc(p.role || "")}</div></td><td>${esc(p.influence || "")}${p.stance ? `<div class="quiet">${esc(p.stance)}</div>` : ""}</td>
             <td>${p.quiet ? '<span class="pill warn">quiet</span> ' : ""}${ago(p.days_since)}</td><td class="quiet">${esc((p.offer_them || "").slice(0, 90)) || "–"}</td><td class="quiet">${esc((p.need_from_them || "").slice(0, 90)) || "–"}</td></tr>`).join("")}</tbody></table></div>`
@@ -292,7 +292,7 @@
     main.innerHTML = `${peopleTabs("org")}
       <p class="quiet">Reporting lines, from each person's <b>Reports to</b>. Click anyone to open their page: title, location, contact details, conversations and follow-ups. Departments are in the <a href="#/landscape/org">business landscape</a>.</p>
       <section class="card">${d.roots.length ? `<ul class="org-tree">${d.roots.map(node).join("")}</ul>` : '<p class="quiet">No one yet.</p>'}
-        ${d.with_manager ? "" : '<p class="quiet">Nobody has a manager set yet, so everyone sits at the top. Set <b>Reports to</b> on each person\'s Details tab.</p>'}</section>`;
+        ${d.with_manager ? "" : '<p class="quiet">Nobody has a manager set yet, so everyone sits at the top. Open each person\'s page, go to Details, and set <b>Reports to</b>.</p>'}</section>`;
   }
 
   async function renderPeopleFields(main) {
@@ -804,7 +804,7 @@
           <p class="quiet">Which kinds of problems you're drawn to, and which you tend to avoid. Low scores point to likely blind spots, each with guides to strengthen it.</p></section>
         <section class="card"><h2>My advice network</h2>${[["technical", "Technical"], ["political", "Political"], ["personal", "Personal"]].map(([k, l]) => `<div class="item"><b style="min-width:90px">${l}</b>${advice.kinds[k].map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ") || '<span class="quiet">No one yet</span>'}</div>`).join("")}
           ${advice.missing.length ? `<p class="callout warn">No ${advice.missing.join(" or ")} advisor yet. The higher you go, the more you need counsel on how the organization works and someone to keep you steady.</p>` : ""}
-          <p class="quiet">Mark advisors on each person's page under Details. <a href="#/coaching/new-role-mindset">Why it matters</a></p></section>
+          <p class="quiet">To mark someone as an advisor, open their page and go to Details. <a href="#/coaching/new-role-mindset">Why it matters</a></p></section>
         <section class="card"><h2>Start date</h2><p class="quiet">Leave it blank until your start date is confirmed. Until then everything stays as "Day N · week N", and nothing is marked late or counted down.</p>
           <form id="start" class="row"><input type="date" name="start_date" value="${esc(start || "")}" style="max-width:200px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every "Day N" into a real date.</span></form></section>
@@ -1002,9 +1002,9 @@
               <td>${late(i) ? '<span class="pill bad">overdue</span>' : BA.statusPill(i.status)}</td><td>${i.learning ? '<span class="pill">yes</span>' : ""}</td></tr>`)
             .join("") || '<tr><td colspan="8" class="empty">Nothing matches.</td></tr>'
         }</tbody></table></div>
-        <p class="quiet">I own the follow-up on every item, so nothing raised gets dropped.</p>
+        <p class="quiet">Every item has an owner and a next action, and you follow up on each one, so nothing raised gets dropped.</p>
         ${presenting() ? "" : `<section class="card"><div class="row"><h2>Dev-sync board</h2><span class="spacer"></span><button class="btn" id="copy-board">Copy the board as Markdown</button></div>
-          <p class="quiet">Rows marked "On the dev-sync board" with their shareable columns: topic, kind, who asked, experts, decision maker, next action, due, status and a link to the latest update. Until the share site exists, paste it into a page or message; later it becomes a gated board where each row opens its update presentation.</p></section>`}`;
+          <p class="quiet">Rows marked "On the dev-sync board" with their shareable columns: topic, kind, who asked, experts, decision maker, next action, due, status and a link to the latest update. To share it, copy it into a page or a message.</p></section>`}`;
       main.querySelector("#f-status").onchange = (e) => ((state.status = e.target.value), BA.rerender());
       main.querySelector("#f-owner").onchange = (e) => ((state.owner = e.target.value), BA.rerender());
       main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/dev-sync/${tr.dataset.id}`)));
@@ -1593,7 +1593,7 @@
         presenting()
           ? `<td class="raci-cell">${esc(dec.cells[role] || "")}</td>`
           : `<td class="raci-cell"><select data-cell="${dec.id}" data-role="${esc(role)}"><option value=""></option>${["R", "A", "C", "I"].map((l) => `<option${dec.cells[role] === l ? " selected" : ""}>${l}</option>`).join("")}</select></td>`;
-      main.innerHTML = `<p class="quiet">R does the work. A makes the final call, exactly one per row. C is asked before. I is told after. Blank cells are still to learn.</p>
+      main.innerHTML = `<p class="quiet">R does the work. A makes the final call, exactly one per row. C is asked before. I is told after. A blank cell means you haven\'t found out yet.</p>
         <div class="tablewrap"><table class="data raci"><thead><tr><th>Decision</th>${d.roles.map((r) => `<th>${esc(r)}</th>`).join("")}<th>Status</th></tr></thead><tbody>${d.decisions
           .map((dec) => `<tr><td><b>${esc(dec.decision)}</b>${aCount(dec) === 1 ? "" : ` <span class="pill ${aCount(dec) ? "bad" : "warn"}">${aCount(dec) ? "more than one A" : "no A yet"}</span>`}</td>
             ${d.roles.map((r) => cell(dec, r)).join("")}
@@ -2464,7 +2464,7 @@
           return `<section class="card"><h2>Early win candidates</h2><p class="quiet">Ranked by the early wins evaluation (out of 16). Pick three or four at most, and treat them as a portfolio so a big success balances a disappointment. Open an item to score it.</p>
             ${ranked.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span>${i.fog_lamp && i.fog_lamp.focus ? '<span class="pill accent">project</span>' : ""}${i.ew_total == null ? '<span class="quiet">not scored</span>' : ewRuledOut(i) ? '<span class="pill bad">ruled out</span>' : `<b>${i.ew_total}</b><span class="quiet">/16</span>`}</div>`).join("")}</section>`; })()}
         <div class="plan-layout"><div class="plan-horizons">${d.horizons.map(horizon).join("")}
-          ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">For a finer step (a two-week check-in) or a longer view (month 9, month 12). Each plan runs from the day after the one before it.</p>
+          ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">Add a shorter step, such as a two-week check-in, or a longer view, such as month 9 or month 12. Each plan starts the day after the one before it ends.</p>
             <form id="add-plan" class="row"><input name="title" placeholder="Name, such as Month 9" required style="max-width:260px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" required style="max-width:90px"></label><button class="btn primary" type="submit">Add plan</button></form></section>`}</div>
           <aside><section class="card"><h2>What I heard</h2>${
             ev.themes.length
@@ -3446,7 +3446,7 @@
     main.innerHTML = `<p><a href="#/onboarding">All new members</a></p>
       <section class="card"><div class="row"><h2>${esc(o.person_name)}</h2><span class="quiet">${esc(o.person_role || "")}</span><span class="spacer"></span>
           ${ro ? BA.statusPill(o.status) : `<select id="ob-status" style="max-width:150px">${opts(["not started", "in progress", "done"], o.status)}</select>`}</div>
-        <p class="quiet">${o.start_date ? `Starts ${BA.fmtDate(o.start_date)}` : "No start date yet, so items show as days"}${o.buddy_name ? ` · Buddy: ${esc(o.buddy_name)}` : ""}</p>
+        <p class="quiet">${o.start_date ? `Starts ${BA.fmtDate(o.start_date)}` : "No start date yet, so items show by day number (day 1, day 7)"}${o.buddy_name ? ` · Buddy: ${esc(o.buddy_name)}` : ""}</p>
         ${progress(o.done_count, o.total)}<div class="row"><span class="quiet">${o.done_count} of ${o.total} done</span>${d.overdue ? `<span class="pill bad">${d.overdue} overdue</span>` : ""}
           ${Object.entries(d.by_owner).filter(([, n]) => n).map(([who, n]) => `<span class="pill ${OWNER_TONES[who] || ""}">${n} open for ${esc(who === "new member" ? "them" : who)}</span>`).join(" ")}<span class="spacer"></span>
           ${ro ? "" : `<button class="btn" id="copy-ob">${BA.icon("copy")} Copy checklist to send</button>`}</div>
@@ -4908,10 +4908,10 @@
             <div class="item"><a href="#/listening">Listening tour</a><span class="spacer"></span>${f90Progress(d.me.listening.done, d.me.listening.total)}</div>
             <div class="item"><a href="#/coaching/reflect">Reflections</a><span class="spacer"></span><span class="quiet">${d.me.reflections} written</span></div>
             ${d.me.items_due.length ? `<h3>Due this week</h3>${d.me.items_due.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(i.due)}</span></div>`).join("")}` : ""}</section>` : ""}
-          <section class="card"><h2>New hires</h2>${d.new_hires.map((h) => `<div class="item"><a href="#/onboarding/${h.id}">${esc(h.name || "")}</a><span class="quiet">${esc(h.role || "")}</span><span class="spacer"></span><span class="quiet">${f90_dayLabel(h.day)}</span>${f90Progress(h.done, h.total)}</div>`).join("") || '<p class="quiet">Nobody being onboarded. <a href="#/onboarding">Onboarding</a>.</p>'}</section>
+          <section class="card"><h2>New hires</h2>${d.new_hires.map((h) => `<div class="item"><a href="#/onboarding/${h.id}">${esc(h.name || "")}</a><span class="quiet">${esc(h.role || "")}</span><span class="spacer"></span><span class="quiet">${f90_dayLabel(h.day)}</span>${f90Progress(h.done, h.total)}</div>`).join("") || '<p class="quiet">Nobody is being onboarded. Start a checklist under <a href="#/onboarding">Onboarding</a>.</p>'}</section>
         </div>
 ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.team.people.map((p) => `<div class="item"><a href="#/first90/team">${esc(p.name)}</a><span class="quiet">${p.next ? esc(p.next.title.split(":")[0]) : p.total ? "all done" : "not started"}</span><span class="spacer"></span>${p.late ? `<span class="pill bad">${p.late} late</span>` : ""}${f90Progress(p.done, p.total)}</div>`).join("")
-            || (d.team.has_me ? '<p class="quiet">Nobody reports to you yet, apart from new hires. Set "Reports to" under People.</p>' : '<p class="quiet">Pick your own record under <a href="#/people">People</a> ("This is me") and set who reports to you.</p>')}</section>` : ""}
+            || (d.team.has_me ? '<p class="quiet">Nobody reports to you yet, apart from new hires. Open each report\'s page under People, go to Details, and set Reports to.</p>' : '<p class="quiet">Open your own page under <a href="#/people">People</a> and press This is me, then set who reports to you.</p>')}</section>` : ""}
         ${d.private ? `<section class="card"><h2>Team check-ins</h2><div class="checkpoints">${d.checkpoints.map((c) => `<a class="checkpoint${c.done_on ? " done" : ""}" href="#/first90/team"><b>Day ${c.day}</b><span class="quiet">${c.due ? BA.fmtDate(c.due) : "–"}</span>
             <span>${c.done_on ? "held" : c.due && c.due < BA.today() ? "due" : "coming up"}</span><span class="quiet">${c.pulse_on ? `pulse ${BA.fmtDate(c.pulse_on)}` : "no pulse yet"}</span></a>`).join("")}</div></section>` : ""}
         <section class="card"><h2>Changes I'm bringing</h2><div class="stage-strip">${CHANGE_STAGES.map((s) => `<a href="#/first90/changes"><b>${ch[s]}</b><span>${s}</span></a>`).join("")}</div>
@@ -4938,7 +4938,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         ${p.milestones.map((m) => `<div class="item milestone${m.done ? " done" : ""}" data-ms="${m.id}"><label class="check"><input type="checkbox"${m.done ? " checked" : ""}></label>
           <span class="ms-day">${BA.roleDay(m.due_day)}</span><span>${esc(m.title)}</span><span class="spacer"></span>
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
-      ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Set "Reports to" on each person under People.' : 'Pick your own record under <a href="#/people">People</a> ("This is me"), then set who reports to you.'}</p></section>` : ""}
+      ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Open each report\'s page under People, go to Details, and set Reports to.' : 'Open your own page under <a href="#/people">People</a> and press This is me, then set who reports to you.'}</p></section>` : ""}
       ${rcCard}
       ${agentsCard}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
@@ -5086,7 +5086,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <div class="stat-row"><div><b>${m.outcomes.length}</b><span>expected outcomes</span></div><div><b>${m.done}</b><span>done</span></div><div><b>${m.at_risk}</b><span>at risk</span></div><div><b>${m.to_clarify}</b><span>decisions to clarify</span></div></div>
           ${m.status === "agreed" ? `<p class="quiet">Agreed${m.agreed_with_name ? ` with ${esc(m.agreed_with_name)}` : ""} on ${BA.fmtDate(m.agreed_on)}. Review ${BA.fmtDate(m.review_on)}.</p>` : ""}`
         : d.me ? (ro ? '<p class="quiet">Not started.</p>' : '<p class="quiet">Not started. It begins with a list of common decision areas, each marked "to clarify". Set the authority you plan to propose for each before you meet your manager.</p><button class="btn primary" id="start-mine">Start my mandate</button>')
-        : '<p class="quiet">Pick your own record under <a href="#/people">People</a> ("This is me") first.</p>'}</section>
+        : '<p class="quiet">First, open your own page under <a href="#/people">People</a> and press This is me.</p>'}</section>
       ${d.reports ? `<section class="card"><h2>My team's mandates</h2><p class="quiet">Agreeing one completes that person's "agree their mandate" milestone in First 90 days.</p>
         ${d.reports.map((r) => `<div class="item"><a href="#/people/${r.person_id}">${esc(r.name)}</a>${r.placeholder ? '<span class="pill warn">placeholder</span>' : ""}<span class="quiet">${esc(r.role || "")}</span><span class="spacer"></span>
           ${r.mandate ? `${tonePill(r.mandate.status, MANDATE_TONES)}<span class="quiet">${r.mandate.to_clarify ? `${r.mandate.to_clarify} to clarify` : ""}</span><a class="btn" href="#/first90/mandate/${r.mandate.id}">Open</a>` : ro ? "" : `<button class="btn" data-start="${r.person_id}">Start</button>`}</div>`).join("") || '<p class="quiet">Nobody reports to you yet.</p>'}</section>` : ""}`;
