@@ -1631,14 +1631,15 @@
   BA.view("/risks", {
     title: "Risks and decisions",
     async render(main) {
-      const [risks, decisions, people] = await Promise.all([BA.api("/api/risks"), BA.api("/api/decisions-needed"), BA.api("/api/people")]);
+      const [risks, decisions, people, scan] = await Promise.all([BA.api("/api/risks"), BA.api("/api/decisions-needed"), BA.api("/api/people"), BA.api("/api/risks/surprise-scan")]);
       keepTeam(risks);
+      const areaName = Object.fromEntries(scan.areas.map((a) => [a.key, a.name]));
       keepTeam(decisions);
       const levelPill = (l) => `<span class="pill ${l === "high" ? "bad" : l === "medium" ? "warn" : ""}">${esc(l)}</span>`;
       const ro = presenting();
       main.innerHTML = `
         <section class="card"><h2>Risks and issues</h2><div class="tablewrap"><table class="data"><thead><tr><th>Level</th><th>Risk or issue</th><th>Impact</th><th>Owner</th><th>Next step</th><th>Due</th><th>Status</th></tr></thead><tbody>${
-          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b> ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
+          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b>${r.surprise_area ? ` <span class="pill">${esc(areaName[r.surprise_area])}</span>` : ""} ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
             <td>${esc(r.next_step || "")}</td><td>${BA.fmtDate(r.due)}</td>
             <td>${ro ? esc(r.status) : `<select name="status">${["open", "watching", "closed"].map((s) => `<option${s === r.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`).join("") ||
           '<tr><td colspan="7" class="empty">No risks logged.</td></tr>'
@@ -1649,6 +1650,13 @@
           <label>Owner<select name="owner_id">${personOptions(people)}</select></label>
           <label>Next step<input name="next_step"></label><label>Due<input type="date" name="due"></label>
           <div class="actions"><button class="btn primary" type="submit">Add risk</button></div></form>`}</section>
+        <section class="card"><details><summary><b>Look for predictable surprises</b> <span class="quiet">· problems someone could have seen coming</span></summary>
+          <p class="quiet">Take each area in turn, and look hardest at the ones you know least. Anything you spot becomes a risk tagged with its area.</p>
+          ${scan.areas.map((a) => `<div class="card" style="margin-top:10px"><h3>${esc(a.name)} <span class="quiet">${a.open ? `· ${a.open} open` : "· nothing logged yet"}</span></h3><p class="quiet">${esc(a.what)}</p>
+            <ul>${a.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
+            ${ro ? "" : `<form class="row surprise" data-area="${a.key}"><input name="title" placeholder="A surprise you can see coming" required style="max-width:420px">
+              <select name="level" style="max-width:120px"><option>high</option><option selected>medium</option><option>low</option></select><button class="btn" type="submit">Add as a risk</button></form>`}</div>`).join("")}
+          <p><b>Silos.</b> ${esc(scan.silos)}</p></details></section>
         <section class="card"><h2>Decisions needed</h2><div class="tablewrap"><table class="data"><thead><tr><th>Decision</th><th>From whom</th><th>Needed by</th><th>Status</th><th>Outcome</th></tr></thead><tbody>${
           decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b> ${BA.keysEditor(`/api/decisions-needed/${d.id}`, d.jira_keys)}</td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
             <td>${ro ? esc(d.status) : `<select name="status">${["open", "decided"].map((s) => `<option${s === d.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td>
@@ -1666,6 +1674,13 @@
       main.querySelectorAll("tr[data-dec]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
         await BA.api(`/api/decisions-needed/${tr.dataset.dec}`, { method: "PATCH", body: { [e.target.name]: e.target.value } });
         BA.toast("Saved.");
+      })));
+      main.querySelectorAll("form.surprise").forEach((form) => (form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const f = Object.fromEntries(new FormData(form));
+        await BA.api("/api/risks", { method: "POST", body: { ...f, surprise_area: form.dataset.area, team_id: newTeamId() } });
+        BA.toast("Added as a risk.");
+        BA.rerender();
       })));
       const addRisk = main.querySelector("#add-risk");
       if (addRisk) {

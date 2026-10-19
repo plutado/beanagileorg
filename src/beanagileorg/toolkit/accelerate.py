@@ -64,7 +64,35 @@ STARTER_QUESTIONS = [
     ("politics", "How does my manager's own boss judge them, and how does my work fit into that?", 21),
     ("present", "Where are the most promising opportunities to improve: the processes whose improvement would move overall performance?", 21),
     ("people", "Who, at any level, has the drive to help lead change and could lead an early project?", 21),
+    ("present", "What time bombs are ticking: what do people already know could go wrong, that nobody has acted on?", 21),
 ]
+
+# Predictable surprises: problems people could have seen coming. Each area has prompts for a deliberate look,
+# especially at the areas you're least comfortable with, and at problems whose pieces sit with different groups.
+SURPRISE_SCAN = [
+    ("external", "Outside world", "Rules, the economy, platforms and partners that could change under you.", [
+        "Is a regulation, audit or compliance date coming that the team's systems must meet?",
+        "Do the platforms you build on have scheduled releases, version retirements or price changes ahead?",
+        "Could a partner, vendor or public event (a seasonal peak, an outage elsewhere) put sudden load or change on your systems?",
+    ]),
+    ("market", "Customers, markets and strategy", "Shifts in what customers need, what competitors do, and where the business is heading.", [
+        "Which customers or business users are unhappy, and does anyone with power know?",
+        "Is the business strategy changing in a way the team's roadmap hasn't caught up with?",
+        "Are there commitments made to customers or the business that the team can't actually meet?",
+    ]),
+    ("internal", "Inside the team", "Capabilities, processes, people and systems that could fail without warning.", [
+        "Which systems or processes does only one person understand?",
+        "When do contracts, licenses, certificates or support agreements end?",
+        "What has broken before and been patched rather than fixed?",
+        "Where is the team quietly working around a tool, a process or a missing skill?",
+    ]),
+    ("politics", "Politics", "People and alliances that could undermine you or the change.", [
+        "Who could be working against the change while appearing to support it?",
+        "Which person, product or decision is off limits to criticize, and why?",
+        "Could a promise your predecessor made, or a peer's agenda, land on you?",
+    ]),
+]
+SILO_PROMPT = "Which problem has its pieces held by different groups, so that no one sees the whole of it? Put the people together."
 
 SITUATION_GUIDE = {
     "start-up": ("Something new is being built: a team, a product or a way of working. There's little to protect yet, and energy is high but unfocused.",
@@ -157,6 +185,13 @@ def learning_starter(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn
     for pos, (area, q, day) in enumerate(STARTER_QUESTIONS):
         models.learning_questions.create(conn, {"question": q, "area": area, "due_day": day, "position": pos}, viewer.source)
     return {"questions": len(STARTER_QUESTIONS)}
+
+
+@router.get("/api/risks/surprise-scan")
+def surprise_scan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    counts = dict(conn.execute("SELECT surprise_area, COUNT(*) FROM risks WHERE status != 'closed' AND surprise_area IS NOT NULL GROUP BY surprise_area").fetchall())
+    return {"areas": [{"key": k, "name": n, "what": w, "prompts": p, "open": counts.get(k, 0)} for k, n, w, p in SURPRISE_SCAN],
+            "silos": SILO_PROMPT}
 
 
 @router.get("/api/learning-questions/agenda")

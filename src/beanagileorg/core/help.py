@@ -192,9 +192,9 @@ TOOLKIT = {
     },
     "/risks": {
         "purpose": "Keep risks and pending decisions visible, with an owner, a next step and a date.",
-        "steps": ["Log a risk with its level, owner and next step.", "Log decisions you need from others, with who decides and by when.", "Record the outcome when a decision is made."],
+        "steps": ["Log a risk with its level, owner and next step.", "Run Look for predictable surprises: four areas with prompts. Anything you spot becomes a risk tagged with its area.", "Log decisions you need from others, with who decides and by when.", "Record the outcome when a decision is made."],
         "privacy": "Risks and decisions are shareable; notes are private.",
-        "related": ["/status", "/coaching/your-manager"],
+        "related": ["/status", "/coaching/your-manager", "/coaching/early-wins"],
     },
     "/metrics": {
         "purpose": "Track a few delivery measures over time, with a baseline and a target, to see whether changes are working.",

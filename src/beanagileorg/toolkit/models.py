@@ -25,6 +25,7 @@ RACI_STATUS = ("to confirm", "confirmed", "changed")
 RACI_LETTERS = ("R", "A", "C", "I")
 RISK_STATUS = ("open", "watching", "closed")
 RISK_LEVELS = ("high", "medium", "low")
+SURPRISE_AREAS = ("external", "market", "internal", "politics")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
     "went well / didn't / ideas": ("Went well", "Didn't go well", "Ideas"),
@@ -1537,6 +1538,12 @@ MIGRATIONS = [
         ALTER TABLE culture_reads ADD COLUMN keep TEXT;
         """,
     ),
+    (
+        45,
+        """
+        ALTER TABLE risks ADD COLUMN surprise_area TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1989,6 +1996,7 @@ risks = Record(
         "notes": Field("text", P),
         "jira_keys": Field("keys", E),
         "team_id": Field("int", S),
+        "surprise_area": Field("text", E, choices=SURPRISE_AREAS),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = risks.owner_id)", E)},
 )

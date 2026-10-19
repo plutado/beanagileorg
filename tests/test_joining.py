@@ -85,3 +85,12 @@ def test_advice_network(client):
     a = client.post("/api/people", json={"name": "[Placeholder name 1]", "advice": ["technical", "political"]}).json()["id"]
     n = client.get("/api/people/advice-network").json()
     assert [x["id"] for x in n["kinds"]["political"]] == [a] and n["missing"] == ["personal"]
+
+
+def test_predictable_surprises_scan(client):
+    scan = client.get("/api/risks/surprise-scan").json()
+    assert [a["key"] for a in scan["areas"]] == ["external", "market", "internal", "politics"] and all(a["prompts"] for a in scan["areas"])
+    r = client.post("/api/risks", json={"title": "[Placeholder surprise]", "surprise_area": "internal"}).json()
+    assert r["surprise_area"] == "internal"
+    assert next(a for a in client.get("/api/risks/surprise-scan").json()["areas"] if a["key"] == "internal")["open"] == 1
+    assert client.post("/api/risks", json={"title": "[Placeholder]", "surprise_area": "weather"}).status_code == 400

@@ -147,6 +147,7 @@ GUIDES = [
             "Check your preferences. If the situation you enjoy most is getting the most effort, make sure that's what the work needs.",
             "Lead change differently by situation. A turnaround calls for fast technical learning and bold moves on strategy and structure; a realignment calls for cultural and political learning first, then deliberate moves on systems, skills and culture.",
             "Know whether you're reflexively a hero or a steward. Heroes move too fast in realignments; stewards move too slowly in turnarounds. Put people of the other kind on your team, and spend heroic energy only where something is truly broken.",
+            "Choose change techniques for the situation. In a turnaround, bring in people from outside and set up project teams to break old patterns quickly. In a realignment, introduce new measures and benchmarks, then build a shared vision from what they show.",
             "Judge and reward work by its situation. Turnarounds and start-ups are easy to measure; in a realignment or a sustaining success, success often means nothing bad happened. Set baselines early, track the problems avoided, and give credit to the group.",
         ],
         "pitfalls": [
@@ -237,6 +238,8 @@ GUIDES = [
             "Make every early win do double duty: it should serve a goal you've agreed with your manager and start to shift a behavior the team needs to change.",
             "Name the behaviors that stand in the way (lack of focus, discipline, innovation, teamwork or urgency) and how you want people to work by the end of your time in the role.",
             "Pick the kind of win the situation needs. In a turnaround, visible results that move people from despair to hope. In a realignment, getting people to see the problem: clear metrics, outside benchmarks and respected outside voices, so it isn't one person's opinion.",
+            "Look for predictable surprises: problems someone could have seen coming. Scan the outside world, customers and strategy, the team's own capabilities, and politics, and look hardest at the areas you're least comfortable with.",
+            "Join up the silos. Many surprises happen because the pieces of a problem sit with different groups and no one sees the whole. In Scrum, the Scrum of Scrums and cross-team syncs are where the pieces come together.",
             "Choose problems the team already complains about. You'll find them in the listening tour themes.",
             "Keep them small enough to finish in weeks, not months.",
             "Involve the team. A win they helped shape is theirs, not yours.",
@@ -249,6 +252,7 @@ GUIDES = [
             "Choosing a win to impress leadership that the team doesn't care about.",
             "Changing something people value to show you're in charge.",
             "Taking on too many at once and finishing none.",
+            "Steering clear of the areas you're uncomfortable with. That's where surprises hide.",
         ],
         "questions": [
             "Which complaint came up in most of my one-on-ones?",
@@ -1242,7 +1246,8 @@ TIPS = {
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
     "/raci": [("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
-               ("Don't just bring your manager a problem; bring a plan for starting to address it, even if it's only finding out more.", "your-manager", 25)],
+               ("Don't just bring your manager a problem; bring a plan for starting to address it, even if it's only finding out more.", "your-manager", 25),
+               ("Run the predictable surprises scan, especially in the areas you know least. Most surprises were visible to someone in advance.", "early-wins", 33)],
     "/debt": [("Describe each debt item by what leaving it costs the business, not by how ugly the code is.", "tech-debt-case", 2),
               ("Agree a standing share of each sprint for debt, then report against it, instead of arguing every item.", "tech-debt-case", 2)],
     "/metrics": [("Measure the system, never individuals. Set a baseline before a target.", "metrics-without-blame"),
@@ -1344,7 +1349,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 32  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 33  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():
