@@ -4693,7 +4693,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       ${!d.start_date ? '<section class="card"><p>Set your start date in <a href="#/settings">Settings</a> to date the milestones.</p></section>' : ""}
       ${unstarted.length ? `<section class="card"><div class="row"><span>${unstarted.map((p) => esc(p.name)).join(", ")} ${unstarted.length === 1 ? "has" : "have"} no milestones yet.</span><span class="spacer"></span><button class="btn primary" id="f90-start">Give them the milestones</button></div></section>` : ""}
       ${d.people.filter((p) => p.total).map((p) => `<section class="card"><div class="row"><h2><a href="#/people/${p.id}">${esc(p.name)}</a></h2><span class="quiet">${esc(p.role || "")}</span><span class="spacer"></span>${p.late ? `<span class="pill bad">${p.late} late</span>` : ""}${f90Progress(p.done, p.total)}</div>
-        ${p.milestones.map((m) => `<div class="item milestone${m.done ? " done" : ""}" data-ms="${m.id}"><label class="check"><input type="checkbox"${m.done ? " checked" : ""}${m.seen_in_data ? " disabled" : ""}></label>
+        ${p.milestones.map((m) => `<div class="item milestone${m.done ? " done" : ""}" data-ms="${m.id}"><label class="check"><input type="checkbox"${m.done ? " checked" : ""}></label>
           <span class="ms-day">${BA.roleDay(m.due_day)}</span><span>${esc(m.title)}</span><span class="spacer"></span>
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Set "Reports to" on each person under People.' : 'Pick your own record under <a href="#/people">People</a> ("This is me"), then set who reports to you.'}</p></section>` : ""}
@@ -4714,7 +4714,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     main.querySelectorAll("[data-rcp]").forEach((b) => (b.onclick = BA.guard(async () => {
       await BA.api(`/api/first90/report-conversations/${b.dataset.rcp}/${b.dataset.topic}`, { method: "PUT", body: { status: cell(b.dataset.rcp, b.dataset.topic).status, priority: b.dataset.prio !== "1" } }); BA.rerender(); })));
     main.querySelectorAll("[data-ms] input").forEach((cb) => (cb.onchange = BA.guard(async () => {
-      await BA.api(`/api/first90-milestones/${cb.closest("[data-ms]").dataset.ms}`, { method: "PATCH", body: { done_on: cb.checked ? BA.today() : null } });
+      await BA.api(`/api/first90-milestones/${cb.closest("[data-ms]").dataset.ms}`, { method: "PATCH", body: cb.checked ? { done_on: BA.today(), not_done: false } : { done_on: null, not_done: true } });
       BA.rerender();
     })));
     main.querySelectorAll("[data-cp]").forEach((det) => {

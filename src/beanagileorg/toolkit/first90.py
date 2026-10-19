@@ -136,7 +136,7 @@ def team_track(conn) -> dict:
     for p in inherited_team(conn):
         ms = []
         for m in models.first90_milestones.fetch_all(conn, "person_id = ?", (p["id"],)):
-            seen = _auto_done(conn, p["id"], m.get("auto"), start)
+            seen = None if m.get("not_done") else _auto_done(conn, p["id"], m.get("auto"), start)
             done_on = m["done_on"] or seen
             due = _due(start, m["due_day"])
             ms.append({**m, "due": due, "done": done_on, "seen_in_data": bool(seen and not m["done_on"]), "late": bool(not done_on and due and due < t)})

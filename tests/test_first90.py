@@ -56,6 +56,10 @@ def test_milestones_seen_in_data(client):
     manual = [m for m in client.get("/api/first90/team").json()["people"][0]["milestones"] if not m["auto"]][0]
     client.patch(f"/api/first90-milestones/{manual['id']}", json={"done_on": d(0)})
     assert client.get("/api/first90/team").json()["people"][0]["done"] == 3
+    # you can always untick one, even when the data says it happened
+    client.patch(f"/api/first90-milestones/{ms['one_on_one']['id']}", json={"done_on": None, "not_done": True})
+    again = {m["auto"]: m for m in client.get("/api/first90/team").json()["people"][0]["milestones"] if m["auto"]}
+    assert again["one_on_one"]["done"] is None and not again["one_on_one"]["seen_in_data"]
 
 
 def test_overview_three_tracks_and_today(client):

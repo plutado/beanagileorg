@@ -1486,6 +1486,12 @@ MIGRATIONS = [
         ALTER TABLE boss_conversations ADD COLUMN next_30 TEXT;
         """,
     ),
+    (
+        40,
+        """
+        ALTER TABLE first90_milestones ADD COLUMN not_done INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -3219,6 +3225,7 @@ first90_milestones = Record(
         "due_day": Field("int", P, required=True),
         "auto": Field("text", P, choices=("one_on_one", "interview", "growth_goal", "feedback", "mandate")),
         "done_on": Field("date", P),
+        "not_done": Field("bool", P, default=False),  # you've marked it not done, even if the data says it happened
         "note": Field("text", P),
         "position": Field("int", P, default=0),
     },
