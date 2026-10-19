@@ -494,6 +494,40 @@ GUIDES = [
         "related": ["/people", "/sdlc", "/onboarding"], "reading": [UA],
     },
     {
+        "slug": "building-the-team", "theme": "team", "minutes": 6, "since": 39,
+        "title": "Building the team you inherit",
+        "summary": "Your most important early decisions will be about people. Assess the team, make the changes that matter most, and keep the ship afloat while you do.",
+        "why": "No leader achieves much alone, and bad early people decisions follow you for a long time. Most new leaders keep the wrong people too long; a few change too much too fast and sink the ship.",
+        "practices": [
+            "Assess the people you inherit, decide what changes you need, then plan how to bring in new people and move the ones you keep into the right roles, without wrecking short-term results.",
+            "Set deadlines in your 90-day plan for reaching conclusions about the team and for acting on them, and keep to them. They're shorter in a turnaround and longer in a realignment.",
+            "Balance stability and change, like repairing a leaky ship mid-ocean. Make only the truly high-priority people changes early; if a B player can carry a role for a while, let them.",
+            "Build the team and align the organization together, stage by stage: what is, what should be, how to get there, getting there. Otherwise you get the right people in the wrong jobs.",
+            "Hold on to good people. Uncertainty about who stays makes your best people look elsewhere, so tell your strongest performers specifically what you value in their work, early.",
+            "Keep group meetings on the business until the core team is in place. Team-building activities strengthen bonds in a group some of whom may be leaving.",
+            "Hold off on decisions that the people you'll bring in will have to carry out, unless they can't wait. People commit to what they helped shape.",
+            "Get help. Changing a team brings emotional, legal and policy complications; a good HR partner is indispensable.",
+            "If you can't change the team, get the most from the people you have, for example by defining roles clearly.",
+        ],
+        "pitfalls": [
+            "Criticizing the previous leadership. Assess current behavior and results instead, and make the changes that improve them.",
+            "Keeping people too long, out of hope that they just needed a leader like you, or to avoid a hard conversation.",
+            "Changing too much too fast, so the work stops while everyone wonders who's next.",
+            "Shaking the tree so hard that good people fall out too.",
+            "Trying to restructure a team on your own.",
+        ],
+        "questions": [
+            "By what day will I have reached a view on each role, and by what day will I act?",
+            "Who on the team can I least afford to lose, and have I told them what I value in their work?",
+            "Which decisions should wait for the people who'll carry them out?",
+        ],
+        "try": [
+            "Set your team decision deadlines in First 90 days, and mark your key people on their pages.",
+            "Ask HR who your partner is for any change to roles.",
+        ],
+        "related": ["/first90", "/people", "/alignment"], "reading": [F90],
+    },
+    {
         "slug": "delegation", "theme": "team", "minutes": 5,
         "title": "Delegating and growing people",
         "summary": "Hand over outcomes, not tasks, with the right amount of support for each person.",
@@ -1269,7 +1303,8 @@ TIPS = {
                  ("Add acronyms and names to the Glossary as you hear them. Speaking like the locals builds trust quickly.", "joining-from-outside", 14)],
     "/search": [("Search when you know the word; Ask when you have a question. Both see only what your privacy level allows.", "learn-fast", 20)],
     "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
-    "/people": [("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
+    "/people": [("Assess what people do now and the results they get, not the previous leader. Criticizing who came before gains nothing.", "building-the-team", 39),
+               ("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
                 ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6),
@@ -1326,7 +1361,8 @@ TIPS = {
                  ("Add an outside benchmark where you can. Facts from outside the team make the case for change better than opinions.", "early-wins", 23)],
     "/qa": [("Bring QA into refinement. Quality built in costs less than quality tested in.", "quality-culture")],
     "/dev-sync": [("Follow up on every item, even when the answer is no. Closed loops build trust.", "earning-trust")],
-    "/learning": [("Teaching others is one of the fastest ways to learn. Invite people to present what they know.", "delegation")],
+    "/learning": [("Keep early group sessions on the business. Save team-building activities until the team you want is mostly in place.", "building-the-team", 39),
+               ("Teaching others is one of the fastest ways to learn. Invite people to present what they know.", "delegation")],
     "/vendors": [("Talk to key vendors regularly, not only during incidents.", "vendor-partnerships")],
     "/plans": [("Present the plan as your recommendation, with the options you weighed. Leave room for your manager to shape it, then agree it.", "leading-upward", 12),
                ("Your plans deliver your mandate. Check each plan item against the outcomes you agreed with your manager.", "your-mandate", 9),
@@ -1425,7 +1461,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 38  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 39  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

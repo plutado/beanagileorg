@@ -1631,6 +1631,12 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        51,
+        """
+        ALTER TABLE people ADD COLUMN key_person INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1676,6 +1682,7 @@ people = Record(
         "insight": Field("list", P),
         "change_style": Field("text", P, choices=CHANGE_STYLES),
         "change_agent": Field("bool", P, default=False),
+        "key_person": Field("bool", P, default=False),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),

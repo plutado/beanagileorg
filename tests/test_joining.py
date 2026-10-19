@@ -141,3 +141,15 @@ def test_alignment_structure(client):
     c = client.post("/api/alignment-checks", json={"area": "[Placeholder area]"}).json()
     st = {"parts": {"incentives": {"fit": "misaligned"}}, "balances": {"incentives": {"now": 0, "should": 3}}, "problems": {"silos": {"seen": True}}}
     assert client.patch(f"/api/alignment-checks/{c['id']}", json={"structure": st}).json()["structure"]["balances"]["incentives"]["should"] == 3
+
+
+def test_team_plan_and_key_people(client):
+    tp = client.get("/api/first90/team-plan").json()
+    assert tp["conclusions_day"] == 60 and tp["act_day"] == 90 and len(tp["stages"]) == 4
+    assert client.put("/api/first90/team-plan", json={"conclusions_day": 80, "act_day": 70}).status_code == 400
+    r = client.put("/api/first90/team-plan", json={"alignment_stage": 2, "team_stage": 0}).json()
+    assert r["out_of_step"] is True
+    p = client.post("/api/people", json={"name": "[Placeholder name 1]", "key_person": True}).json()
+    assert [x["id"] for x in client.get("/api/today").json()["first90"]["unrecognized"]] == [p["id"]]
+    client.post("/api/manager-notes", json={"person_id": p["id"], "date": date.today().isoformat(), "note": "[Placeholder praise]", "kind": "praise"})
+    assert client.get("/api/today").json()["first90"]["unrecognized"] == []

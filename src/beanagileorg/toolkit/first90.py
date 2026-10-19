@@ -208,7 +208,8 @@ def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 def get_team(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}
-    return {**team_track(conn), "checkpoints": checkpoints(conn), "template": _setting(conn, TEMPLATE_KEY) or STARTER_TEMPLATE}
+    return {**team_track(conn), "checkpoints": checkpoints(conn), "template": _setting(conn, TEMPLATE_KEY) or STARTER_TEMPLATE,
+            "team_plan": team_plan(conn), "unrecognized": unrecognized(conn)}
 
 
 @router.post("/api/first90/team/start", status_code=201)
@@ -298,8 +299,72 @@ def advance(change_id: int, body: dict = Body(...), viewer: Viewer = Depends(get
     return models.team_changes.update(conn, change_id, data, viewer.source)
 
 
+# Deadlines for reaching conclusions about the team and acting on them, and where the two tracks of Figure 7-1
+# (organizational alignment and team restructuring) stand: they should move through the stages together.
+TEAM_PLAN_KEY = "first90.team_plan"
+TEAM_STAGES = [("assessment", "Assessment", "What is"), ("decision", "Decision making", "What should be"),
+               ("planning", "Planning for change", "How to get there"), ("implementation", "Implementation", "Getting there")]
+TEAM_PLAN_DEFAULT = {"conclusions_day": 60, "act_day": 90, "conclusions_done": None, "act_done": None, "alignment_stage": None, "team_stage": None}
+
+
+def team_plan(conn) -> dict:
+    plan = {**TEAM_PLAN_DEFAULT, **(_setting(conn, TEAM_PLAN_KEY, {}) or {})}
+    start = start_date(conn)
+    a, b = plan["alignment_stage"], plan["team_stage"]
+    return {**plan, "conclusions_due": _due(start, plan["conclusions_day"]), "act_due": _due(start, plan["act_day"]),
+            "stages": [{"key": k, "name": n, "question": q} for k, n, q in TEAM_STAGES],
+            "out_of_step": a is not None and b is not None and abs(a - b) > 1}
+
+
+@router.get("/api/first90/team-plan")
+def get_team_plan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    return team_plan(conn)
+
+
+@router.put("/api/first90/team-plan")
+def put_team_plan(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    plan = {**TEAM_PLAN_DEFAULT, **(_setting(conn, TEAM_PLAN_KEY, {}) or {})}
+    for k in ("conclusions_day", "act_day"):
+        if k in body:
+            v = body[k]
+            if not isinstance(v, int) or not 1 <= v <= 365:
+                raise HTTPException(400, "Days run from 1 to 365.")
+            plan[k] = v
+    for k in ("alignment_stage", "team_stage"):
+        if k in body:
+            v = body[k]
+            if v is not None and (not isinstance(v, int) or not 0 <= v < len(TEAM_STAGES)):
+                raise HTTPException(400, "Pick a stage.")
+            plan[k] = v
+    for k in ("conclusions_done", "act_done"):
+        if k in body:
+            plan[k] = body[k] or None
+    if plan["act_day"] < plan["conclusions_day"]:
+        raise HTTPException(400, "Act after you've reached your conclusions, not before.")
+    _put(conn, TEAM_PLAN_KEY, plan)
+    return team_plan(conn)
+
+
+def unrecognized(conn) -> list[dict]:
+    """Key people with no praise or win logged since you started (or ever, before a start date is set)."""
+    start = start_date(conn)
+    out = []
+    for p in models.people.fetch_all(conn, "key_person = 1 AND active = 1"):
+        q, args = "SELECT 1 FROM manager_notes WHERE person_id = ? AND kind IN ('praise', 'win')", [p["id"]]
+        if start:
+            q += " AND date >= ?"
+            args.append(start.isoformat())
+        if not conn.execute(q, args).fetchone():
+            out.append({"id": p["id"], "name": p["name"]})
+    return out
+
+
 def first90_due(conn) -> dict:
-    """For Today: late team milestones, a check-in falling this week, and changes due for review."""
+    """For Today: late team milestones, a check-in falling this week, changes due for review, team decision deadlines
+    coming up, and key people you haven't recognized yet."""
     t = today()
     week = (t + timedelta(days=7)).isoformat()
     late = [{"person": p["name"], "person_id": p["id"], "title": m["title"], "due": m["due"]}
@@ -307,7 +372,12 @@ def first90_due(conn) -> dict:
     soon = [c for c in checkpoints(conn) if c["due"] and not c["done_on"] and c["due"] <= week and c["due"] >= (t - timedelta(days=14)).isoformat()]
     reviews = [{"id": c["id"], "title": c["title"], "review_on": c["review_on"]}
                for c in models.team_changes.fetch_all(conn, "status IN ('trial', 'review') AND review_on IS NOT NULL AND review_on <= ?", (week,))]
-    return {"late": late[:8], "checkpoint": soon[0] if soon else None, "reviews": reviews}
+    plan = team_plan(conn)
+    deadlines = [{"kind": k, "due": plan[f"{k}_due"]} for k in ("conclusions", "act")
+                 if plan[f"{k}_due"] and not plan[f"{k}_done"] and plan[f"{k}_due"] <= (t + timedelta(days=14)).isoformat()]
+    day = day_number(start_date(conn))
+    recog = unrecognized(conn) if day is None or day >= 7 else []
+    return {"late": late[:8], "checkpoint": soon[0] if soon else None, "reviews": reviews, "deadlines": deadlines, "unrecognized": recog[:6]}
 
 
 # ---- the five conversations with each of your reports ----

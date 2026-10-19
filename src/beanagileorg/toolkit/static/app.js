@@ -121,7 +121,9 @@
         ${d.mandates && (d.mandates.agree_mine || d.mandates.reviews.length) ? `<section class="card"><h2>Mandates</h2>
           ${d.mandates.agree_mine ? `<div class="item"><span class="pill warn">day ${d.mandates.agree_mine.day}</span><a href="#/first90/${d.mandates.agree_mine.id ? `mandate/${d.mandates.agree_mine.id}` : "mandates"}">${d.mandates.agree_mine.exists ? "Agree your mandate with your manager" : "Write down your mandate, then agree it with your manager"}</a></div>` : ""}
           ${d.mandates.reviews.map((m) => `<div class="item"><span class="pill">review</span><a href="#/first90/mandate/${m.id}">${m.mine ? "Your mandate" : `${esc(m.name || "")}'s mandate`}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.review_on)}</span></div>`).join("")}</section>` : ""}
-        ${d.first90 && (d.first90.late.length || d.first90.checkpoint || d.first90.reviews.length) ? `<section class="card"><h2>First 90 days</h2>
+        ${d.first90 && (d.first90.late.length || d.first90.checkpoint || d.first90.reviews.length || (d.first90.deadlines || []).length || (d.first90.unrecognized || []).length) ? `<section class="card"><h2>First 90 days</h2>
+          ${(d.first90.deadlines || []).map((x) => `<div class="item"><span class="pill warn">team</span><a href="#/first90/team">${x.kind === "conclusions" ? "Reach your conclusions about the team" : "Act on your team decisions"}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.due)}</span></div>`).join("")}
+          ${(d.first90.unrecognized || []).map((x) => `<div class="item"><span class="pill">recognize</span><a href="#/people/${x.id}">Tell ${esc(x.name)} what you value in their work</a></div>`).join("")}
           ${d.first90.checkpoint ? `<div class="item"><span class="pill warn">check-in</span><a href="#/first90/team">Day-${d.first90.checkpoint.day} team check-in</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.first90.checkpoint.due)}</span></div>` : ""}
           ${d.first90.reviews.map((c) => `<div class="item"><span class="pill">review</span><a href="#/first90/changes">Review with the team: ${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.review_on)}</span></div>`).join("")}
           ${d.first90.late.map((m) => `<div class="item"><span class="pill bad">late</span><a href="#/first90/team">${esc(m.person)}: ${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.due)}</span></div>`).join("")}</section>` : ""}
@@ -212,7 +214,7 @@
   const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
     wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
     influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
-    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring", change_style: "Style when leading change", change_agent: "Change agent" };
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring", change_style: "Style when leading change", change_agent: "Change agent", key_person: "Key person" };
   const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["balance", "Balance"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
   const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
@@ -514,6 +516,7 @@
         ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("insight", `<label>Insight they bring <span class="quiet">(where their view of the organization comes from)</span></label><div class="case-picks">${[["customer", "Customer or business user"], ["vendor", "Vendor or supplier"], ["frontline", "Frontline"], ["sales", "Sales or service"], ["staff", "Finance, legal or HR"], ["integrator", "Integrator"], ["historian", "Natural historian"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="insight" value="${k}"${(p.insight || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("change_agent", `<label class="check"><input type="checkbox" name="change_agent"${p.change_agent ? " checked" : ""}> Change agent <span class="quiet">(has the drive to help lead change; private)</span></label>`)}
+        ${extra("key_person", `<label class="check"><input type="checkbox" name="key_person"${p.key_person ? " checked" : ""}> Key person <span class="quiet">(someone you can't afford to lose; Today reminds you to recognize them early; private)</span></label>`)}
         ${extra("change_style", `<label>Style when leading change <span class="quiet">(your read; private)</span><select name="change_style"><option value=""></option>${[["hero", "Hero: takes charge, moves fast"], ["steward", "Steward: builds consensus, patient"], ["both", "Some of each"]].map(([k, l]) => `<option value="${k}"${p.change_style === k ? " selected" : ""}>${l}</option>`).join("")}</select></label>`)}
         ${extra("expects_from_me", `<label>What they expect from me <span class="quiet">(especially anyone who shapes how my work is judged)</span><textarea name="expects_from_me" rows="2">${esc(p.expects_from_me || "")}</textarea></label>`)}
         ${extra("things_to_remember", `<label>Things to remember <span class="quiet">(one per line)</span><textarea name="things_to_remember" rows="3">${esc((p.things_to_remember || []).join("\n"))}</textarea></label>`)}
@@ -537,6 +540,7 @@
       if (form.querySelector('input[name="insight"]')) body.insight = fd.getAll("insight");
       if (form.elements.change_style) body.change_style = fd.get("change_style") || null;
       if (form.elements.change_agent) body.change_agent = form.elements.change_agent.checked;
+      if (form.elements.key_person) body.key_person = form.elements.key_person.checked;
       if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
       if (form.querySelector("#key-dates")) {
         const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");
@@ -5208,6 +5212,41 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     },
   });
 
+  // The two tracks of Figure 7-1: organizational alignment and team restructuring move through the same four stages together.
+  function teamTracksSvg(tp) {
+    const W = 560, top = 40, gap = 62, ys = tp.stages.map((_, i) => top + i * gap);
+    const col = (x, stage, label) => `<text x="${x}" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">${label}</text>` + tp.stages.map((st, i) => {
+      const on = stage === i, done = stage != null && i < stage;
+      return `<rect x="${x - 85}" y="${ys[i] - 17}" width="170" height="34" rx="8" fill="${on ? "var(--accent-soft)" : done ? "var(--good-soft)" : "var(--panel)"}" stroke="${on ? "var(--accent)" : "var(--line-strong)"}" stroke-width="${on ? 2.5 : 1}"/>
+        <text x="${x}" y="${ys[i]}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--ink)">${esc(st.question)}</text>`; }).join("");
+    const labels = tp.stages.map((st, i) => `<text x="10" y="${ys[i]}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(st.name)}</text>`).join("");
+    const down = (x) => tp.stages.slice(0, -1).map((_, i) => `<line x1="${x}" y1="${ys[i] + 17}" x2="${x}" y2="${ys[i + 1] - 19}" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#tt-a)"/>`).join("");
+    const across = ys.map((y) => `<line x1="${310 + 87}" y1="${y}" x2="${535 - 87}" y2="${y}" stroke="var(--muted)" stroke-width="1.5" marker-start="url(#tt-a)" marker-end="url(#tt-a)"/>`).join("");
+    return `<svg viewBox="0 0 ${W + 80} ${top + gap * tp.stages.length}" role="img" aria-label="Organizational alignment and team restructuring moving through four stages together" style="width:100%;max-width:640px;display:block">
+      <defs><marker id="tt-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+      ${labels}${down(310)}${down(535)}${across}${col(310, tp.alignment_stage, "Organizational alignment")}${col(535, tp.team_stage, "The team")}</svg>`;
+  }
+
+  function teamPlanCard(tp, unrec) {
+    if (!tp) return "";
+    const ro = presenting();
+    const stageSel = (name, v) => `<select name="${name}" style="max-width:220px"><option value="">Not started</option>${tp.stages.map((st, i) => `<option value="${i}"${v === i ? " selected" : ""}>${esc(st.name)}: ${esc(st.question.toLowerCase())}</option>`).join("")}</select>`;
+    return `<section class="card"><h2>Team decisions</h2><p class="quiet">Set the days by which you'll reach a view on each role and act on it, and keep to them. Timing depends on the situation: shorter in a turnaround, longer in a realignment. Only truly urgent changes before then; a B player can carry a role for a while. Bring in your HR partner early.</p>
+      <form id="team-plan"><div class="grid2">
+        <label>Conclusions about the team by day<input type="number" min="1" max="365" name="conclusions_day" value="${tp.conclusions_day}"${ro ? " disabled" : ""}><span class="quiet">${tp.conclusions_due ? BA.fmtDate(tp.conclusions_due) : BA.roleDay(tp.conclusions_day)}</span></label>
+        <label>Done on<input type="date" name="conclusions_done" value="${esc(tp.conclusions_done || "")}"${ro ? " disabled" : ""}></label>
+        <label>Act on them by day<input type="number" min="1" max="365" name="act_day" value="${tp.act_day}"${ro ? " disabled" : ""}><span class="quiet">${tp.act_due ? BA.fmtDate(tp.act_due) : BA.roleDay(tp.act_day)}</span></label>
+        <label>Done on<input type="date" name="act_done" value="${esc(tp.act_done || "")}"${ro ? " disabled" : ""}></label></div>
+        <h3>Two tracks, in step</h3><p class="quiet">Building the team and aligning the organization go together, stage by stage, so you don't end up with the right people in the wrong jobs. Mark where each track stands.</p>
+        ${teamTracksSvg(tp)}
+        ${tp.out_of_step ? '<p class="callout warn">The two tracks are more than a stage apart. Let the one ahead wait, or bring the other forward.</p>' : ""}
+        <div class="grid2"><label>Organizational alignment is at${stageSel("alignment_stage", tp.alignment_stage)}</label><label>The team is at${stageSel("team_stage", tp.team_stage)}</label></div>
+        <p class="quiet"><a href="#/alignment">Organizational alignment</a> holds the diagnosis.</p>
+        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form>
+      <h3>Hold on to good people</h3><p class="quiet">Uncertainty about who stays can make your best people leave. Mark your key people on their pages, and tell each one specifically what you value in their work, early. Logging it as praise or a win on their page clears the reminder.</p>
+      ${unrec.length ? unrec.map((x) => `<div class="item"><span class="pill">recognize</span><a href="#/people/${x.id}">${esc(x.name)}</a></div>`).join("") : '<p class="quiet">No key person waiting for recognition.</p>'}</section>`;
+  }
+
   async function renderF90Team(main) {
     const [d, rc, allPeople] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations"), BA.api("/api/people")]);
     const agents = allPeople.filter((p) => p.change_agent && p.active !== false);
@@ -5228,6 +5267,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <span class="ms-day">${BA.roleDay(m.due_day)}</span><span>${esc(m.title)}</span><span class="spacer"></span>
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Open each report\'s page under People, go to Details, and set Reports to.' : 'Open your own page under <a href="#/people">People</a> and press This is me, then set who reports to you.'}</p></section>` : ""}
+      ${teamPlanCard(d.team_plan, d.unrecognized)}
       ${rcCard}
       ${agentsCard}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
@@ -5237,6 +5277,14 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <label>Notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label><div class="actions"><label class="left">Held on <input type="date" name="done_on" value="${esc(c.done_on || "")}"></label><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}</section>
       <details class="card"><summary><b>Milestone template</b></summary><p class="quiet">What every inherited team member gets. Changes apply to people you start from now on. One per line: day, then the milestone.</p>
         <form id="tpl"><textarea name="tpl" rows="10" class="mono">${esc(d.template.map((m) => `${m.due_day} | ${m.title}${m.auto ? ` | auto:${m.auto}` : ""}`).join("\n"))}</textarea><div class="actions"><button class="btn primary" type="submit">Save template</button></div></form></details>`;
+    const tpf = main.querySelector("#team-plan");
+    if (tpf && !presenting()) tpf.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(tpf), n = (v) => (v === "" || v == null ? null : Number(v));
+      await BA.api("/api/first90/team-plan", { method: "PUT", body: { conclusions_day: n(fd.get("conclusions_day")), act_day: n(fd.get("act_day")), conclusions_done: fd.get("conclusions_done") || null, act_done: fd.get("act_done") || null, alignment_stage: n(fd.get("alignment_stage")), team_stage: n(fd.get("team_stage")) } });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
     const st = main.querySelector("#f90-start");
     if (st) st.onclick = BA.guard(async () => { await BA.api("/api/first90/team/start", { method: "POST", body: {} }); BA.rerender(); });
     const cell = (pid, t) => rc.reports.find((r) => r.id === Number(pid)).cells[t];
