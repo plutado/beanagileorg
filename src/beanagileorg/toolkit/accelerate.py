@@ -79,6 +79,20 @@ SITUATION_GUIDE = {
                            "Learn deeply before changing anything. Protect what works, avoid needless disruption, and look for the next opportunity.",
                    'Proud and possibly complacent.', 'Invent the challenge: keep people stretched, find the next direction for growth, and protect what works.', 'learn', 'Learn deeply first: ready, aim, fire'),
 }
+# Typical challenges and opportunities in each situation, after the STARS model in The First 90 Days, in our own words.
+SITUATION_FACTORS = {
+    "start-up": (["Building the strategy, structure and ways of working from nothing", "Recruiting a team and turning it into one team", "Making do with limited resources"],
+                 ["You can do things right from the start", "People are energized by what's possible", "There are no old habits to undo"]),
+    "turnaround": (["Re-energizing people who are demoralized", "Making good decisions under time pressure", "Going deep enough, including hard choices about work and people"],
+                   ["Everyone agrees change is needed", "People affected outside the team tend to offer support", "A little success goes a long way"]),
+    "accelerated growth": (["Putting in the structure and systems to scale", "Bringing many new people in without losing the culture"],
+                           ["Growth itself motivates people", "People are willing to stretch, and to stretch the people around them"]),
+    "realignment": (["Convincing people that change is necessary", "Carefully reshaping the leadership group and refocusing the team"],
+                    ["There are real pockets of strength to build on", "People want to keep seeing themselves as successful"]),
+    "sustaining success": (["Living in the shadow of a well-liked former leader and the team they built", "Playing good defense before launching too many new initiatives", "Finding the next level"],
+                           ["A strong team may already be in place", "People are motivated to continue a record of success", "Foundations for continued success may already exist"]),
+}
+
 STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
 
 BOSS_TOPICS = [
@@ -268,7 +282,8 @@ def put_learning_step(key: str, body: dict = Body(...), viewer: Viewer = Depends
 
 @router.get("/api/situations/guide")
 def situation_guide(viewer: Viewer = Depends(get_viewer)):
-    return {k: {"what": w, "approach": a, "mood": m, "mood_job": j, "pace": p, "pace_label": pl} for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
+    return {k: {"what": w, "approach": a, "mood": m, "mood_job": j, "pace": p, "pace_label": pl,
+                "challenges": SITUATION_FACTORS[k][0], "opportunities": SITUATION_FACTORS[k][1]} for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
 
 
 @router.post("/api/situations/starter", status_code=201)

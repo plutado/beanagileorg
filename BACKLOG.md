@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Situation challenges and opportunities. Each kind of situation lists its typical challenges and opportunities (after the STARS table, in our own words), shown in the guide and beside each area, and each area gains an "Opportunities I see" field; 245 tests
+
 - [x] 2026-10-18: Situation, chapter 3. Each kind of situation now shows its usual mood, the leader's job with that mood and its pace (ready-fire-aim or ready-aim-fire). Each area records how it got here and the mood you see, and the Situation tab warns when areas need different paces. The Read the situation guide gains practices on pace, mood, history and using the model at any level; 245 tests
 
 - [x] 2026-10-18: Learning plan. A phased checklist on the learning agenda (before day 1, soon after you start, by day 30, days 31 to 60) with top-down and bottom-up alignment checks and two reviews with your manager, each step showing its day and week. The joining-from-outside guide covers moving between units and asking for help; a new reflection prompt on learning before acting; 244 tests

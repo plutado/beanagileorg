@@ -141,5 +141,6 @@ def test_learning_plan_phases(client):
 def test_situation_guide_mood_pace_and_history(client):
     g = client.get("/api/situations/guide").json()
     assert g["turnaround"]["pace"] == "fast" and g["realignment"]["pace"] == "learn" and g["realignment"]["mood_job"]
-    s = client.post("/api/situations", json={"area": "[Placeholder area]", "kind": "turnaround", "history": "[Placeholder]", "mood": "[Placeholder]"}).json()
+    assert all(g[k]["challenges"] and g[k]["opportunities"] for k in g)
+    s = client.post("/api/situations", json={"area": "[Placeholder area]", "kind": "turnaround", "history": "[Placeholder]", "mood": "[Placeholder]", "opportunities": "[Placeholder]"}).json()
     assert s["history"] == "[Placeholder]" and s["mood"] == "[Placeholder]"
