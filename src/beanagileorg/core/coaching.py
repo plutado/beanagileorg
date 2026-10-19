@@ -191,6 +191,8 @@ GUIDES = [
             "Ask what the area will and won't do across four things: customers, capital, capabilities and commitments, including past commitments that are hard to undo.",
             "Test an inherited direction three ways: is it coherent (do the parts connect), adequate (is it enough for the next two or three years), and how was it made (rushed, or a slow political compromise)?",
             "Watch for the common mismatches: direction and skills, direction and processes, structure and processes, structure and skills.",
+            "Judge a direction by what people do, not what they say. Look at the decisions being made, the goals really being chased, whether the stated measures are used, and whether people get the help they need to build new skills. It tells you whether to fix the direction or how it's carried out.",
+            "If the direction is the wrong path, raise questions so your manager and others re-examine it rather than changing it alone. If it's right but not fast or far enough, adjust it modestly early, and save bigger changes until you've learned more and built support.",
             "When you assess strengths and weaknesses, start outside. List threats and opportunities first, then ask which weaknesses leave you exposed to a threat and which strengths let you pursue an opportunity. Turn those pairs into priorities. Some call this TOWS rather than SWOT, to get the order right.",
         ],
         "pitfalls": [

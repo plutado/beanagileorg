@@ -74,6 +74,20 @@ DIRECTION_TESTS = [
     ("coherence", "Coherence", "Do the parts connect? Break the plans into customers, products, technology, functional plans and goals, and look for the thread: does the roadmap match the budget, the capacity and the skills it needs?"),
     ("adequacy", "Adequacy", "Is it enough for what the area must do in the next two or three years, and for the wider organization's goals? Are resources secured to carry it out?"),
     ("making", "How it was made", "Who drove it? A rushed direction may not be thought through; one that took forever may be a political compromise nobody believes in."),
+    ("implementation", "Implementation", "Is it being pursued with energy? Judge by what people do, not what they say: do day-to-day decisions match it, which goals are really being chased, are the stated measures used to decide things, do people work across functions where it needs them to, and is there a way to build the new skills it calls for?"),
+]
+IMPLEMENTATION_SCRUM = "Sprint goals and the work actually finished show what a team really pursues. Work that keeps landing outside the product goal is an implementation signal; look at it together in the retrospective."
+# Where the problem lies, and what to do about the direction.
+VERDICTS = [
+    ("formulation", "The direction itself is the problem"),
+    ("implementation", "The direction is fine; carrying it out is the problem"),
+    ("both", "Both"),
+    ("neither", "Neither: it's sound and being pursued"),
+]
+MOVES = [
+    ("leave", "Leave the direction as it is", "Put your effort into how it's carried out, or elsewhere."),
+    ("tweak", "Adjust it modestly now, plan bigger changes later", "Small changes early, such as a goal raised a little or an investment brought forward. Save bigger changes until you've learned more and built support."),
+    ("reexamine", "Raise questions so it gets looked at again", "If it's the wrong path, don't change it alone: raise questions with your manager and others so they re-examine it. Build the case below."),
 ]
 TEST_RATINGS = ("sound", "some gaps", "weak")
 DIRECTION_SCRUM = "At team level, the product goal is the mission, and sprint goals are steps toward it. A product goal people can say in a sentence is the first sign of a coherent direction."
@@ -102,7 +116,9 @@ def alignment_guide(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)
     return {
         "direction": {"parts": [{"key": k, "name": n, "what": w} for k, n, w in DIRECTION_PARTS],
                       "four_cs": [{"key": k, "name": n, "prompt": q} for k, n, q in FOUR_CS], "wont_do": WONT_DO,
-                      "tests": [{"key": k, "name": n, "prompt": q} for k, n, q in DIRECTION_TESTS], "ratings": TEST_RATINGS, "scrum": DIRECTION_SCRUM},
+                      "tests": [{"key": k, "name": n, "prompt": q} for k, n, q in DIRECTION_TESTS], "ratings": TEST_RATINGS, "scrum": DIRECTION_SCRUM,
+                      "implementation_scrum": IMPLEMENTATION_SCRUM, "verdicts": [{"key": k, "label": l} for k, l in VERDICTS],
+                      "moves": [{"key": k, "label": l, "why": w} for k, l, w in MOVES]},
         "mismatches": [{"key": f"{a}-{b}", "a": a, "b": b, "question": q, "common": i < 4} for i, (a, b, q) in enumerate(MISMATCHES)],
         "mismatch_states": MISMATCH_STATES,
         "sequences": {k: {"why": w, "order": o} for k, (w, o) in SEQUENCES.items()},

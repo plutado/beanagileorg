@@ -1711,7 +1711,7 @@
           const elements = Object.fromEntries(g.elements.map((x) => [x.key, { fit: fd.get(`fit.${x.key}`) || null, notes: fd.get(`notes.${x.key}`) || "" }]));
           const external = Object.fromEntries(g.external.map((x) => [x.key, fd.get(`ext.${x.key}`) || ""]).filter(([, v]) => v.trim()));
           const mismatches = Object.fromEntries(g.mismatches.map((m) => [m.key, { state: fd.get(`mm.${m.key}`) || null, notes: fd.get(`mmn.${m.key}`) || "" }]).filter(([, v]) => v.state || v.notes.trim()));
-          const direction = { ...Object.fromEntries(g.direction.parts.map((x) => [x.key, fd.get(`dir.${x.key}`) || ""])), wont_do: fd.get("dir.wont_do") || "",
+          const direction = { ...Object.fromEntries(g.direction.parts.map((x) => [x.key, fd.get(`dir.${x.key}`) || ""])), wont_do: fd.get("dir.wont_do") || "", verdict: fd.get("dir.verdict") || null, move: fd.get("dir.move") || null,
             cs: Object.fromEntries(g.direction.four_cs.map((x) => [x.key, fd.get(`cs.${x.key}`) || ""])),
             tests: Object.fromEntries(g.direction.tests.map((x) => [x.key, { rating: fd.get(`test.${x.key}`) || null, notes: fd.get(`testn.${x.key}`) || "" }])) };
           await BA.api(`/api/alignment-checks/${check.id}`, { method: "PATCH", body: { area: fd.get("area"), date: fd.get("date") || null, elements, external, climate: fd.get("climate"), root_cause: fd.get("root_cause") || null, the_case: fd.get("the_case"), next_step: fd.get("next_step"),
@@ -1751,7 +1751,20 @@
       <p class="callout">${esc(g.direction.scrum)}</p>
       <h3>Four questions about direction</h3>${g.direction.four_cs.map((x) => `<label>${esc(x.name)} <span class="quiet">(${esc(x.prompt)})</span><textarea name="cs.${x.key}" rows="2">${esc(cs[x.key] || "")}</textarea></label>`).join("")}
       <h3>Testing the direction you inherit</h3>${g.direction.tests.map((x) => { const t = tests[x.key] || {}; return `<p><b>${esc(x.name)}.</b> <span class="quiet">${esc(x.prompt)}</span></p>
-        <div class="row" style="align-items:flex-start"><select name="test.${x.key}" style="max-width:160px"><option value="">Not judged</option>${opts(g.direction.ratings, t.rating)}</select><textarea name="testn.${x.key}" rows="2" placeholder="Your evidence" style="flex:1;min-width:220px">${esc(t.notes || "")}</textarea></div>`; }).join("")}`;
+        ${x.key === "implementation" ? `<p class="callout">${esc(g.direction.implementation_scrum)}</p>` : ""}
+        <div class="row" style="align-items:flex-start"><select name="test.${x.key}" style="max-width:160px"><option value="">Not judged</option>${opts(g.direction.ratings, t.rating)}</select><textarea name="testn.${x.key}" rows="2" placeholder="Your evidence" style="flex:1;min-width:220px">${esc(t.notes || "")}</textarea></div>`; }).join("")}
+      <h3>Where the problem lies, and what to do</h3>
+      <label>The problem is in<select name="dir.verdict" style="max-width:420px"><option value="">Not decided</option>${g.direction.verdicts.map((v) => `<option value="${v.key}"${v.key === d.verdict ? " selected" : ""}>${esc(v.label)}</option>`).join("")}</select></label>
+      ${(() => { const sug = alignSuggestedMove(d.verdict, check.sequence); const m = g.direction.moves.find((x) => x.key === sug); return m ? `<p class="quiet">Suggested from the verdict${check.sequence ? " and the situation" : ""}: <b>${esc(m.label)}</b>.</p>` : ""; })()}
+      <label>What I'll do about the direction<select name="dir.move" style="max-width:420px"><option value="">Not decided</option>${g.direction.moves.map((m) => `<option value="${m.key}"${m.key === d.move ? " selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
+      ${d.move ? `<p class="quiet">${esc(g.direction.moves.find((m) => m.key === d.move).why)}</p>` : ""}`;
+  }
+
+  // Formulation problems are re-examined in a turnaround, adjusted modestly elsewhere; implementation problems leave the direction alone.
+  function alignSuggestedMove(verdict, sequence) {
+    if (!verdict) return null;
+    if (verdict === "implementation" || verdict === "neither") return "leave";
+    return sequence === "turnaround" ? "reexamine" : "tweak";
   }
 
   function trapsCard(g) {

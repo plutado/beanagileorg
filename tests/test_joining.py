@@ -110,6 +110,7 @@ def test_alignment_check(client):
 def test_alignment_direction_mismatches_and_sequence(client):
     g = client.get("/api/alignment/guide").json()
     assert [p["key"] for p in g["direction"]["parts"]] == ["mission", "vision", "strategy"] and len(g["direction"]["four_cs"]) == 4
+    assert [t["key"] for t in g["direction"]["tests"]][-1] == "implementation" and {m["key"] for m in g["direction"]["moves"]} == {"leave", "tweak", "reexamine"}
     assert len(g["mismatches"]) == 6 and sum(m["common"] for m in g["mismatches"]) == 4
     assert g["sequences"]["realignment"]["order"][0] == "processes" and g["sequences"]["turnaround"]["order"][0] == "direction"
     client.post("/api/situations", json={"area": "[Placeholder area]", "kind": "realignment"})
