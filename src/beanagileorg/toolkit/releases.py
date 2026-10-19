@@ -6,7 +6,7 @@ Path step names come from your SDLC environments or from settings, never from co
 """
 
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
@@ -21,7 +21,8 @@ router = APIRouter()
 PATH_KEY = "releases.path"
 DEFAULT_PATH = ["Developer sandbox", "Integration sandbox", "QA sandbox", "Staging", "Production"]
 FAILED = ("hotfix", "rollback", "incident")
-METRIC_NAMES = {"deployment_frequency": "Deployment frequency", "change_failure_rate": "Change failure rate"}
+METRIC_NAMES = {"deployment_frequency": "Deployment frequency", "change_failure_rate": "Change failure rate", "time_to_restore": "Time to restore"}
+CLASH_KINDS = ("Salesforce release", "peak-season freeze")
 
 
 def _setting(conn, key, default=None):
@@ -79,10 +80,12 @@ def from_sprint(release_id: int, viewer: Viewer = Depends(get_viewer), conn=Depe
     if not r.get("sprint_id"):
         raise HTTPException(400, "Pick the release's sprint first.")
     items = models.backlog_items.fetch_all(conn, "sprint_id = ? AND status != 'removed'", (r["sprint_id"],))
-    if not items:
+    crs = [c for c in models.change_requests.fetch_all(conn, "sprint_id = ?", (r["sprint_id"],)) if (c.get("decision") or "").startswith("accepted")]
+    if not items and not crs:
         raise HTTPException(400, "No stories are planned in that sprint yet.")
-    keys = sorted({*(r.get("jira_keys") or []), *(i["jira_key"] for i in items if i.get("jira_key"))})
-    return models.releases.update(conn, release_id, {"story_ids": [i["id"] for i in items], "jira_keys": keys}, viewer.source)
+    keys = sorted({*(r.get("jira_keys") or []), *(i["jira_key"] for i in items if i.get("jira_key")), *(k for c in crs for k in (c.get("jira_keys") or []))})
+    return models.releases.update(conn, release_id, {"story_ids": [i["id"] for i in items], "jira_keys": keys,
+                                                     "change_request_ids": sorted({*(r.get("change_request_ids") or []), *(c["id"] for c in crs)})}, viewer.source)
 
 
 def readiness(conn, r: dict) -> dict:
@@ -107,7 +110,9 @@ def detail(release_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(g
     r = models.releases.visible(_release(conn, release_id), viewer)
     full = _release(conn, release_id)
     stories = models.backlog_items.fetch_all(conn, f"id IN ({','.join('?' * len(full['story_ids']))})", tuple(full["story_ids"])) if full.get("story_ids") else []
+    crs = [c for c in models.change_requests.fetch_all(conn) if c["id"] in (full.get("change_request_ids") or [])]
     return {"release": r, "stories": [{"id": s["id"], "title": s["title"], "jira_key": s.get("jira_key"), "status": s["status"], "points": s.get("points")} for s in stories],
+            "change_requests": [{"id": c["id"], "title": c["title"], "decision": c.get("decision"), "requested_on": c.get("requested_on"), "points": c.get("points")} for c in crs],
             "readiness": readiness(conn, full), "path_steps": path_steps(conn)}
 
 
@@ -121,6 +126,9 @@ def notes(release_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(ge
     if when:
         lines += [f"**{'Released' if r.get('released_on') else 'Planned for'}:** {when}", ""]
     lines += ["## What's in it"] + ([f"- {s['title']}" + (f" ({s['jira_key']})" if s.get("jira_key") else "") for s in stories] or ["- [Placeholder: what this release changes]"])
+    crs = [c for c in models.change_requests.fetch_all(conn) if c["id"] in (r.get("change_request_ids") or [])]
+    if crs:
+        lines += ["", "## Added during the sprint"] + [f"- {c['title']}" for c in crs]
     lines += ["", "## What changes for you", "- [Placeholder]", "", "## Who to ask", "[Placeholder name or channel]"]
     return {"markdown": "\n".join(lines)}
 
@@ -131,7 +139,13 @@ def release_metrics(conn, weeks: int = 8) -> dict:
     judged = [r for r in done if r.get("outcome")]
     failed = [r for r in judged if r["outcome"] in FAILED]
     by_name = {m["name"].strip().lower(): m["id"] for m in models.metrics.fetch_all(conn)}
+    restores = []
+    for r in failed:
+        inc = models.incidents.fetch(conn, r["incident_id"]) if r.get("incident_id") else None
+        if inc and inc.get("date") and inc.get("resolved_at"):
+            restores.append((date.fromisoformat(inc["resolved_at"]) - date.fromisoformat(inc["date"])).days)
     return {"weeks": weeks, "released": len(done), "per_week": round(len(done) / weeks, 2),
+            "time_to_restore": round(sum(restores) / len(restores), 1) if restores else None, "restores": len(restores),
             "judged": len(judged), "failed": len(failed), "change_failure_rate": round(100 * len(failed) / len(judged), 1) if judged else None,
             "metric_ids": {k: by_name.get(v.lower()) for k, v in METRIC_NAMES.items()}, "metric_names": METRIC_NAMES}
 
@@ -147,13 +161,13 @@ def record_metrics(body: dict = Body(default={}), viewer: Viewer = Depends(get_v
     require_write(viewer)
     m = release_metrics(conn, max(1, min(int(body.get("weeks") or 8), 52)))
     recorded = []
-    for key, value in (("deployment_frequency", m["per_week"]), ("change_failure_rate", m["change_failure_rate"])):
+    for key, value in (("deployment_frequency", m["per_week"]), ("change_failure_rate", m["change_failure_rate"]), ("time_to_restore", m["time_to_restore"])):
         mid = m["metric_ids"][key]
         if mid and value is not None:
             models.metric_readings.create(conn, {"metric_id": mid, "date": today().isoformat(), "value": value}, viewer.source)
             recorded.append(METRIC_NAMES[key])
     if not recorded:
-        raise HTTPException(400, "Nothing to record. Add the Deployment frequency and Change failure rate metrics (the starter metrics include them), and log released releases with an outcome.")
+        raise HTTPException(400, "Nothing to record. Add the Deployment frequency, Change failure rate or Time to restore metrics, and log released releases with an outcome (and, for failures, a linked incident with its resolved date).")
     return {"recorded": recorded}
 
 
@@ -215,3 +229,22 @@ def decide(release_id: int, body: dict = Body(...), viewer: Viewer = Depends(get
                                                         "status": "decided", "outcome": outcome, "process": DECISION_PROCESS, "jira_keys": r.get("jira_keys") or [],
                                                         "team_id": r.get("team_id")}, viewer.source)["id"]
     return {"release": updated, "logged_decision_id": logged}
+
+
+@router.get("/api/releases/calendar")
+def calendar(days_back: int = 14, days_ahead: int = 120, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Releases and regression windows (platform releases, peak-season freezes) on one timeline, with clashes."""
+    t = today()
+    lo, hi = (t - timedelta(days=max(0, days_back))).isoformat(), (t + timedelta(days=max(7, min(days_ahead, 365)))).isoformat()
+    windows = []
+    for p in models.regression_plans.fetch_all(conn):
+        s, e = p.get("start_date"), p.get("end_date") or p.get("start_date")
+        if s and e >= lo and s <= hi:
+            windows.append({"id": p["id"], "title": p["title"], "kind": p["kind"], "start": s, "end": e, "status": p["status"]})
+    rels = []
+    for r in models.releases.fetch_all(conn, "status != 'cancelled'"):
+        d = r.get("released_on") or r.get("planned_on")
+        if d and lo <= d <= hi:
+            clashes = [w["title"] for w in windows if w["kind"] in CLASH_KINDS and w["start"] <= d <= w["end"]]
+            rels.append({"id": r["id"], "name": r["name"], "date": d, "released": bool(r.get("released_on")), "outcome": r.get("outcome"), "clashes": clashes})
+    return {"from": lo, "to": hi, "today": t.isoformat(), "windows": windows, "releases": rels, "clash_kinds": CLASH_KINDS}

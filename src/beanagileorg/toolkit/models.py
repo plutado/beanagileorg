@@ -1819,6 +1819,12 @@ MIGRATIONS = [
         ALTER TABLE plan_items ADD COLUMN checkin TEXT;
         """,
     ),
+    (
+        60,
+        """
+        ALTER TABLE releases ADD COLUMN change_request_ids TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -3675,6 +3681,7 @@ releases = Record(
         "incident_id": Field("int", S),
         "team_id": Field("int", S),
         "notes": Field("text", P),
+        "change_request_ids": Field("ids", E),
     },
     computed={
         "sprint_number": ("(SELECT number FROM sprints s WHERE s.id = releases.sprint_id)", E),

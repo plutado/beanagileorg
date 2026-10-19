@@ -2162,15 +2162,16 @@
     title: "Releases",
     async render(main, param) {
       if (param) return renderRelease(main, Number(param));
-      const [list, sprints, m, cfg] = await Promise.all([BA.api("/api/releases"), BA.api("/api/sprints"), BA.api("/api/releases/metrics"), BA.api("/api/releases/settings")]);
+      const [list, sprints, m, cfg, cal] = await Promise.all([BA.api("/api/releases"), BA.api("/api/sprints"), BA.api("/api/releases/metrics"), BA.api("/api/releases/settings"), BA.api("/api/releases/calendar")]);
       const ro = presenting();
       main.innerHTML = `<p class="quiet">Every release, from the stories in it to how it went: where it is on the path to production, the regression plan and QA sign-off, a go/no-go decision with a readiness check, and the outcome. Stable releases come from doing this the same way every time.</p>
         <section class="card"><h2>Releases</h2>${list.map((r) => `<div class="item"><a href="#/releases/${r.id}"><b>${esc(r.name)}</b></a>${tonePill(r.status, REL_TONES)}${r.decision !== "pending" ? `<span class="pill ${r.decision === "go" ? "good" : "bad"}">${esc(r.decision)}</span>` : ""}${r.outcome ? `<span class="pill ${OUTCOME_TONES[r.outcome]}">${esc(r.outcome)}</span>` : ""}
             <span class="spacer"></span>${r.sprint_number ? `<span class="quiet">Sprint ${r.sprint_number}</span>` : ""}<span class="quiet">${r.released_on ? "released " + BA.fmtDate(r.released_on) : r.planned_on ? "planned " + BA.fmtDate(r.planned_on) : ""}</span></div>`).join("") || '<p class="quiet">No releases yet.</p>'}
           ${ro ? "" : `<form id="add-rel" class="row" style="margin-top:10px"><input name="name" required placeholder="Release name or version" style="max-width:240px"><select name="sprint_id" style="max-width:160px"><option value="">Sprint</option>${sprints.map((s) => `<option value="${s.id}">Sprint ${s.number}</option>`).join("")}</select>
             <input type="date" name="planned_on" style="max-width:170px" title="Planned production date"><input name="branch" placeholder="Release branch" style="max-width:200px"><button class="btn primary" type="submit">Add release</button></form>`}</section>
-        <section class="card"><h2>From the release log</h2><p class="quiet">Last ${m.weeks} weeks: ${m.released} release${m.released === 1 ? "" : "s"} to production, about ${m.per_week} a week. ${m.change_failure_rate != null ? `${m.failed} of ${m.judged} with an outcome needed a hotfix, a rollback or caused an incident: a change failure rate of ${m.change_failure_rate}%.` : "Record each release's outcome to see the change failure rate."}</p>
-          ${ro ? "" : `<button class="btn" id="rec-metrics"${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "" : " disabled"}>Record as metric readings</button> <span class="quiet">${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "Adds today's values to Deployment frequency and Change failure rate under Metrics." : 'Load the starter metrics under <a href="#/metrics">Metrics</a> first.'}</span>`}</section>
+        <section class="card"><h2>From the release log</h2><p class="quiet">Last ${m.weeks} weeks: ${m.released} release${m.released === 1 ? "" : "s"} to production, about ${m.per_week} a week. ${m.change_failure_rate != null ? `${m.failed} of ${m.judged} with an outcome needed a hotfix, a rollback or caused an incident: a change failure rate of ${m.change_failure_rate}%.` : "Record each release's outcome to see the change failure rate."}${m.time_to_restore != null ? ` Recovering from a failed release took ${m.time_to_restore} day${m.time_to_restore === 1 ? "" : "s"} on average (from ${m.restores} linked incident${m.restores === 1 ? "" : "s"} with a resolved date).` : " Link an incident to a failed release, with its resolved date, to see the time to restore."}</p>
+          ${ro ? "" : `<button class="btn" id="rec-metrics"${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "" : " disabled"}>Record as metric readings</button> <span class="quiet">${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "Adds today's values to Deployment frequency, Change failure rate and Time to restore (where you have that metric) under Metrics." : 'Load the starter metrics under <a href="#/metrics">Metrics</a> first.'}</span>`}</section>
+        ${releaseCalendar(cal)}
         <details class="card"><summary><b>The path to production</b> <span class="quiet">· ${cfg.path.map(esc).join(" → ")}</span></summary>
           <p class="quiet">${cfg.custom ? "Your own list." : cfg.from_sdlc.length ? "Taken from your SDLC environments." : "A generic sandbox path; set your own, or add environments under SDLC."} One step per line; the last is production.</p>
           ${ro ? "" : `<form id="rel-path"><textarea name="path" rows="6">${esc(cfg.path.join("\n"))}</textarea><div class="actions">${cfg.custom ? '<button class="btn left" type="button" id="rel-path-reset">Use the SDLC environments</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
@@ -2185,8 +2186,32 @@
     },
   });
 
+  // Releases as markers and regression windows (platform releases, peak-season freezes) as bars on one timeline.
+  function releaseCalendar(cal) {
+    const d0 = Date.parse(cal.from), d1 = Date.parse(cal.to), W = 720, L = 120, R = 16, laneH = 26;
+    const x = (d) => L + ((Date.parse(d) - d0) / (d1 - d0)) * (W - L - R);
+    const kinds = [...new Set(cal.windows.map((w) => w.kind))];
+    const lanes = [...kinds, "Releases"], H = 30 + lanes.length * laneH + 10;
+    const clashes = cal.releases.filter((r) => r.clashes.length);
+    if (!cal.windows.length && !cal.releases.length) return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases with a date, and regression plans with a window (Salesforce releases, peak-season freezes), appear here on one timeline so clashes show early.</p></section>`;
+    const months = []; for (let dt = new Date(cal.from.slice(0, 7) + "-01T00:00:00"); dt.getTime() <= d1; dt.setMonth(dt.getMonth() + 1)) if (dt.getTime() >= d0) months.push(new Date(dt));
+    const grid = months.map((mo) => `<line x1="${x(mo.toISOString().slice(0, 10))}" x2="${x(mo.toISOString().slice(0, 10))}" y1="20" y2="${H - 10}" stroke="var(--line)"/><text x="${x(mo.toISOString().slice(0, 10)) + 3}" y="14" font-size="10" fill="var(--muted)">${mo.toLocaleString(undefined, { month: "short" })}</text>`).join("");
+    const laneY = (i) => 30 + i * laneH;
+    const labels = lanes.map((l, i) => `<text x="4" y="${laneY(i) + laneH / 2}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(l.length > 18 ? l.slice(0, 17) + "…" : l)}</text>`).join("");
+    const bars = cal.windows.map((w) => { const i = kinds.indexOf(w.kind), x1 = Math.max(L, x(w.start)), x2 = Math.min(W - R, x(w.end) + 4);
+      return `<rect x="${x1}" y="${laneY(i) + 5}" width="${Math.max(4, x2 - x1)}" height="${laneH - 10}" rx="4" fill="${cal.clash_kinds.includes(w.kind) ? "var(--warn-soft)" : "var(--accent-soft)"}" stroke="${cal.clash_kinds.includes(w.kind) ? "var(--warn)" : "var(--accent)"}"><title>${esc(w.title)}: ${w.start} to ${w.end}</title></rect>`; }).join("");
+    const ri = lanes.length - 1;
+    const marks = cal.releases.map((r) => { const cx = x(r.date), cy = laneY(ri) + laneH / 2, bad = r.clashes.length;
+      return `<a href="#/releases/${r.id}"><g><title>${esc(r.name)}: ${r.date}${bad ? " (clashes with " + r.clashes.join(", ") + ")" : ""}</title><path d="M${cx},${cy - 7} L${cx + 7},${cy} L${cx},${cy + 7} L${cx - 7},${cy} Z" fill="${bad ? "var(--bad)" : r.released ? "var(--good)" : "var(--accent)"}" stroke="var(--panel)" stroke-width="2"/></g></a>`; }).join("");
+    const todayX = x(cal.today);
+    return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases beside the regression windows in your <a href="#/qa">QA plans</a>. A release planned inside a Salesforce release window or a peak-season freeze is marked red.</p>
+      <div class="tablewrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Release calendar" style="width:100%;min-width:560px;display:block">${grid}${labels}${bars}
+        <line x1="${todayX}" x2="${todayX}" y1="20" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${todayX + 3}" y="${H - 2}" font-size="10" fill="var(--ink)">today</text>${marks}</svg></div>
+      ${clashes.length ? clashes.map((r) => `<p class="callout warn"><a href="#/releases/${r.id}">${esc(r.name)}</a> is planned for ${BA.fmtDate(r.date)}, inside ${r.clashes.map(esc).join(" and ")}.</p>`).join("") : ""}</section>`;
+  }
+
   async function renderRelease(main, id) {
-    const [d, sprints, people, plans, incidents] = await Promise.all([BA.api(`/api/releases/${id}/detail`), BA.api("/api/sprints"), BA.api("/api/people"), BA.api("/api/regression-plans"), BA.api("/api/incidents")]);
+    const [d, sprints, people, plans, incidents, crs] = await Promise.all([BA.api(`/api/releases/${id}/detail`), BA.api("/api/sprints"), BA.api("/api/people"), BA.api("/api/regression-plans"), BA.api("/api/incidents"), BA.api("/api/change-requests")]);
     const r = d.release, ro = presenting();
     document.getElementById("view-title").textContent = r.name;
     const steps = (r.path || {}).steps || [];
@@ -2202,7 +2227,10 @@
         ${r.decision === "go" && !rd.ready ? '<p class="callout warn">Marked go while some checks are still open. Record why in the decision notes.</p>' : ""}</section>
       <section class="card"><div class="row"><h2>What's in it</h2><span class="spacer"></span>${BA.keysEditor(`/api/releases/${id}`, r.jira_keys)}</div>
         ${d.stories.map((s) => `<div class="item"><span>${esc(s.title)}</span>${s.jira_key ? BA.issueKeys([s.jira_key]) : ""}<span class="spacer"></span>${s.points != null ? `<span class="quiet">${s.points} pts</span>` : ""}<span class="pill ${s.status === "done" ? "good" : ""}">${esc(s.status)}</span></div>`).join("") || '<p class="quiet">No stories linked yet.</p>'}
-        ${ro ? "" : `<div class="actions"><button class="btn left" id="rel-notes">Copy release notes</button><button class="btn" id="rel-from-sprint">Fill from the sprint</button></div>`}</section>
+        <h3>Added during the sprint</h3><p class="quiet">Accepted change requests that landed in this release, so its scope history is complete. Fill from the sprint picks up those accepted in the release's sprint.</p>
+        ${d.change_requests.map((c) => `<div class="item"><a href="#/changes/${c.id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.decision || "")}${c.points != null ? ` · ${c.points} pts` : ""}</span>${ro ? "" : `<button class="icon-btn" title="Unlink" data-cr-rm="${c.id}">${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">None.</p>'}
+        ${ro ? "" : `<div class="row" style="margin-top:6px"><select id="cr-add" style="max-width:360px"><option value="">Link an accepted change request…</option>${crs.filter((c) => (c.decision || "").startsWith("accepted") && !(r.change_request_ids || []).includes(c.id)).map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join("")}</select></div>
+          <div class="actions"><button class="btn left" id="rel-notes">Copy release notes</button><button class="btn" id="rel-from-sprint">Fill from the sprint</button></div>`}</section>
       <form id="rel-form" class="card"><h2>Release details</h2><div class="grid2">
         <label>Name<input name="name" value="${esc(r.name)}"${ro ? " disabled" : ""}></label><label>Status<select name="status"${ro ? " disabled" : ""}>${opts(["planned", "in progress", "in QA", "ready", "released", "cancelled"], r.status)}</select></label>
         <label>Sprint<select name="sprint_id"${ro ? " disabled" : ""}><option value=""></option>${sprints.map((s) => `<option value="${s.id}"${s.id === r.sprint_id ? " selected" : ""}>Sprint ${s.number}</option>`).join("")}</select></label><label>Release branch<input name="branch" value="${esc(r.branch || "")}"${ro ? " disabled" : ""}></label>
@@ -2225,6 +2253,9 @@
       await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { path: { steps: next } } });
       BA.toast("Saved."); BA.rerender();
     });
+    const crAdd = main.querySelector("#cr-add");
+    if (crAdd) crAdd.onchange = BA.guard(async () => { if (!crAdd.value) return; await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { change_request_ids: [...(r.change_request_ids || []), Number(crAdd.value)] } }); BA.rerender(); });
+    main.querySelectorAll("[data-cr-rm]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { change_request_ids: (r.change_request_ids || []).filter((x) => x !== Number(b.dataset.crRm)) } }); BA.rerender(); })));
     main.querySelector("#rel-from-sprint").onclick = BA.guard(async () => { await BA.api(`/api/releases/${id}/from-sprint`, { method: "POST", body: {} }); BA.rerender(); });
     main.querySelector("#rel-notes").onclick = BA.guard(async () => { const x = await BA.api(`/api/releases/${id}/notes`); await navigator.clipboard.writeText(x.markdown); BA.toast("Release notes copied as Markdown."); });
     const form = main.querySelector("#rel-form");

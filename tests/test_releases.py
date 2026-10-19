@@ -79,3 +79,24 @@ def test_direction_and_logged_decision(client):
     d = client.get(f"/api/decisions-needed/{res['logged_decision_id']}").json()
     assert d["status"] == "decided" and d["outcome"].startswith("Go: [Placeholder] (open at the time:") and d["from_id"] == p
     assert client.put(f"/api/releases/{r}/decision", json={"decision": "go", "decided_by_id": p}).json()["logged_decision_id"] is None
+
+
+def test_calendar_restore_and_change_requests(client):
+    t = date.today()
+    client.post("/api/regression-plans", json={"title": "[Freeze]", "kind": "peak-season freeze", "start_date": (t + timedelta(days=10)).isoformat(), "end_date": (t + timedelta(days=20)).isoformat()})
+    a = client.post("/api/releases", json={"name": "[Inside]", "planned_on": (t + timedelta(days=15)).isoformat()}).json()["id"]
+    client.post("/api/releases", json={"name": "[Outside]", "planned_on": (t + timedelta(days=30)).isoformat()})
+    cal = client.get("/api/releases/calendar").json()
+    clash = {r["name"]: r["clashes"] for r in cal["releases"]}
+    assert clash == {"[Inside]": ["[Freeze]"], "[Outside]": []} and len(cal["windows"]) == 1
+    inc = client.post("/api/incidents", json={"summary": "[Outage]", "date": (t - timedelta(days=6)).isoformat(), "resolved_at": (t - timedelta(days=4)).isoformat()}).json()["id"]
+    client.post("/api/releases", json={"name": "[Failed]", "status": "released", "released_on": (t - timedelta(days=6)).isoformat(), "outcome": "rollback", "incident_id": inc})
+    m = client.get("/api/releases/metrics").json()
+    assert m["time_to_restore"] == 2.0 and m["restores"] == 1
+    sp = client.post("/api/sprints", json={"number": 3}).json()["id"]
+    cr = client.post("/api/change-requests", json={"title": "[Urgent fix]", "requested_on": t.isoformat(), "sprint_id": sp, "decision": "accepted with a swap", "status": "decided"}).json()["id"]
+    client.post("/api/change-requests", json={"title": "[Deferred]", "requested_on": t.isoformat(), "sprint_id": sp, "decision": "deferred to the backlog"})
+    client.patch(f"/api/releases/{a}", json={"sprint_id": sp})
+    assert client.post(f"/api/releases/{a}/from-sprint").json()["change_request_ids"] == [cr]
+    assert "## Added during the sprint\n- [Urgent fix]" in client.get(f"/api/releases/{a}/notes").json()["markdown"]
+    assert [c["title"] for c in client.get(f"/api/releases/{a}/detail").json()["change_requests"]] == ["[Urgent fix]"]
