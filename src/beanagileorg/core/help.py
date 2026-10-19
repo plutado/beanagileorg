@@ -100,10 +100,10 @@ TOOLKIT = {
     },
     "/skills": {
         "purpose": "See who knows what across the team, and match people who can teach with people who want to learn.",
-        "steps": ["Fill in skills, can teach and wants to learn on each person's profile.", "Check the matrix for gaps and single points of failure.",
-                  "Turn a teach-and-learn match into a group learning session."],
+        "steps": ["Fill in skills, can teach and wants to learn on each person's profile.", "Check the four kinds of knowledge, and the skills each core process needs; red and amber show gaps.",
+                  "Log gaps and underused resources, quick fixes first, each with a plan.", "Turn a teach-and-learn match into a group learning session."],
         "privacy": "Counts show while presenting; who knows what stays private.",
-        "related": ["/people", "/learning"],
+        "related": ["/people", "/learning", "/processes", "/coaching/org-as-a-system"],
     },
     "/listening": {
         "purpose": "Run your listening tour: one record per one-on-one, with the same five questions every time so you can compare answers, then share the themes back with the group.",

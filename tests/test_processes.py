@@ -47,3 +47,18 @@ def test_from_sdlc_needs_stages(client):
     client.post("/api/sdlc-stages", json={"name": "[Stage A]", "roles": "[Role A], [Role B]"})
     m = client.post(f"/api/core-processes/{p['id']}/from-sdlc").json()["map"]["steps"]
     assert m[0]["text"] == "[Stage A]" and m[0]["who"] == "[Role A]"
+
+
+def test_skill_base(client):
+    client.post("/api/people", json={"name": "[Placeholder name 1]", "skills": ["[Skill A]", "[Skill B]"]})
+    client.post("/api/people", json={"name": "[Placeholder name 2]", "skills": ["[Skill A]"]})
+    client.post("/api/systems", json={"name": "[System A]"})
+    k = {x["key"]: x for x in client.get("/api/skills/knowledge").json()["kinds"]}
+    assert k["individual"]["facts"]["single"] == ["[Skill B]"] and k["embedded"]["facts"]["no_backup"] == ["[System A]"]
+    p = client.post("/api/core-processes", json={"name": "[Placeholder process]", "skills": ["[Skill A]", "[skill b]", "[Skill C]"]}).json()
+    rows = {r["skill"]: r["count"] for r in client.get("/api/skills/coverage").json()[0]["skills"]}
+    assert rows == {"[Skill A]": 2, "[skill b]": 1, "[Skill C]": 0}
+    g = client.post("/api/skill-gaps", json={"title": "[Placeholder gap]", "kind": "embedded", "process_id": p["id"], "speed": "quick fix", "plan": "pair"}).json()
+    assert g["process_name"] == "[Placeholder process]"
+    assert client.post("/api/skill-gaps", json={"title": "[x]", "kind": "spiritual"}).status_code == 400
+    assert client.post("/api/knowledge-sources", json={"name": "[Placeholder community]", "kind": "community"}).status_code == 201

@@ -562,17 +562,65 @@
 
   // ---------------------------------------------------------------- Skills and learning
 
+  const KIND_NAMES = { individual: "Individual expertise", relational: "Working together", embedded: "Core technology", meta: "Knowing where to go" };
+
+  function skillBaseSections(kn, cov, gaps, sources, procs) {
+    const ro = presenting();
+    const list = (xs) => (Array.isArray(xs) ? xs.map(esc).join(", ") : esc(String(xs)));
+    const facts = (k) => { const f = k.facts; return {
+      individual: () => `${f.skills} skills recorded${(Array.isArray(f.single) ? f.single.length : f.single) ? ` · held by one person only: ${list(f.single)}` : ""}`,
+      relational: () => `${f.agreements} team agreements in force · ${f.practices_in_use} Agile practices practiced`,
+      embedded: () => `${f.systems} systems${f.no_backup.length ? ` · no backup person: ${list(f.no_backup)}` : ""}${f.no_docs.length ? ` · no documentation: ${list(f.no_docs)}` : ""}`,
+      meta: () => `${f.vendors} active vendors · ${f.sources} other sources listed below`,
+    }[k.key](); };
+    const gapRow = (x) => `<div class="item" data-gap="${x.id}"><span class="pill ${x.entry === "gap" ? "warn" : "good"}">${x.entry === "gap" ? "gap" : "underused"}</span><span><b>${esc(x.title)}</b><br><span class="quiet">${[KIND_NAMES[x.kind], x.process_name, x.speed, x.plan ? "plan: " + x.plan : "", x.plan_notes].filter(Boolean).map(esc).join(" · ")}</span></span><span class="spacer"></span>
+      ${ro ? `<span class="quiet">${esc(x.status)}</span>` : `<select data-gap-status style="max-width:130px">${opts(["open", "in progress", "closed"], x.status)}</select><button class="icon-btn" title="Delete" data-gap-del>${BA.icon("x")}</button>`}</div>`;
+    return `<section class="card"><h2>Four kinds of knowledge</h2><p class="quiet">A team's skill base is more than who knows what. Look at all four against what your <a href="#/processes">core processes</a> need, then log the gaps below.</p>
+        ${kn.kinds.map((k) => `<div style="margin-bottom:10px"><b><a href="#${k.facts.link}">${esc(k.name)}</a></b>: <span class="quiet">${esc(k.what)}</span><br>${facts(k)}<br><span class="quiet">${esc(k.prompt)}</span></div>`).join("")}
+        <p class="callout">${esc(kn.culture)}</p></section>
+      <section class="card"><h2>Skills each core process needs</h2>${cov.length ? cov.map((p) => `<div style="margin-bottom:8px"><a href="#/processes/${p.id}"><b>${esc(p.name)}</b></a>${p.focus ? ' <span class="pill accent">focus now</span>' : ""}<div class="row" style="gap:6px;margin-top:4px">${p.skills.map((x) => `<span class="pill ${x.count === 0 ? "bad" : x.count === 1 ? "warn" : "good"}" title="${x.people ? esc(x.people.join(", ")) || "nobody" : ""}">${esc(x.skill)}: ${x.count}</span>`).join("")}</div></div>`).join("") + '<p class="quiet">Red: nobody has it. Amber: only one person does.</p>'
+        : '<p class="quiet">List the skills a process needs on its page under <a href="#/processes">Core processes</a>, and coverage shows here.</p>'}</section>
+      <section class="card"><h2>Gaps and underused resources</h2><p class="quiet">Gaps between what the processes need and what the team has, sorted into quick fixes and longer work, and resources going unused.</p>
+        <div class="md"><ul>${kn.underused.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div>
+        ${gaps.map(gapRow).join("") || '<p class="quiet">Nothing logged yet.</p>'}
+        ${ro ? "" : `<form id="add-gap" class="grid2" style="margin-top:10px"><label>What<input name="title" required></label>
+          <label>Gap or underused<select name="entry"><option value="gap">gap</option><option value="underused">underused resource</option></select></label>
+          <label>Kind of knowledge<select name="kind">${Object.entries(KIND_NAMES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+          <label>Process it affects<select name="process_id"><option value=""></option>${procs.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></label>
+          <label>How fast<select name="speed"><option value=""></option>${opts(["quick fix", "longer work"])}</select></label>
+          <label>Plan<select name="plan"><option value=""></option>${opts(["train", "pair", "hire", "partner", "spread a practice", "other"])}</select></label>
+          <label>Plan details<input name="plan_notes"></label><div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}</section>
+      <section class="card"><h2>Where to go for knowledge</h2><p class="quiet">Support lines, partners, communities and outside experts the team can turn to. Vendors live on the <a href="#/vendors">Vendors</a> page.</p>
+        ${sources.map((x) => `<div class="item" data-src="${x.id}"><b>${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.name)}</a>` : esc(x.name)}</b>${x.kind ? `<span class="quiet">${esc(x.kind)}</span>` : ""}<span class="spacer"></span>${ro ? "" : `<button class="icon-btn" title="Delete" data-src-del>${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">None listed yet.</p>'}
+        ${ro ? "" : `<form id="add-src" class="row" style="margin-top:8px"><input name="name" placeholder="A community, support line or expert" required style="max-width:300px"><select name="kind" style="max-width:170px"><option value=""></option>${opts(["vendor support", "partner", "community", "outside expert", "other"])}</select><input name="link" placeholder="Link" style="max-width:240px"><button class="btn" type="submit">Add</button></form>`}</section>`;
+  }
+
+  function bindSkillBase(main) {
+    const g = main.querySelector("#add-gap");
+    if (g) g.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(g)); ["process_id"].forEach((k) => (f[k] = numOrNull(f[k]))); ["speed", "plan"].forEach((k) => (f[k] = f[k] || null)); f.team_id = newTeamId(); await BA.api("/api/skill-gaps", { method: "POST", body: f }); BA.rerender(); });
+    main.querySelectorAll("[data-gap]").forEach((row) => {
+      const id = row.dataset.gap, st = row.querySelector("[data-gap-status]"), del = row.querySelector("[data-gap-del]");
+      if (st) st.onchange = BA.guard(async () => { await BA.api(`/api/skill-gaps/${id}`, { method: "PATCH", body: { status: st.value } }); BA.toast("Saved."); });
+      if (del) del.onclick = BA.guard(async () => { if (!confirm("Delete this?")) return; await BA.api(`/api/skill-gaps/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    const s = main.querySelector("#add-src");
+    if (s) s.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(s)); f.kind = f.kind || null; await BA.api("/api/knowledge-sources", { method: "POST", body: f }); BA.rerender(); });
+    main.querySelectorAll("[data-src-del]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/knowledge-sources/${b.closest("[data-src]").dataset.src}`, { method: "DELETE" }); BA.rerender(); })));
+  }
+
   BA.view("/skills", {
     title: "Skills and learning",
     async render(main) {
-      const d = await BA.api("/api/skills");
+      const [d, kn, cov, gaps, sources, procs] = await Promise.all([BA.api("/api/skills"), BA.api("/api/skills/knowledge"), BA.api("/api/skills/coverage"), BA.api("/api/skill-gaps"), BA.api("/api/knowledge-sources"), BA.api("/api/core-processes")]);
+      const extra = skillBaseSections(kn, cov, gaps, sources, procs);
       const counts = `<section class="card"><h2>Skills across the team</h2><div class="tablewrap"><table class="data">
         <thead><tr><th>Skill</th><th>People with it</th><th>Can teach</th><th>Want to learn</th></tr></thead><tbody>${
           d.skills.map((s) => `<tr><td>${esc(s.skill)}</td><td>${s.people}</td><td>${s.can_teach}</td><td>${s.wants_to_learn}</td></tr>`).join("") ||
           '<tr><td colspan="4" class="empty">No skills recorded yet. Add them on each person\'s profile.</td></tr>'
         }</tbody></table></div></section>`;
       if (!d.matrix) {
-        main.innerHTML = counts;
+        main.innerHTML = extra + counts;
+        bindSkillBase(main);
         return;
       }
       const topics = d.skills.map((s) => s.skill);
@@ -592,6 +640,8 @@
           <thead><tr><th>Person</th>${topics.map((t) => `<th>${esc(t)}</th>`).join("")}</tr></thead><tbody>${d.matrix
             .map((p) => `<tr><td><a href="#/people/${p.id}">${esc(p.name)}</a></td>${topics.map((t) => `<td>${mark(p, t)}</td>`).join("")}</tr>`)
             .join("")}</tbody></table></div></section>${counts}`;
+      main.insertAdjacentHTML("afterbegin", extra);
+      bindSkillBase(main);
       main.querySelectorAll("[data-propose]").forEach((b) => {
         b.onclick = BA.guard(async () => {
           const presenter = d.matrix.find((p) => p.name === b.dataset.teacher);
@@ -1694,6 +1744,7 @@
           <label>How much it matters to the strategy<select name="importance"${ro ? " disabled" : ""}><option value=""></option>${opts(g.importance, p.importance)}</select></label>
           <label>Aim<select name="aim"${ro ? " disabled" : ""}><option value=""></option>${opts(Object.keys(g.aims), p.aim)}</select></label>
           <label class="check" style="align-self:end"><input type="checkbox" name="focus"${p.focus ? " checked" : ""}${ro ? " disabled" : ""}> Focus now <span class="quiet">(${g.focus_limit} at most)</span></label></div>
+          <label>Skills it needs <span class="quiet">(comma-separated, the same words as on people's profiles; coverage shows under <a href="#/skills">Skills and learning</a>)</span><input name="skills" value="${esc((p.skills || []).join(", "))}"${ro ? " disabled" : ""}></label>
           ${p.aim ? `<p class="quiet">${esc(g.aims[p.aim])}</p>` : ""}
           <h3>How well it works</h3>${g.measures.map((m) => { const r = ratings[m.key] || {}, linked = g.linked_metrics[m.key] || []; return `<div class="row" style="align-items:flex-start;margin-bottom:10px"><span style="flex:0 0 300px;max-width:100%"><b>${esc(m.name)}</b><br><span class="quiet">${esc(m.question)}</span><br><span class="quiet">${linked.length ? "See " + linked.map((x) => `<a href="#/metrics">${esc(x.name)}</a>`).join(", ") : `Usually measured by ${esc(m.metrics.join(" or ").toLowerCase())}`}</span></span>
             <select name="r.${m.key}" style="max-width:140px"${ro ? " disabled" : ""}><option value="">Not judged</option>${opts(g.ratings, r.rating)}</select><input name="rn.${m.key}" value="${esc(r.notes || "")}" placeholder="Evidence" style="flex:1;min-width:160px"${ro ? " disabled" : ""}></div>`; }).join("")}
@@ -1721,7 +1772,8 @@
         e.preventDefault();
         const fd = new FormData(form);
         const r = Object.fromEntries(g.measures.map((m) => [m.key, { rating: fd.get(`r.${m.key}`) || null, notes: fd.get(`rn.${m.key}`) || "" }]));
-        await BA.api(`/api/core-processes/${id}`, { method: "PATCH", body: { name: fd.get("name"), area: fd.get("area"), owner_id: numOrNull(fd.get("owner_id")), importance: fd.get("importance") || null, aim: fd.get("aim") || null, focus: fd.get("focus") === "on", ratings: r, notes: fd.get("notes") } });
+        await BA.api(`/api/core-processes/${id}`, { method: "PATCH", body: { name: fd.get("name"), area: fd.get("area"), owner_id: numOrNull(fd.get("owner_id")), importance: fd.get("importance") || null, aim: fd.get("aim") || null, focus: fd.get("focus") === "on", ratings: r, notes: fd.get("notes"),
+          skills: (fd.get("skills") || "").split(",").map((x) => x.trim()).filter(Boolean) } });
         BA.toast("Saved.");
         BA.rerender();
       });
@@ -1772,7 +1824,7 @@
       const g = await BA.api("/api/alignment/guide");
       const intro = `<p class="quiet">Direction, structure, processes and skills have to fit together. Change one and think through the others. Diagnose here before you restructure anything, and build the case when a misalignment above you is the real blocker.</p>`;
       if (presenting()) { main.innerHTML = `${intro}<section class="card">${alignmentDiagram(g, null)}</section><p class="empty">Your diagnosis is private, so it's hidden while presenting.</p>`; return; }
-      const [checks, procs] = await Promise.all([BA.api("/api/alignment-checks"), BA.api("/api/core-processes")]);
+      const [checks, procs, gaps] = await Promise.all([BA.api("/api/alignment-checks"), BA.api("/api/core-processes"), BA.api("/api/skill-gaps")]);
       const teams = BA.teamList || [];
       let sel = Number(sessionStorage.getItem("ba-align") || 0);
       const check = checks.find((c) => c.id === sel) || checks[0];
@@ -1805,7 +1857,7 @@
               <label>The case to make <span class="quiet">(when the fix sits above you: the evidence, where the misalignment causes harm, and how others have handled it)</span><textarea name="the_case" rows="4">${esc(check.the_case || "")}</textarea></label>
               <label>Next step<input name="next_step" value="${esc(check.next_step || "")}"></label>
               <div class="actions"><button class="btn danger left" type="button" id="al-del">Delete</button>${BA.historyButton("alignment_check", check.id)}<button class="btn primary" type="submit">Save</button></div></section>
-          </form>${trapsCard(g)}`;
+          </form>${alignQuestionsCard(g, check, procs, gaps)}${trapsCard(g)}`;
         const pick = main.querySelector("#al-pick");
         if (pick) pick.onchange = () => { sessionStorage.setItem("ba-align", pick.value); BA.rerender(); };
         const form = main.querySelector("#al-form");
@@ -1899,6 +1951,33 @@
     if (!verdict) return null;
     if (verdict === "implementation" || verdict === "neither") return "leave";
     return sequence === "turnaround" ? "reexamine" : "tweak";
+  }
+
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
+
+  // The six questions that close a diagnosis, each answered from what the check and the toolkit already hold.
+  function alignQuestionsCard(g, check, procs, gaps) {
+    const name = (k) => (g.elements.find((e) => e.key === k) || {}).name || k;
+    const els = check.elements || {}, d = check.direction || {}, tests = d.tests || {}, st = check.structure || {}, mm = check.mismatches || {};
+    const off = g.elements.filter((e) => ["strained", "misaligned"].includes((els[e.key] || {}).fit)).map((e) => `${e.name} (${els[e.key].fit})`);
+    const mms = g.mismatches.filter((m) => (mm[m.key] || {}).state === "mismatch").map((m) => `${name(m.a)} and ${name(m.b)}`);
+    const cs = Object.entries(d.cs || {}).filter(([, v]) => (v || "").trim()).map(([k]) => k);
+    const t = (k) => (tests[k] || {}).rating || "not judged";
+    const parts = Object.entries(st.parts || {}).filter(([, v]) => v && v.fit).map(([k, v]) => `${k}: ${v.fit}`);
+    const probs = Object.entries(st.problems || {}).filter(([, v]) => v && v.seen).map(([k]) => k);
+    const focus = procs.filter((p) => p.focus).map((p) => p.name), weak = procs.filter((p) => Object.values(p.ratings || {}).some((r) => r && r.rating === "weak")).map((p) => p.name);
+    const openGaps = gaps.filter((x) => x.status !== "closed");
+    const answers = [
+      ["What misalignments do you see, and how will you confirm them?", [off.length ? "Elements off: " + off.join(", ") : "", mms.length ? "Mismatches: " + mms.join("; ") : "", check.next_step ? "Next: " + check.next_step : ""]],
+      ["What decisions about customers, capital, capabilities and commitments do you need to make, and when?", [cs.length ? "Notes on: " + cs.join(", ") : "", d.wont_do ? "Won't do: " + d.wont_do : ""]],
+      ["How coherent and adequate is the direction, and what are your thoughts on changing it?", [`Coherence ${t("coherence")}, adequacy ${t("adequacy")}, implementation ${t("implementation")}`, d.move ? "Plan: " + ((g.direction.moves.find((m) => m.key === d.move) || {}).label || d.move) : ""]],
+      ["What are the structure's strengths and weaknesses, and what changes are you considering?", [parts.length ? parts.join(", ") : "", probs.length ? "Problems seen: " + probs.join(", ") : ""]],
+      ["What are the core processes, how well do they perform, and what are your priorities?", [procs.length ? `${plural(procs.length, "process", "processes")} listed` : "", focus.length ? "Focus: " + focus.join(", ") : "", weak.length ? "Rated weak somewhere: " + weak.join(", ") : ""]],
+      ["What skill gaps and underused resources have you found, and what are your priorities?", [openGaps.length ? `${plural(openGaps.filter((x) => x.entry === "gap").length, "open gap")}, ${plural(openGaps.filter((x) => x.entry === "underused").length, "underused resource")}` : "", openGaps.filter((x) => x.speed === "quick fix").length ? plural(openGaps.filter((x) => x.speed === "quick fix").length, "quick fix", "quick fixes") : ""]],
+    ];
+    return `<section class="card"><h2>Six questions to close the diagnosis</h2><p class="quiet">Answered from what you've filled in so far. Use them as the outline when you present what you found.</p>
+      <div class="md"><ol>${answers.map(([q, a]) => { const got = a.filter(Boolean); return `<li><b>${esc(q)}</b><br>${got.length ? esc(got.join(" · ")) : '<span class="quiet">Nothing yet.</span>'}</li>`; }).join("")}</ol></div>
+      <p class="quiet"><a href="#/skills">Skills and learning</a> holds the gaps and underused resources.</p></section>`;
   }
 
   function trapsCard(g) {

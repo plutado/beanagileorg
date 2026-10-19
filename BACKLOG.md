@@ -137,6 +137,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Skill bases. Skills and learning gains the four kinds of knowledge, skills each core process needs with coverage, gaps and underused resources with plans, and where to go for outside knowledge (migration 50). The alignment page answers the six closing questions from the check. Guide practices; tips on Skills and Culture; 278 tests
 - [x] 2026-10-19: Core processes. A new page lists the team's processes with owner, importance, aim (execution or innovation), ratings on productivity, timeliness, reliability and quality linked to metrics, a focus-now limit of three, and a swimlane workflow map (after Figure 6-2) that can start from the SDLC; bottlenecks and failing handoffs become dev-sync items or risks (migration 49). Guide practices; tips on Core processes and SDLC; 277 tests
 - [x] 2026-10-19: Shaping structure. The alignment check's structure section gains its four parts with fit ratings, four balances (now and should be), the common problems linked to RACI, the Scrum of Scrums and Metrics, a caution that structure allocates power, and a Scrum lens (migration 48). Guide practices; tips on RACI and Teams; 273 tests
 - [x] 2026-10-19: Assess implementation. The direction check gains an implementation test with a Scrum lens, a verdict (formulation, implementation, both, neither) and what to do about the direction, suggested from the verdict and the situation. Two guide practices; 272 tests

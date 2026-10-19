@@ -203,6 +203,11 @@ GUIDES = [
             "Think of structure as the anatomy and processes as the physiology: both must be sound and support each other. Teams that compete for the same customers with different processes undercut each other.",
             "Improve a process by mapping it with the people who run each stage, from start to finish. Then look for bottlenecks and for the handoffs between people, where most failures happen. The mapping itself builds shared understanding.",
             "Manage processes as a portfolio: work on a few at a time, and factor in how much change the team can absorb.",
+            "Look at four kinds of knowledge, not just individual skills: what each person knows; how people work together; the core technology the team depends on; and knowing where to go outside the team for answers.",
+            "Picture the mix of knowledge your core processes need, compare it with what the team has, and sort the gaps into quick fixes and longer work.",
+            "Look for underused resources too: what lets your best performers do better, and could it spread? Which ideas sit on the shelf? Which tools do you have and barely use?",
+            "You can't change culture directly. Change what's measured, how objectives and incentives are set, and how work is organized, and back it with how you lead. Weight team goals where success needs close teamwork.",
+            "When people keep resisting a better way of working, step back and look for a misalignment that's pushing them the other way.",
             "If the direction is the wrong path, raise questions so your manager and others re-examine it rather than changing it alone. If it's right but not fast or far enough, adjust it modestly early, and save bigger changes until you've learned more and built support.",
             "When you assess strengths and weaknesses, start outside. List threats and opportunities first, then ask which weaknesses leave you exposed to a threat and which strengths let you pursue an opportunity. Turn those pairs into priorities. Some call this TOWS rather than SWOT, to get the order right.",
         ],
@@ -1256,7 +1261,8 @@ TIPS = {
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
-    "/culture": [('What you tolerate becomes the standard. Address harmful behavior early, privately, and follow up.', 'calling-out-harm', 6),
+    "/culture": [("Culture follows the setup: what's measured, how goals and incentives work, and what leaders do. Change those, not slogans.", "org-as-a-system", 38),
+                 ('What you tolerate becomes the standard. Address harmful behavior early, privately, and follow up.', 'calling-out-harm', 6),
                  ("Read today's standard before your first meeting, and look for one chance to live it.", 'consistency-and-integrity', 6),
                  ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6),
                  ("Read each unit's culture in three layers: what's visible, the everyday norms, and the assumptions underneath. Start the Culture map.", "joining-from-outside", 14),
@@ -1307,6 +1313,8 @@ TIPS = {
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
     "/processes": [("Map a process with the people who run each stage. Most failures happen at the handoffs between people.", "org-as-a-system", 37),
                    ("Work on a few processes at a time. Mark three at most as focus now.", "org-as-a-system", 37)],
+    "/skills": [("Check all four kinds of knowledge against your core processes: individual, working together, core technology, and knowing where to go.", "org-as-a-system", 38),
+                ("Look for what your best performers do differently, and help it spread through pairing and group learning.", "org-as-a-system", 38)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
@@ -1417,7 +1425,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 37  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 38  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

@@ -30,6 +30,12 @@ ALIGNMENT_ELEMENTS = ("direction", "structure", "processes", "skills")
 ALIGNMENT_SEQUENCES = ("turnaround", "realignment", "other")
 PROCESS_IMPORTANCE = ("high", "medium", "low")
 PROCESS_AIMS = ("execution", "innovation", "both")
+KNOWLEDGE_KINDS = ("individual", "relational", "embedded", "meta")
+GAP_ENTRIES = ("gap", "underused")
+GAP_SPEEDS = ("quick fix", "longer work")
+GAP_PLANS = ("train", "pair", "hire", "partner", "spread a practice", "other")
+GAP_STATUS = ("open", "in progress", "closed")
+SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
     "went well / didn't / ideas": ("Went well", "Didn't go well", "Ideas"),
@@ -1596,6 +1602,32 @@ MIGRATIONS = [
             map TEXT,
             notes TEXT,
             position INTEGER NOT NULL DEFAULT 0
+        );
+        """,
+    ),
+    (
+        50,
+        """
+        ALTER TABLE core_processes ADD COLUMN skills TEXT;
+        CREATE TABLE skill_gaps (
+            id INTEGER PRIMARY KEY,
+            entry TEXT NOT NULL DEFAULT 'gap',
+            kind TEXT NOT NULL DEFAULT 'individual',
+            title TEXT NOT NULL,
+            process_id INTEGER REFERENCES core_processes (id) ON DELETE SET NULL,
+            speed TEXT,
+            plan TEXT,
+            plan_notes TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            notes TEXT
+        );
+        CREATE TABLE knowledge_sources (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            kind TEXT,
+            link TEXT,
+            notes TEXT
         );
         """,
     ),
@@ -3222,8 +3254,44 @@ core_processes = Record(
         "map": Field("json", E),
         "notes": Field("text", P),
         "position": Field("int", E, default=0),
+        "skills": Field("list", E),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = core_processes.owner_id)", E)},
+)
+
+# Gaps between the knowledge the core processes need and what the team has, and resources going unused.
+skill_gaps = Record(
+    entity="skill_gap",
+    table="skill_gaps",
+    path="/api/skill-gaps",
+    order_by="status = 'closed', entry, CASE speed WHEN 'quick fix' THEN 0 ELSE 1 END, id",
+    fields={
+        "entry": Field("text", S, choices=GAP_ENTRIES, default="gap"),
+        "kind": Field("text", S, choices=KNOWLEDGE_KINDS, default="individual"),
+        "title": Field("text", S, required=True),
+        "process_id": Field("int", S),
+        "speed": Field("text", S, choices=GAP_SPEEDS),
+        "plan": Field("text", S, choices=GAP_PLANS),
+        "plan_notes": Field("text", S),
+        "status": Field("text", S, choices=GAP_STATUS, default="open"),
+        "team_id": Field("int", S),
+        "notes": Field("text", P),
+    },
+    computed={"process_name": ("(SELECT name FROM core_processes c WHERE c.id = skill_gaps.process_id)", S)},
+)
+
+# Where the team goes for knowledge it doesn't hold itself.
+knowledge_sources = Record(
+    entity="knowledge_source",
+    table="knowledge_sources",
+    path="/api/knowledge-sources",
+    order_by="kind, name",
+    fields={
+        "name": Field("text", S, required=True),
+        "kind": Field("text", S, choices=SOURCE_KINDS),
+        "link": Field("text", S),
+        "notes": Field("text", P),
+    },
 )
 
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
@@ -3561,7 +3629,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,
