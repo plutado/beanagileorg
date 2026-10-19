@@ -62,6 +62,8 @@ STARTER_QUESTIONS = [
     ("culture", "Which parts of the culture should be kept, and which need to change?", 60),
     ("politics", "What is my manager proud of or protective of: things they built, people they're loyal to?", 14),
     ("politics", "How does my manager's own boss judge them, and how does my work fit into that?", 21),
+    ("present", "Where are the most promising opportunities to improve: the processes whose improvement would move overall performance?", 21),
+    ("people", "Who, at any level, has the drive to help lead change and could lead an early project?", 21),
 ]
 
 SITUATION_GUIDE = {

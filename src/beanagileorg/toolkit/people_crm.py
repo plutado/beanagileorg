@@ -22,7 +22,7 @@ ME_KEY = "people.me_id"
 SENSITIVE = ("personal_context", "support_notes", "key_dates", "motivations")
 OPTIONAL = ("start_date", "location", "timezone", "background", "skills", "certifications", "goals", "wants_to_learn", "can_teach", "working_style",
             "support_notes", "contact", "tags", "cadence_days", "influence", "stance", "communication", "motivations", "personal_context",
-            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them", "expects_from_me", "advice", "insight", "change_style")
+            "things_to_remember", "key_dates", "next_meeting", "manager_id", "offer_them", "need_from_them", "expects_from_me", "advice", "insight", "change_style", "change_agent")
 
 
 def _today() -> date:

@@ -1521,6 +1521,15 @@ MIGRATIONS = [
         ALTER TABLE plan_items ADD COLUMN ew_scores TEXT;
         """,
     ),
+    (
+        43,
+        """
+        ALTER TABLE plan_items ADD COLUMN fog_lamp TEXT;
+        ALTER TABLE plan_items ADD COLUMN lead_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        ALTER TABLE plan_items ADD COLUMN member_ids TEXT;
+        ALTER TABLE people ADD COLUMN change_agent INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1565,6 +1574,7 @@ people = Record(
         "advice": Field("list", P),
         "insight": Field("list", P),
         "change_style": Field("text", P, choices=CHANGE_STYLES),
+        "change_agent": Field("bool", P, default=False),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),
@@ -2246,6 +2256,9 @@ plan_items = Record(
         "early_win": Field("bool", E, default=False),
         "serves_id": Field("int", S),
         "ew_scores": Field("json", P),  # the early wins evaluation: impact, soon, foundation, behavior, 0 to 4 each
+        "fog_lamp": Field("json", S),  # the project plan: focus, oversight, goals, leadership, abilities, means, process
+        "lead_id": Field("int", S),
+        "member_ids": Field("ids", S),
         "behavior": Field("text", S),
         "position": Field("int", S, default=0),
     },

@@ -222,6 +222,10 @@ GUIDES = [
         "summary": "Pick a few visible improvements that solve real problems people already feel, and deliver them well.",
         "why": "Early wins give people a reason to believe change is possible and give you the credibility to take on harder work. The wrong early win, one that ignores how the team works or solves a problem nobody has, costs more than it earns.",
         "practices": [
+            "Choose a few focal points: processes where improvement would move the team's overall performance. Make sure your learning agenda looks for them.",
+            "Run each early win as a project, planned with FOG LAMP: focus, oversight, goals, leadership, abilities, means and process.",
+            "Elevate change agents: people at any level with the drive to push the agenda. Ask them to lead the projects.",
+            "Use the projects to model the new way of working. If you're bringing in Scrum, run each project with a goal, a review and a retrospective.",
             "After building credibility, pick three or four areas at most for quick, visible gains at modest cost: a bottleneck that limits output, or an incentive that sets people against each other.",
             "Score each candidate: will it substantially improve performance, can it be done soon with what you have, does it lay a foundation for agreed goals, and will doing it shift behavior? If it won't improve performance, nothing else matters.",
             "Treat early wins as a portfolio, so a big success in one balances a disappointment in another.",
@@ -1248,7 +1252,8 @@ TIPS = {
                ("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
                ("Pick a few early wins that solve problems people already feel.", "early-wins"),
                ("Link each early win to an agreed outcome and the behavior it should start to change, so it leads somewhere.", "early-wins", 27),
-               ("Score your early win candidates with the evaluation, and keep three or four at most.", "early-wins", 30)],
+               ("Score your early win candidates with the evaluation, and keep three or four at most.", "early-wins", 30),
+               ("Plan each early win as a project with FOG LAMP, led by a change agent from the team.", "early-wins", 31)],
     "/status": [("Log one line at the end of each day. Friday's report then writes itself, and nothing good gets forgotten.", "honest-status", 7),
                 ("Write a different version for each audience: outcomes and asks for leadership, the detail for your manager.", "your-manager", 7),
                 ("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
@@ -1335,7 +1340,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 30  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 31  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

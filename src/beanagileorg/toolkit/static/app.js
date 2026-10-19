@@ -212,7 +212,7 @@
   const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
     wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
     influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
-    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring", change_style: "Style when leading change" };
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring", change_style: "Style when leading change", change_agent: "Change agent" };
   const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["balance", "Balance"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
   const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
@@ -513,6 +513,7 @@
         ${extra("need_from_them", `<label>What I need from them <span class="quiet">(support, information, decisions, introductions)</span><textarea name="need_from_them" rows="2">${esc(p.need_from_them || "")}</textarea></label>`)}
         ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("insight", `<label>Insight they bring <span class="quiet">(where their view of the organization comes from)</span></label><div class="case-picks">${[["customer", "Customer or business user"], ["vendor", "Vendor or supplier"], ["frontline", "Frontline"], ["sales", "Sales or service"], ["staff", "Finance, legal or HR"], ["integrator", "Integrator"], ["historian", "Natural historian"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="insight" value="${k}"${(p.insight || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
+        ${extra("change_agent", `<label class="check"><input type="checkbox" name="change_agent"${p.change_agent ? " checked" : ""}> Change agent <span class="quiet">(has the drive to help lead change; private)</span></label>`)}
         ${extra("change_style", `<label>Style when leading change <span class="quiet">(your read; private)</span><select name="change_style"><option value=""></option>${[["hero", "Hero: takes charge, moves fast"], ["steward", "Steward: builds consensus, patient"], ["both", "Some of each"]].map(([k, l]) => `<option value="${k}"${p.change_style === k ? " selected" : ""}>${l}</option>`).join("")}</select></label>`)}
         ${extra("expects_from_me", `<label>What they expect from me <span class="quiet">(especially anyone who shapes how my work is judged)</span><textarea name="expects_from_me" rows="2">${esc(p.expects_from_me || "")}</textarea></label>`)}
         ${extra("things_to_remember", `<label>Things to remember <span class="quiet">(one per line)</span><textarea name="things_to_remember" rows="3">${esc((p.things_to_remember || []).join("\n"))}</textarea></label>`)}
@@ -535,6 +536,7 @@
       if (form.querySelector('input[name="advice"]')) body.advice = fd.getAll("advice");
       if (form.querySelector('input[name="insight"]')) body.insight = fd.getAll("insight");
       if (form.elements.change_style) body.change_style = fd.get("change_style") || null;
+      if (form.elements.change_agent) body.change_agent = form.elements.change_agent.checked;
       if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
       if (form.querySelector("#key-dates")) {
         const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");
@@ -2273,6 +2275,11 @@
   const EW_QUESTIONS = ["Would it substantially improve the team's performance?", "Can it be done soon with the resources you have?", "Would success lay a foundation for the goals you've agreed?", "Will the way you achieve it help shift the behaviors you need?"];
   const EW_SCALE = ["not at all", "a little", "somewhat", "significantly", "greatly"];
   const EW_KEYS = ["impact", "soon", "foundation", "behavior"];
+  // FOG LAMP, after Table 5-3 in The First 90 Days, in our own words.
+  const FOG_LAMP = [["focus", "Focus", "What is this project for: which goal or early win?"], ["oversight", "Oversight", "How will you oversee it, and who else should be involved so the results get adopted?"],
+    ["goals", "Goals", "What are the goals, the milestones along the way, and when?"], ["leadership", "Leadership", "What does the lead need, such as training or coaching, to succeed?"],
+    ["abilities", "Abilities", "What mix of skills and people is needed, including who must be there to represent a group?"], ["means", "Means", "What else does the team need, such as facilitation, time or tools?"],
+    ["process", "Process", "What way of working will the team use, and how will they learn it? For example, a sprint goal, a review and a retrospective."]];
   const ewRuledOut = (i) => !!i.ew_scores && i.ew_scores.impact === 0;
   const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "accent", agreed: "good" };
   const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change", if_you_were_me: "If you were me" };
@@ -2293,7 +2300,7 @@
           ${i.themes?.length ? BA.chips(i.themes) : ""}
           ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">${BA.roleDay(i.due_day)}</span>` : ""}
           ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
-          ${i.early_win ? `<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>${!ro && outcomes.length && !i.serves_id ? '<span class="pill warn" title="This early win isn\'t linked to an agreed outcome">serves no outcome</span>' : ""}${!ro && i.ew_total != null ? (ewRuledOut(i) ? '<span class="pill bad" title="Scores zero on improving performance, so the other scores don\'t matter">ruled out</span>' : `<span class="pill" title="Early wins evaluation, out of 16">${i.ew_total}/16</span>`) : ""}` : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
+          ${i.early_win ? `<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>${!ro && outcomes.length && !i.serves_id ? '<span class="pill warn" title="This early win isn\'t linked to an agreed outcome">serves no outcome</span>' : ""}${!ro && i.fog_lamp && i.fog_lamp.focus ? '<span class="pill accent" title="Planned as a project with FOG LAMP">project</span>' : ""}${!ro && i.ew_total != null ? (ewRuledOut(i) ? '<span class="pill bad" title="Scores zero on improving performance, so the other scores don\'t matter">ruled out</span>' : `<span class="pill" title="Early wins evaluation, out of 16">${i.ew_total}/16</span>`) : ""}` : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
         ${i.detail ? BA.md(i.detail) : ""}
         ${ro ? "" : `<form class="edit-item"><div class="grid2">
           <label>Title<input name="title" value="${esc(i.title)}" required></label>
@@ -2308,6 +2315,10 @@
           <details class="ew-eval"${i.ew_scores ? " open" : ""}><summary class="quiet">Early wins evaluation${i.ew_total != null ? `: ${i.ew_total} of 16` : ""}</summary>
             ${EW_QUESTIONS.map((q, n) => `<label>${esc(q)}<select name="ew_${n}"><option value=""></option>${EW_SCALE.map((l, v) => `<option value="${v}"${i.ew_scores && i.ew_scores[EW_KEYS[n]] === v ? " selected" : ""}>${v}: ${l}</option>`).join("")}</select></label>`).join("")}
             <p class="quiet">A zero on the first question rules it out, whatever the rest.</p></details>
+          <details class="fog-lamp"${i.fog_lamp && i.fog_lamp.focus ? " open" : ""}><summary class="quiet">Plan it as a project (FOG LAMP)</summary>
+            <label>Project lead <span class="quiet">(change agents first)</span><select name="lead_id"><option value=""></option>${[...people].filter((p) => p.active !== false).sort((a, b) => (b.change_agent ? 1 : 0) - (a.change_agent ? 1 : 0)).map((p) => `<option value="${p.id}"${p.id === i.lead_id ? " selected" : ""}>${p.change_agent ? "★ " : ""}${esc(p.name)}</option>`).join("")}</select></label>
+            <label>Project team</label><div class="case-picks">${people.filter((p) => p.active !== false).map((p) => `<label class="check"><input type="checkbox" name="member_ids" value="${p.id}"${(i.member_ids || []).includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>
+            ${FOG_LAMP.map(([k, l, q]) => `<label><b>${l}</b> <span class="quiet">${esc(q)}</span><textarea name="fog_${k}" rows="2">${esc((i.fog_lamp || {})[k] || "")}</textarea></label>`).join("")}</details>
           <label>Detail<textarea name="detail">${esc(i.detail || "")}</textarea></label>
           <label>Evidence <span class="quiet">(private: who said it, what you saw)</span><textarea name="evidence">${esc(i.evidence || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del="${i.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
@@ -2338,7 +2349,7 @@
         ${(() => { const cands = d.horizons.flatMap((h) => h.items).filter((i) => i.early_win && i.status !== "dropped"); if (ro || !cands.length) return "";
           const ranked = [...cands].sort((a, b) => (ewRuledOut(a) - ewRuledOut(b)) || ((b.ew_total ?? -1) - (a.ew_total ?? -1)));
           return `<section class="card"><h2>Early win candidates</h2><p class="quiet">Ranked by the early wins evaluation (out of 16). Pick three or four at most, and treat them as a portfolio so a big success balances a disappointment. Open an item to score it.</p>
-            ${ranked.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span>${i.ew_total == null ? '<span class="quiet">not scored</span>' : ewRuledOut(i) ? '<span class="pill bad">ruled out</span>' : `<b>${i.ew_total}</b><span class="quiet">/16</span>`}</div>`).join("")}</section>`; })()}
+            ${ranked.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span>${i.fog_lamp && i.fog_lamp.focus ? '<span class="pill accent">project</span>' : ""}${i.ew_total == null ? '<span class="quiet">not scored</span>' : ewRuledOut(i) ? '<span class="pill bad">ruled out</span>' : `<b>${i.ew_total}</b><span class="quiet">/16</span>`}</div>`).join("")}</section>`; })()}
         <div class="plan-layout"><div class="plan-horizons">${d.horizons.map(horizon).join("")}
           ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">For a finer step (a two-week check-in) or a longer view (month 9, month 12). Each plan runs from the day after the one before it.</p>
             <form id="add-plan" class="row"><input name="title" placeholder="Name, such as Month 9" required style="max-width:260px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" required style="max-width:90px"></label><button class="btn primary" type="submit">Add plan</button></form></section>`}</div>
@@ -2392,6 +2403,8 @@
           await BA.api(`/api/plan-items/${id}`, { method: "PATCH", body: {
             title: f.get("title"), kind: f.get("kind"), due_day: num(f.get("due_day")), status: f.get("status"),
             owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"), early_win: !!det.querySelector("[name=early_win]")?.checked, serves_id: num(f.get("serves_id")), behavior: f.get("behavior") || null,
+            fog_lamp: FOG_LAMP.some(([k]) => (f.get(`fog_${k}`) || "").trim()) ? Object.fromEntries(FOG_LAMP.map(([k]) => [k, (f.get(`fog_${k}`) || "").trim()])) : null,
+            lead_id: num(f.get("lead_id")), member_ids: f.getAll("member_ids").map(Number),
             ew_scores: [0, 1, 2, 3].every((n) => f.get(`ew_${n}`) !== "" && f.get(`ew_${n}`) !== null) ? Object.fromEntries(EW_KEYS.map((k, n) => [k, Number(f.get(`ew_${n}`))])) : null,
           } });
           BA.rerender();
@@ -4793,7 +4806,10 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   });
 
   async function renderF90Team(main) {
-    const [d, rc] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations")]);
+    const [d, rc, allPeople] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations"), BA.api("/api/people")]);
+    const agents = allPeople.filter((p) => p.change_agent && p.active !== false);
+    const agentsCard = `<section class="card"><h2>Change agents</h2><p class="quiet">People at any level with the drive to help lead change. Ask them to lead early win projects; giving promising people real ownership early also helps them stay. Mark them under Details on their page.</p>
+      ${agents.map((p) => `<div class="item"><a href="#/people/${p.id}">${esc(p.name)}</a><span class="quiet">${esc(p.role || "")}</span></div>`).join("") || '<p class="quiet">None marked yet.</p>'}</section>`;
     const RC_TONES = { "not started": "", "in progress": "warn", settled: "good" };
     const rcCard = rc.hidden || !rc.reports.length ? "" : `<section class="card"><h2>The five conversations with each person</h2>
       <p class="quiet">Transition others as you'd want to be transitioned. Introduce the five conversations in week one, start with the situation and expectations, and mark the ones that are priorities. Click a cell to move it along.</p>
@@ -4810,6 +4826,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           ${m.seen_in_data ? `<span class="quiet" title="Seen: ${esc(AUTO_LABELS[m.auto] || "")}">seen ${BA.fmtDate(m.done)}</span>` : m.done ? `<span class="quiet">${BA.fmtDate(m.done)}</span>` : m.late ? `<span class="pill bad">due ${BA.fmtDate(m.due)}</span>` : `<span class="quiet">${m.due ? BA.fmtDate(m.due) : ""}</span>`}</div>`).join("")}</section>`).join("")}
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Set "Reports to" on each person under People.' : 'Pick your own record under <a href="#/people">People</a> ("This is me"), then set who reports to you.'}</p></section>` : ""}
       ${rcCard}
+      ${agentsCard}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
         ${d.checkpoints.map((c) => `<details class="plan-item${c.done_on ? " dropped" : ""}" data-cp="${c.day}"${!c.done_on && c.due && c.due <= BA.today() ? " open" : ""}><summary><b>Day ${c.day}</b><span class="quiet">${c.due ? BA.fmtDate(c.due) : ""}</span><span class="spacer"></span>${c.pulse_on ? `<span class="pill good">pulse ${BA.fmtDate(c.pulse_on)}</span>` : '<span class="pill">no pulse</span>'}${c.done_on ? `<span class="pill good">held ${BA.fmtDate(c.done_on)}</span>` : ""}</summary>
           <form><label>What I heard<textarea name="heard" rows="2">${esc(c.heard || "")}</textarea></label><label>What changed because of it <span class="quiet">(tell the team this)</span><textarea name="changed" rows="2">${esc(c.changed || "")}</textarea></label>

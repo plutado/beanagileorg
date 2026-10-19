@@ -27,11 +27,11 @@ def start(client, day):
 
 def test_learning_agenda(client):
     start(client, 25)
-    assert client.post("/api/learning-questions/starter").json()["questions"] == 39
+    assert client.post("/api/learning-questions/starter").json()["questions"] == 41
     assert client.post("/api/learning-questions/starter").status_code == 409
     a = client.get("/api/learning-questions/agenda").json()
     late = [q for q in a["questions"] if q["late"]]
-    assert a["counts"]["open"] == 39 and late and all(q["due_day"] < 25 for q in late)
+    assert a["counts"]["open"] == 41 and late and all(q["due_day"] < 25 for q in late)
     assert {q["area"] for q in a["questions"]} == set(a["areas"])
     peer = client.post("/api/people", json={"name": "[Peer]"}).json()["id"]
     q = late[0]
@@ -218,3 +218,13 @@ def test_early_win_evaluation_total(client):
     assert item["ew_total"] == 10, item
     item = client.patch(f"/api/plan-items/{item['id']}", json={"ew_scores": None}).json()
     assert item["ew_total"] is None
+
+
+def test_fog_lamp_project_and_change_agents(client):
+    lead = client.post("/api/people", json={"name": "[Placeholder lead]", "change_agent": True}).json()
+    assert lead["change_agent"] is True
+    plan = client.get("/api/plans").json()[0]
+    fog = {"focus": "[Focus]", "oversight": "[O]", "goals": "[G]", "leadership": "[L]", "abilities": "[A]", "means": "[M]", "process": "[P]"}
+    item = client.post("/api/plan-items", json={"plan_id": plan["id"], "title": "[Win]", "early_win": True, "fog_lamp": fog, "lead_id": lead["id"], "member_ids": [lead["id"]]}).json()
+    item = client.get(f"/api/plan-items/{item['id']}").json()
+    assert item["fog_lamp"]["focus"] == "[Focus]" and item["lead_id"] == lead["id"] and item["member_ids"] == [lead["id"]]
