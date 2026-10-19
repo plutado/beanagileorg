@@ -60,6 +60,8 @@ STARTER_QUESTIONS = [
     ("present", "What lurking surprises or political missteps could knock me off track?", 21),
     ("future", "Where are the pockets of excellence I can build on?", 30),
     ("culture", "Which parts of the culture should be kept, and which need to change?", 60),
+    ("politics", "What is my manager proud of or protective of: things they built, people they're loyal to?", 14),
+    ("politics", "How does my manager's own boss judge them, and how does my work fit into that?", 21),
 ]
 
 SITUATION_GUIDE = {
@@ -441,14 +443,25 @@ def manager_focus(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     asks = list(MANAGER_SUPPORT_BASE)
     for k in kinds:
         asks += [a for a in MANAGER_SUPPORT.get(k, []) if a not in asks]
-    return {"priorities": (saved.get("priorities") or [])[:3], "next_three": (saved.get("next_three") or [])[:3], "kinds": kinds, "asks": asks}
+    return {"priorities": (saved.get("priorities") or [])[:3], "next_three": (saved.get("next_three") or [])[:3], "kinds": kinds, "asks": asks,
+            "protective": saved.get("protective") or "", "menu": saved.get("menu") or []}
 
 
 @router.put("/api/first90/manager-focus")
 def put_manager_focus(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     clean = lambda xs: [str(x).strip() for x in (xs or []) if str(x).strip()][:3]
-    saved = {"priorities": clean(body.get("priorities")), "next_three": clean(body.get("next_three"))}
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (MANAGER_FOCUS_KEY,)).fetchone()
+    saved = json.loads(row["value"]) if row else {}
+    if "priorities" in body:
+        saved["priorities"] = clean(body.get("priorities"))
+    if "next_three" in body:
+        saved["next_three"] = clean(body.get("next_three"))
+    if "protective" in body:
+        saved["protective"] = (body.get("protective") or "").strip()
+    if "menu" in body:
+        saved["menu"] = [{k: str(r.get(k) or "").strip() for k in ("option", "cost", "delivers")} for r in (body.get("menu") or [])
+                         if isinstance(r, dict) and str(r.get("option") or "").strip()][:8]
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (MANAGER_FOCUS_KEY, json.dumps(saved)))
     return saved
 

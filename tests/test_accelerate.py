@@ -27,11 +27,11 @@ def start(client, day):
 
 def test_learning_agenda(client):
     start(client, 25)
-    assert client.post("/api/learning-questions/starter").json()["questions"] == 37
+    assert client.post("/api/learning-questions/starter").json()["questions"] == 39
     assert client.post("/api/learning-questions/starter").status_code == 409
     a = client.get("/api/learning-questions/agenda").json()
     late = [q for q in a["questions"] if q["late"]]
-    assert a["counts"]["open"] == 37 and late and all(q["due_day"] < 25 for q in late)
+    assert a["counts"]["open"] == 39 and late and all(q["due_day"] < 25 for q in late)
     assert {q["area"] for q in a["questions"]} == set(a["areas"])
     peer = client.post("/api/people", json={"name": "[Peer]"}).json()["id"]
     q = late[0]
@@ -189,3 +189,11 @@ def test_manager_focus_and_conversation_status(client):
     c = client.get("/api/boss-conversations").json()[0]
     assert c["status"] == "not started"
     assert client.patch(f"/api/boss-conversations/{c['id']}", json={"status": "settled", "next_30": "[Placeholder]"}).json()["status"] == "settled"
+
+
+def test_manager_focus_protective_and_menu(client):
+    client.put("/api/first90/manager-focus", json={"priorities": ["[P1]"]})
+    saved = client.put("/api/first90/manager-focus", json={"protective": "[Placeholder]", "menu": [{"option": "[Option A]", "cost": "[Cost]", "delivers": "[Result]"}, {"option": ""}]}).json()
+    assert saved["priorities"] == ["[P1]"] and saved["menu"] == [{"option": "[Option A]", "cost": "[Cost]", "delivers": "[Result]"}]
+    f = client.get("/api/first90/manager-focus").json()
+    assert f["protective"] == "[Placeholder]" and len(f["menu"]) == 1

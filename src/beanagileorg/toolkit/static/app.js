@@ -4816,12 +4816,19 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       fbox.innerHTML = ro ? `<h2>My manager's top three</h2>${focus.hidden ? "" : `<ol>${focus.priorities.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>`}` : `<h2>Keep it focused</h2>
         <form id="mfocus"><div class="grid2"><div><b>My manager's top three priorities</b><p class="quiet">Aim early wins at these and touch on them every time you talk.</p>${three("priorities", focus.priorities, "[Placeholder: priority]")}</div>
           <div><b>Three things for our next one-on-one</b><p class="quiet">At most three. Everything else goes in the written note.</p>${three("next_three", focus.next_three, "[Placeholder: thing]")}</div></div>
-          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>
+          <label><b>What my manager is protective of</b> <span class="quiet">(private: things they built, people they're loyal to. Find out before proposing changes; float ideas as trial balloons.)</span><textarea name="protective" rows="2">${esc(focus.protective)}</textarea></label>
+          <p><b>Resource menu</b> <span class="quiet">Lay out what different levels of support buy, all at once and early, rather than going back for more.</span></p>
+          <div class="tablewrap"><table class="data"><thead><tr><th>Option</th><th>What it costs</th><th>What it delivers</th></tr></thead><tbody>${[...focus.menu, {}, {}].slice(0, Math.max(3, focus.menu.length + 1)).map((r) => `<tr class="menu-row"><td><input name="m_option" value="${esc(r.option || "")}" placeholder="[Placeholder: e.g. current team]"></td><td><input name="m_cost" value="${esc(r.cost || "")}" placeholder="[Placeholder]"></td><td><input name="m_delivers" value="${esc(r.delivers || "")}" placeholder="[Placeholder]"></td></tr>`).join("")}</tbody></table></div>
+          <div class="actions">${focus.menu.length ? '<button class="btn" type="button" id="menu-md">Copy menu as Markdown</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>
         <p><b>What to ask your manager for</b> <span class="quiet">(${focus.kinds.length ? `given your ${focus.kinds.map(esc).join(", ")} areas` : "set situations to tailor this"})</span></p><ul>${focus.asks.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
         <p class="quiet">Don't stay away, don't surprise them, and bring a plan, not just a problem. <a href="#/coaching/your-manager">More</a></p>`;
       main.appendChild(fbox);
       const mf = fbox.querySelector("#mfocus");
-      if (mf) mf.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(mf); await BA.api("/api/first90/manager-focus", { method: "PUT", body: { priorities: f.getAll("priorities"), next_three: f.getAll("next_three") } }); BA.toast("Saved."); });
+      if (mf) mf.onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(mf);
+        const menu = [...mf.querySelectorAll(".menu-row")].map((r) => ({ option: r.querySelector('[name="m_option"]').value, cost: r.querySelector('[name="m_cost"]').value, delivers: r.querySelector('[name="m_delivers"]').value }));
+        await BA.api("/api/first90/manager-focus", { method: "PUT", body: { priorities: f.getAll("priorities"), next_three: f.getAll("next_three"), protective: f.get("protective"), menu } }); BA.toast("Saved."); BA.rerender(); });
+      const mmd = fbox.querySelector("#menu-md");
+      if (mmd) mmd.onclick = () => { navigator.clipboard.writeText(["| Option | What it costs | What it delivers |", "| --- | --- | --- |", ...focus.menu.map((r) => `| ${r.option} | ${r.cost} | ${r.delivers} |`)].join("\n")); BA.toast("Copied."); };
       const box = document.createElement("section");
       box.className = "card";
       box.innerHTML = `<h2>Conversations with my manager</h2><p class="quiet">The conversations that set you up to succeed. Start with the situation, expectations and working style; take up resources once you've learned enough to ask well; bring up your development once the relationship is established, a few months in. Write down what was agreed, and come back to them.</p>

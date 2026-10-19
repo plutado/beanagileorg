@@ -185,6 +185,11 @@ GUIDES = [
             "Adapt to their style rather than expecting them to adapt to yours.",
             "Remember that people they trust shape their view of you, including your peers and your team.",
             "Ask for the support your situation needs. In a realignment, that's often help making the case for change.",
+            "Find the untouchables early: what they built, and who they're loyal to. Read their history, ask others, watch their reactions, and float ideas as trial balloons before proposing.",
+            "Where your view of the problem differs from theirs, educate them carefully, especially if they helped build what you'd change.",
+            "Underpromise and overdeliver. Promise what the team's capacity for change can actually carry.",
+            "Clarify expectations again and again, in different ways, until there's no ambiguity. Understand how their own boss judges them.",
+            "Ask for resources with a menu: what each level of support buys. Put it all on the table early rather than going back for more.",
         ],
         "pitfalls": [
             "Waiting for them to define success for you.",
