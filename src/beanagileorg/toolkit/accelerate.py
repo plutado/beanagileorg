@@ -304,11 +304,18 @@ def put_learning_step(key: str, body: dict = Body(...), viewer: Viewer = Depends
 def situation_guide(viewer: Viewer = Depends(get_viewer)):
     return {k: {"what": w, "approach": a, "mood": m, "mood_job": j, "pace": p, "pace_label": pl,
                 "challenges": SITUATION_FACTORS[k][0], "opportunities": SITUATION_FACTORS[k][1],
+                "style": SITUATION_STYLE[k], "style_label": STYLE_LABELS[SITUATION_STYLE[k]],
                 "playbook": [{"lever": l, "move": mv} for l, mv in zip(PLAYBOOK_LEVERS, SITUATION_PLAYBOOK[k])] if k in SITUATION_PLAYBOOK else []}
             for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
 
 
 PREFERRED_KEY = "first90.preferred_situation"
+STYLE_KEY = "first90.my_change_style"
+# Which leadership style each situation usually calls for: a hero who takes charge, or a steward who builds consensus.
+SITUATION_STYLE = {"start-up": "hero", "turnaround": "hero", "accelerated growth": "both", "realignment": "steward", "sustaining success": "steward"}
+STYLE_LABELS = {"hero": "Hero: takes charge, decides fast, leads from the front",
+                "steward": "Steward: builds shared understanding and consensus, patient and systematic",
+                "both": "Some of each"}
 
 
 @router.get("/api/situations/portfolio")
@@ -323,9 +330,41 @@ def portfolio(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     row = conn.execute("SELECT value FROM settings WHERE key = ?", (PREFERRED_KEY,)).fetchone()
     preferred = row["value"] if row and viewer.floor == Level.PRIVATE else None
     top = max(kinds, key=lambda k: effort[k]) if total else None
-    return {"groups": [{"kind": k, "areas": groups[k], "effort": effort[k]} for k in kinds],
+    style = None
+    team_mix = None
+    if viewer.floor == Level.PRIVATE:
+        r = conn.execute("SELECT value FROM settings WHERE key = ?", (STYLE_KEY,)).fetchone()
+        style = r["value"] if r else None
+        from .people_crm import me_id
+
+        me = me_id(conn)
+        reports = models.people.fetch_all(conn, "manager_id = ? AND active = 1", (me,)) if me else []
+        team_mix = {s: sum(1 for p in reports if p.get("change_style") == s) for s in models.CHANGE_STYLES}
+        team_mix["unknown"] = sum(1 for p in reports if not p.get("change_style"))
+    hero_effort = sum(effort[k] for k in kinds if SITUATION_STYLE[k] == "hero")
+    steward_effort = sum(effort[k] for k in kinds if SITUATION_STYLE[k] == "steward")
+    mismatch = None
+    if style == "hero" and steward_effort > hero_effort:
+        mismatch = "hero"
+    elif style == "steward" and hero_effort > steward_effort:
+        mismatch = "steward"
+    return {"groups": [{"kind": k, "areas": groups[k], "effort": effort[k], "style": SITUATION_STYLE[k]} for k in kinds],
             "undecided": [a for a in areas if not a.get("kind")], "total": total, "preferred": preferred,
-            "preference_check": bool(preferred and top == preferred and len([k for k in kinds if effort[k]]) > 1)}
+            "preference_check": bool(preferred and top == preferred and len([k for k in kinds if effort[k]]) > 1),
+            "my_style": style, "style_mismatch": mismatch, "team_mix": team_mix}
+
+
+@router.put("/api/situations/my-style")
+def put_my_style(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    s = body.get("style")
+    if s and s not in models.CHANGE_STYLES:
+        raise HTTPException(400, "Choose hero, steward or both.")
+    if s:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (STYLE_KEY, s))
+    else:
+        conn.execute("DELETE FROM settings WHERE key = ?", (STYLE_KEY,))
+    return {"style": s}
 
 
 @router.put("/api/situations/preferred")
@@ -486,7 +525,9 @@ def preferences(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}
     past = models.preference_assessments.fetch_all(conn)
-    return {"kinds": [{"key": k, "label": l, "about": d} for k, l, d in PREF_KINDS],
+    r = conn.execute("SELECT value FROM settings WHERE key = ?", (STYLE_KEY,)).fetchone()
+    return {"my_style": r["value"] if r else None, "styles": [{"key": k, "label": v} for k, v in STYLE_LABELS.items()],
+            "kinds": [{"key": k, "label": l, "about": d} for k, l, d in PREF_KINDS],
             "areas": [{"key": a, "label": l, "cells": c} for a, l, c in PREF_AREAS],
             "assessments": [{**p, **preference_result(p.get("scores") or {})} for p in past]}
 

@@ -146,6 +146,8 @@ GUIDES = [
             "Treat it as a portfolio: sort each product, process, project, system and team into its situation, decide how much of your effort each gets, and use that picture with your manager and team.",
             "Check your preferences. If the situation you enjoy most is getting the most effort, make sure that's what the work needs.",
             "Lead change differently by situation. A turnaround calls for fast technical learning and bold moves on strategy and structure; a realignment calls for cultural and political learning first, then deliberate moves on systems, skills and culture.",
+            "Know whether you're reflexively a hero or a steward. Heroes move too fast in realignments; stewards move too slowly in turnarounds. Put people of the other kind on your team, and spend heroic energy only where something is truly broken.",
+            "Judge and reward work by its situation. Turnarounds and start-ups are easy to measure; in a realignment or a sustaining success, success often means nothing bad happened. Set baselines early, track the problems avoided, and give credit to the group.",
         ],
         "pitfalls": [
             "Assuming the team needs fixing because you were hired.",
@@ -1128,7 +1130,8 @@ TIPS = {
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
                 ("Treat people the same whether or not they're in the room. People notice.", 'culture-of-trust', 6),
                 ('Invest sideways as much as up. Your peers decide whether most of your changes stick.', "peer-relationships", 10),
-                ("Note what each key person expects from you, especially anyone who shapes how your work is judged.", "your-manager", 14)],
+                ("Note what each key person expects from you, especially anyone who shapes how your work is judged.", "your-manager", 14),
+                ("Recognize quiet work too. Keeping things from breaking deserves as much credit as fixing what broke.", "read-the-situation", 24)],
     "/onboarding": [("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
                     ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback"),
@@ -1252,7 +1255,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 23  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 24  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

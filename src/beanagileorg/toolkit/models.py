@@ -117,6 +117,7 @@ LEARNING_STATUS = ("open", "answered", "dropped")
 HYPOTHESIS_VERDICTS = ("testing", "supported", "disproved", "mixed")
 SITUATION_KINDS = ("start-up", "turnaround", "accelerated growth", "realignment", "sustaining success")
 SITUATION_ELEMENTS = ("product", "process", "project", "system", "team")
+CHANGE_STYLES = ("hero", "steward", "both")
 PRACTICE_STATUS = ("shared", "trying", "adopted", "dropped")
 MANDATE_ITEM_KINDS = ("outcome", "decision")
 AUTHORITY = ("to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine")
@@ -1471,6 +1472,12 @@ MIGRATIONS = [
         ALTER TABLE metrics ADD COLUMN benchmark_source TEXT;
         """,
     ),
+    (
+        38,
+        """
+        ALTER TABLE people ADD COLUMN change_style TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1514,6 +1521,7 @@ people = Record(
         "expects_from_me": Field("text", P),
         "advice": Field("list", P),
         "insight": Field("list", P),
+        "change_style": Field("text", P, choices=CHANGE_STYLES),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),

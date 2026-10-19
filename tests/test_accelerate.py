@@ -163,3 +163,15 @@ def test_playbooks_and_realignment_learning_nudge(client):
     assert len(g["turnaround"]["playbook"]) == 6 and len(g["realignment"]["playbook"]) == 6 and g["start-up"]["playbook"] == []
     client.post("/api/situations", json={"area": "[Area]", "kind": "realignment"})
     assert client.get("/api/learning-questions/agenda").json()["balance"]["realignment"] is True
+
+
+def test_hero_steward_fit_and_team_mix(client):
+    g = client.get("/api/situations/guide").json()
+    assert g["turnaround"]["style"] == "hero" and g["realignment"]["style"] == "steward"
+    client.post("/api/situations", json={"area": "[Area A]", "kind": "realignment", "effort": 70})
+    client.post("/api/situations", json={"area": "[Area B]", "kind": "turnaround", "effort": 30})
+    assert client.put("/api/situations/my-style", json={"style": "nope"}).status_code == 400
+    client.put("/api/situations/my-style", json={"style": "hero"})
+    p = client.get("/api/situations/portfolio").json()
+    assert p["my_style"] == "hero" and p["style_mismatch"] == "hero"
+    assert client.get("/api/preferences").json()["my_style"] == "hero"
