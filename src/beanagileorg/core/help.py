@@ -203,7 +203,7 @@ TOOLKIT = {
     "/metrics": {
         "purpose": "Track a few delivery measures over time, with a baseline and a target, to see whether changes are working.",
         "steps": ["Load the four starter metrics or add your own.", "Record a baseline before setting a target.", "Add readings regularly, or record them from the release log under Releases.",
-                  "Read the trend charts against baseline and target, not single numbers; open Readings to see or remove values."],
+                  "Read the trend charts against baseline and target, not single numbers; each shows whether it's improving, holding steady or getting worse, and so does the weekly report."],
         "privacy": "Shareable.",
         "related": ["/status", "/coaching/metrics-without-blame"],
     },
@@ -238,7 +238,7 @@ TOOLKIT = {
         "purpose": "Your 30/60/90-day and six-month plans, built from the listening tour and ready to present.",
         "steps": ["Plan each early win as a project with FOG LAMP (focus, oversight, goals, leadership, abilities, means, process), with a lead and a team from People.", "Score early win candidates with the evaluation (four questions, 0 to 4 each); the ranking at the top helps you keep three or four.", "Write a headline for each month.", "Add outcomes, actions, measures and what you won't change, tagged with the themes behind them.",
                   "Check What I heard for themes no item answers yet.", "Copy the outline, or build a deck from it in the Comms studio, and mark the plans presented; that saves a version.",
-                  "At each checkpoint, open Versions and check-in: mark items met, partly, moved or dropped with a reason, see what changed since you presented, and copy the summary."],
+                  "At each checkpoint (Today reminds you when a plan ends), open Versions and check-in: mark items met, partly, moved or dropped with a reason, compare any two versions or a version with now, and copy the summary."],
         "privacy": "Plans are shareable; your evidence notes are private.",
         "related": ["/rollup", "/status", "/coaching/your-manager"],
     },
@@ -295,7 +295,7 @@ TOOLKIT = {
     "/releases": {
         "purpose": "Run every release the same way: what's in it, where it is on the path to production, the regression plan and QA sign-off, a go/no-go decision against a readiness check, and how it went.",
         "steps": ["Add a release with its sprint, branch and planned date; its path comes from your SDLC environments or the list under The path to production.",
-                  "Fill it from the sprint's stories, link the regression plan, and record QA sign-off.", "Mark each step on the path as it's done, then decide go or no-go against the readiness check.",
+                  "Fill it from the sprint's stories, link the regression plan, and record QA sign-off.", "Mark each step on the path as it's done, then decide go or no-go against the readiness check; the decision is logged under Risks and decisions.",
                   "After release, record the outcome; the release log turns that into deployment frequency and change failure rate for Metrics."],
         "privacy": "Shareable, so release notes and status can go to stakeholders; notes are private.",
         "related": ["/sdlc", "/qa", "/metrics", "/coaching/quality-culture"],

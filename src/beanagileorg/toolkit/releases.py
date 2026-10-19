@@ -169,3 +169,49 @@ def releases_due(conn) -> list[dict]:
     for r in models.releases.fetch_all(conn, "released_on IS NOT NULL AND outcome IS NULL AND released_on <= ?", ((t - timedelta(days=2)).isoformat(),)):
         out.append({"id": r["id"], "name": r["name"], "kind": "outcome", "date": r["released_on"], "missing": 0})
     return out[:8]
+
+
+def metric_direction(conn, m: dict, n: int = 3) -> str | None:
+    """Improving, worsening or flat, from the last few readings and whether higher is better. None with fewer than two."""
+    rows = conn.execute("SELECT value FROM metric_readings WHERE metric_id = ? AND value IS NOT NULL ORDER BY date DESC, id DESC LIMIT ?", (m["id"], n)).fetchall()
+    vals = [r["value"] for r in rows][::-1]
+    if len(vals) < 2:
+        return None
+    change = vals[-1] - vals[0]
+    scale = max(abs(v) for v in vals) or 1
+    if abs(change) / scale < 0.05:
+        return "flat"
+    better = change > 0 if m.get("higher_is_better", True) else change < 0
+    return "improving" if better else "worsening"
+
+
+@router.get("/api/metrics/directions")
+def directions(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    return {m["id"]: metric_direction(conn, m) for m in models.metrics.fetch_all(conn)}
+
+
+DECISION_PROCESS = "consult and decide"
+
+
+@router.put("/api/releases/{release_id}/decision")
+def decide(release_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Record go or no-go on the release, and log it under Risks and decisions with who decided and any checks still open."""
+    require_write(viewer)
+    r = _release(conn, release_id)
+    decision = body.get("decision")
+    if decision not in models.RELEASE_DECISIONS:
+        raise HTTPException(400, f"Pick one of: {', '.join(models.RELEASE_DECISIONS)}.")
+    fields = {"decision": decision, "decided_by_id": body.get("decided_by_id"), "decided_on": body.get("decided_on") or (today().isoformat() if decision != "pending" else None),
+              "decision_notes": body.get("decision_notes") or ""}
+    updated = models.releases.update(conn, release_id, fields, viewer.source)
+    logged = None
+    if decision != "pending" and decision != r.get("decision"):
+        rd = readiness(conn, updated)
+        open_checks = [c["label"] for c in rd["checks"] if not c["ok"]]
+        outcome = ("Go" if decision == "go" else "No-go") + (f": {fields['decision_notes']}" if fields["decision_notes"] else "")
+        if open_checks:
+            outcome += f" (open at the time: {'; '.join(open_checks)})"
+        logged = models.decisions_needed.create(conn, {"decision": f"Release {r['name']}: go or no-go", "from_id": fields["decided_by_id"], "needed_by": r.get("planned_on"),
+                                                        "status": "decided", "outcome": outcome, "process": DECISION_PROCESS, "jira_keys": r.get("jira_keys") or [],
+                                                        "team_id": r.get("team_id")}, viewer.source)["id"]
+    return {"release": updated, "logged_decision_id": logged}

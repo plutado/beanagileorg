@@ -133,6 +133,7 @@
           ${d.first90.checkpoint ? `<div class="item"><span class="pill warn">check-in</span><a href="#/first90/team">Day-${d.first90.checkpoint.day} team check-in</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(d.first90.checkpoint.due)}</span></div>` : ""}
           ${d.first90.reviews.map((c) => `<div class="item"><span class="pill">review</span><a href="#/first90/changes">Review with the team: ${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.review_on)}</span></div>`).join("")}
           ${d.first90.late.map((m) => `<div class="item"><span class="pill bad">late</span><a href="#/first90/team">${esc(m.person)}: ${esc(m.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.due)}</span></div>`).join("")}</section>` : ""}
+        ${d.plan_checkins && d.plan_checkins.length ? `<section class="card"><h2>Plan check-ins</h2>${d.plan_checkins.map((x) => `<div class="item"><span class="pill warn">check in</span><a href="#/plans">${esc(x.title)}: ${x.unchecked} item${x.unchecked === 1 ? "" : "s"} not checked in</a><span class="spacer"></span><span class="quiet">ended ${BA.fmtDate(x.end)}</span></div>`).join("")}</section>` : ""}
         ${d.releases && d.releases.length ? `<section class="card"><h2>Releases</h2>${d.releases.map((x) => `<div class="item"><span class="pill ${x.kind === "outcome" ? "" : "warn"}">${x.kind === "outcome" ? "outcome?" : `${x.missing} open`}</span><a href="#/releases/${x.id}">${x.kind === "outcome" ? `Record how ${esc(x.name)} went` : `${esc(x.name)} isn't ready yet`}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.date)}</span></div>`).join("")}</section>` : ""}
         ${d.alliances && d.alliances.length ? `<section class="card"><h2>Alliances</h2>${d.alliances.map((e) => `<div class="item"><span class="pill ${e.date < BA.today() ? "bad" : "warn"}">${e.date < BA.today() ? "overdue" : "due"}</span><a href="#/alliances/${e.plan_id}">${esc(e.title)}</a><span class="quiet">${esc(e.plan)}</span><span class="spacer"></span><span class="quiet">${BA.fmtDate(e.date)}</span></div>`).join("")}</section>` : ""}
         ${d.changes && (d.changes.waiting.length || d.changes.untold.length) ? `<section class="card"><h2>Change requests</h2>
@@ -2208,7 +2209,7 @@
         <label>Planned production date<input type="date" name="planned_on" value="${esc(r.planned_on || "")}"${ro ? " disabled" : ""}></label>
         <label>Regression plan<select name="regression_plan_id"${ro ? " disabled" : ""}><option value=""></option>${plans.map((p) => `<option value="${p.id}"${p.id === r.regression_plan_id ? " selected" : ""}>${esc(p.title)} (${esc(p.status)})</option>`).join("")}</select></label>
         <label>QA signed off by<select name="qa_signoff_by_id"${ro ? " disabled" : ""}>${personOptions(people, r.qa_signoff_by_id)}</select></label><label>QA signed off on<input type="date" name="qa_signoff_on" value="${esc(r.qa_signoff_on || "")}"${ro ? " disabled" : ""}></label></div>
-        <h3>Go or no-go</h3><div class="grid2"><label>Decision<select name="decision"${ro ? " disabled" : ""}>${opts(["pending", "go", "no-go"], r.decision)}</select></label><label>Decided by<select name="decided_by_id"${ro ? " disabled" : ""}>${personOptions(people, r.decided_by_id)}</select></label>
+        <h3>Go or no-go</h3><p class="quiet">Deciding go or no-go logs it under <a href="#/risks">Risks and decisions</a>, with who decided and any checks still open.</p><div class="grid2"><label>Decision<select name="decision"${ro ? " disabled" : ""}>${opts(["pending", "go", "no-go"], r.decision)}</select></label><label>Decided by<select name="decided_by_id"${ro ? " disabled" : ""}>${personOptions(people, r.decided_by_id)}</select></label>
           <label>Decided on<input type="date" name="decided_on" value="${esc(r.decided_on || "")}"${ro ? " disabled" : ""}></label><label>Why<input name="decision_notes" value="${esc(r.decision_notes || "")}"${ro ? " disabled" : ""}></label></div>
         <h3>How it went</h3><div class="grid2"><label>Released on<input type="date" name="released_on" value="${esc(r.released_on || "")}"${ro ? " disabled" : ""}></label><label>Outcome<select name="outcome"${ro ? " disabled" : ""}><option value=""></option>${opts(["clean", "hotfix", "rollback", "incident"], r.outcome)}</select></label>
           <label>What happened<input name="outcome_notes" value="${esc(r.outcome_notes || "")}"${ro ? " disabled" : ""}></label>${ro ? "" : `<label>Incident<select name="incident_id"><option value=""></option>${incidents.map((x) => `<option value="${x.id}"${x.id === r.incident_id ? " selected" : ""}>${esc(x.title || x.summary || "Incident " + x.id)}</option>`).join("")}</select></label>`}</div>
@@ -2231,9 +2232,10 @@
       e.preventDefault();
       const fd = new FormData(form);
       await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { name: fd.get("name"), status: fd.get("status"), sprint_id: n(fd.get("sprint_id")), branch: fd.get("branch"), planned_on: fd.get("planned_on") || null, regression_plan_id: n(fd.get("regression_plan_id")),
-        qa_signoff_by_id: n(fd.get("qa_signoff_by_id")), qa_signoff_on: fd.get("qa_signoff_on") || null, decision: fd.get("decision"), decided_by_id: n(fd.get("decided_by_id")), decided_on: fd.get("decided_on") || null, decision_notes: fd.get("decision_notes"),
+        qa_signoff_by_id: n(fd.get("qa_signoff_by_id")), qa_signoff_on: fd.get("qa_signoff_on") || null,
         released_on: fd.get("released_on") || null, outcome: fd.get("outcome") || null, outcome_notes: fd.get("outcome_notes"), incident_id: n(fd.get("incident_id")), notes: fd.get("notes") } });
-      BA.toast("Saved."); BA.rerender();
+      const dec = await BA.api(`/api/releases/${id}/decision`, { method: "PUT", body: { decision: fd.get("decision"), decided_by_id: n(fd.get("decided_by_id")), decided_on: fd.get("decided_on") || null, decision_notes: fd.get("decision_notes") } });
+      BA.toast(dec.logged_decision_id ? "Saved, and the decision is logged under Risks and decisions." : "Saved."); BA.rerender();
     });
     main.querySelector("#rel-del").onclick = BA.guard(async () => { if (!confirm("Delete this release?")) return; await BA.api(`/api/releases/${id}`, { method: "DELETE" }); BA.go("/releases"); });
   }
@@ -2608,7 +2610,8 @@
   BA.view("/metrics", {
     title: "Metrics",
     async render(main) {
-      const [metrics, readings] = await Promise.all([BA.api("/api/metrics"), BA.api("/api/metric-readings")]);
+      const [metrics, readings, dirs] = await Promise.all([BA.api("/api/metrics"), BA.api("/api/metric-readings"), BA.api("/api/metrics/directions")]);
+      metrics.forEach((m) => (m.direction = dirs[m.id] || null));
       if (!metrics.length) {
         main.innerHTML = starterButton("metrics");
         wireStarter(main);
@@ -2626,7 +2629,7 @@
             <td>${presenting() ? fmt(m.baseline, m.unit) : `<input type="number" step="any" name="baseline" value="${esc(m.baseline ?? "")}" style="max-width:110px">`}</td>
             <td>${presenting() ? fmt(m.target, m.unit) : `<input type="number" step="any" name="target" value="${esc(m.target ?? "")}" style="max-width:110px">`}</td>
             <td>${presenting() ? `${esc(m.benchmark || "")}<div class="quiet">${esc(m.benchmark_source || "")}</div>` : `<input name="benchmark" value="${esc(m.benchmark || "")}" placeholder="Outside reference" style="max-width:150px"><input name="benchmark_source" value="${esc(m.benchmark_source || "")}" placeholder="Source" style="max-width:150px;margin-top:4px">`}</td>
-            <td>${fmt(m.latest, m.unit)}<div class="quiet">${BA.fmtDate(m.latest_date)}</div></td><td>${onTrack(m)}</td>
+            <td>${fmt(m.latest, m.unit)}<div class="quiet">${BA.fmtDate(m.latest_date)}</div></td><td>${onTrack(m)} ${directionPill(m.direction)}</td>
             ${presenting() ? "" : `<td><span class="row"><input type="date" data-rdate="${m.id}" value="${BA.today()}" style="max-width:160px"><input type="number" step="any" data-rval="${m.id}" placeholder="Value" style="max-width:100px"><button class="btn" data-radd="${m.id}">Add</button></span></td>`}</tr>`)
           .join("")}</tbody></table></div>
         <section class="card"><h2>Trends</h2><p class="quiet">Each measure over time, against its baseline and target. Look at the direction, not single readings. Hover a point for its value.</p>
@@ -2655,12 +2658,14 @@
     },
   });
 
+  const directionPill = (d) => (d ? `<span class="pill ${d === "improving" ? "good" : d === "worsening" ? "warn" : ""}" title="From the last three readings">${d === "worsening" ? "getting worse" : d === "flat" ? "holding steady" : "improving"}</span>` : "");
+
   // One metric over time: a 2px line with markers, dashed baseline and target lines, the latest value labeled,
   // a hover tooltip on every reading, and the readings as a table for anyone who'd rather read numbers.
   function metricTrend(m, rs) {
     const pts = rs.filter((r) => r.date && r.value != null).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
     const unit = m.unit ? " " + m.unit : "", num = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-    const head = `<div class="row" style="align-items:baseline"><b>${esc(m.name)}</b><span class="spacer"></span><span class="quiet">${m.higher_is_better ? "higher is better" : "lower is better"}</span></div>`;
+    const head = `<div class="row" style="align-items:baseline"><b>${esc(m.name)}</b>${directionPill(m.direction)}<span class="spacer"></span><span class="quiet">${m.higher_is_better ? "higher is better" : "lower is better"}</span></div>`;
     const table = pts.length ? `<details style="margin-top:4px"><summary class="quiet">Readings (${pts.length})</summary><div class="tablewrap"><table class="data"><thead><tr><th>Date</th><th>Value</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${pts.slice().reverse().map((r) => `<tr><td>${BA.fmtDate(r.date)}</td><td>${num(r.value)}${esc(unit)}</td>${presenting() ? "" : `<td><button class="icon-btn" title="Delete" data-rdel="${r.id}">${BA.icon("x")}</button></td>`}</tr>`).join("")}</tbody></table></div></details>` : "";
     if (pts.length < 2) return `<div class="card" style="margin:0">${head}<p class="quiet">${pts.length ? `One reading so far: ${num(pts[0].value)}${esc(unit)} on ${BA.fmtDate(pts[0].date)}. A trend needs two.` : "No readings yet. Add one in the table above."}</p>${table}</div>`;
     const W = 300, H = 150, L = 40, R = 44, T = 12, B = 22;
@@ -3175,7 +3180,7 @@
     const later = horizons.filter((x) => x.horizon_days > h.horizon_days);
     return `<details class="plan-review" data-review="${h.id}" style="margin-top:10px"><summary class="quiet">Versions (${versions.length}) and check-in</summary>
       <h4>Versions</h4><p class="quiet">The plan as it stood when presented, or whenever you save one, so a later review can show what changed and why. Marking a plan presented saves a version.</p>
-      ${versions.map((v) => `<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"><span style="flex:1;min-width:0"><b>${esc(v.label || "Version")}</b><br><span class="quiet">${BA.fmtDate(v.taken_on)} · ${v.items} items${v.reason ? " · " + esc(v.reason) : ""}</span></span><button class="btn" type="button" data-compare="${v.id}" style="flex:0 0 auto">What's changed</button></div>`).join("") || '<p class="quiet">No versions yet.</p>'}
+      ${versions.map((v) => `<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"><span style="flex:1;min-width:0"><b>${esc(v.label || "Version")}</b><br><span class="quiet">${BA.fmtDate(v.taken_on)} · ${v.items} items${v.reason ? " · " + esc(v.reason) : ""}</span></span><select data-against="${v.id}" style="width:auto;flex:0 0 auto" title="Compare with"><option value="">with now</option>${versions.filter((w) => w.taken_on > v.taken_on || (w.taken_on === v.taken_on && w.id > v.id)).map((w) => `<option value="${w.id}">with ${esc(w.label || "a later version")}</option>`).join("")}</select><button class="btn" type="button" data-compare="${v.id}" style="flex:0 0 auto">What's changed</button></div>`).join("") || '<p class="quiet">No versions yet.</p>'}
       <div data-compare-out></div>
       ${ro ? "" : `<form class="save-version" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><input name="label" placeholder="Label, such as Day-30 review" style="flex:1 1 160px;min-width:0"><input name="reason" placeholder="Why now (optional)" style="flex:1 1 160px;min-width:0"><button class="btn" type="submit" style="flex:0 0 auto">Save a version</button></form>`}
       <h4>Check-in</h4><p class="quiet">At the checkpoint, mark each item met, partly met, moved or dropped. Moved and dropped need a reason; that's what the review is about.</p>
@@ -3199,10 +3204,11 @@
         box.querySelector("[data-ci-counts]").textContent = Object.entries(sum.counts).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(" · ") || "Nothing to check yet.";
       });
       box.querySelectorAll("[data-compare]").forEach((b) => (b.onclick = BA.guard(async () => {
-        const c = await BA.api(`/api/plans/${pid}/compare?version_id=${b.dataset.compare}`);
+        const against = box.querySelector(`[data-against="${b.dataset.compare}"]`).value;
+        const c = await BA.api(`/api/plans/${pid}/compare?version_id=${b.dataset.compare}${against ? `&against_id=${against}` : ""}`);
         const val = (v) => (v === null || v === undefined || v === "" ? "–" : esc(String(v)));
         const fieldName = { title: "title", kind: "kind", due_day: "day", status: "status", detail: "detail", early_win: "early win" };
-        box.querySelector("[data-compare-out]").innerHTML = `<div class="callout"><b>Since ${esc(c.version.label || "that version")} (${BA.fmtDate(c.version.taken_on)})</b>
+        box.querySelector("[data-compare-out]").innerHTML = `<div class="callout"><b>From ${esc(c.version.label || "that version")} (${BA.fmtDate(c.version.taken_on)}) to ${c.against ? `${esc(c.against.label || "a later version")} (${BA.fmtDate(c.against.taken_on)})` : "now"}</b>
           ${c.title_changed ? "<p>The plan was renamed.</p>" : ""}${c.summary_changed ? `<p>Headline was: ${val(c.was_summary)}<br>Now: ${val(c.now_summary)}</p>` : ""}
           ${c.added.length ? `<p><b>Added:</b> ${c.added.map((i) => esc(i.title)).join("; ")}</p>` : ""}${c.removed.length ? `<p><b>Removed:</b> ${c.removed.map((i) => esc(i.title)).join("; ")}</p>` : ""}
           ${c.changed.length ? `<div class="md"><ul>${c.changed.map((x) => `<li><b>${esc(x.title)}:</b> ${x.changes.map((d) => `${fieldName[d.field] || d.field} ${val(d.was)} → ${val(d.now)}`).join(", ")}</li>`).join("")}</ul></div>` : ""}
@@ -3269,6 +3275,7 @@
         const groups = PLAN_KINDS.map((k) => [k, h.items.filter((i) => i.kind === k)]).filter(([, list]) => list.length);
         return `<section class="card plan-horizon" data-plan="${h.id}">
           <div class="row"><h2>${esc(h.title)}</h2><span class="quiet">${dateRange(h)}</span><span class="spacer"></span>
+            ${(() => { const c = h.checkin_counts || {}, done = (c.met || 0) + (c.partly || 0) + (c.moved || 0) + (c.dropped || 0); return done ? ["met", "partly", "moved", "dropped"].filter((k) => c[k]).map((k) => `<span class="pill ${CHECKIN_TONES[k]}">${c[k]} ${k}</span>`).join("") + (c["not checked"] ? `<span class="quiet">${c["not checked"]} to check</span>` : "") : ""; })()}
             ${tonePill(h.status, PLAN_STATUS_TONES)}${h.agreed_on ? `<span class="quiet">agreed ${BA.fmtDate(h.agreed_on)}</span>` : h.presented_on ? `<span class="quiet">${BA.fmtDate(h.presented_on)}${h.audience ? ` · ${esc(h.audience)}` : ""}</span>` : ""}
             ${ro || h.status === "agreed" ? "" : `<button class="btn" type="button" data-agree-plan="${h.id}" title="Your manager has agreed this plan">Mark agreed</button>`}</div>
           ${ro ? "" : `<details class="plan-settings"><summary class="quiet">Rename, change the last day, or delete</summary><form class="edit-plan row">
@@ -3297,17 +3304,19 @@
         <div class="plan-layout"><div class="plan-horizons">${d.horizons.map(horizon).join("")}
           ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">Add a shorter step, such as a two-week check-in, or a longer view, such as month 9 or month 12. Each plan starts the day after the one before it ends.</p>
             <form id="add-plan" class="row"><input name="title" placeholder="Name, such as Month 9" required style="max-width:260px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" required style="max-width:90px"></label><button class="btn primary" type="submit">Add plan</button></form></section>`}</div>
-          <aside><section class="card"><h2>What I heard</h2>${
+          <aside class="plan-heard"><details class="card" id="plan-heard"${(() => { try { return localStorage.getItem("ba-plan-heard") === "open" ? " open" : ""; } catch { return ""; } })()}><summary><b>What I heard</b> <span class="quiet">· ${ev.themes.length} theme${ev.themes.length === 1 ? "" : "s"}${uncovered.length ? `, ${uncovered.length} not answered yet` : ""}</span></summary>${
             ev.themes.length
               ? `<p class="quiet">Themes from the listening tour, with how many plan items answer each.</p>${ev.themes
                   .map((t) => `<div class="item"><span>${esc(t.theme)}</span><span class="quiet">${t.count} of ${ev.done}</span><span class="spacer"></span>${t.plan_items ? `<span class="pill good">${t.plan_items} in plan</span>` : '<span class="pill warn">not in plan yet</span>'}</div>`)
                   .join("")}${uncovered.length && !ro ? `<p class="quiet">${uncovered.length} theme${uncovered.length === 1 ? "" : "s"} not answered yet. Address each one, or say why it waits.</p>` : ""}`
               : '<p class="quiet">No themes yet. Tag themes on finished one-on-ones in the Listening tour.</p>'
-          }</section>
-          ${ev.notes ? `<section class="card"><h2>Notes to draw on</h2><p class="quiet">Private. From finished one-on-ones.</p>${Object.entries(NOTE_TITLES)
+          }
+          ${ev.notes ? `<h3>Notes to draw on</h3><p class="quiet">Private. From finished one-on-ones.</p>${Object.entries(NOTE_TITLES)
             .filter(([k]) => ev.notes[k]?.length)
             .map(([k, title]) => `<details><summary>${title} (${ev.notes[k].length})</summary>${ev.notes[k].map((n) => `<p><b>${esc(n.person || "")}</b> ${esc(n.text)}</p>`).join("")}</details>`)
-            .join("") || '<p class="quiet">Nothing yet.</p>'}</section>` : ""}</aside></div>`;
+            .join("") || '<p class="quiet">Nothing yet.</p>'}` : ""}</details></aside></div>`;
+      const heard = main.querySelector("#plan-heard");
+      if (heard) heard.addEventListener("toggle", () => { try { localStorage.setItem("ba-plan-heard", heard.open ? "open" : "closed"); } catch {} });
       bindPlanReviews(main);
       if (ro) return;
       const num = (v) => (v === "" || v == null ? null : Number(v));

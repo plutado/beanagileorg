@@ -49,3 +49,19 @@ def test_checkin(client):
     s = client.get(f"/api/plans/{p30}/checkin").json()
     assert s["counts"]["met"] == 1 and s["counts"]["moved"] == 1 and s["counts"]["dropped"] == 1
     assert "- [Moved item] (now Days 31 to 60, day 45): [Waiting on access]" in s["markdown"]
+
+
+def test_compare_two_versions_counts_and_today(client):
+    from datetime import date, timedelta
+    p30 = plan(client, 30)
+    a = client.post("/api/plan-items", json={"plan_id": p30, "title": "[Item A]"}).json()["id"]
+    v1 = client.post(f"/api/plans/{p30}/versions", json={"label": "[One]"}).json()["id"]
+    client.patch(f"/api/plan-items/{a}", json={"title": "[Item A renamed]"})
+    v2 = client.post(f"/api/plans/{p30}/versions", json={"label": "[Two]"}).json()["id"]
+    client.post("/api/plan-items", json={"plan_id": p30, "title": "[Item B]"})
+    c = client.get(f"/api/plans/{p30}/compare?version_id={v1}&against_id={v2}").json()
+    assert c["against"]["label"] == "[Two]" and c["added"] == [] and c["changed"][0]["changes"][0]["now"] == "[Item A renamed]"
+    client.put("/api/toolkit/settings", json={"start_date": (date.today() - timedelta(days=35)).isoformat()})
+    h = next(x for x in client.get("/api/plans/overview").json()["horizons"] if x["id"] == p30)
+    assert h["checkin_counts"]["not checked"] == 2
+    assert client.get("/api/today").json()["plan_checkins"][0]["unchecked"] == 2

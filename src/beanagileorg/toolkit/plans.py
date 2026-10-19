@@ -38,7 +38,9 @@ def build_plans(conn, viewer: Viewer) -> dict:
         for i in own:
             day = i.get("due_day")
             i["outside"] = day is not None and not first <= day <= last
-        horizons.append({**plan, "first_day": first, "last_day": last, "start": _day(start, first), "end": _day(start, last), "items": own})
+        counts = {o: sum(1 for i in own if (i.get("checkin") or {}).get("outcome") == o) for o in ("met", "partly", "moved", "dropped")}
+        counts["not checked"] = sum(1 for i in own if not (i.get("checkin") or {}).get("outcome") and i["status"] != "dropped")
+        horizons.append({**plan, "first_day": first, "last_day": last, "start": _day(start, first), "end": _day(start, last), "items": own, "checkin_counts": counts})
         first = last + 1
     return {"start_date": start, "horizons": horizons}
 
@@ -154,11 +156,33 @@ def compare(old: dict, new: dict) -> dict:
 
 
 @router.get("/api/plans/{plan_id}/compare")
-def compare_version(plan_id: int, version_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+def compare_version(plan_id: int, version_id: int, against_id: int | None = None, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Compare a version with the plan as it is now, or with a later version."""
     v = models.plan_versions.fetch(conn, version_id)
     if v is None or v["plan_id"] != plan_id:
         raise HTTPException(404, "No such version of this plan.")
-    return {"version": {k: v[k] for k in ("id", "taken_on", "label", "reason")}, **compare(v.get("snapshot") or {}, _snapshot(conn, plan_id))}
+    head = {k: v[k] for k in ("id", "taken_on", "label", "reason")}
+    if against_id:
+        w = models.plan_versions.fetch(conn, against_id)
+        if w is None or w["plan_id"] != plan_id:
+            raise HTTPException(404, "No such version of this plan.")
+        return {"version": head, "against": {k: w[k] for k in ("id", "taken_on", "label", "reason")}, **compare(v.get("snapshot") or {}, w.get("snapshot") or {})}
+    return {"version": head, "against": None, **compare(v.get("snapshot") or {}, _snapshot(conn, plan_id))}
+
+
+def checkins_due(conn) -> list[dict]:
+    """For Today: plans whose last day has come in the past three weeks, with items not yet checked in."""
+    start = _start(conn)
+    if not start:
+        return []
+    t = date.today()
+    out = []
+    for h in build_plans(conn, Viewer(floor=Level.PRIVATE, source="today", scopes=frozenset()))["horizons"]:
+        end = h.get("end")
+        n = h["checkin_counts"]["not checked"]
+        if end and n and t - timedelta(days=21) <= date.fromisoformat(end) <= t:
+            out.append({"id": h["id"], "title": h["title"], "end": end, "unchecked": n})
+    return out
 
 
 @router.put("/api/plan-items/{item_id}/checkin")

@@ -306,8 +306,14 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     nxt = [_bullet(n) for n in nexts] + [f"- {r['title']} (due {r['target_date']})" for r in upcoming]
     md += ["", "## Next week"] + (nxt or ["- [Placeholder item]"])
     if metrics:
-        md += ["", "## Metrics"] + [f"- {m['name']}: {m['latest'] if m.get('latest') is not None else 'no reading yet'}{(' ' + m['unit']) if m.get('unit') else ''}"
-                                   + (f" (target {m['target']:g})" if m.get("target") is not None else "") for m in metrics]
+        from .releases import metric_direction
+
+        def line(m):
+            d = metric_direction(conn, m)
+            trend = {"improving": ", improving", "worsening": ", getting worse", "flat": ", holding steady"}.get(d, "")
+            return (f"- {m['name']}: {m['latest'] if m.get('latest') is not None else 'no reading yet'}{(' ' + m['unit']) if m.get('unit') else ''}"
+                    + (f" (target {m['target']:g})" if m.get("target") is not None else "") + trend)
+        md += ["", "## Metrics"] + [line(m) for m in metrics]
     title = f"Weekly report: {info['label'].replace('Week of ', 'week of ')}"
     return {"kind": "weekly", "audience": audience, "week": info, "period_start": info["start"], "period_end": info["end"],
             "sprint_id": info["sprint"]["id"] if info["sprint"] else None, "overall": overall, "reason": why, "title": title,

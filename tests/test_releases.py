@@ -64,3 +64,18 @@ def test_release_log_metrics_and_today(client):
     client.post("/api/releases", json={"name": "[Soon]", "planned_on": (t + timedelta(days=2)).isoformat()})
     kinds = {x["name"]: x["kind"] for x in client.get("/api/today").json()["releases"]}
     assert kinds["[Soon]"] == "not ready" and kinds["[R3]"] == "outcome"
+
+
+def test_direction_and_logged_decision(client):
+    m = client.post("/api/metrics", json={"name": "[Escaped defects]", "higher_is_better": False}).json()["id"]
+    for i, v in enumerate([8, 6, 4]):
+        client.post("/api/metric-readings", json={"metric_id": m, "date": (date.today() - timedelta(days=30 - i)).isoformat(), "value": v})
+    assert client.get("/api/metrics/directions").json()[str(m)] == "improving"
+    week = client.get("/api/reports/weekly").json()["markdown"]
+    assert "[Escaped defects]: 4" in week and "improving" in week
+    p = client.post("/api/people", json={"name": "[Placeholder name 1]"}).json()["id"]
+    r = client.post("/api/releases", json={"name": "[Release 1]"}).json()["id"]
+    res = client.put(f"/api/releases/{r}/decision", json={"decision": "go", "decided_by_id": p, "decision_notes": "[Placeholder]"}).json()
+    d = client.get(f"/api/decisions-needed/{res['logged_decision_id']}").json()
+    assert d["status"] == "decided" and d["outcome"].startswith("Go: [Placeholder] (open at the time:") and d["from_id"] == p
+    assert client.put(f"/api/releases/{r}/decision", json={"decision": "go", "decided_by_id": p}).json()["logged_decision_id"] is None

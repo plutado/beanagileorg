@@ -31,7 +31,9 @@ table.raci td, table.raci th { white-space: nowrap; }
 .story-chip b { color: var(--accent); }
 .milestones-row td { background: var(--panel-2); }
 
-.plan-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.plan-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.plan-layout > .plan-heard { order: -1; }
+.plan-heard > details > summary { cursor: pointer; }
 @media (max-width: 1000px) { .plan-layout { grid-template-columns: 1fr; } }
 .plan-horizon h3 { margin: 14px 0 6px; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .plan-item { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; background: var(--panel-2); }

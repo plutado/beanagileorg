@@ -16,6 +16,7 @@ In priority order:
 
 ## Toolkit, later versions
 
+- [ ] Releases, next: a release calendar beside regression-plan dates (Salesforce release windows, peak-season freezes) so clashes show early; time to restore from incidents linked to a release, recorded to Metrics as the fourth DORA measure; link accepted change requests to the release they landed in
 - [ ] Ask, next steps: semantic search with the local nomic-embed-text embeddings beside full-text search; streamed answers; Ask in the Comms studio (drafting from toolkit facts); suggested questions on Today; an MCP server exposing the same tools so Claude Desktop or Odysseus can query the toolkit directly
 - [ ] Async asks: track who each video pitch went to, who responded and what was decided, with follow-ups on Today (needs the share site's view log)
 - [ ] First 90 days: turn learning agenda answers into Business landscape assessments; suggest learning questions from listening tour themes; a mentoring summary for my manager's weekly report
@@ -135,6 +136,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Follow-ups to releases, metrics and plans. Plan check-in reminders on Today and check-in counts on each plan; compare any two plan versions; What I heard collapsible above the plans so they use the full width; each metric's direction on Metrics and in the weekly report; release go/no-go decisions logged under Risks and decisions; 292 tests
 - [x] 2026-10-19: Plan versions and check-ins (#18). A version saved when a plan is presented or on demand, what's changed since, and a checkpoint check-in (met, partly, moved, dropped with a reason) with a summary to copy (migration 59); 290 tests
 - [x] 2026-10-19: Metric trend charts (#17). Each metric over time against baseline and target, latest value labeled, hover values, and a readings table with delete; 288 tests
 - [x] 2026-10-19: Releases (#16). A record per release with the path to production from settings or SDLC environments, stories and Jira keys from the sprint, regression plan, QA sign-off, a go/no-go readiness check, outcome, release notes, release-log metrics recorded to Metrics, and Today reminders (migration 58). Tips on Releases; 288 tests
