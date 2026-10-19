@@ -3175,14 +3175,18 @@
     const later = horizons.filter((x) => x.horizon_days > h.horizon_days);
     return `<details class="plan-review" data-review="${h.id}" style="margin-top:10px"><summary class="quiet">Versions (${versions.length}) and check-in</summary>
       <h4>Versions</h4><p class="quiet">The plan as it stood when presented, or whenever you save one, so a later review can show what changed and why. Marking a plan presented saves a version.</p>
-      ${versions.map((v) => `<div class="item"><span><b>${esc(v.label || "Version")}</b> <span class="quiet">${BA.fmtDate(v.taken_on)} · ${v.items} items${v.reason ? " · " + esc(v.reason) : ""}</span></span><span class="spacer"></span><button class="btn" type="button" data-compare="${v.id}">What's changed since</button></div>`).join("") || '<p class="quiet">No versions yet.</p>'}
+      ${versions.map((v) => `<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"><span style="flex:1;min-width:0"><b>${esc(v.label || "Version")}</b><br><span class="quiet">${BA.fmtDate(v.taken_on)} · ${v.items} items${v.reason ? " · " + esc(v.reason) : ""}</span></span><button class="btn" type="button" data-compare="${v.id}" style="flex:0 0 auto">What's changed</button></div>`).join("") || '<p class="quiet">No versions yet.</p>'}
       <div data-compare-out></div>
-      ${ro ? "" : `<form class="save-version row" style="margin-top:6px"><input name="label" placeholder="Label, such as Day-30 review" style="max-width:220px"><input name="reason" placeholder="Why now (optional)" style="max-width:260px"><button class="btn" type="submit">Save a version</button></form>`}
+      ${ro ? "" : `<form class="save-version" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><input name="label" placeholder="Label, such as Day-30 review" style="flex:1 1 160px;min-width:0"><input name="reason" placeholder="Why now (optional)" style="flex:1 1 160px;min-width:0"><button class="btn" type="submit" style="flex:0 0 auto">Save a version</button></form>`}
       <h4>Check-in</h4><p class="quiet">At the checkpoint, mark each item met, partly met, moved or dropped. Moved and dropped need a reason; that's what the review is about.</p>
-      ${items.map((i) => { const c = i.checkin || {}; return `<form class="checkin row" data-ci="${i.id}" style="align-items:center;margin-bottom:6px"><span style="flex:1;min-width:180px">${esc(i.title)}</span>
-        <select name="outcome" style="max-width:130px"${ro ? " disabled" : ""}><option value="">not checked</option>${opts(["met", "partly", "moved", "dropped"], c.outcome)}</select>
-        <input name="note" value="${esc(c.note || "")}" placeholder="Note" style="max-width:240px"${ro ? " disabled" : ""}>
-        ${ro ? "" : `<input type="number" name="due_day" min="1" placeholder="New day" style="max-width:100px" title="If moved: the new day"><select name="plan_id" style="max-width:150px" title="If moved: to another plan"><option value="">same plan</option>${later.map((x) => `<option value="${x.id}">${esc(x.title)}</option>`).join("")}</select><button class="btn" type="submit">Save</button>`}</form>`; }).join("") || '<p class="quiet">No items to check.</p>'}
+      ${items.map((i) => { const c = i.checkin || {}; return `<form class="checkin" data-ci="${i.id}" style="border-top:1px solid var(--line);padding:8px 0">
+        <div style="display:flex;gap:8px;align-items:center"><span style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(i.title)}</span>
+          <select name="outcome" style="width:auto;flex:0 0 auto"${ro ? " disabled" : ""}><option value="">not checked</option>${opts(["met", "partly", "moved", "dropped"], c.outcome)}</select></div>
+        ${ro ? (c.note ? `<p class="quiet" style="margin:4px 0 0">${esc(c.note)}</p>` : "") : `<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+          <input name="note" value="${esc(c.note || "")}" placeholder="${c.outcome === "moved" || c.outcome === "dropped" ? "Why (needed)" : "Note"}" style="flex:1 1 160px;min-width:0">
+          <span data-moved style="display:${c.outcome === "moved" ? "flex" : "none"};gap:8px;flex:1 1 220px"><input type="number" name="due_day" min="1" placeholder="New day" style="flex:0 0 90px" title="The new day of the role">
+            <select name="plan_id" style="flex:1;min-width:0" title="Move it to a later plan"><option value="">same plan</option>${later.map((x) => `<option value="${x.id}">${esc(x.title)}</option>`).join("")}</select></span>
+          <button class="btn" type="submit" style="flex:0 0 auto">Save</button></div>`}</form>`; }).join("") || '<p class="quiet">No items to check.</p>'}
       <div class="row"><span class="quiet" data-ci-counts></span><span class="spacer"></span>${ro ? "" : '<button class="btn" type="button" data-ci-copy>Copy the check-in summary</button>'}</div></details>`;
   }
 
@@ -3206,6 +3210,10 @@
       })));
       const sv = box.querySelector(".save-version");
       if (sv) sv.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(sv); await BA.api(`/api/plans/${pid}/versions`, { method: "POST", body: { label: fd.get("label"), reason: fd.get("reason") } }); BA.toast("Version saved."); BA.rerender(); });
+      box.querySelectorAll("form.checkin").forEach((f) => {
+        const sel = f.querySelector("[name=outcome]"), mv = f.querySelector("[data-moved]"), note = f.querySelector("[name=note]");
+        if (sel && mv) sel.onchange = () => { mv.style.display = sel.value === "moved" ? "flex" : "none"; note.placeholder = ["moved", "dropped"].includes(sel.value) ? "Why (needed)" : "Note"; if (["moved", "dropped"].includes(sel.value)) note.focus(); };
+      });
       box.querySelectorAll("form.checkin").forEach((f) => (f.onsubmit = BA.guard(async (e) => {
         e.preventDefault();
         const fd = new FormData(f), outcome = fd.get("outcome") || null;
