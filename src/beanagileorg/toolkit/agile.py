@@ -224,3 +224,183 @@ def put_practice(key: str, body: dict = Body(...), viewer: Viewer = Depends(get_
     saved[key] = {"status": status, "how": (body.get("how") or "").strip()}
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (PRACTICE_KEY, json.dumps(saved)))
     return saved[key]
+
+
+# ---- the Scrum Guide itself ----
+# The Scrum Guide is published under Creative Commons Attribution-ShareAlike 4.0. Rather than ship a copy in this
+# MIT-licensed code, the toolkit imports the official text into your own data when you ask it to (or you paste it in),
+# and shows it with its attribution and license.
+
+GUIDE_KEY = "agile.scrum_guide"
+DEFINITIONS_KEY = "agile.definitions"
+GUIDE_URL = "https://scrumguides.org/scrum-guide.html"
+GUIDE_LICENSE = "Creative Commons Attribution-ShareAlike 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)"
+STUDY_SESSIONS = [
+    "Scrum Guide, part 1: purpose, definition, theory and values",
+    "Scrum Guide, part 2: the Scrum Team (Developers, Product Owner, Scrum Master)",
+    "Scrum Guide, part 3: the events (Sprint, Sprint Planning, Daily Scrum, Sprint Review, Sprint Retrospective)",
+    "Scrum Guide, part 4: the artifacts and their commitments, and the end note",
+]
+
+
+def html_to_markdown(html: str) -> str:
+    """Turn the guide's HTML into plain Markdown: headings, paragraphs, lists and bold, from the first heading on."""
+    from html.parser import HTMLParser
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.out, self.buf, self.started, self.skip = [], [], False, 0
+
+        def flush(self, prefix=""):
+            text = " ".join("".join(self.buf).split())
+            if text:
+                self.out.append(prefix + text)
+            self.buf = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag in ("script", "style", "nav", "header", "footer"):
+                self.skip += 1
+            if tag == "h1":
+                self.started = True
+            if not self.started or self.skip:
+                return
+            if tag in ("h1", "h2", "h3", "p", "li"):
+                self.flush()
+            elif tag in ("strong", "b"):
+                self.buf.append("**")
+            elif tag == "br":
+                self.buf.append(" ")
+
+        def handle_endtag(self, tag):
+            if tag in ("script", "style", "nav", "header", "footer") and self.skip:
+                self.skip -= 1
+                return
+            if not self.started or self.skip:
+                return
+            prefix = {"h1": "# ", "h2": "## ", "h3": "### ", "li": "- "}.get(tag)
+            if tag in ("strong", "b"):
+                self.buf.append("**")
+            elif prefix is not None or tag == "p":
+                self.flush(prefix or "")
+
+        def handle_data(self, data):
+            if self.started and not self.skip:
+                self.buf.append(data)
+
+    p = P()
+    p.feed(html)
+    p.flush()
+    import re
+
+    lines = [re.sub(r"\*\*\s*(.*?)\s*\*\*", r"**\1**", ln) if ln.count("**") % 2 == 0 else ln.replace("**", "") for ln in p.out]
+    return "\n\n".join(lines).strip()
+
+
+def _sections(md: str) -> list[str]:
+    return [ln.lstrip("#").strip() for ln in md.splitlines() if ln.startswith("## ") or ln.startswith("### ")]
+
+
+def _definition(md: str) -> str:
+    """The text of the guide's own definition section, if it has one."""
+    out, inside = [], False
+    for ln in md.splitlines():
+        if ln.startswith("#"):
+            if inside:
+                break
+            inside = "definition" in ln.lower()
+            continue
+        if inside and ln.strip():
+            out.append(ln.strip())
+    return "\n\n".join(out)
+
+
+def _get_json(conn, key, default):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return json.loads(row["value"]) if row else default
+
+
+def _put_json(conn, key, value):
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, json.dumps(value)))
+
+
+def fetch_official(url: str = GUIDE_URL) -> str:
+    """Fetch a page. Some Python installs (notably on macOS) can't verify certificates on their own, so fall back to
+    the system's curl, which uses the operating system's certificates."""
+    import shutil
+    import subprocess
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"User-Agent": "beanagileorg"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.read().decode("utf-8", "replace")
+    except urllib.error.URLError:
+        if not shutil.which("curl"):
+            raise
+        out = subprocess.run(["curl", "-fsSL", "--max-time", "20", url], capture_output=True, check=True)
+        return out.stdout.decode("utf-8", "replace")
+
+
+@router.get("/api/agile/guide")
+def get_guide(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    g = _get_json(conn, GUIDE_KEY, None)
+    defs = _get_json(conn, DEFINITIONS_KEY, [])
+    if not g:
+        return {"markdown": None, "official_url": GUIDE_URL, "license": GUIDE_LICENSE, "definitions": defs}
+    return {**g, "sections": _sections(g["markdown"]), "definition": _definition(g["markdown"]), "official_url": GUIDE_URL,
+            "license": GUIDE_LICENSE, "definitions": defs}
+
+
+@router.post("/api/agile/guide/import")
+def import_guide(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Fetch the official Scrum Guide from scrumguides.org into your own data, with its attribution and license."""
+    require_write(viewer)
+    from datetime import date
+
+    try:
+        md = html_to_markdown(fetch_official())
+    except Exception as exc:  # network down, site changed
+        raise HTTPException(502, f"Couldn't fetch the Scrum Guide from scrumguides.org ({exc.__class__.__name__}). Paste it in instead.") from exc
+    if len(md) < 2000 or "Scrum" not in md:
+        raise HTTPException(502, "The page didn't look like the Scrum Guide. Paste it in instead.")
+    g = {"markdown": md, "source": GUIDE_URL, "imported_on": date.today().isoformat(), "how": "imported"}
+    _put_json(conn, GUIDE_KEY, g)
+    return {"sections": len(_sections(md)), "characters": len(md)}
+
+
+@router.put("/api/agile/guide")
+def put_guide(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Paste the guide (or a translation, or a newer edition) in yourself."""
+    require_write(viewer)
+    from datetime import date
+
+    md = (body.get("markdown") or "").strip()
+    if not md:
+        conn.execute("DELETE FROM settings WHERE key = ?", (GUIDE_KEY,))
+        return {"markdown": None}
+    g = {"markdown": md, "source": (body.get("source") or "").strip() or GUIDE_URL, "imported_on": date.today().isoformat(), "how": "pasted"}
+    _put_json(conn, GUIDE_KEY, g)
+    return g
+
+
+@router.put("/api/agile/definitions")
+def put_definitions(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Short definitions you want the team to see, each with its source, such as a widely quoted definition of Agile."""
+    require_write(viewer)
+    defs = [{k: str(d.get(k) or "").strip() for k in ("title", "text", "source")} for d in (body.get("definitions") or [])
+            if isinstance(d, dict) and str(d.get("text") or "").strip()][:10]
+    _put_json(conn, DEFINITIONS_KEY, defs)
+    return {"definitions": defs}
+
+
+@router.post("/api/agile/guide/study-plan", status_code=201)
+def study_plan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Four group learning sessions to read and discuss the Scrum Guide together, one part at a time."""
+    require_write(viewer)
+    from . import models
+
+    have = {r["topic"] for r in conn.execute("SELECT topic FROM learning_sessions")}
+    made = [models.learning_sessions.create(conn, {"topic": t}, viewer.source)["id"] for t in STUDY_SESSIONS if t not in have]
+    return {"created": len(made)}

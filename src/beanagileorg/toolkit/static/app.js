@@ -1689,17 +1689,43 @@
 
   // ---------------------------------------------------------------- Agile reference
 
-  const AGILE_TABS = [["", "Scrum"], ["practices", "Common practices"], ["safe", "SAFe"], ["coverage", "Coverage"]];
+  const AGILE_TABS = [["", "Scrum"], ["guide", "The Scrum Guide"], ["practices", "Common practices"], ["safe", "SAFe"], ["coverage", "Coverage"]];
   const AGILE_FW = { "": "scrum", practices: "practice", safe: "safe" };
   const AGILE_KINDS = { foundation: "Foundations", accountability: "Accountabilities", event: "Events", artifact: "Artifacts", commitment: "Commitments", practice: "Practices", structure: "Structure", role: "Roles" };
   const AGILE_TONES = { "not yet": "", partly: "warn", practiced: "good", "not used here": "" };
   BA.view("/agile", {
     title: "Agile reference",
     async render(main, param) {
-      const d = await BA.api("/api/agile/reference");
+      const [d, g] = await Promise.all([BA.api("/api/agile/reference"), BA.api("/api/agile/guide")]);
       const ro = presenting();
       const tab = param || "";
       const tabs = `<nav class="tabs">${AGILE_TABS.map(([k, l]) => `<a href="#/agile${k ? "/" + k : ""}" class="${k === tab ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+      const defsBlock = `${g.definition ? `<section class="card"><h2>The definition of Scrum</h2>${BA.md(g.definition)}<p class="quiet">From the Scrum Guide, ${esc(g.license)}. <a href="#/agile/guide">Read the whole guide</a></p></section>` : ""}
+        ${g.definitions.map((x) => `<section class="card"><h2>${esc(x.title || "Definition")}</h2>${BA.md(x.text)}${x.source ? `<p class="quiet">Source: ${esc(x.source)}</p>` : ""}</section>`).join("")}`;
+      if (tab === "guide") {
+        const pasteForm = `<form id="sg-paste"><label>Paste the guide <span class="quiet">(Markdown or plain text: a newer edition, a translation, or a copy you already have)</span><textarea name="markdown" rows="8"></textarea></label><label>Where it's from<input name="source" placeholder="${esc(g.official_url)}"></label><div class="actions"><button class="btn" type="submit">Save</button></div></form>`;
+        if (!g.markdown) {
+          main.innerHTML = `${tabs}<section class="card"><h2>The Scrum Guide</h2><p>The Scrum Guide is the definition of Scrum, written by its creators and published at <a href="${g.official_url}" target="_blank" rel="noopener">scrumguides.org ${BA.icon("external-link")}</a> under ${esc(g.license)}. Bring the official text into your toolkit to read it here, share it on screen, and study it with your team.</p>
+            ${ro ? "" : `<div class="actions"><button class="btn primary" id="sg-import">Import the official guide from scrumguides.org</button></div><details><summary class="quiet">Or paste it in</summary>${pasteForm}</details>`}</section>`;
+        } else {
+          main.innerHTML = `${tabs}<div class="cards"><section class="card"><h2>Contents</h2><ol class="sg-toc">${g.sections.map((s, n) => `<li><a href="#" data-sec="${n}">${esc(s)}</a></li>`).join("")}</ol>
+              ${ro ? "" : `<div class="actions"><button class="btn primary" id="sg-study">Plan four team reading sessions</button></div><p class="quiet">Adds four sessions to <a href="#/learning">Group learning</a>, one part of the guide each, to read and discuss together.</p>`}</section>
+            <section class="card"><h2>Source and license</h2><p>${esc(g.how === "imported" ? "Imported" : "Pasted")} on ${BA.fmtDate(g.imported_on)} from ${/^https?:/.test(g.source) ? `<a href="${esc(g.source)}" target="_blank" rel="noopener">${esc(g.source)}</a>` : esc(g.source)}.</p><p class="quiet">The Scrum Guide is by Ken Schwaber and Jeff Sutherland, offered under ${esc(g.license)}. It's kept in your own data, not in the toolkit's code.</p>
+              ${ro ? "" : `<div class="actions"><button class="btn" id="sg-import">Import again</button></div><details><summary class="quiet">Replace by pasting</summary>${pasteForm}</details>`}</section></div>
+            <section class="card sg-doc">${BA.md(g.markdown)}</section>`;
+          const heads = [...main.querySelectorAll(".sg-doc h3, .sg-doc h4")]; // the Markdown renderer steps headings down one level
+          main.querySelectorAll("[data-sec]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); const h = heads[Number(a.dataset.sec)]; if (h) h.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+        }
+        if (!ro) {
+          const imp = main.querySelector("#sg-import");
+          if (imp) imp.onclick = BA.guard(async () => { imp.disabled = true; imp.textContent = "Importing…"; try { const r = await BA.api("/api/agile/guide/import", { method: "POST" }); BA.toast(`Imported ${r.sections} sections.`); } finally { BA.rerender(); } });
+          const ps = main.querySelector("#sg-paste");
+          if (ps) ps.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(ps); await BA.api("/api/agile/guide", { method: "PUT", body: { markdown: fd.get("markdown"), source: fd.get("source") } }); BA.rerender(); });
+          const st = main.querySelector("#sg-study");
+          if (st) st.onclick = BA.guard(async () => { const r = await BA.api("/api/agile/guide/study-plan", { method: "POST" }); BA.toast(r.created ? `Added ${r.created} sessions to Group learning.` : "The sessions are already in Group learning."); });
+        }
+        return;
+      }
       if (tab === "coverage") {
         const fwName = { scrum: "Scrum", practice: "Common practices", safe: "SAFe" };
         main.innerHTML = `${tabs}<section class="card"><h2>What the team practices today</h2><div class="tablewrap"><table class="data"><thead><tr><th></th>${d.statuses.map((s) => `<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>${Object.entries(d.coverage).map(([fw, c]) => `<tr><td><b>${fwName[fw]}</b></td>${d.statuses.map((s) => `<td>${c[s]}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
@@ -1712,12 +1738,16 @@
       const src = fw === "practice" ? null : d.sources[fw];
       const groups = [...new Set(list.map((e) => e.kind))];
       main.innerHTML = `${tabs}
+        ${fw === "scrum" ? defsBlock : ""}
+        ${fw === "scrum" && !ro ? `<details class="card"><summary><b>Other definitions to show the team</b> <span class="quiet">(for example, a widely quoted definition of Agile, with its source)</span></summary><form id="defs">${[...g.definitions, {}].map((x) => `<div class="def-row grid2"><label>Title<input name="title" value="${esc(x.title || "")}"></label><label>Source<input name="source" value="${esc(x.source || "")}"></label><label style="grid-column:1/-1">Text<textarea name="text" rows="3">${esc(x.text || "")}</textarea></label></div>`).join("")}<div class="actions"><button class="btn" type="submit">Save</button></div></form></details>` : ""}
         <p class="quiet">${fw === "scrum" ? "Scrum as the Scrum Guide defines it: three accountabilities, five events, three artifacts and the commitment each carries." : fw === "practice" ? "Practices many teams add around Scrum. None is required by Scrum; use the ones that help." : "The main concepts of SAFe, for organizations that coordinate many teams on one cadence."}
           Descriptions are in our own words.${src ? ` For the full text, see <a href="${src.url}" target="_blank" rel="noopener">${esc(src.label)} ${BA.icon("external-link")}</a>.` : ""}</p>
         ${groups.map((g) => `<section class="card"><h2>${esc(AGILE_KINDS[g] || g)}</h2>${list.filter((e) => e.kind === g).map((e) => `<details class="plan-item" data-ag="${e.key}"><summary><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><b>${esc(e.name)}</b><span class="spacer"></span>${e.timebox ? `<span class="quiet">${esc(e.timebox)}</span>` : ""}</summary>
           <p>${esc(e.what)}</p><p class="quiet"><b>Why it matters:</b> ${esc(e.why)}</p>${e.link ? `<p><a class="btn" href="${e.link}">Where the toolkit supports it</a></p>` : ""}
           ${ro ? (e.how ? `<p><b>How we do it here:</b> ${esc(e.how)}</p>` : "") : `<form class="row" style="align-items:flex-start"><select name="status" style="max-width:150px">${opts(d.statuses, e.status)}</select><textarea name="how" rows="2" placeholder="How we do it here" style="flex:1;min-width:220px">${esc(e.how)}</textarea><button class="btn" type="submit">Save</button></form>`}</details>`).join("")}</section>`).join("")}`;
       if (ro) return;
+      const df = main.querySelector("#defs");
+      if (df) df.onsubmit = BA.guard(async (e) => { e.preventDefault(); const definitions = [...df.querySelectorAll(".def-row")].map((r) => ({ title: r.querySelector('[name="title"]').value, source: r.querySelector('[name="source"]').value, text: r.querySelector('[name="text"]').value })); await BA.api("/api/agile/definitions", { method: "PUT", body: { definitions } }); BA.toast("Saved."); BA.rerender(); });
       main.querySelectorAll("[data-ag] form").forEach((f) => (f.onsubmit = BA.guard(async (ev) => { ev.preventDefault(); const fd = new FormData(f); await BA.api(`/api/agile/practice/${f.closest("[data-ag]").dataset.ag}`, { method: "PUT", body: { status: fd.get("status"), how: fd.get("how") } }); BA.toast("Saved."); BA.rerender(); })));
     },
   });

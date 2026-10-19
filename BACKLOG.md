@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: The Scrum Guide in the toolkit. Import the official guide from scrumguides.org into your own data (with a curl fallback for Pythons that can't verify certificates), or paste it; read it by section with its CC BY-SA attribution; the Scrum tab opens with the guide's definition of Scrum plus any definitions you add; one click plans four team reading sessions in Group learning. The text lives in user data, never in the MIT code; 264 tests
+
 - [x] 2026-10-18: Early wins evaluation. Plan items carry the four-question evaluation (after Table 5-2, in our own words): substantial improvement, achievable soon, foundation for agreed goals, shifts behavior, 0 to 4 each, totalled out of 16, with a zero on the first question ruling it out. Early win candidates are ranked at the top of 30/60/90 plans. Guide practices on picking three or four and treating them as a portfolio; 262 tests
 
 - [x] 2026-10-18: Agile reference (#14). A Delivery screen with Scrum's accountabilities, events (with timeboxes), artifacts and commitments, 12 common practices and 23 SAFe concepts, all in original words, each with why it matters, a link to where the toolkit supports it, and the team's status and how it does it here. A coverage view lists the gaps. Links to the Scrum Guide and SAFe's site rather than copying them; 261 tests
