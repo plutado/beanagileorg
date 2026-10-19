@@ -119,6 +119,8 @@ SITUATION_KINDS = ("start-up", "turnaround", "accelerated growth", "realignment"
 SITUATION_ELEMENTS = ("product", "process", "project", "system", "team")
 CHANGE_STYLES = ("hero", "steward", "both")
 CONVERSATION_STATUS = ("not started", "in progress", "settled")
+BEHAVIOR_PATTERNS = ("lack of focus", "lack of discipline", "lack of innovation", "lack of teamwork", "lack of urgency", "other")
+BEHAVIOR_STATUS = ("noticed", "working on it", "improving", "changed")
 PRACTICE_STATUS = ("shared", "trying", "adopted", "dropped")
 MANDATE_ITEM_KINDS = ("outcome", "decision")
 AUTHORITY = ("to clarify", "I decide", "I decide and inform", "I recommend, someone else decides", "I'm consulted", "not mine")
@@ -1492,6 +1494,27 @@ MIGRATIONS = [
         ALTER TABLE first90_milestones ADD COLUMN not_done INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        41,
+        """
+        ALTER TABLE plan_items ADD COLUMN serves_id INTEGER REFERENCES mandate_items (id) ON DELETE SET NULL;
+        ALTER TABLE plan_items ADD COLUMN behavior TEXT;
+        ALTER TABLE team_changes ADD COLUMN wave INTEGER;
+        CREATE TABLE behavior_targets (
+            id INTEGER PRIMARY KEY,
+            pattern TEXT NOT NULL,
+            symptoms TEXT,
+            target TEXT,
+            status TEXT NOT NULL DEFAULT 'noticed',
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0,
+            privacy_ceiling INTEGER,
+            source TEXT NOT NULL DEFAULT 'me',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2215,6 +2238,8 @@ plan_items = Record(
         "themes": Field("list", S),
         "evidence": Field("text", P),
         "early_win": Field("bool", E, default=False),
+        "serves_id": Field("int", S),
+        "behavior": Field("text", S),
         "position": Field("int", S, default=0),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S)},
@@ -3089,6 +3114,24 @@ glossary_terms = Record(
     },
 )
 
+# The patterns of behavior that stand in the way of the goals, and what you want instead by the end of your time in
+# the role. Private.
+behavior_targets = Record(
+    entity="behavior_target",
+    table="behavior_targets",
+    path="/api/behavior-targets",
+    order_by="status = 'changed', position, id",
+    fields={
+        "pattern": Field("text", P, required=True, choices=BEHAVIOR_PATTERNS),
+        "symptoms": Field("text", P),
+        "target": Field("text", P),
+        "status": Field("text", P, choices=BEHAVIOR_STATUS, default="noticed"),
+        "notes": Field("text", P),
+        "position": Field("int", P, default=0),
+    },
+    hide_when_empty=True,
+)
+
 team_agreements = Record(
     entity="team_agreement",
     table="team_agreements",
@@ -3198,6 +3241,7 @@ team_changes = Record(
         "why": Field("text", S),
         "what_changes": Field("text", S),
         "how_we_try": Field("text", S),
+        "wave": Field("int", S),
         "status": Field("text", S, choices=CHANGE_STATUS, default="idea"),
         "announced_on": Field("date", S),
         "trial_start": Field("date", S),
@@ -3389,5 +3433,5 @@ RECORDS = [
     backlog_items, estimate_votes, sprint_plans, sprint_availability,
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
-    standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
+    standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, behavior_targets, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
 ]

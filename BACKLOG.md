@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Early wins, chapter 5. Early wins link to the agreed outcome they serve and the behavior they start to change, flagged when they serve none. Behaviors to change under Culture and trust (lack of focus, discipline, innovation, teamwork, urgency, after Table 5-1 in our own words). Changes I'm bringing gain a wave and a warning when more than three are under way. Early wins guide on waves, double duty and the low-hanging fruit trap. Also fixed First 90 days milestones that couldn't be unticked; 252 tests
+
 - [x] 2026-10-18: Five conversations with your team. The team I inherit gains a grid of each report against the five conversations (situation, expectations, resources, style, development), each with a status and a priority star, after Table 4-3. The Keep it focused card gains how your manager likes to work. The Your manager guide gains style, the decision box, playing or changing the game, the development conversation, multiple bosses and distance; tips on the decision box and the golden rule; 251 tests
 
 - [x] 2026-10-18: Expectations and resources. The Keep it focused card gains a private note of what your manager is protective of and a resource menu (option, cost, what it delivers) that copies as Markdown. Two starter learning questions on what your manager protects and how their boss judges them. The Your manager guide gains practices on untouchables, educating carefully, underpromising, clarifying, the menu approach and asking early; 250 tests

@@ -2202,9 +2202,11 @@
   BA.view("/plans", {
     title: "30/60/90 plans",
     async render(main) {
-      const [d, people] = await Promise.all([BA.api("/api/plans/overview"), BA.api("/api/people")]);
+      const [d, people, mov] = await Promise.all([BA.api("/api/plans/overview"), BA.api("/api/people"), BA.api("/api/mandates/overview")]);
       const ro = presenting();
       const ev = d.evidence;
+      const outcomes = (mov.mine && mov.mine.outcomes) || [];
+      const outcomeName = (id) => (outcomes.find((o) => o.id === id) || {}).text;
       const themeNames = ev.themes.map((t) => t.theme);
       const uncovered = ev.themes.filter((t) => !t.plan_items);
       const dateRange = (h) => (h.start ? `${BA.fmtDate(h.start)} to ${BA.fmtDate(h.end)}` : `Days ${h.first_day} to ${h.last_day}`);
@@ -2213,7 +2215,7 @@
           ${i.themes?.length ? BA.chips(i.themes) : ""}
           ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">${BA.roleDay(i.due_day)}</span>` : ""}
           ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
-          ${i.early_win ? '<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>' : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
+          ${i.early_win ? `<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>${!ro && outcomes.length && !i.serves_id ? '<span class="pill warn" title="This early win isn\'t linked to an agreed outcome">serves no outcome</span>' : ""}` : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
         ${i.detail ? BA.md(i.detail) : ""}
         ${ro ? "" : `<form class="edit-item"><div class="grid2">
           <label>Title<input name="title" value="${esc(i.title)}" required></label>
@@ -2222,7 +2224,9 @@
           <label>Status<select name="status">${opts(PLAN_ITEM_STATUS, i.status)}</select></label>
           <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
           <label>Themes <span class="quiet">(comma separated)</span><input name="themes" value="${esc((i.themes || []).join(", "))}" list="plan-themes"></label>
-          <label class="check"><input type="checkbox" name="early_win"${i.early_win ? " checked" : ""}> An early win <span class="quiet">(a visible improvement people will notice)</span></label></div>
+          <label class="check"><input type="checkbox" name="early_win"${i.early_win ? " checked" : ""}> An early win <span class="quiet">(a visible improvement people will notice)</span></label>
+          <label>Serves which agreed outcome <span class="quiet">(early wins should do double duty)</span><select name="serves_id"><option value=""></option>${outcomes.map((o) => `<option value="${o.id}"${o.id === i.serves_id ? " selected" : ""}>${esc(o.text.slice(0, 90))}</option>`).join("")}</select></label>
+          <label>Behavior it starts to change<input name="behavior" value="${esc(i.behavior || "")}" placeholder="Such as: slips raised early instead of at the deadline"></label></div>
           <label>Detail<textarea name="detail">${esc(i.detail || "")}</textarea></label>
           <label>Evidence <span class="quiet">(private: who said it, what you saw)</span><textarea name="evidence">${esc(i.evidence || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del="${i.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
@@ -2301,7 +2305,7 @@
           const f = new FormData(form);
           await BA.api(`/api/plan-items/${id}`, { method: "PATCH", body: {
             title: f.get("title"), kind: f.get("kind"), due_day: num(f.get("due_day")), status: f.get("status"),
-            owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"), early_win: !!det.querySelector("[name=early_win]")?.checked,
+            owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"), early_win: !!det.querySelector("[name=early_win]")?.checked, serves_id: num(f.get("serves_id")), behavior: f.get("behavior") || null,
           } });
           BA.rerender();
         });
@@ -4242,14 +4246,14 @@
   const C_STATUS = ["open", "watching", "addressed"];
   const C_STATUS_TONES = { open: "warn", watching: "accent", addressed: "good" };
   const A_AREAS = ["working together", "disagreement", "meetings", "code review", "communication", "quality", "other"];
-  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["map", "Culture map"], ["glossary", "Glossary"], ["brief", "Role brief"]]
+  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["map", "Culture map"], ["glossary", "Glossary"], ["behaviors", "Behaviors to change"], ["brief", "Role brief"]]
     .map(([k, l]) => `<a href="#/culture${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const bars = (vals, max = 5) => `<span class="mini-bars">${vals.map((v) => `<span title="${v ?? "–"}" style="height:${v ? Math.round((v / max) * 100) : 4}%"></span>`).join("")}</span>`;
 
   BA.view("/culture", {
     title: "Culture and trust",
     async render(main, param) {
-      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, map: renderCultureMap, glossary: renderGlossary, brief: renderBrief };
+      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, map: renderCultureMap, glossary: renderGlossary, behaviors: renderBehaviors, brief: renderBrief };
       if (views[param]) return views[param](main);
       const d = await BA.api("/api/culture/overview");
       if (!d.private) {
@@ -4448,6 +4452,27 @@
     main.querySelectorAll("[data-read]").forEach((f) => {
       f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/culture-reads/${f.dataset.read}`, { method: "PATCH", body: Object.fromEntries(new FormData(f)) }); BA.toast("Saved."); });
       f.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this unit's read?")) return; await BA.api(`/api/culture-reads/${f.dataset.read}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
+
+  async function renderBehaviors(main) {
+    if (presenting()) { main.innerHTML = `${cultureTabs("behaviors")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
+    const [list, guide] = await Promise.all([BA.api("/api/behavior-targets"), BA.api("/api/culture/behaviors/guide")]);
+    const PATTERNS = ["lack of focus", "lack of discipline", "lack of innovation", "lack of teamwork", "lack of urgency", "other"];
+    const STAT = ["noticed", "working on it", "improving", "changed"];
+    const TONES = { noticed: "", "working on it": "warn", improving: "accent", changed: "good" };
+    main.innerHTML = `${cultureTabs("behaviors")}
+      <section class="card"><h2>Behaviors to change</h2><p class="quiet">Your goals are the destination; how people behave is part of how you get there. Name the patterns that stand in the way, what you see, and how you want people to work by the end of your time in the role. Then make your early wins start to shift them. Private.</p>
+        <details><summary class="quiet">The usual patterns</summary>${Object.entries(guide).map(([k, v]) => `<p><b>${esc(k[0].toUpperCase() + k.slice(1))}:</b> ${esc(v)}</p>`).join("")}</details></section>
+      ${list.map((b) => `<form class="card" data-bt="${b.id}"><div class="row"><select name="pattern" style="max-width:200px">${opts(PATTERNS, b.pattern)}</select><span class="pill ${TONES[b.status]}">${esc(b.status)}</span><span class="spacer"></span><select name="status" style="max-width:160px">${opts(STAT, b.status)}</select></div>
+        <div class="grid2"><label>What I see<textarea name="symptoms" rows="2" placeholder="${esc(guide[b.pattern] || "")}">${esc(b.symptoms || "")}</textarea></label><label>How I want people to work by the end of my time here<textarea name="target" rows="2">${esc(b.target || "")}</textarea></label></div>
+        <label>Notes and progress<textarea name="notes" rows="2">${esc(b.notes || "")}</textarea></label>
+        <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("behavior_target", b.id)}<button class="btn primary" type="submit">Save</button></div></form>`).join("")}
+      <form id="add-bt" class="card row"><select name="pattern" style="max-width:220px">${opts(PATTERNS, "lack of focus")}</select><button class="btn" type="submit">Add a behavior to change</button></form>`;
+    main.querySelector("#add-bt").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/behavior-targets", { method: "POST", body: { pattern: new FormData(e.target).get("pattern"), position: list.length } }); BA.rerender(); });
+    main.querySelectorAll("[data-bt]").forEach((f) => {
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/behavior-targets/${f.dataset.bt}`, { method: "PATCH", body: Object.fromEntries(new FormData(f)) }); BA.toast("Saved."); BA.rerender(); });
+      f.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this?")) return; await BA.api(`/api/behavior-targets/${f.dataset.bt}`, { method: "DELETE" }); BA.rerender(); });
     });
   }
 
@@ -4737,14 +4762,15 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     const list = await BA.api("/api/team-changes");
     const ro = presenting();
     const fields = (c = {}) => `<div class="grid2"><label>The change<input name="title" value="${esc(c.title || "")}" required></label><label>Area<select name="area">${opts(CHANGE_AREAS, c.area || "process")}</select></label>
-        <label>Review with the team on<input type="date" name="review_on" value="${esc(c.review_on || "")}"></label></div>
+        <label>Review with the team on<input type="date" name="review_on" value="${esc(c.review_on || "")}"></label>
+        <label>Wave <span class="quiet">(first: early wins; second: deeper change; third: fine-tuning)</span><select name="wave"><option value=""></option>${[[1, "First"], [2, "Second"], [3, "Fine-tuning"]].map(([v, l]) => `<option value="${v}"${c.wave === v ? " selected" : ""}>${l}</option>`).join("")}</select></label></div>
       <label>Why: the problem it solves <span class="quiet">(in the team's words if you can)</span><textarea name="why" rows="2">${esc(c.why || "")}</textarea></label>
       <label>What changes for people day to day<textarea name="what_changes" rows="2">${esc(c.what_changes || "")}</textarea></label>
       <label>How we'll try it, and how we'll know it helped<textarea name="how_we_try" rows="2">${esc(c.how_we_try || "")}</textarea></label>
       ${c.id ? `<label>What the team said<textarea name="team_feedback" rows="2">${esc(c.team_feedback || "")}</textarea></label><label>Outcome<input name="outcome" value="${esc(c.outcome || "")}"></label>` : ""}
       <label>Private notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label>`;
-    const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; o.review_on = f.get("review_on") || null; return o; };
-    const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b><span class="quiet">${esc(c.area)}</span><span class="spacer"></span>
+    const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; if (form.elements.wave) o.wave = f.get("wave") ? Number(f.get("wave")) : null; o.review_on = f.get("review_on") || null; return o; };
+    const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b><span class="quiet">${esc(c.area)}${c.wave ? ` · wave ${c.wave}` : ""}</span><span class="spacer"></span>
         <span class="quiet">${c.status === "trial" && c.review_on ? `review ${BA.fmtDate(c.review_on)}` : c.decided_on ? BA.fmtDate(c.decided_on) : c.trial_start ? `trial from ${BA.fmtDate(c.trial_start)}` : c.announced_on ? `announced ${BA.fmtDate(c.announced_on)}` : ""}</span></summary>
       ${c.why ? `<p><b>Why:</b> ${esc(c.why)}</p>` : ""}${c.what_changes ? `<p><b>What changes:</b> ${esc(c.what_changes)}</p>` : ""}${c.how_we_try ? `<p><b>How we'll try it:</b> ${esc(c.how_we_try)}</p>` : ""}
       ${c.team_feedback ? `<p><b>What the team said:</b> ${esc(c.team_feedback)}</p>` : ""}${c.outcome ? `<p><b>Outcome:</b> ${esc(c.outcome)}</p>` : ""}
@@ -4754,6 +4780,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     const live = list.filter((c) => !["adopted", "dropped"].includes(c.status)), done = list.filter((c) => ["adopted", "dropped"].includes(c.status));
     main.innerHTML = `${f90Tabs("changes")}
       <p class="quiet">Every change you bring, where the team can see it: announced with the reason, tried for a set time, reviewed together, then kept or dropped. This page can be shown to the team while presenting.</p>
+      ${!ro && list.filter((c) => ["announced", "trial", "review"].includes(c.status)).length > 3 ? '<p class="callout warn">More than three changes are under way at once. If you keep changing things, nobody can tell what\'s working, and people tire. Let some settle before starting more.</p>' : ""}
       <section class="card"><h2>In progress</h2>${live.map(card).join("") || '<p class="quiet">Nothing yet.</p>'}</section>
       ${done.length ? `<section class="card"><h2>Decided</h2>${done.map(card).join("")}</section>` : ""}
       ${ro ? "" : `<form id="add-ch" class="card"><h2>A change to bring</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add as an idea</button></div></form>`}`;

@@ -197,3 +197,15 @@ def test_manager_focus_protective_and_menu(client):
     assert saved["priorities"] == ["[P1]"] and saved["menu"] == [{"option": "[Option A]", "cost": "[Cost]", "delivers": "[Result]"}]
     f = client.get("/api/first90/manager-focus").json()
     assert f["protective"] == "[Placeholder]" and len(f["menu"]) == 1
+
+
+def test_behavior_targets_and_early_win_links(client):
+    assert "lack of focus" in client.get("/api/culture/behaviors/guide").json()
+    b = client.post("/api/behavior-targets", json={"pattern": "lack of discipline", "target": "[Placeholder]"}).json()
+    assert b["status"] == "noticed"
+    assert client.post("/api/behavior-targets", json={"pattern": "nope"}).status_code == 400
+    plan = client.get("/api/plans").json()[0]
+    item = client.post("/api/plan-items", json={"plan_id": plan["id"], "title": "[Win]", "early_win": True, "behavior": "[Placeholder]"}).json()
+    assert item["behavior"] == "[Placeholder]" and item["serves_id"] is None
+    ch = client.post("/api/team-changes", json={"title": "[Change]", "wave": 1}).json()
+    assert ch["wave"] == 1

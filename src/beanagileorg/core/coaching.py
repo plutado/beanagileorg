@@ -222,6 +222,9 @@ GUIDES = [
         "summary": "Pick a few visible improvements that solve real problems people already feel, and deliver them well.",
         "why": "Early wins give people a reason to believe change is possible and give you the credibility to take on harder work. The wrong early win, one that ignores how the team works or solves a problem nobody has, costs more than it earns.",
         "practices": [
+            "Plan change in waves: learn, design, build support, implement, observe results, then consolidate before the next wave. Early wins are the first wave; deeper changes to systems and skills come next.",
+            "Make every early win do double duty: it should serve a goal you've agreed with your manager and start to shift a behavior the team needs to change.",
+            "Name the behaviors that stand in the way (lack of focus, discipline, innovation, teamwork or urgency) and how you want people to work by the end of your time in the role.",
             "Pick the kind of win the situation needs. In a turnaround, visible results that move people from despair to hope. In a realignment, getting people to see the problem: clear metrics, outside benchmarks and respected outside voices, so it isn't one person's opinion.",
             "Choose problems the team already complains about. You'll find them in the listening tour themes.",
             "Keep them small enough to finish in weeks, not months.",
@@ -230,6 +233,8 @@ GUIDES = [
             "Tie each win to the bigger direction, so it's a first step, not a one-off.",
         ],
         "pitfalls": [
+            "The low-hanging fruit trap: easy wins that don't lead toward your longer-term goals, so momentum fades once they're done.",
+            "Changing everything at once. Nobody can tell what's working, and people burn out.",
             "Choosing a win to impress leadership that the team doesn't care about.",
             "Changing something people value to show you're in charge.",
             "Taking on too many at once and finishing none.",
@@ -1198,7 +1203,8 @@ TIPS = {
     "/plans": [("Present the plan as your recommendation, with the options you weighed. Leave room for your manager to shape it, then agree it.", "leading-upward", 12),
                ("Your plans deliver your mandate. Check each plan item against the outcomes you agreed with your manager.", "your-mandate", 9),
                ("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
-               ("Pick a few early wins that solve problems people already feel.", "early-wins")],
+               ("Pick a few early wins that solve problems people already feel.", "early-wins"),
+               ("Link each early win to an agreed outcome and the behavior it should start to change, so it leads somewhere.", "early-wins", 27)],
     "/status": [("Log one line at the end of each day. Friday's report then writes itself, and nothing good gets forgotten.", "honest-status", 7),
                 ("Write a different version for each audience: outcomes and asks for leadership, the detail for your manager.", "your-manager", 7),
                 ("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
@@ -1279,7 +1285,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 26  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 27  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

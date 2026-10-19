@@ -16,6 +16,21 @@ from . import models
 from .routes import require_write
 
 router = APIRouter()
+# The usual symptoms of each problem pattern, after Table 5-1 in The First 90 Days, in our own words.
+BEHAVIOR_GUIDE = {
+    "lack of focus": "Priorities aren't clear, or there are too many. People are spread thin, crises are constant, and putting out fires is what gets rewarded.",
+    "lack of discipline": "Performance varies widely from person to person. People don't see what inconsistency costs, and missed commitments come with excuses.",
+    "lack of innovation": "Performance is measured only against the team's own past. Improvement is slow and small, and keeping things steady is what gets rewarded.",
+    "lack of teamwork": "People compete and protect their turf instead of working toward shared goals. Building a fiefdom is what gets rewarded.",
+    "lack of urgency": "Customers' needs, inside or outside, go unanswered. Complacency: we've always been good, and a quick response won't make a difference.",
+}
+
+
+@router.get("/api/culture/behaviors/guide")
+def behaviors_guide(viewer: Viewer = Depends(get_viewer)):
+    return BEHAVIOR_GUIDE
+
+
 # Starting units for the culture map; rename them to the real ones.
 STARTER_UNITS = ["My team", "A team I'm integrating", "The wider organization"]
 BRIEF_KEY = "culture.role_brief"
