@@ -10,8 +10,8 @@ Nothing right now.
 
 ## Next up
 
-- [ ] Person-by-person team assessment (waiting on the next chapter 7 passage on how to assess people)
 In priority order:
+- [ ] Person-by-person team assessment (waiting on the next chapter 7 passage on how to assess people)
 
 - [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
