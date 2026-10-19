@@ -1862,7 +1862,7 @@
       const ratingPills = (p) => g.measures.map((m) => { const r = ((p.ratings || {})[m.key] || {}).rating; return r ? `<span class="pill ${RATING_TONE[r]}" title="${esc(m.name)}: ${esc(r)}">${esc(m.name[0])}</span>` : ""; }).join(" ");
       main.innerHTML = `<p class="quiet">The ways your team turns work into value. Decide which matter most to the strategy, judge each on productivity, timeliness, reliability and quality, and map the workflow with the people who run it to find bottlenecks and failing handoffs. Work on a few at a time.</p>
         ${g.focus_count > g.focus_limit ? `<p class="callout warn">${g.focus_count} processes are marked focus now. Pick ${g.focus_limit} at most: the team can only absorb so much change at once.</p>` : ""}
-        <section class="card"><h2>Processes</h2>${list.map((p) => `<div class="item"><a href="#/processes/${p.id}"><b>${esc(p.name)}</b></a>${p.focus ? '<span class="pill accent">focus now</span>' : ""}${p.importance ? `<span class="quiet">${esc(p.importance)} importance</span>` : ""}${p.aim ? `<span class="quiet">· ${esc(p.aim)}</span>` : ""}
+        <section class="card"><h2>Processes</h2>${list.map((p) => `<div class="item"><a href="#/processes/${p.id}"><b>${esc(p.name)}</b></a>${originPill(p.origin)}${p.focus ? '<span class="pill accent">focus now</span>' : ""}${p.importance ? `<span class="quiet">${esc(p.importance)} importance</span>` : ""}${p.aim ? `<span class="quiet">· ${esc(p.aim)}</span>` : ""}
             <span class="spacer"></span>${ratingPills(p)}<span class="quiet">${((p.map || {}).steps || []).length} steps</span>${p.owner_name ? `<span class="quiet">${esc(p.owner_name)}</span>` : ""}</div>`).join("") || '<p class="quiet">None yet.</p>'}
           ${ro ? "" : `<form id="add-proc" class="row" style="margin-top:10px"><input name="name" placeholder="A process, such as release and deploy" required style="max-width:340px"><button class="btn primary" type="submit">Add</button>
             ${list.length ? "" : '<button class="btn" type="button" id="proc-starter">Start from a common list</button>'}</form>`}</section>
@@ -2404,9 +2404,10 @@
           <h3>3. Fields</h3><p class="quiet">What identifies each record always goes. Choose the rest.</p>
           <div class="row" style="flex-wrap:wrap">${k.shareable.filter((f) => f !== k.natural).map((f) => `<label class="check"><input type="checkbox" data-field="${f}"${s.fields.has(f) ? " checked" : ""}> ${esc(f.replace(/_/g, " "))}</label>`).join("")}</div>
           ${k.private.length ? `<p><b>Private fields</b> <span class="quiet">(off unless you tick each one)</span></p><div class="row">${k.private.map((f) => `<label class="check"><input type="checkbox" data-private="${f}"${s.private.has(f) ? " checked" : ""}> ${esc(f.replace(/_/g, " "))} <span class="pill warn">private</span></label>`).join("")}</div>` : ""}
-          ${k.links.length ? `<p><b>Links to people</b></p>${k.links.map((f) => `<label class="row" style="align-items:center">${esc(f.replace(/_id$/, "").replace(/_/g, " "))}<select data-link="${f}" style="max-width:180px"><option value="name"${s.links[f] !== "drop" ? " selected" : ""}>send the name only</option><option value="drop"${s.links[f] === "drop" ? " selected" : ""}>leave it out</option></select></label>`).join("")}` : ""}
+          ${k.links.length ? `<p><b>Links to people and teams</b></p>${k.links.map((f) => `<label class="row" style="align-items:center">${esc(f.replace(/_id$/, "").replace(/_/g, " "))}<select data-link="${f}" style="max-width:180px"><option value="name"${s.links[f] !== "drop" ? " selected" : ""}>send the name only</option><option value="drop"${s.links[f] === "drop" ? " selected" : ""}>leave it out</option></select></label>`).join("")}` : ""}
           <p class="quiet">Never shared: ${k.never.map((f) => esc(f.replace(/_/g, " "))).join(", ")}.</p></section>`; }).join("")}
-        ${chosen.length ? `<section class="card"><h2>4. Review</h2><div class="grid2"><label>From <span class="quiet">(a name the other manager will recognize)</span><input id="pk-from" value="${esc(shareSel._from || "")}"></label><label>About <span class="quiet">(what this is for)</span><input id="pk-about" value="${esc(shareSel._about || "")}"></label></div>
+        ${chosen.length ? `<section class="card"><h2>4. Review</h2><div class="grid2"><label>From <span class="quiet">(a name the other manager will recognize)</span><input id="pk-from" value="${esc(shareSel._from || "")}"></label><label>About <span class="quiet">(what this is for)</span><input id="pk-about" value="${esc(shareSel._about || "")}"></label>
+          <label>Sign with a passphrase <span class="quiet">(optional; agree it with the other manager another way, so they can tell the pack wasn't changed)</span><input id="pk-pass" type="password" autocomplete="off"></label></div>
           <div class="actions"><button class="btn primary" id="pk-review">Review the pack</button></div><div id="pk-out"></div></section>` : ""}`;
       bind();
     };
@@ -2429,11 +2430,11 @@
       const meta = () => { shareSel._from = main.querySelector("#pk-from").value; shareSel._about = main.querySelector("#pk-about").value; return { from: shareSel._from, about: shareSel._about }; };
       rv.onclick = BA.guard(async () => {
         const pack = await BA.api("/api/packs/review", { method: "POST", body: { selection: selection(), ...meta() } });
-        const val = (v) => (v == null || v === "" ? "–" : Array.isArray(v) ? v.map((x) => esc(String(x))).join("; ") : esc(String(v)).slice(0, 140));
+        const val = (v) => (v == null || v === "" ? "–" : Array.isArray(v) ? (v.length && typeof v[0] === "object" ? `${v.length} row${v.length === 1 ? "" : "s"}` : v.map((x) => esc(String(x))).join("; ")) : typeof v === "object" ? "(details)" : esc(String(v)).slice(0, 140));
         main.querySelector("#pk-out").innerHTML = Object.values(pack.kinds).map((kd) => `<h3>${esc(kd.label)}: ${kd.records.length} record${kd.records.length === 1 ? "" : "s"}</h3>
           <div class="tablewrap"><table class="data"><thead><tr>${kd.fields.map((f) => `<th>${esc(f.replace(/_/g, " "))}${kd.private_fields.includes(f) ? ' <span class="pill warn">private</span>' : ""}</th>`).join("")}<th>People</th></tr></thead><tbody>${kd.records.map((r) => `<tr>${kd.fields.map((f) => `<td>${val(r.values[f])}</td>`).join("")}<td class="quiet">${r.people ? Object.values(r.people).map(esc).join(", ") : ""}</td></tr>`).join("")}</tbody></table></div>`).join("")
           + `<p class="quiet">This is exactly what the pack will contain.</p><div class="actions"><button class="btn" id="pk-copy">Copy</button><button class="btn primary" id="pk-download">Download the pack</button></div>`;
-        const make = () => BA.api("/api/packs/export", { method: "POST", body: { selection: selection(), ...meta() } });
+        const make = () => BA.api("/api/packs/export", { method: "POST", body: { selection: selection(), ...meta(), passphrase: main.querySelector("#pk-pass").value } });
         main.querySelector("#pk-copy").onclick = BA.guard(async () => { const p = await make(); await navigator.clipboard.writeText(JSON.stringify(p, null, 2)); BA.toast("Pack copied. It's recorded in the export log."); });
         main.querySelector("#pk-download").onclick = BA.guard(async () => { const p = await make(); const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }));
           const a = document.createElement("a"); a.href = url; a.download = `pack-${p.created}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); BA.toast("Pack saved. It's recorded in the export log."); });
@@ -2445,21 +2446,24 @@
   async function renderShareImport(main, head) {
     main.innerHTML = `${head}<section class="card"><h2>Read a pack</h2><p class="quiet">Open a pack file or paste it. You'll see what it would add or change before anything happens.</p>
       <div class="row"><input type="file" id="pk-file" accept=".json,application/json"></div><textarea id="pk-text" rows="6" class="mono" placeholder="Pack JSON"></textarea>
+      <label>Passphrase <span class="quiet">(if the pack is signed)</span><input id="pk-pass-in" type="password" autocomplete="off" style="max-width:280px"></label>
       <div class="actions"><button class="btn primary" id="pk-inspect">Preview</button></div></section><div id="pk-preview"></div>`;
     const file = main.querySelector("#pk-file");
     file.onchange = async () => { if (file.files[0]) main.querySelector("#pk-text").value = await file.files[0].text(); };
     main.querySelector("#pk-inspect").onclick = BA.guard(async () => {
       let pack; try { pack = JSON.parse(main.querySelector("#pk-text").value); } catch { throw new Error("That isn't valid pack JSON."); }
-      const v = await BA.api("/api/packs/inspect", { method: "POST", body: { pack } });
-      const val = (x) => (x == null || x === "" ? "–" : Array.isArray(x) ? x.map((y) => esc(String(y))).join("; ") : esc(String(x)).slice(0, 160));
+      const passphrase = main.querySelector("#pk-pass-in").value;
+      const v = await BA.api("/api/packs/inspect", { method: "POST", body: { pack, passphrase } });
+      const val = (x) => (x == null || x === "" ? "–" : Array.isArray(x) ? (x.length && typeof x[0] === "object" ? `${x.length} row${x.length === 1 ? "" : "s"}` : x.map((y) => esc(String(y))).join("; ")) : typeof x === "object" ? "(details)" : esc(String(x)).slice(0, 160));
       const counts = (k) => ["new", "changed", "conflict", "unchanged"].map((st) => [st, k.records.filter((r) => r.status === st).length]).filter(([, n]) => n).map(([st, n]) => `${n} ${st}`).join(" · ");
-      main.querySelector("#pk-preview").innerHTML = `<section class="card"><h2>From ${esc(v.from || "an unnamed manager")}</h2><p class="quiet">${v.created ? `Made ${BA.fmtDate(v.created)}. ` : ""}${esc(v.about || "")}</p></section>
+      main.querySelector("#pk-preview").innerHTML = `<section class="card"><h2>From ${esc(v.from || "an unnamed manager")}</h2><p class="quiet">${v.created ? `Made ${BA.fmtDate(v.created)}. ` : ""}${esc(v.about || "")}</p>
+          ${v.signed ? (v.verified === true ? '<p><span class="pill good">signed and verified</span> The passphrase matches, so the pack is unchanged since it was signed.</p>' : v.verified === false ? '<p class="callout warn">The passphrase doesn\'t match this pack\'s signature. Check it with the sender before importing.</p>' : '<p class="callout">This pack is signed. Enter the passphrase above and preview again to verify it; importing needs it.</p>') : '<p class="quiet">Not signed.</p>'}</section>
         ${v.kinds.map((k) => `<section class="card"><h2>${esc(k.label)}</h2><p class="quiet">${counts(k)}</p>${k.records.map((r) => `<div class="plan-item" data-imp="${k.key}|${r.uid}" style="padding:8px 0;border-top:1px solid var(--line)">
           <div class="row" style="align-items:center"><b>${esc(r.label || "")}</b><span class="pill ${STATUS_TONES[r.status]}">${esc(r.status)}</span><span class="spacer"></span>
             <select data-action style="max-width:220px">${(r.mine_id ? ["update", "merge", "keep", "copy", "skip"] : ["add", "skip"]).map((a) => `<option value="${a}"${a === r.default ? " selected" : ""}>${ACTION_LABELS[a]}</option>`).join("")}</select></div>
           ${r.diffs.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Field</th><th>Mine</th><th>Theirs</th><th data-merge-col style="display:${r.default === "merge" ? "" : "none"}">Keep</th></tr></thead><tbody>${r.diffs.map((x) => `<tr><td>${esc(x.field.replace(/_/g, " "))}${x.conflict ? ' <span class="pill warn">both changed</span>' : ""}</td><td>${val(x.mine)}</td><td>${val(x.theirs)}</td>
             <td data-merge-col style="display:none"><select data-field="${x.field}" style="max-width:110px"><option value="theirs"${x.conflict ? "" : " selected"}>theirs</option><option value="mine"${x.conflict ? " selected" : ""}>mine</option></select></td></tr>`).join("")}</tbody></table></div>` : ""}
-          ${Object.keys(r.people).length ? `<p class="quiet">${Object.entries(r.people).map(([f, p]) => `${esc(f.replace(/_id$/, "").replace(/_/g, " "))}: ${esc(p.name)} ${p.found ? "(found here)" : "(not in your People; the link will be left empty)"}`).join(" · ")}</p>` : ""}</div>`).join("")}</section>`).join("")}
+          ${Object.keys(r.people).length ? `<p class="quiet">${Object.entries(r.people).map(([f, p]) => `${esc(f.replace(/_id$/, "").replace(/_/g, " "))}: ${esc(p.name)} ${p.found ? "(found here)" : `(not in your ${p.kind === "teams" ? "Teams" : "People"}; the link will be left empty)`}`).join(" · ")}</p>` : ""}</div>`).join("")}</section>`).join("")}
         <section class="card"><div class="actions"><button class="btn primary" id="pk-apply">Apply these choices</button></div></section>`;
       main.querySelectorAll("[data-imp]").forEach((row) => { const sel = row.querySelector("[data-action]"); sel.onchange = () => row.querySelectorAll("[data-merge-col]").forEach((c) => (c.style.display = sel.value === "merge" ? "" : "none")); });
       main.querySelector("#pk-apply").onclick = BA.guard(async () => {
@@ -2467,9 +2471,9 @@
         main.querySelectorAll("[data-imp]").forEach((row) => { const [kind, uid] = row.dataset.imp.split("|"), action = row.querySelector("[data-action]").value;
           const fields = Object.fromEntries([...row.querySelectorAll("select[data-field]")].map((s) => [s.dataset.field, s.value]));
           (decisions[kind] = decisions[kind] || {})[uid] = { action, fields }; });
-        const r = await BA.api("/api/packs/apply", { method: "POST", body: { pack, decisions } });
+        const r = await BA.api("/api/packs/apply", { method: "POST", body: { pack, decisions, passphrase: main.querySelector("#pk-pass-in").value } });
         main.querySelector("#pk-preview").innerHTML = `<section class="card"><h2>Done</h2><p>${r.added} added, ${r.updated} updated, ${r.copied} added as copies, ${r.kept} kept as they were, ${r.skipped} skipped.</p>
-          ${r.unmatched_people.length ? `<p class="quiet">Not found in your People, so those links were left empty: ${r.unmatched_people.map(esc).join(", ")}.</p>` : ""}<p class="quiet">Recorded in the <a href="#/sharing/log">log</a>.</p></section>`;
+          ${r.unmatched_people.length ? `<p class="quiet">Not found here, so those links were left empty: ${r.unmatched_people.map(esc).join(", ")}.</p>` : ""}<p class="quiet">Recorded in the <a href="#/sharing/log">log</a>.</p></section>`;
       });
     });
   }
@@ -2695,7 +2699,7 @@
       const ro = presenting();
       main.innerHTML = `
         <section class="card"><h2>Risks and issues</h2><div class="tablewrap"><table class="data"><thead><tr><th>Level</th><th>Risk or issue</th><th>Impact</th><th>Owner</th><th>Next step</th><th>Due</th><th>Status</th></tr></thead><tbody>${
-          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b>${r.surprise_area ? ` <span class="pill">${esc(areaName[r.surprise_area])}</span>` : ""} ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
+          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b>${originPill(r.origin)}${r.surprise_area ? ` <span class="pill">${esc(areaName[r.surprise_area])}</span>` : ""} ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
             <td>${esc(r.next_step || "")}</td><td>${BA.fmtDate(r.due)}</td>
             <td>${ro ? esc(r.status) : `<select name="status">${["open", "watching", "closed"].map((s) => `<option${s === r.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`).join("") ||
           '<tr><td colspan="7" class="empty">No risks logged.</td></tr>'
@@ -2865,7 +2869,7 @@
       };
       main.innerHTML = `<p class="quiet">A few measures the team agrees to watch. Baselines come first; targets are the team's choice. An outside benchmark shows where the team stands without it being anyone's opinion.</p>
         <div class="tablewrap"><table class="data"><thead><tr><th>Metric</th><th>Baseline</th><th>Target</th><th>Benchmark</th><th>Latest</th><th></th>${presenting() ? "" : "<th>Add a reading</th>"}</tr></thead><tbody>${metrics
-          .map((m) => `<tr data-id="${m.id}"><td><b>${esc(m.name)}</b><div class="quiet">${esc(m.method || "")}</div></td>
+          .map((m) => `<tr data-id="${m.id}"><td><b>${esc(m.name)}</b>${originPill(m.origin)}<div class="quiet">${esc(m.method || "")}</div></td>
             <td>${presenting() ? fmt(m.baseline, m.unit) : `<input type="number" step="any" name="baseline" value="${esc(m.baseline ?? "")}" style="max-width:110px">`}</td>
             <td>${presenting() ? fmt(m.target, m.unit) : `<input type="number" step="any" name="target" value="${esc(m.target ?? "")}" style="max-width:110px">`}</td>
             <td>${presenting() ? `${esc(m.benchmark || "")}<div class="quiet">${esc(m.benchmark_source || "")}</div>` : `<input name="benchmark" value="${esc(m.benchmark || "")}" placeholder="Outside reference" style="max-width:150px"><input name="benchmark_source" value="${esc(m.benchmark_source || "")}" placeholder="Source" style="max-width:150px;margin-top:4px">`}</td>

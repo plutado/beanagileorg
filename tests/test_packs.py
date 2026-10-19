@@ -78,3 +78,45 @@ def test_tampered_pack_and_copy(two):
     assert rec["status"] == "changed"
     r = b.post("/api/packs/apply", json={"pack": pack, "decisions": {"regression_plans": {rec["uid"]: {"action": "copy"}}}}).json()
     assert r["copied"] == 1 and any(x["title"].startswith("[Plan] (from") for x in b.get("/api/regression-plans").json())
+
+
+def test_more_kinds_readings_teams_and_signing(two):
+    a, b = two
+    m = a.post("/api/metrics", json={"name": "[Metric A]", "unit": "%", "higher_is_better": False}).json()["id"]
+    a.post("/api/metric-readings", json={"metric_id": m, "date": "2026-10-01", "value": 30})
+    a.post("/api/metric-readings", json={"metric_id": m, "date": "2026-10-15", "value": 20})
+    team = a.post("/api/teams", json={"name": "[Team X]", "kind": "other"}).json()["id"]
+    sos = a.post("/api/sos-items", json={"question": "[Shared dependency]", "owner_team_id": team, "status": "open"}).json()["id"]
+    risk = a.post("/api/risks", json={"title": "[Shared risk]", "level": "high", "notes": "[Private]"}).json()["id"]
+    sel = {"metrics": {"ids": [m], "fields": ["unit", "higher_is_better", "readings"]},
+           "sos_items": {"ids": [sos], "fields": ["status"]},
+           "risks": {"ids": [risk], "fields": ["level", "notes"]}}
+    pack = a.post("/api/packs/export", json={"selection": sel, "from": "[Manager A]", "passphrase": "[shared secret]"}).json()
+    assert pack["signature"] and "notes" not in pack["kinds"]["risks"]["records"][0]["values"]
+    assert pack["kinds"]["sos_items"]["records"][0]["people"] == {"owner_team_id": "[Team X]"}
+    assert len(pack["kinds"]["metrics"]["records"][0]["values"]["readings"]) == 2
+    view = b.post("/api/packs/inspect", json={"pack": pack}).json()
+    assert view["signed"] and view["verified"] is None
+    assert b.post("/api/packs/inspect", json={"pack": pack, "passphrase": "[wrong]"}).json()["verified"] is False
+    assert b.post("/api/packs/apply", json={"pack": pack}).status_code == 400
+    assert b.post("/api/packs/apply", json={"pack": pack, "passphrase": "[wrong]"}).status_code == 400
+    r = b.post("/api/packs/apply", json={"pack": pack, "passphrase": "[shared secret]"}).json()
+    assert r["added"] == 3 and r["unmatched_people"] == ["[Team X]"]
+    mb = next(x for x in b.get("/api/metrics").json() if x["name"] == "[Metric A]")
+    assert len([x for x in b.get("/api/metric-readings").json() if x["metric_id"] == mb["id"]]) == 2
+    # a new reading on A arrives as a change; local readings are never removed
+    a.post("/api/metric-readings", json={"metric_id": m, "date": "2026-10-29", "value": 15})
+    b.post("/api/metric-readings", json={"metric_id": mb["id"], "date": "2026-10-20", "value": 22})
+    newer = a.post("/api/packs/export", json={"selection": {"metrics": sel["metrics"]}}).json()
+    rec = b.post("/api/packs/inspect", json={"pack": newer}).json()["kinds"][0]["records"][0]
+    assert rec["status"] == "changed" and rec["diffs"][0]["field"] == "readings"
+    b.post("/api/packs/apply", json={"pack": newer})
+    assert len([x for x in b.get("/api/metric-readings").json() if x["metric_id"] == mb["id"]]) == 4
+
+
+def test_checksum_survives_a_browser_round_trip():
+    from beanagileorg.toolkit.packs import _same, checksum
+    kinds = {"metrics": {"records": [{"values": {"baseline": 30.0, "readings": [{"value": 12.0}, {"value": 2.5}]}}]}}
+    as_js = {"metrics": {"records": [{"values": {"baseline": 30, "readings": [{"value": 12}, {"value": 2.5}]}}]}}
+    assert checksum(kinds) == checksum(as_js)
+    assert _same([{"value": 12.0, "date": "2026-01-05"}], [{"date": "2026-01-05", "value": 12}])

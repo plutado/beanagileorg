@@ -1866,6 +1866,21 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        63,
+        """
+        ALTER TABLE risks ADD COLUMN pack_uid TEXT;
+        ALTER TABLE risks ADD COLUMN origin TEXT;
+        ALTER TABLE decisions_needed ADD COLUMN pack_uid TEXT;
+        ALTER TABLE decisions_needed ADD COLUMN origin TEXT;
+        ALTER TABLE sos_items ADD COLUMN pack_uid TEXT;
+        ALTER TABLE sos_items ADD COLUMN origin TEXT;
+        ALTER TABLE core_processes ADD COLUMN pack_uid TEXT;
+        ALTER TABLE core_processes ADD COLUMN origin TEXT;
+        ALTER TABLE metrics ADD COLUMN pack_uid TEXT;
+        ALTER TABLE metrics ADD COLUMN origin TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2328,6 +2343,8 @@ risks = Record(
         "jira_keys": Field("keys", E),
         "team_id": Field("int", S),
         "surprise_area": Field("text", E, choices=SURPRISE_AREAS),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = risks.owner_id)", E)},
 )
@@ -2348,6 +2365,8 @@ decisions_needed = Record(
         "process": Field("text", E, choices=DECISION_PROCESSES),
         "process_why": Field("text", E),
         "process_told": Field("bool", E, default=False),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={"from_name": ("(SELECT name FROM people p WHERE p.id = decisions_needed.from_id)", E)},
 )
@@ -2366,6 +2385,8 @@ metrics = Record(
         "higher_is_better": Field("bool", E, default=True),
         "benchmark": Field("text", E),
         "benchmark_source": Field("text", E),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={
         "latest": ("(SELECT value FROM metric_readings r WHERE r.metric_id = metrics.id ORDER BY date DESC, id DESC LIMIT 1)", E),
@@ -3282,6 +3303,8 @@ sos_items = Record(
         "resolution": Field("text", S),
         "jira_keys": Field("keys", S),
         "notes": Field("text", P),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={
         "owner_name": ("(SELECT name FROM people p WHERE p.id = sos_items.owner_id)", S),
@@ -3517,6 +3540,8 @@ core_processes = Record(
         "notes": Field("text", P),
         "position": Field("int", E, default=0),
         "skills": Field("list", E),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = core_processes.owner_id)", E)},
 )
