@@ -184,6 +184,14 @@ GUIDES = [
             "Keep structures as simple as the goals allow, with clear lines of accountability. Shared accountability can work, but not at the cost of nobody deciding.",
             "In Scrum terms: a product goal and one ordered backlog are direction; team boundaries, roles and how people are measured are structure; the events, the definition of done and the release path are core processes; cross-functional skills inside the team are skill bases.",
             "Understanding the organization as a system builds credibility with senior people, and shows you can handle a bigger role.",
+            "Follow the logic of a long voyage: first the destination and route (mission and strategy), then the boat (structure), how it's fitted out (processes) and the crew (skills). Changing the structure before you know the direction is right invites trouble.",
+            "Work in five steps: start with direction; check whether structure, processes and skills support it; decide how and when to bring in any new direction; sequence the changes for the situation; and close the loop as you learn what the team can absorb.",
+            "Sequence by situation. In a turnaround, fix the strategy first, then the structure, then processes and skills. In a realignment, direction and structure are rarely the real trouble; look at processes and skills first.",
+            "Keep mission, vision and strategy apart by asking what, why and how: what the area will achieve, why people should care, and how resources and decisions will get it there.",
+            "Ask what the area will and won't do across four things: customers, capital, capabilities and commitments, including past commitments that are hard to undo.",
+            "Test an inherited direction three ways: is it coherent (do the parts connect), adequate (is it enough for the next two or three years), and how was it made (rushed, or a slow political compromise)?",
+            "Watch for the common mismatches: direction and skills, direction and processes, structure and processes, structure and skills.",
+            "When you assess strengths and weaknesses, start outside. List threats and opportunities first, then ask which weaknesses leave you exposed to a threat and which strengths let you pursue an opportunity. Turn those pairs into priorities. Some call this TOWS rather than SWOT, to get the order right.",
         ],
         "pitfalls": [
             "Changing things to leave your mark before you understand the business.",
@@ -191,6 +199,7 @@ GUIDES = [
             "Restructuring when the real problems are processes, skills or culture. It costs you credibility when you have to backtrack.",
             "Overestimating how much change people can absorb, especially after a string of recent changes.",
             "Blaming people for what the structure or incentives make them do.",
+            "Starting a strengths-and-weaknesses discussion with no outside anchor. It drifts into navel-gazing, and the threats and opportunities get short shrift.",
         ],
         "questions": [
             "Which of the four elements is the weakest fit in my area right now, and what's my evidence?",
@@ -1304,9 +1313,11 @@ TIPS = {
                 ("Write a different version for each audience: outcomes and asks for leadership, the detail for your manager.", "your-manager", 7),
                 ("Lead with the real colour and what you need. Status that's always green stops being read.", "honest-status")],
     "/architecture": [("Read the artifacts: the system map, past decisions and incidents show how things really work.", "learn-fast")],
-    "/landscape": [("Diagnose each area separately. Some parts need fixing; others need protecting.", "read-the-situation")],
+    "/landscape": [("Diagnose each area separately. Some parts need fixing; others need protecting.", "read-the-situation"),
+                   ("Start the assessment outside: threats and opportunities first, then the weaknesses and strengths that matter for them.", "org-as-a-system", 35)],
     "/alignment": [("Find the element where the problem really sits before you fix anything. A new structure won't solve a process or skills problem.", "org-as-a-system", 34),
-                   ("Go step by step where you can. People who've been through recent upheaval can absorb less change.", "org-as-a-system", 34)],
+                   ("Go step by step where you can. People who've been through recent upheaval can absorb less change.", "org-as-a-system", 34),
+                   ("Check the direction before anything else, unless the area is a realignment: there the trouble is usually in processes and skills.", "org-as-a-system", 35)],
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
     "/me": [("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
@@ -1388,7 +1399,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 34  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 35  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

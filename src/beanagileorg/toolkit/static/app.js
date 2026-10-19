@@ -1634,7 +1634,8 @@
 
   // The open system: outside players around the four elements, with climate and culture at the center (after Figure 6-1).
   function alignmentDiagram(g, check) {
-    const els = (check && check.elements) || {}, ext = (check && check.external) || {};
+    const els = (check && check.elements) || {}, ext = (check && check.external) || {}, mm = (check && check.mismatches) || {};
+    const pairKey = (a, b) => (g.mismatches.find((m) => (m.a === a && m.b === b) || (m.a === b && m.b === a)) || {}).key;
     const fill = (k) => { const t = FIT_TONE[(els[k] || {}).fit]; return t ? `var(--${t}-soft)` : "var(--panel)"; };
     const stroke = (k) => { const t = FIT_TONE[(els[k] || {}).fit]; return t ? `var(--${t})` : "var(--line-strong)"; };
     const words = (text, x, y, size = 12) => { const lines = text.split("\n"); return lines.map((l, i) => `<text x="${x}" y="${y + (i - (lines.length - 1) / 2) * (size + 2)}" text-anchor="middle" dominant-baseline="middle" font-size="${size}" fill="var(--ink)">${esc(l)}</text>`).join(""); };
@@ -1642,7 +1643,9 @@
     const extShort = { customers: "Customers", distributors: "Distributors", suppliers: "Suppliers", competitors: "Competitors", governments: "Governments", ngos: "NGOs", investors: "Investors", media: "Media" };
     const arrows = g.links.map(([a, b]) => {
       const [x1, y1] = ALIGN_POS[a], [x2, y2] = ALIGN_POS[b], dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), cut = 44;
-      return `<line x1="${x1 + (dx / len) * cut}" y1="${y1 + (dy / len) * cut}" x2="${x2 - (dx / len) * cut}" y2="${y2 - (dy / len) * cut}" stroke="var(--muted)" stroke-width="2" marker-start="url(#al-arrow)" marker-end="url(#al-arrow)"/>`;
+      const key = pairKey(a, b), bad = (mm[key] || {}).state === "mismatch";
+      return `<g class="al-node" data-jump="al-mm-${key}" style="cursor:pointer"><title>${esc((g.mismatches.find((m) => m.key === key) || {}).question || "")}</title><line x1="${x1 + (dx / len) * cut}" y1="${y1 + (dy / len) * cut}" x2="${x2 - (dx / len) * cut}" y2="${y2 - (dy / len) * cut}" stroke="${bad ? "var(--bad)" : "var(--muted)"}" stroke-width="${bad ? 3 : 2}" marker-start="url(#al-arrow${bad ? "-bad" : ""})" marker-end="url(#al-arrow${bad ? "-bad" : ""})"/>
+        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="14"/></g>`;
     }).join("");
     const extNodes = g.external.map((e) => {
       const a = (EXT_ANGLE[e.key] * Math.PI) / 180, x = 320 + 262 * Math.cos(a), y = 235 + 192 * Math.sin(a), noted = (ext[e.key] || "").trim();
@@ -1650,7 +1653,7 @@
     }).join("");
     const elNodes = g.elements.map((e) => { const [x, y] = ALIGN_POS[e.key]; return `<g class="al-node" data-jump="al-${e.key}" style="cursor:pointer"><title>${esc(e.name)}${(els[e.key] || {}).fit ? ": " + esc(els[e.key].fit) : ""}</title><ellipse cx="${x}" cy="${y}" rx="60" ry="27" fill="${fill(e.key)}" stroke="${stroke(e.key)}" stroke-width="${check && check.root_cause === e.key ? 3 : 1.5}"/>${words(short[e.key], x, y)}</g>`; }).join("");
     return `<svg viewBox="0 0 640 470" role="img" aria-label="Organizational architecture: four elements inside the external environment, with climate and culture at the center" style="width:100%;max-width:640px;display:block;margin:0 auto">
-      <defs><marker id="al-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+      <defs><marker id="al-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker><marker id="al-arrow-bad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--bad)"/></marker></defs>
       <ellipse cx="320" cy="235" rx="314" ry="230" fill="none" stroke="var(--line-strong)"/>
       <text x="320" y="22" text-anchor="middle" font-size="12" fill="var(--muted)">External environment</text>
       <ellipse cx="320" cy="235" rx="205" ry="150" fill="var(--accent-soft)" fill-opacity=".35" stroke="var(--line-strong)"/>
@@ -1678,14 +1681,18 @@
         main.innerHTML = `${intro}
           <div class="row" style="align-items:center">${checks.length > 1 ? `<select id="al-pick" style="max-width:320px">${checks.map((c) => `<option value="${c.id}"${c.id === check.id ? " selected" : ""}>${esc(c.area)}${c.date ? " · " + BA.fmtDate(c.date) : ""}</option>`).join("")}</select>` : `<b>${esc(check.area)}</b>`}
             <span class="spacer"></span><details><summary class="btn">New check</summary><div class="card" style="margin-top:8px">${startForm}</div></details></div>
-          <section class="card">${alignmentDiagram(g, check)}<p class="quiet" style="text-align:center">Click any part to jump to it. Elements take the color of their fit; the root cause has a heavier outline.</p></section>
+          <section class="card">${alignmentDiagram(g, check)}<p class="quiet" style="text-align:center">Click any part to jump to it. Elements take the color of their fit; the root cause has a heavier outline; an arrow turns red when you mark a mismatch between two elements.</p></section>
           <form id="al-form">
             <section class="card grid2"><label>Area<input name="area" value="${esc(check.area)}" required></label><label>Date of this read<input type="date" name="date" value="${esc(check.date || BA.today())}"></label></section>
+            ${alignSequenceCard(g, check)}
             ${g.elements.map((e) => { const v = els[e.key] || {}; return `<section class="card" id="al-${e.key}"><h2>${esc(e.name)} ${v.fit ? `<span class="pill ${FIT_TONE[v.fit]}">${esc(v.fit)}</span>` : ""}</h2><p class="quiet">${esc(e.what)}</p>
-              <ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>
+              <div class="md"><ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>${e.key === "direction" ? alignDirectionBlock(g, check) : ""}
               <p class="quiet">Look at: ${e.look.map((l) => `<a href="#${l.path}">${esc(l.label)}</a>`).join(" · ")}</p>
               <div class="row" style="align-items:flex-start"><select name="fit.${e.key}" style="max-width:160px"><option value="">Fit: not judged</option>${opts(g.fits, v.fit)}</select>
               <textarea name="notes.${e.key}" rows="3" placeholder="What you see, with evidence" style="flex:1;min-width:220px">${esc(v.notes || "")}</textarea></div></section>`; }).join("")}
+            <section class="card"><h2>Where the elements meet</h2><p class="quiet">Any two elements can be out of step. The first four are the most common. Mark each one you've checked.</p>
+              ${g.mismatches.map((m) => { const v = (check.mismatches || {})[m.key] || {}; const nm = (k) => esc(g.elements.find((e) => e.key === k).name); return `<div class="card" id="al-mm-${m.key}" style="margin-top:8px"><h3>${nm(m.a)} and ${nm(m.b)} ${v.state === "mismatch" ? '<span class="pill bad">mismatch</span>' : v.state === "fits" ? '<span class="pill good">fits</span>' : ""}</h3><p class="quiet">${esc(m.question)}</p>
+                <div class="row" style="align-items:flex-start"><select name="mm.${m.key}" style="max-width:160px"><option value="">Not checked</option>${opts(g.mismatch_states, v.state)}</select><textarea name="mmn.${m.key}" rows="2" placeholder="What you see" style="flex:1;min-width:220px">${esc(v.notes || "")}</textarea></div></div>`; }).join("")}</section>
             <section class="card" id="al-climate"><h2>Internal environment: climate and culture</h2><p class="quiet">${esc(g.climate)} <a href="#/culture/map">Culture map</a></p><textarea name="climate" rows="3">${esc(check.climate || "")}</textarea></section>
             <section class="card" id="al-external"><h2>External environment</h2><p class="quiet">The people and forces the area influences and is influenced by. Note only the ones that matter here.</p>
               <div class="grid2">${g.external.map((e) => `<label>${esc(e.name)}<input name="ext.${e.key}" value="${esc(ext[e.key] || "")}"></label>`).join("")}</div></section>
@@ -1703,13 +1710,19 @@
           const fd = new FormData(form);
           const elements = Object.fromEntries(g.elements.map((x) => [x.key, { fit: fd.get(`fit.${x.key}`) || null, notes: fd.get(`notes.${x.key}`) || "" }]));
           const external = Object.fromEntries(g.external.map((x) => [x.key, fd.get(`ext.${x.key}`) || ""]).filter(([, v]) => v.trim()));
-          await BA.api(`/api/alignment-checks/${check.id}`, { method: "PATCH", body: { area: fd.get("area"), date: fd.get("date") || null, elements, external, climate: fd.get("climate"), root_cause: fd.get("root_cause") || null, the_case: fd.get("the_case"), next_step: fd.get("next_step") } });
+          const mismatches = Object.fromEntries(g.mismatches.map((m) => [m.key, { state: fd.get(`mm.${m.key}`) || null, notes: fd.get(`mmn.${m.key}`) || "" }]).filter(([, v]) => v.state || v.notes.trim()));
+          const direction = { ...Object.fromEntries(g.direction.parts.map((x) => [x.key, fd.get(`dir.${x.key}`) || ""])), wont_do: fd.get("dir.wont_do") || "",
+            cs: Object.fromEntries(g.direction.four_cs.map((x) => [x.key, fd.get(`cs.${x.key}`) || ""])),
+            tests: Object.fromEntries(g.direction.tests.map((x) => [x.key, { rating: fd.get(`test.${x.key}`) || null, notes: fd.get(`testn.${x.key}`) || "" }])) };
+          await BA.api(`/api/alignment-checks/${check.id}`, { method: "PATCH", body: { area: fd.get("area"), date: fd.get("date") || null, elements, external, climate: fd.get("climate"), root_cause: fd.get("root_cause") || null, the_case: fd.get("the_case"), next_step: fd.get("next_step"),
+            sequence: fd.get("sequence") || null, direction, mismatches } });
           BA.toast("Saved.");
           BA.rerender();
         });
         main.querySelector("#al-del").onclick = BA.guard(async () => { if (!confirm("Delete this alignment check?")) return; await BA.api(`/api/alignment-checks/${check.id}`, { method: "DELETE" }); sessionStorage.removeItem("ba-align"); BA.rerender(); });
       }
       main.querySelectorAll("[data-jump]").forEach((n) => (n.onclick = () => { const t = main.querySelector("#" + n.dataset.jump); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+      main.querySelectorAll("[data-jump-link]").forEach((n) => (n.onclick = (e) => { e.preventDefault(); const t = main.querySelector("#" + n.dataset.jumpLink); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }));
       main.querySelectorAll("#al-new").forEach((f) => (f.onsubmit = BA.guard(async (e) => {
         e.preventDefault();
         const fd = new FormData(f);
@@ -1719,6 +1732,27 @@
       })));
     },
   });
+
+  function alignSequenceCard(g, check) {
+    const sit = g.situations[(check.area || "").trim().toLowerCase()];
+    const suggested = sit === "turnaround" || sit === "realignment" ? sit : sit ? "other" : null;
+    const seq = check.sequence || suggested;
+    const name = (k) => esc(g.elements.find((e) => e.key === k).name);
+    return `<section class="card"><h2>Where to start</h2><p class="quiet">The right order depends on the situation.${sit ? ` Your situation diagnosis calls this area <b>${esc(sit)}</b>.` : ' Name the area the same way in your <a href="#/first90/situation">situation diagnosis</a> and it will suggest one.'}</p>
+      <label>This area is<select name="sequence" style="max-width:220px"><option value="">Not decided</option>${g.sequences && Object.keys(g.sequences).map((k) => `<option value="${k}"${k === seq ? " selected" : ""}>${k === "other" ? "something else" : k}</option>`).join("")}</select></label>
+      ${seq ? `<p>${esc(g.sequences[seq].why)}</p><div class="md"><ol>${g.sequences[seq].order.map((k) => `<li><a href="#" data-jump-link="al-${k}">${name(k)}</a></li>`).join("")}</ol></div>` : ""}
+      <p class="quiet">${esc(g.close_the_loop)}</p></section>`;
+  }
+
+  function alignDirectionBlock(g, check) {
+    const d = check.direction || {}, cs = d.cs || {}, tests = d.tests || {};
+    return `<div class="grid2">${g.direction.parts.map((x) => `<label>${esc(x.name)} <span class="quiet">(${esc(x.what)})</span><textarea name="dir.${x.key}" rows="2">${esc(d[x.key] || "")}</textarea></label>`).join("")}
+        <label>What we won't do <span class="quiet">(${esc(g.direction.wont_do)})</span><textarea name="dir.wont_do" rows="2">${esc(d.wont_do || "")}</textarea></label></div>
+      <p class="callout">${esc(g.direction.scrum)}</p>
+      <h3>Four questions about direction</h3>${g.direction.four_cs.map((x) => `<label>${esc(x.name)} <span class="quiet">(${esc(x.prompt)})</span><textarea name="cs.${x.key}" rows="2">${esc(cs[x.key] || "")}</textarea></label>`).join("")}
+      <h3>Testing the direction you inherit</h3>${g.direction.tests.map((x) => { const t = tests[x.key] || {}; return `<p><b>${esc(x.name)}.</b> <span class="quiet">${esc(x.prompt)}</span></p>
+        <div class="row" style="align-items:flex-start"><select name="test.${x.key}" style="max-width:160px"><option value="">Not judged</option>${opts(g.direction.ratings, t.rating)}</select><textarea name="testn.${x.key}" rows="2" placeholder="Your evidence" style="flex:1;min-width:220px">${esc(t.notes || "")}</textarea></div>`; }).join("")}`;
+  }
 
   function trapsCard(g) {
     return `<section class="card"><h2>Traps to avoid</h2>${g.traps.map((t) => `<p><b>${esc(t.name)}.</b> ${esc(t.what)}</p>`).join("")}<p class="quiet"><a href="#/coaching/org-as-a-system">The organization as a system</a></p></section>`;
@@ -1751,7 +1785,7 @@
         <section class="card"><details><summary><b>Look for predictable surprises</b> <span class="quiet">· problems someone could have seen coming</span></summary>
           <p class="quiet">Take each area in turn, and look hardest at the ones you know least. Anything you spot becomes a risk tagged with its area.</p>
           ${scan.areas.map((a) => `<div class="card" style="margin-top:10px"><h3>${esc(a.name)} <span class="quiet">${a.open ? `· ${a.open} open` : "· nothing logged yet"}</span></h3><p class="quiet">${esc(a.what)}</p>
-            <ul>${a.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
+            <div class="md"><ul>${a.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div>
             ${ro ? "" : `<form class="row surprise" data-area="${a.key}"><input name="title" placeholder="A surprise you can see coming" required style="max-width:420px">
               <select name="level" style="max-width:120px"><option>high</option><option selected>medium</option><option>low</option></select><button class="btn" type="submit">Add as a risk</button></form>`}</div>`).join("")}
           <p><b>Silos.</b> ${esc(scan.silos)}</p></details></section>
@@ -2557,7 +2591,8 @@
   const MATURITY = ["idea", "emerging", "growing", "mature", "declining", "sunsetting"];
   const OFFERING_STATUS = ["active", "planned", "retired"];
   const DEPT_KINDS = ["division", "department", "team"];
-  const QUADRANTS = ["strength", "weakness", "opportunity", "threat"];
+  // TOWS order: start outside (threats, opportunities), then the weaknesses and strengths that matter for them.
+  const QUADRANTS = ["threat", "opportunity", "weakness", "strength"];
   const Q_TITLES = { strength: "Strengths", weakness: "Weaknesses", opportunity: "Opportunities", threat: "Threats" };
   const Q_TONES = { strength: "good", weakness: "bad", opportunity: "accent", threat: "warn" };
   const SOURCES = ["listening tour", "metrics", "incident", "vendor", "customer feedback", "document", "my observation"];
@@ -2639,18 +2674,37 @@
     const filter = sessionStorage.getItem("ba-swot-filter") || "all";
     const shown = (a) => filter === "all" || a.subject_type === filter;
     main.innerHTML = `${landscapeTabs("swot")}
-      <div class="row"><p class="quiet">Every open point across products, services and departments. Private: it never leaves this app.</p><span class="spacer"></span>
+      <div class="row"><p class="quiet">Every open point across products, services and departments, outside first: threats and opportunities, then the weaknesses and strengths that matter for them. Private: it never leaves this app.</p><span class="spacer"></span>
         <select id="swot-filter" style="max-width:200px">${[["all", "Everything"], ["offering", "Products and services"], ["department", "Departments"]].map(([v, l]) => `<option value="${v}"${v === filter ? " selected" : ""}>${l}</option>`).join("")}</select></div>
       <div class="swot-grid">${QUADRANTS.map((q) => {
         const list = d.quadrants[q].filter(shown);
         return `<section class="card swot-${q}"><h2>${Q_TITLES[q]} <span class="quiet">${list.length}</span></h2>${list
           .map((a) => `<div class="item"><span><a href="#/landscape/${a.subject_type === "offering" ? "o" : "d"}-${a.subject_id}">${esc(a.subject_name || "")}</a>: ${esc(a.title)}</span><span class="spacer"></span><span class="quiet">${esc(a.confidence)} confidence</span></div>`)
           .join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
-      }).join("")}</div>`;
+      }).join("")}</div>${prioritiesCard(d.priorities.filter(shown), true)}`;
+    bindPriorities(main);
     main.querySelector("#swot-filter").onchange = (e) => {
       sessionStorage.setItem("ba-swot-filter", e.target.value);
       BA.rerender();
     };
+  }
+
+  function prioritiesCard(list, withSubject) {
+    const names = (xs) => xs.map((x) => esc(x.title)).join("; ");
+    return `<section class="card"><h2>Priorities</h2><p class="quiet">Each threat and opportunity, with the weaknesses and strengths you linked to it. Blunt the threats you're weak against; pursue the opportunities you're strong for. Link a weakness or strength to a threat or opportunity on the product or department's page.</p>
+      ${list.map((p) => `<div class="item"><span class="pill ${p.move === "blunt" ? "bad" : "good"}">${p.move === "blunt" ? "Blunt" : "Pursue"}</span>
+        <span>${withSubject ? `<a href="#/landscape/${p.subject_type === "offering" ? "o" : "d"}-${p.subject_id}">${esc(p.subject_name || "")}</a>: ` : ""}<b>${esc(p.title)}</b>
+        ${p.weaknesses.length ? `<br><span class="quiet">Weak against it: ${names(p.weaknesses)}</span>` : ""}${p.strengths.length ? `<br><span class="quiet">Strengths to use: ${names(p.strengths)}</span>` : ""}
+        ${!p.weaknesses.length && !p.strengths.length ? '<br><span class="quiet">Nothing linked yet.</span>' : ""}</span><span class="spacer"></span>
+        ${p.urgent ? '<span class="pill warn">priority</span>' : ""}${p.roadmap_item_id ? '<a href="#/roadmap">On the roadmap</a>' : presenting() ? "" : `<button class="btn" data-prio="${p.id}">Add to roadmap</button>`}</div>`).join("") || '<p class="quiet">No threats or opportunities yet. Start there.</p>'}</section>`;
+  }
+
+  function bindPriorities(main) {
+    main.querySelectorAll("[data-prio]").forEach((b) => (b.onclick = BA.guard(async () => {
+      await BA.api(`/api/assessments/${b.dataset.prio}/to-roadmap?priority=true`, { method: "POST", body: {} });
+      BA.toast("Added to the roadmap. Only the title went across.");
+      BA.rerender();
+    })));
   }
 
   async function renderSubject(main, kind, id) {
@@ -2674,19 +2728,23 @@
         ${d.children.length ? `<p>Inside it: ${d.children.map((c) => `<a href="#/landscape/d-${c.id}">${esc(c.name)}</a>`).join(", ")}</p>` : ""}
         ${d.people.length ? `<p>People: ${esc(d.people.map((p) => p.name).join(", "))}</p>` : ""}
         ${d.offerings.length ? `<p>Owns: ${d.offerings.map((o) => `<a href="#/landscape/o-${o.id}">${esc(o.name)}</a>`).join(", ")}</p>` : ""}`;
+    const targets = d.assessments ? [...d.assessments.threat, ...d.assessments.opportunity].filter((t) => t.status !== "closed") : [];
     const aItem = (a) => `<details class="plan-item" data-a="${a.id}"><summary><span>${esc(a.title)}</span><span class="spacer"></span>
         ${a.source ? `<span class="quiet">${esc(a.source)}</span>` : ""}<span class="pill">${esc(a.confidence)}</span>${a.status !== "open" ? `<span class="pill good">${esc(a.status)}</span>` : ""}</summary>
         ${a.evidence ? BA.md(a.evidence) : '<p class="quiet">No evidence written down yet.</p>'}
         <div class="row">${a.date ? `<span class="quiet">${BA.fmtDate(a.date)}</span>` : ""}<span class="spacer"></span>
           ${a.roadmap_item_id ? '<a href="#/roadmap">On the roadmap</a>' : `<button class="btn" data-roadmap="${a.id}">Add to roadmap</button>`}
           ${a.risk_id ? '<a href="#/risks">Logged as a risk</a>' : `<button class="btn" data-risk="${a.id}">Log as a risk</button>`}
+          ${a.quadrant === "weakness" || a.quadrant === "strength" ? `<select data-bears="${a.id}" style="max-width:220px" title="The threat or opportunity this matters for"><option value="">Matters for…</option>${targets.map((t) => `<option value="${t.id}"${t.id === a.bears_on_id ? " selected" : ""}>${t.quadrant === "threat" ? "Threat" : "Opportunity"}: ${esc(t.title.slice(0, 60))}</option>`).join("")}</select>` : ""}
           <select data-status="${a.id}" style="max-width:130px">${opts(["open", "acted on", "closed"], a.status)}</select>
           <button class="icon-btn" title="Delete" data-del-a="${a.id}">${BA.icon("x")}</button></div></details>`;
     main.innerHTML = `<p>${crumbs}</p>
       <section class="card"><h2>${esc(s.name)}</h2>${facts}</section>
-      ${d.assessments ? `<div class="swot-grid">${QUADRANTS.map((q) => `<section class="card swot-${q}"><h2>${Q_TITLES[q]}</h2>${d.assessments[q].map(aItem).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`).join("")}</div>
+      ${d.assessments ? `<p class="quiet">Start outside: the threats and opportunities this faces. Then the weaknesses and strengths that matter for them, each linked to the one it bears on.</p>
+        <div class="swot-grid">${QUADRANTS.map((q) => `<section class="card swot-${q}"><h2>${Q_TITLES[q]}</h2>${d.assessments[q].map(aItem).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`).join("")}</div>
+        ${prioritiesCard(d.priorities, false)}
         <section class="card"><h2>Add to the assessment</h2><form id="add-a">
-          <div class="row"><select name="quadrant" style="max-width:160px">${opts(QUADRANTS, "weakness")}</select><input name="title" placeholder="The point, in a sentence" required style="max-width:420px"></div>
+          <div class="row"><select name="quadrant" style="max-width:160px">${opts(QUADRANTS, "threat")}</select><input name="title" placeholder="The point, in a sentence" required style="max-width:420px"></div>
           <label>Evidence <span class="quiet">(what you saw or heard, and from whom)</span><textarea name="evidence"></textarea></label>
           <div class="row"><select name="source" style="max-width:190px"><option value="">Source</option>${opts(SOURCES)}</select>
             <select name="confidence" style="max-width:170px">${opts(["low", "medium", "high"], "medium")}</select><input type="date" name="date" value="${BA.today()}" style="max-width:170px">
@@ -2735,6 +2793,11 @@
     act("data-roadmap", (aid) => BA.api(`/api/assessments/${aid}/to-roadmap`, { method: "POST", body: {} }).then(() => BA.toast("Added to the roadmap. Only the title went across.")));
     act("data-risk", (aid) => BA.api(`/api/assessments/${aid}/to-risk`, { method: "POST", body: {} }));
     act("data-del-a", (aid) => (confirm("Delete this point?") ? BA.api(`/api/assessments/${aid}`, { method: "DELETE" }) : null));
+    bindPriorities(main);
+    main.querySelectorAll("[data-bears]").forEach((sel) => (sel.onchange = BA.guard(async () => {
+      await BA.api(`/api/assessments/${sel.dataset.bears}`, { method: "PATCH", body: { bears_on_id: sel.value ? Number(sel.value) : null } });
+      BA.rerender();
+    })));
     main.querySelectorAll("[data-status]").forEach((sel) => (sel.onchange = BA.guard(async () => {
       await BA.api(`/api/assessments/${sel.dataset.status}`, { method: "PATCH", body: { status: sel.value } });
       BA.rerender();

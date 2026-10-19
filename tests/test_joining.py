@@ -105,3 +105,30 @@ def test_alignment_check(client):
     r = client.patch(f"/api/alignment-checks/{c['id']}", json=body).json()
     assert r["elements"]["structure"]["fit"] == "misaligned" and r["root_cause"] == "structure"
     assert client.patch(f"/api/alignment-checks/{c['id']}", json={"root_cause": "people"}).status_code == 400
+
+
+def test_alignment_direction_mismatches_and_sequence(client):
+    g = client.get("/api/alignment/guide").json()
+    assert [p["key"] for p in g["direction"]["parts"]] == ["mission", "vision", "strategy"] and len(g["direction"]["four_cs"]) == 4
+    assert len(g["mismatches"]) == 6 and sum(m["common"] for m in g["mismatches"]) == 4
+    assert g["sequences"]["realignment"]["order"][0] == "processes" and g["sequences"]["turnaround"]["order"][0] == "direction"
+    client.post("/api/situations", json={"area": "[Placeholder area]", "kind": "realignment"})
+    assert client.get("/api/alignment/guide").json()["situations"]["[placeholder area]"] == "realignment"
+    c = client.post("/api/alignment-checks", json={"area": "[Placeholder area]"}).json()
+    body = {"sequence": "realignment", "direction": {"mission": "[Placeholder]", "tests": {"coherence": {"rating": "weak"}}}, "mismatches": {"structure-skills": {"state": "mismatch"}}}
+    r = client.patch(f"/api/alignment-checks/{c['id']}", json=body).json()
+    assert r["sequence"] == "realignment" and r["mismatches"]["structure-skills"]["state"] == "mismatch"
+
+
+def test_tows_priorities(client):
+    d = client.post("/api/departments", json={"name": "[Placeholder department]"}).json()["id"]
+    a = lambda q, t, **kw: client.post("/api/assessments", json={"subject_type": "department", "subject_id": d, "quadrant": q, "title": t, **kw}).json()
+    threat, opp = a("threat", "[Threat]"), a("opportunity", "[Opportunity]")
+    a("weakness", "[Weakness]", bears_on_id=threat["id"])
+    s = client.get(f"/api/landscape/department/{d}").json()
+    first = s["priorities"][0]
+    assert first["id"] == threat["id"] and first["move"] == "blunt" and first["urgent"] and first["weaknesses"][0]["title"] == "[Weakness]"
+    assert s["priorities"][1]["move"] == "pursue" and not s["priorities"][1]["urgent"]
+    r = client.post(f"/api/assessments/{threat['id']}/to-roadmap?priority=true").json()
+    assert any(i["title"] == "Blunt: [Threat]" for i in client.get("/api/roadmap").json()) and r["status"] == "acted on"
+    assert len(client.get("/api/landscape/swot").json()["priorities"]) == 2

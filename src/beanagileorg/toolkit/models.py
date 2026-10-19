@@ -27,6 +27,7 @@ RISK_STATUS = ("open", "watching", "closed")
 RISK_LEVELS = ("high", "medium", "low")
 SURPRISE_AREAS = ("external", "market", "internal", "politics")
 ALIGNMENT_ELEMENTS = ("direction", "structure", "processes", "skills")
+ALIGNMENT_SEQUENCES = ("turnaround", "realignment", "other")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
     "went well / didn't / ideas": ("Went well", "Didn't go well", "Ideas"),
@@ -1562,6 +1563,15 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        47,
+        """
+        ALTER TABLE assessments ADD COLUMN bears_on_id INTEGER REFERENCES assessments (id) ON DELETE SET NULL;
+        ALTER TABLE alignment_checks ADD COLUMN direction TEXT;
+        ALTER TABLE alignment_checks ADD COLUMN mismatches TEXT;
+        ALTER TABLE alignment_checks ADD COLUMN sequence TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2358,6 +2368,7 @@ assessments = Record(
         "status": Field("text", P, choices=ASSESSMENT_STATUS, default="open"),
         "roadmap_item_id": Field("int", P),
         "risk_id": Field("int", P),
+        "bears_on_id": Field("int", P),
     },
     computed={
         "subject_name": ("(CASE assessments.subject_type WHEN 'offering' THEN (SELECT name FROM offerings o WHERE o.id = assessments.subject_id) ELSE (SELECT name FROM departments d WHERE d.id = assessments.subject_id) END)", P),
@@ -3157,6 +3168,9 @@ alignment_checks = Record(
         "root_cause": Field("text", P, choices=ALIGNMENT_ELEMENTS),
         "the_case": Field("text", P),
         "next_step": Field("text", P),
+        "direction": Field("json", P),
+        "mismatches": Field("json", P),
+        "sequence": Field("text", P, choices=ALIGNMENT_SEQUENCES),
     },
     hide_when_empty=True,
 )

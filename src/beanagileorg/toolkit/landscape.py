@@ -149,6 +149,30 @@ def subject(kind: str, record_id: int, viewer: Viewer = Depends(get_viewer), con
     if viewer.floor == Level.PRIVATE:
         items = models.assessments.fetch_all(conn, "subject_type = ? AND subject_id = ?", (kind, record_id))
         out["assessments"] = {q: [a for a in items if a["quadrant"] == q] for q in models.QUADRANTS}
+        out["priorities"] = priorities(items)
+    return out
+
+
+def priorities(items: list[dict]) -> list[dict]:
+    """TOWS: start outside. Each open threat or opportunity, with the weaknesses and strengths that bear on it.
+    A threat you're weak against needs blunting; an opportunity you're strong for is worth pursuing."""
+    by_target: dict[int, list[dict]] = {}
+    for a in items:
+        if a.get("bears_on_id") and a["status"] != "closed":
+            by_target.setdefault(a["bears_on_id"], []).append({"id": a["id"], "title": a["title"], "quadrant": a["quadrant"]})
+    out = []
+    for a in items:
+        if a["quadrant"] not in ("threat", "opportunity") or a["status"] == "closed":
+            continue
+        linked = by_target.get(a["id"], [])
+        weak = [x for x in linked if x["quadrant"] == "weakness"]
+        strong = [x for x in linked if x["quadrant"] == "strength"]
+        urgent = bool(weak) if a["quadrant"] == "threat" else bool(strong)
+        out.append({"id": a["id"], "title": a["title"], "move": "blunt" if a["quadrant"] == "threat" else "pursue", "urgent": urgent,
+                    "weaknesses": weak, "strengths": strong, "subject_type": a["subject_type"], "subject_id": a["subject_id"],
+                    "subject_name": a.get("subject_name"), "confidence": a["confidence"], "roadmap_item_id": a["roadmap_item_id"]})
+    rank = {"high": 0, "medium": 1, "low": 2}
+    out.sort(key=lambda p: (not p["urgent"], not (p["weaknesses"] or p["strengths"]), rank.get(p["confidence"], 3), p["id"]))
     return out
 
 
@@ -157,7 +181,7 @@ def swot(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"private": True, "quadrants": {}}
     items = models.assessments.fetch_all(conn, "status != 'closed'")
-    return {"private": False, "quadrants": {q: [a for a in items if a["quadrant"] == q] for q in models.QUADRANTS}}
+    return {"private": False, "quadrants": {q: [a for a in items if a["quadrant"] == q] for q in models.QUADRANTS}, "priorities": priorities(items)}
 
 
 # ---- acting on an assessment ----
@@ -171,13 +195,17 @@ def _assessment(conn, assessment_id: int) -> dict:
 
 
 @router.post("/api/assessments/{assessment_id}/to-roadmap", status_code=201)
-def to_roadmap(assessment_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    """The roadmap is shareable, so only the title goes across; the evidence stays here."""
+def to_roadmap(assessment_id: int, priority: bool = False, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """The roadmap is shareable, so only the title goes across; the evidence stays here. As a priority, a threat
+    becomes "Blunt: ..." and an opportunity "Pursue: ..."."""
     require_write(viewer)
     a = _assessment(conn, assessment_id)
     if a["roadmap_item_id"]:
         raise HTTPException(409, "This is already on the roadmap.")
-    item = models.roadmap_items.create(conn, {"title": a["title"]}, viewer.source)
+    title = a["title"]
+    if priority and a["quadrant"] in ("threat", "opportunity"):
+        title = f"{'Blunt' if a['quadrant'] == 'threat' else 'Pursue'}: {title}"
+    item = models.roadmap_items.create(conn, {"title": title}, viewer.source)
     return models.assessments.update(conn, assessment_id, {"roadmap_item_id": item["id"], "status": "acted on"}, viewer.source)
 
 
