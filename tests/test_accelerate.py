@@ -209,3 +209,12 @@ def test_behavior_targets_and_early_win_links(client):
     assert item["behavior"] == "[Placeholder]" and item["serves_id"] is None
     ch = client.post("/api/team-changes", json={"title": "[Change]", "wave": 1}).json()
     assert ch["wave"] == 1
+
+
+def test_early_win_evaluation_total(client):
+    plan = client.get("/api/plans").json()[0]
+    item = client.post("/api/plan-items", json={"plan_id": plan["id"], "title": "[Win]", "early_win": True, "ew_scores": {"impact": 3, "soon": 4, "foundation": 2, "behavior": 1}}).json()
+    item = client.get(f"/api/plan-items/{item['id']}").json()
+    assert item["ew_total"] == 10, item
+    item = client.patch(f"/api/plan-items/{item['id']}", json={"ew_scores": None}).json()
+    assert item["ew_total"] is None

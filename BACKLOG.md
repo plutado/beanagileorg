@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Early wins evaluation. Plan items carry the four-question evaluation (after Table 5-2, in our own words): substantial improvement, achievable soon, foundation for agreed goals, shifts behavior, 0 to 4 each, totalled out of 16, with a zero on the first question ruling it out. Early win candidates are ranked at the top of 30/60/90 plans. Guide practices on picking three or four and treating them as a portfolio; 262 tests
+
 - [x] 2026-10-18: Agile reference (#14). A Delivery screen with Scrum's accountabilities, events (with timeboxes), artifacts and commitments, 12 common practices and 23 SAFe concepts, all in original words, each with why it matters, a link to where the toolkit supports it, and the team's status and how it does it here. A coverage view lists the gaps. Links to the Scrum Guide and SAFe's site rather than copying them; 261 tests
 
 - [x] 2026-10-18: Credibility and engagement. A first-days engagement plan on Working with me (audience, what you want them to know about you, how, when). Plans warn when more than three early wins are open. Six credibility prompts in the reflection journal. Early wins and Earning trust guides gain the book's principles; a new Leading former peers guide. A test now syntax-checks every app script; 258 tests

@@ -1515,6 +1515,12 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        42,
+        """
+        ALTER TABLE plan_items ADD COLUMN ew_scores TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2239,10 +2245,12 @@ plan_items = Record(
         "evidence": Field("text", P),
         "early_win": Field("bool", E, default=False),
         "serves_id": Field("int", S),
+        "ew_scores": Field("json", P),  # the early wins evaluation: impact, soon, foundation, behavior, 0 to 4 each
         "behavior": Field("text", S),
         "position": Field("int", S, default=0),
     },
-    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S)},
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S),
+              "ew_total": ("(SELECT CASE WHEN plan_items.ew_scores IS NULL THEN NULL ELSE (SELECT SUM(value) FROM json_each(plan_items.ew_scores)) END)", P)},
 )
 
 # ---- business landscape: structure is presentable; the assessment is the company's confidential view, so private ----

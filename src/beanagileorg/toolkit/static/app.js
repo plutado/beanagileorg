@@ -2231,6 +2231,11 @@
   const PLAN_KINDS = ["outcome", "action", "measure", "keep"];
   const PLAN_KIND_TITLES = { outcome: "Outcomes", action: "Actions", measure: "How we'll know", keep: "What I won't change" };
   const PLAN_ITEM_STATUS = ["planned", "in progress", "done", "dropped"];
+  // The early wins evaluation, after Table 5-2 in The First 90 Days, in our own words.
+  const EW_QUESTIONS = ["Would it substantially improve the team's performance?", "Can it be done soon with the resources you have?", "Would success lay a foundation for the goals you've agreed?", "Will the way you achieve it help shift the behaviors you need?"];
+  const EW_SCALE = ["not at all", "a little", "somewhat", "significantly", "greatly"];
+  const EW_KEYS = ["impact", "soon", "foundation", "behavior"];
+  const ewRuledOut = (i) => !!i.ew_scores && i.ew_scores.impact === 0;
   const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "accent", agreed: "good" };
   const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change", if_you_were_me: "If you were me" };
 
@@ -2250,7 +2255,7 @@
           ${i.themes?.length ? BA.chips(i.themes) : ""}
           ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">${BA.roleDay(i.due_day)}</span>` : ""}
           ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
-          ${i.early_win ? `<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>${!ro && outcomes.length && !i.serves_id ? '<span class="pill warn" title="This early win isn\'t linked to an agreed outcome">serves no outcome</span>' : ""}` : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
+          ${i.early_win ? `<span class="pill accent" title="An early win: a visible improvement people will notice">early win</span>${!ro && outcomes.length && !i.serves_id ? '<span class="pill warn" title="This early win isn\'t linked to an agreed outcome">serves no outcome</span>' : ""}${!ro && i.ew_total != null ? (ewRuledOut(i) ? '<span class="pill bad" title="Scores zero on improving performance, so the other scores don\'t matter">ruled out</span>' : `<span class="pill" title="Early wins evaluation, out of 16">${i.ew_total}/16</span>`) : ""}` : ""}${i.owner_name ? `<span class="quiet">${esc(i.owner_name)}</span>` : ""}${BA.statusPill(i.status)}</summary>
         ${i.detail ? BA.md(i.detail) : ""}
         ${ro ? "" : `<form class="edit-item"><div class="grid2">
           <label>Title<input name="title" value="${esc(i.title)}" required></label>
@@ -2262,6 +2267,9 @@
           <label class="check"><input type="checkbox" name="early_win"${i.early_win ? " checked" : ""}> An early win <span class="quiet">(a visible improvement people will notice)</span></label>
           <label>Serves which agreed outcome <span class="quiet">(early wins should do double duty)</span><select name="serves_id"><option value=""></option>${outcomes.map((o) => `<option value="${o.id}"${o.id === i.serves_id ? " selected" : ""}>${esc(o.text.slice(0, 90))}</option>`).join("")}</select></label>
           <label>Behavior it starts to change<input name="behavior" value="${esc(i.behavior || "")}" placeholder="Such as: slips raised early instead of at the deadline"></label></div>
+          <details class="ew-eval"${i.ew_scores ? " open" : ""}><summary class="quiet">Early wins evaluation${i.ew_total != null ? `: ${i.ew_total} of 16` : ""}</summary>
+            ${EW_QUESTIONS.map((q, n) => `<label>${esc(q)}<select name="ew_${n}"><option value=""></option>${EW_SCALE.map((l, v) => `<option value="${v}"${i.ew_scores && i.ew_scores[EW_KEYS[n]] === v ? " selected" : ""}>${v}: ${l}</option>`).join("")}</select></label>`).join("")}
+            <p class="quiet">A zero on the first question rules it out, whatever the rest.</p></details>
           <label>Detail<textarea name="detail">${esc(i.detail || "")}</textarea></label>
           <label>Evidence <span class="quiet">(private: who said it, what you saw)</span><textarea name="evidence">${esc(i.evidence || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del="${i.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
@@ -2289,6 +2297,10 @@
           ${ro ? "" : `<form id="presented" class="row"><input type="date" name="presented_on" value="${BA.today()}" style="max-width:170px"><input name="audience" placeholder="Who you presented to" style="max-width:260px">
             <button class="btn" type="submit">Mark all presented</button></form>`}</section>
         ${(() => { const open = d.horizons.flatMap((h) => h.items).filter((i) => i.early_win && ["planned", "in progress"].includes(i.status)); return !ro && open.length > 3 ? `<p class="callout warn">${open.length} early wins are open at once. You can only deliver results in a couple of areas during a transition; pick the most promising few and treat the rest as later or supporting work.</p>` : ""; })()}
+        ${(() => { const cands = d.horizons.flatMap((h) => h.items).filter((i) => i.early_win && i.status !== "dropped"); if (ro || !cands.length) return "";
+          const ranked = [...cands].sort((a, b) => (ewRuledOut(a) - ewRuledOut(b)) || ((b.ew_total ?? -1) - (a.ew_total ?? -1)));
+          return `<section class="card"><h2>Early win candidates</h2><p class="quiet">Ranked by the early wins evaluation (out of 16). Pick three or four at most, and treat them as a portfolio so a big success balances a disappointment. Open an item to score it.</p>
+            ${ranked.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span>${i.ew_total == null ? '<span class="quiet">not scored</span>' : ewRuledOut(i) ? '<span class="pill bad">ruled out</span>' : `<b>${i.ew_total}</b><span class="quiet">/16</span>`}</div>`).join("")}</section>`; })()}
         <div class="plan-layout"><div class="plan-horizons">${d.horizons.map(horizon).join("")}
           ${ro ? "" : `<section class="card"><h2>Add a plan</h2><p class="quiet">For a finer step (a two-week check-in) or a longer view (month 9, month 12). Each plan runs from the day after the one before it.</p>
             <form id="add-plan" class="row"><input name="title" placeholder="Name, such as Month 9" required style="max-width:260px"><label class="check">Ends on day <input type="number" name="horizon_days" min="1" required style="max-width:90px"></label><button class="btn primary" type="submit">Add plan</button></form></section>`}</div>
@@ -2342,6 +2354,7 @@
           await BA.api(`/api/plan-items/${id}`, { method: "PATCH", body: {
             title: f.get("title"), kind: f.get("kind"), due_day: num(f.get("due_day")), status: f.get("status"),
             owner_id: num(f.get("owner_id")), themes: themes(f.get("themes")), detail: f.get("detail"), evidence: f.get("evidence"), early_win: !!det.querySelector("[name=early_win]")?.checked, serves_id: num(f.get("serves_id")), behavior: f.get("behavior") || null,
+            ew_scores: [0, 1, 2, 3].every((n) => f.get(`ew_${n}`) !== "" && f.get(`ew_${n}`) !== null) ? Object.fromEntries(EW_KEYS.map((k, n) => [k, Number(f.get(`ew_${n}`))])) : null,
           } });
           BA.rerender();
         });
