@@ -29,6 +29,7 @@ TOOLKIT = {
                   "Log one-on-ones, meetings and calls on their Conversations tab, with notes, takeaways and follow-ups that can go to the dev-sync log.",
                   "Set a check-in cadence; anyone past it shows on Today. Check Before you meet on their Overview for your last notes and open follow-ups.",
                   "Track commitments both ways on anyone's Overview: what you owe them and what they owe you.",
+                  "Under Fields, import a roster file, or export one for another manager: shareable fields by default, private ones only if you choose.",
                   "Open your own page and press This is me; your direct reports get a Manager tab with growth goals, a feedback and wins log, and a drafted one-on-one agenda.",
                   "Choose which fields you use under Fields. Sensitive notes stay masked until you click Show.",
                   "Check Balance to see how your conversations split up, down and sideways, and which peers have gone quiet. Note what you can offer each peer.",

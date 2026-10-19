@@ -22,7 +22,7 @@ In priority order:
 - [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
 - [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
 - [ ] Mandates: link plan items and roadmap items to the mandate outcome they serve; show mandate decision rights on the RACI; a version history view comparing what was agreed at day 30 and day 90
-- [ ] People: export the current People list as a roster file, so a team can be moved between installs; open seats (a role you're hiring for) as their own kind of placeholder
+- [ ] People: open seats (a role you're hiring for) as their own kind of placeholder
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
 - [ ] Change requests: import interruptions flagged in Jira (who asks most and the stakeholder summary are done)
@@ -118,6 +118,7 @@ In priority order:
 
 ## Shared base and platform
 
+- [ ] **Sharing between installs** (#24): managers share chosen records and fields between their own copies through packs, never direct access. Pick kinds, then records, then fields (nothing selected to start); preview on import and decide record by record (add, update, keep mine, merge fields, add as a copy); repeatable merges through pack identities; an import log and the origin on each record. Plan: docs/specs/sharing-between-installs.md
 - [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location
 - [ ] Timed sharing (Share control): same-network and Tailscale modes, read-only presentable view, access code, auto-timeout, banner, visit log
 - [ ] Optional Odysseus integration: documents, calendar, local models, scheduled jobs
@@ -133,6 +134,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Export People as a roster file (#23), readable by the roster import, shareable fields by default; the plan for granular sharing between installs written (docs/specs/sharing-between-installs.md); 298 tests
 - [x] 2026-10-19: Change requests Who asks and a stakeholder policy summary (#21); Culture upward questions log with Today reminders (#22) (migration 61). The backup warning on Today was already built, so it's off the backlog; 297 tests
 - [x] 2026-10-19: Roadmap drag to reorder and a timeline view (#20): rows reorder by dragging; the timeline lays items out by day in lanes by kind, stacked so labels never overlap, and dragging an item changes its target day. Time to restore joins the starter metrics; 295 tests
 - [x] 2026-10-19: Releases, next (#19). A release calendar beside regression windows with clash warnings; time to restore from incidents linked to failed releases, recorded to Metrics; accepted change requests linked to the release they landed in, and in its release notes (migration 60); 293 tests

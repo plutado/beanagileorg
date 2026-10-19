@@ -485,3 +485,77 @@ def advice_network(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn))
             if k in out:
                 out[k].append({"id": p["id"], "name": p["name"]})
     return {"kinds": out, "missing": [k for k in ("political", "personal") if not out[k]]}
+
+
+ROSTER_SHAREABLE = ("role", "relationship")
+ROSTER_PRIVATE = ("tags", "background", "working_style", "support_notes", "start_date")
+
+
+def _roster_key(name: str, taken: set) -> str:
+    import re
+
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "person"
+    key, n = base, 2
+    while key in taken:
+        key, n = f"{base}-{n}", n + 1
+    taken.add(key)
+    return key
+
+
+def build_roster(conn, scope: str = "team", include_private: bool = False) -> dict:
+    """People as a roster file in the same format the roster import reads, so a team can move between installs.
+
+    By default only names, roles, relationships, reporting lines and team membership go out; private fields
+    (tags, background, working style, support notes, start date) only when asked for. Notes, conversations,
+    feedback and assessments never do.
+    """
+    me = me_id(conn)
+    people = models.people.fetch_all(conn, "active = 1")
+    by_id = {p["id"]: p for p in people}
+    team = conn.execute("SELECT member_ids FROM teams WHERE kind = 'mine' ORDER BY id LIMIT 1").fetchone()
+    members = set(json.loads(team["member_ids"]) if team and team["member_ids"] else [])
+    if scope == "team":
+        keep = members | {p["id"] for p in people if me and p.get("manager_id") == me}
+        if me:
+            keep.add(me)
+            if by_id.get(me, {}).get("manager_id"):
+                keep.add(by_id[me]["manager_id"])
+        chosen = [p for p in people if p["id"] in keep]
+    else:
+        chosen = people
+    taken, keys = set(), {}
+    for p in chosen:
+        keys[p["id"]] = _roster_key(p["name"], taken)
+    out = []
+    for p in chosen:
+        e = {"key": keys[p["id"]], "name": p["name"]}
+        for f in ROSTER_SHAREABLE + (ROSTER_PRIVATE if include_private else ()):
+            if p.get(f) not in (None, "", []):
+                e[f] = p[f]
+        if p.get("manager_id"):
+            e["reports_to"] = "me" if p["manager_id"] == me and me in keys else keys.get(p["manager_id"])
+            if e["reports_to"] is None:
+                del e["reports_to"]
+        if p["id"] in members:
+            e["on_team"] = True
+        if p.get("placeholder"):
+            e["placeholder"] = True
+        out.append(e)
+    roster = {"_about": "A roster exported from beanagileorg. Import it under People > Fields > Import a roster. Anyone already there with the same name is left alone.",
+              "format": "beanagileorg.roster", "version": 1, "exported_on": date.today().isoformat(), "scope": scope, "private_fields": include_private, "people": out}
+    if me and me in keys:
+        roster["me"] = keys[me]
+    return roster
+
+
+@router.post("/api/people/roster/export")
+def export_roster(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Export People as a roster file. Shareable fields by default; private ones only when asked, and never in presentation mode."""
+    from beanagileorg.core.export import log_export
+
+    require_write(viewer)
+    scope = body.get("scope") if body.get("scope") in ("team", "everyone") else "team"
+    include_private = bool(body.get("include_private")) and viewer.floor == Level.PRIVATE
+    roster = build_roster(conn, scope, include_private)
+    log_export(conn, "people:roster", f"Roster ({scope}{', with private fields' if include_private else ''})", roster["people"], viewer.source)
+    return roster

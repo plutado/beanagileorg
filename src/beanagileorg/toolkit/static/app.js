@@ -317,7 +317,22 @@
         ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form></section>
       ${ro ? "" : `<section class="card"><h2>Import a roster</h2><p class="quiet">Add a whole team at once from a roster file: people, who reports to whom, who's on your team, and which record is you. Stand-ins in [brackets] are marked as placeholders. Anyone already here with the same name is left alone, so importing twice adds nothing.</p>
         <div class="row"><input type="file" id="roster-file" accept=".json,application/json"></div><textarea id="roster-text" rows="6" class="mono" placeholder='{"me": "me", "people": [{"key": "me", "name": "[Me]"}, {"key": "a", "name": "[Engineer 1]", "relationship": "employee", "reports_to": "me", "on_team": true}]}'></textarea>
-        <div class="actions"><button class="btn primary" id="roster-go">Import</button></div></section>`}`;
+        <div class="actions"><button class="btn primary" id="roster-go">Import</button></div></section>
+      <section class="card"><h2>Export a roster</h2><p class="quiet">Save People as a roster file another manager can import into their own copy: names, roles, relationships, who reports to whom and who's on your team. Private fields go only if you tick the box; notes, conversations, feedback and assessments never do. Each export is recorded in the export log.</p>
+        <div class="row" style="align-items:center"><select id="roster-scope" style="max-width:260px"><option value="team">My team, my manager and me</option><option value="everyone">Everyone in People</option></select>
+          <label class="check"><input type="checkbox" id="roster-private"> Include private fields <span class="quiet">(tags, background, working style, support notes, start date)</span></label></div>
+        <div class="actions"><button class="btn" id="roster-copy">Copy</button><button class="btn primary" id="roster-download">Download the file</button></div></section>`}`;
+    const exportRoster = async () => BA.api("/api/people/roster/export", { method: "POST", body: { scope: main.querySelector("#roster-scope").value, include_private: main.querySelector("#roster-private").checked } });
+    const rd = main.querySelector("#roster-download");
+    if (rd) {
+      rd.onclick = BA.guard(async () => {
+        const r = await exportRoster();
+        const url = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }));
+        const a = document.createElement("a"); a.href = url; a.download = `roster-${r.exported_on}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        BA.toast(`Exported ${r.people.length} people.`);
+      });
+      main.querySelector("#roster-copy").onclick = BA.guard(async () => { const r = await exportRoster(); await navigator.clipboard.writeText(JSON.stringify(r, null, 2)); BA.toast(`Copied ${r.people.length} people as roster JSON.`); });
+    }
     const rf = main.querySelector("#roster-file");
     if (rf) {
       rf.onchange = async () => { if (rf.files[0]) main.querySelector("#roster-text").value = await rf.files[0].text(); };

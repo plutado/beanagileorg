@@ -5,3 +5,4 @@ The plans the apps were built from, kept company-neutral. They were written befo
 - [Toolkit](toolkit.md): data model, privacy levels, screens, API, tokens, sharing.
 - [Comms studio](comms-studio.md): messages, templates, writing checks, decks, media, images and infographics, Ask.
 - [Video message platform](video-message-platform.md): a gated share site for short video messages, comments and the dev-sync board. Not built yet.
+- [Sharing between installs](sharing-between-installs.md): granular export, import and merge of chosen records and fields between managers' copies. Planned; the roster file and coaching pack are built.
