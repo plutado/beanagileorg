@@ -12,7 +12,6 @@ Nothing right now.
 
 In priority order:
 
-- [ ] **Agile reference (#14):** every Scrum role, event, artifact and commitment, common practices around them, and SAFe concepts, each in original words with how the team does it here, links to where the toolkit supports it, and a view of which the team practices today. Links to the official Scrum Guide rather than copying it.
 - [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
 ## Toolkit, later versions
@@ -137,6 +136,8 @@ In priority order:
 - [x] 2026-10-18: LICENSE copyright holder filled in
 
 ## Done
+
+- [x] 2026-10-18: Agile reference (#14). A Delivery screen with Scrum's accountabilities, events (with timeboxes), artifacts and commitments, 12 common practices and 23 SAFe concepts, all in original words, each with why it matters, a link to where the toolkit supports it, and the team's status and how it does it here. A coverage view lists the gaps. Links to the Scrum Guide and SAFe's site rather than copying them; 261 tests
 
 - [x] 2026-10-18: Credibility and engagement. A first-days engagement plan on Working with me (audience, what you want them to know about you, how, when). Plans warn when more than three early wins are open. Six credibility prompts in the reflection journal. Early wins and Earning trust guides gain the book's principles; a new Leading former peers guide. A test now syntax-checks every app script; 258 tests
 

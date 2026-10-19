@@ -18,6 +18,7 @@ from .jira import router as jira_router
 from .sprint_planning import router as sprint_planning_router
 from .teams import router as teams_router
 from .people_crm import router as people_crm_router
+from .agile import router as agile_router
 from .culture import router as culture_router
 from .reports import router as reports_router
 from .changes import router as changes_router
@@ -45,6 +46,7 @@ NAV = [
     {"path": "/teams", "icon": "users-round", "label": "Teams"},
     {"path": "/sos", "icon": "network", "label": "Scrum of Scrums"},
     {"group": "Delivery"},
+    {"path": "/agile", "icon": "notebook", "label": "Agile reference"},
     {"path": "/sdlc", "icon": "git-branch", "label": "SDLC"},
     {"path": "/planning", "icon": "list-ordered", "label": "Sprint planning"},
     {"path": "/changes", "icon": "arrow-left-right", "label": "Change requests"},
@@ -84,7 +86,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
+        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

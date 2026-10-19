@@ -1687,6 +1687,41 @@
     },
   });
 
+  // ---------------------------------------------------------------- Agile reference
+
+  const AGILE_TABS = [["", "Scrum"], ["practices", "Common practices"], ["safe", "SAFe"], ["coverage", "Coverage"]];
+  const AGILE_FW = { "": "scrum", practices: "practice", safe: "safe" };
+  const AGILE_KINDS = { foundation: "Foundations", accountability: "Accountabilities", event: "Events", artifact: "Artifacts", commitment: "Commitments", practice: "Practices", structure: "Structure", role: "Roles" };
+  const AGILE_TONES = { "not yet": "", partly: "warn", practiced: "good", "not used here": "" };
+  BA.view("/agile", {
+    title: "Agile reference",
+    async render(main, param) {
+      const d = await BA.api("/api/agile/reference");
+      const ro = presenting();
+      const tab = param || "";
+      const tabs = `<nav class="tabs">${AGILE_TABS.map(([k, l]) => `<a href="#/agile${k ? "/" + k : ""}" class="${k === tab ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+      if (tab === "coverage") {
+        const fwName = { scrum: "Scrum", practice: "Common practices", safe: "SAFe" };
+        main.innerHTML = `${tabs}<section class="card"><h2>What the team practices today</h2><div class="tablewrap"><table class="data"><thead><tr><th></th>${d.statuses.map((s) => `<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>${Object.entries(d.coverage).map(([fw, c]) => `<tr><td><b>${fwName[fw]}</b></td>${d.statuses.map((s) => `<td>${c[s]}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+          <h3>Not yet or only partly practiced</h3>${d.entries.filter((e) => ["not yet", "partly"].includes(e.status) && e.framework !== "safe").map((e) => `<div class="item"><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><a href="#/agile${e.framework === "practice" ? "/practices" : ""}">${esc(e.name)}</a></div>`).join("") || '<p class="quiet">Nothing outstanding in Scrum or the common practices.</p>'}
+          <p class="quiet">SAFe entries matter only if your organization runs it; mark the rest "not used here".</p></section>`;
+        return;
+      }
+      const fw = AGILE_FW[tab] || "scrum";
+      const list = d.entries.filter((e) => e.framework === fw);
+      const src = fw === "practice" ? null : d.sources[fw];
+      const groups = [...new Set(list.map((e) => e.kind))];
+      main.innerHTML = `${tabs}
+        <p class="quiet">${fw === "scrum" ? "Scrum as the Scrum Guide defines it: three accountabilities, five events, three artifacts and the commitment each carries." : fw === "practice" ? "Practices many teams add around Scrum. None is required by Scrum; use the ones that help." : "The main concepts of SAFe, for organizations that coordinate many teams on one cadence."}
+          Descriptions are in our own words.${src ? ` For the full text, see <a href="${src.url}" target="_blank" rel="noopener">${esc(src.label)} ${BA.icon("external-link")}</a>.` : ""}</p>
+        ${groups.map((g) => `<section class="card"><h2>${esc(AGILE_KINDS[g] || g)}</h2>${list.filter((e) => e.kind === g).map((e) => `<details class="plan-item" data-ag="${e.key}"><summary><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><b>${esc(e.name)}</b><span class="spacer"></span>${e.timebox ? `<span class="quiet">${esc(e.timebox)}</span>` : ""}</summary>
+          <p>${esc(e.what)}</p><p class="quiet"><b>Why it matters:</b> ${esc(e.why)}</p>${e.link ? `<p><a class="btn" href="${e.link}">Where the toolkit supports it</a></p>` : ""}
+          ${ro ? (e.how ? `<p><b>How we do it here:</b> ${esc(e.how)}</p>` : "") : `<form class="row" style="align-items:flex-start"><select name="status" style="max-width:150px">${opts(d.statuses, e.status)}</select><textarea name="how" rows="2" placeholder="How we do it here" style="flex:1;min-width:220px">${esc(e.how)}</textarea><button class="btn" type="submit">Save</button></form>`}</details>`).join("")}</section>`).join("")}`;
+      if (ro) return;
+      main.querySelectorAll("[data-ag] form").forEach((f) => (f.onsubmit = BA.guard(async (ev) => { ev.preventDefault(); const fd = new FormData(f); await BA.api(`/api/agile/practice/${f.closest("[data-ag]").dataset.ag}`, { method: "PUT", body: { status: fd.get("status"), how: fd.get("how") } }); BA.toast("Saved."); BA.rerender(); })));
+    },
+  });
+
   // ---------------------------------------------------------------- Metrics
 
   BA.view("/metrics", {

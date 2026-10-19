@@ -1208,6 +1208,8 @@ TIPS = {
                    ("Hold early impressions as hypotheses. Write down what would prove them wrong.", "read-the-situation")],
     "/rollup": [("Share what you heard with the team before announcing changes. It shows you listened.", "earning-trust"),
                 ("The 'don't change' notes matter as much as the complaints. Plan to keep them.", "read-the-situation")],
+    "/agile": [("Scrum is deliberately small. Get the events, artifacts and commitments working before adding more practices.", "introducing-scrum", 29),
+               ("Mark what the team really practices, not what it's supposed to. The gaps are your agenda for the next retro.", "introducing-scrum", 29)],
     "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
               ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
@@ -1329,7 +1331,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 28  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 29  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():
