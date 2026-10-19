@@ -273,6 +273,13 @@ TOOLKIT = {
         "privacy": "Shareable, so the team can map them together; notes are private.",
         "related": ["/sdlc", "/metrics", "/alignment", "/coaching/org-as-a-system"],
     },
+    "/team-align": {
+        "purpose": "Make sure each person knows how they support the team's goals, and wants to: owned, measurable goals, a blend of push and pull, rewards that fit the work, and a shared vision.",
+        "steps": ["Break goals into parts with an owner or the whole team, a metric, a from, a to and a date.", "Tick the push and pull tools you're using, and read the advice for your situations.",
+                  "Answer the five incentive questions to see the reward mix that fits.", "Draft a vision with the team using the seven lenses, and check it against the three tests."],
+        "privacy": "Goals are shareable; how individuals prefer to be motivated stays private.",
+        "related": ["/metrics", "/first90", "/alignment", "/coaching/building-the-team"],
+    },
     "/alignment": {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
         "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",

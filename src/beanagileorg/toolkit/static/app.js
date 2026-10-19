@@ -1830,6 +1830,91 @@
     draw();
   }
 
+  // ---------------------------------------------------------------- Aligning the team
+
+  const ALIGN_TABS = [["", "Goals and owners"], ["push-pull", "Push and pull"], ["incentives", "Incentives"], ["vision", "Vision"]];
+
+  BA.view("/team-align", {
+    title: "Aligning the team",
+    async render(main, param) {
+      const tab = param || "";
+      const [d, people, metrics] = await Promise.all([BA.api("/api/team-align"), BA.api("/api/people"), BA.api("/api/metrics")]);
+      const ro = presenting();
+      const tabs = `<nav class="tabs">${ALIGN_TABS.map(([k, l]) => `<a href="#/team-align${k ? "/" + k : ""}" class="${k === tab ? "active" : ""}">${l}</a>`).join("")}</nav>`;
+      const intro = '<p class="quiet">The right people aren\'t enough: each person needs to know how they support the team\'s goals, and want to. Break goals into owned, measurable parts, and blend push (goals, measures, incentives) with pull (a shared vision, teamwork).</p>';
+      if (tab === "push-pull") return renderPushPull(main, d, tabs + intro, ro);
+      if (tab === "incentives") return renderIncentives(main, d, tabs + intro, ro);
+      if (tab === "vision") return renderVision(main, d, tabs + intro, ro);
+      const fmt = (v) => (v == null ? "?" : String(v));
+      const goalLine = (g) => `<div class="item" data-goal="${g.id}" style="${g.parent_id ? "padding-left:28px" : ""}"><span><b>${esc(g.title)}</b><br><span class="quiet">${[g.whole_team ? "the whole team" : g.owner_name ? esc(g.owner_name) : "no owner yet",
+          g.to_value != null ? `from ${fmt(g.from_value)} to ${fmt(g.to_value)}${g.unit ? " " + esc(g.unit) : ""}` : "", g.by_date ? `by ${BA.fmtDate(g.by_date)}` : "", g.metric_name ? esc(g.metric_name) : ""].filter(Boolean).join(" · ")}</span></span><span class="spacer"></span>
+        ${g.measurable ? "" : '<span class="pill warn" title="Give it a starting point or a metric, a target and a date">not measurable yet</span>'}
+        ${ro ? `<span class="quiet">${esc(g.status)}</span>` : `<select data-goal-status style="max-width:120px">${opts(d.goal_status, g.status)}</select><button class="icon-btn" title="Delete" data-goal-del>${BA.icon("x")}</button>`}</div>`;
+      const tops = d.goals.filter((g) => !g.parent_id);
+      const kids = (id) => d.goals.filter((g) => g.parent_id === id);
+      main.innerHTML = `${tabs}${intro}
+        <section class="card"><h2>Goals and owners</h2><p class="quiet">Break each big goal into parts, give each part an owner or the whole team, and say it in numbers: from where, to where, by when. "Improve quality" isn't a goal; "escaped defects from 6 to 2 per sprint by the end of the quarter" is. Set the starting point from a baseline before choosing a target.</p>
+          ${tops.map((g) => goalLine(g) + kids(g.id).map(goalLine).join("")).join("") || '<p class="quiet">No goals yet.</p>'}</section>
+        ${ro ? "" : `<form id="add-goal" class="card"><h2>Add a goal or a part of one</h2><div class="grid2">
+          <label>Goal<input name="title" required></label><label>Part of<select name="parent_id"><option value="">(a top-level goal)</option>${tops.map((g) => `<option value="${g.id}">${esc(g.title)}</option>`).join("")}</select></label>
+          <label>Owner<select name="owner_id">${personOptions(people)}</select></label><label class="check" style="align-self:end"><input type="checkbox" name="whole_team"> The whole team owns it</label>
+          <label>Metric<select name="metric_id"><option value=""></option>${metrics.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join("")}</select></label><label>Unit<input name="unit" placeholder="%, per sprint, days"></label>
+          <label>From<input type="number" step="any" name="from_value"></label><label>To<input type="number" step="any" name="to_value"></label>
+          <label>By<input type="date" name="by_date"></label></div><div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
+      if (ro) return;
+      const n = (v) => (v === "" || v == null ? null : Number(v));
+      main.querySelector("#add-goal").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        await BA.api("/api/team-goals", { method: "POST", body: { title: fd.get("title"), parent_id: n(fd.get("parent_id")), owner_id: n(fd.get("owner_id")), whole_team: fd.get("whole_team") === "on", metric_id: n(fd.get("metric_id")), unit: fd.get("unit"), from_value: n(fd.get("from_value")), to_value: n(fd.get("to_value")), by_date: fd.get("by_date") || null, team_id: newTeamId() } });
+        BA.rerender();
+      });
+      main.querySelectorAll("[data-goal]").forEach((row) => {
+        const id = row.dataset.goal;
+        row.querySelector("[data-goal-status]").onchange = BA.guard(async (e) => { await BA.api(`/api/team-goals/${id}`, { method: "PATCH", body: { status: e.target.value } }); BA.toast("Saved."); });
+        row.querySelector("[data-goal-del]").onclick = BA.guard(async () => { if (!confirm("Delete this goal and its parts?")) return; await BA.api(`/api/team-goals/${id}`, { method: "DELETE" }); BA.rerender(); });
+      });
+    },
+  });
+
+  function renderPushPull(main, d, head, ro) {
+    const t = d.tools || {}, m = d.motivation;
+    const col = (title, list) => `<div><h3>${title}</h3>${list.map((x) => `<label class="check"><input type="checkbox" name="${x.key}"${t[x.key] ? " checked" : ""}${ro ? " disabled" : ""}> <b>${esc(x.name)}</b> <span class="quiet">${esc(x.what)}</span></label>`).join("")}</div>`;
+    const used = (list) => list.filter((x) => t[x.key]).length;
+    main.innerHTML = `${head}<section class="card"><h2>Push and pull</h2><p class="quiet">Push tools move people through goals, measures, expectations and rewards. Pull tools inspire them with a picture of the future worth reaching. A blend works best. Tick what you're using now.</p>
+      <form id="tools"><div class="grid2">${col("Push", d.push)}${col("Pull", d.pull)}</div>${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form>
+      <p>${used(d.push)} of ${d.push.length} push tools and ${used(d.pull)} of ${d.pull.length} pull tools in use.${used(d.pull) === 0 && used(d.push) > 0 ? ' <span class="pill warn">all push, no pull</span>' : ""}</p>
+      ${m ? `<p class="quiet">How your people prefer to be motivated, from <a href="#/first90/team">their assessments</a>: ${m.push} mostly push, ${m.pull} mostly pull, ${m.both} both. Energetic go-getters often respond to pull; methodical, careful people to push.</p>` : ""}
+      ${d.mix.length ? `<h3>For your situations</h3><div class="md"><ul>${d.mix.map((x) => `<li><b>${esc(x.kind)}.</b> ${esc(x.advice)}</li>`).join("")}</ul></div>` : '<p class="quiet">Set your situations in the <a href="#/first90/situation">situation diagnosis</a> for advice on the mix.</p>'}</section>`;
+    const f = main.querySelector("#tools");
+    if (f && !ro) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/team-align/tools", { method: "PUT", body: Object.fromEntries([...d.push, ...d.pull].map((x) => [x.key, fd.get(x.key) === "on"])) }); BA.toast("Saved."); BA.rerender(); });
+  }
+
+  function renderIncentives(main, d, head, ro) {
+    main.innerHTML = `${head}<section class="card"><h2>The incentive equation</h2><p class="quiet">Total reward is non-monetary plus monetary. Monetary is fixed plus performance-based. Performance-based is individual plus group. Answer five questions to see the mix that fits. You may not set pay, but you do set recognition, growth and what goes into reviews.</p>
+      <form id="inc">${d.incentive_questions.map((q) => `<label>${esc(q.question)}<select name="${q.key}" style="max-width:220px"${ro ? " disabled" : ""}><option value=""></option>${opts(q.options, d.incentives[q.key])}</select></label>`).join("")}
+        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Show the mix</button></div>'}</form>
+      ${d.incentive_mix.length ? `<h3>Suggested mix</h3>${d.incentive_mix.map((x) => `<p><b>${esc(x.part)}.</b> ${esc(x.advice)}</p>`).join("")}` : ""}
+      <p class="callout">${esc(d.scrum_incentives)}</p></section>`;
+    const f = main.querySelector("#inc");
+    if (f && !ro) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/team-align/incentives", { method: "PUT", body: Object.fromEntries(new FormData(f)) }); BA.rerender(); });
+  }
+
+  function renderVision(main, d, head, ro) {
+    const v = d.vision || {};
+    main.innerHTML = `${head}<section class="card"><h2>A vision worth extra effort</h2><p class="quiet">A goal says what you'll do; a vision says why it matters and what it will feel like. "Launch twelve rockets in ten years" is a goal; "put a person on the moon and bring them home safely" is a vision. Draft it with the team, not for them.</p>
+      <form id="vis"><h3>What will inspire your people?</h3><p class="quiet">Pick the sources that fit your team.</p>
+        ${d.lenses.map((l) => `<label class="check"><input type="checkbox" name="lens" value="${l.key}"${(v.lenses || []).includes(l.key) ? " checked" : ""}${ro ? " disabled" : ""}> <b>${esc(l.name)}</b> <span class="quiet">${esc(l.what)}</span></label>`).join("")}
+        <label>The larger story people are part of<textarea name="story" rows="2"${ro ? " readonly" : ""}>${esc(v.story || "")}</textarea></label>
+        <label>Draft vision<textarea name="draft" rows="4"${ro ? " readonly" : ""}>${esc(v.draft || "")}</textarea></label>
+        <label>${esc(d.vision_test)}<textarea name="why_effort" rows="2"${ro ? " readonly" : ""}>${esc(v.why_effort || "")}</textarea></label>
+        <h3>Does it work?</h3>${d.vision_checks.map((c) => `<label class="check"><input type="checkbox" name="check" value="${c.key}"${(v.checks || []).includes(c.key) ? " checked" : ""}${ro ? " disabled" : ""}> ${esc(c.text)}</label>`).join("")}
+        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form>
+      <p class="quiet">Carry it into the vision field of your <a href="#/alignment">alignment check</a>. To share it, tell it as a short story: the Comms studio's video pitch template is built for this.</p></section>`;
+    const f = main.querySelector("#vis");
+    if (f && !ro) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/team-align/vision", { method: "PUT", body: { draft: fd.get("draft"), story: fd.get("story"), why_effort: fd.get("why_effort"), lenses: fd.getAll("lens"), checks: fd.getAll("check") } }); BA.toast("Saved."); BA.rerender(); });
+  }
+
   // ---------------------------------------------------------------- Organizational alignment
 
   const FIT_TONE = { aligned: "good", strained: "warn", misaligned: "bad" };
@@ -5294,7 +5379,10 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
             <label>Placement<select name="placement"><option value=""></option>${tg.placements.map((pl) => `<option${a.placement === pl ? " selected" : ""}>${pl}</option>`).join("")}</select></label>
             <label>Considered view as of<input type="date" name="considered_on" value="${esc(a.considered_on || "")}"></label>
             <label>Where they stand<select name="disposition"><option value=""></option>${opts(tg.dispositions, a.disposition)}</select></label>
-            <label class="check" style="align-self:end"><input type="checkbox" name="confident"${a.confident ? " checked" : ""}> I'm at least 90% sure <span class="quiet">(otherwise they stay in observe)</span></label></div>
+            <label class="check" style="align-self:end"><input type="checkbox" name="confident"${a.confident ? " checked" : ""}> I'm at least 90% sure <span class="quiet">(otherwise they stay in observe)</span></label>
+            <label>Motivated more by<select name="motivation"><option value=""></option>${tg.motivation.map((m) => `<option value="${m}"${a.motivation === m ? " selected" : ""}>${m === "push" ? "push: goals, measures, rewards" : m === "pull" ? "pull: vision, teamwork" : "both"}</option>`).join("")}</select></label></div>
+          ${(a.disposition || "").startsWith("replace") ? `<div class="callout"><b>Before replacing, consider the alternatives</b>${tg.alternatives.map((alt) => `<label class="check"><input type="checkbox" name="alt" value="${alt.key}"${((a.alternatives || {}).done || []).includes(alt.key) ? " checked" : ""}> ${esc(alt.text)}</label>`).join("")}
+            <p class="quiet">${esc(tg.respect)} Concern notes on <a href="#/people/${x.id}">their page</a> are your factual record.</p></div>` : ""}
           <label>Private notes<textarea name="notes" rows="2">${esc(a.notes || "")}</textarea></label>
           <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></details>`; };
     return `<section class="card"><h2>Assessing the team</h2><p class="quiet">Your private read on each person you inherited. Keep your first impressions, then step back and form a considered view on six criteria, weighted the way you set them. Never exported or shown while presenting.</p>
@@ -5403,7 +5491,8 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         const ratings = Object.fromEntries(tg.criteria.map((c) => [c.key, { score: fd.get(`s.${c.key}`) ? Number(fd.get(`s.${c.key}`)) : null, evidence: fd.get(`e.${c.key}`) || "" }]));
         await BA.api(`/api/team-assessment/${det.dataset.ta}`, { method: "PUT", body: { first_impression: fd.get("first_impression"), group_role: fd.get("group_role"), ratings, placement: fd.get("placement") || null, considered_on: fd.get("considered_on") || null, notes: fd.get("notes"),
           judgment: fd.get("judgment"), criticality: fd.get("criticality") ? Number(fd.get("criticality")) : null, template_id: numOrNull(fd.get("template_id")), situation_fit: fd.get("situation_fit") || null, situation_notes: fd.get("situation_notes"),
-          disposition: fd.get("disposition") || null, confident: fd.get("confident") === "on" } });
+          disposition: fd.get("disposition") || null, confident: fd.get("confident") === "on", motivation: fd.get("motivation") || null,
+          ...(form.querySelector('[name="alt"]') ? { alternatives: { done: fd.getAll("alt") } } : {}) } });
         BA.toast("Saved.");
         BA.rerender();
       });

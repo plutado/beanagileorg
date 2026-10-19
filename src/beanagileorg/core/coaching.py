@@ -520,6 +520,13 @@ GUIDES = [
             "Test judgment, not only intelligence. Look for sound predictions and strategies to avoid problems. To learn faster, ask someone to predict something in a subject they love outside work, press them to commit, and probe their reasoning.",
             "Assess the team as a whole: read reports and meeting notes, compare answers across one-on-ones (too uniform may mean a party line; too scattered, no shared picture), and watch for alliances and who defers to whom.",
             "By about day 30, place each person provisionally: keep in place, keep and develop, move to another role, replace (low or high priority), or observe. Only place someone when you're at least 90% sure; otherwise keep observing.",
+            "Before replacing someone, consider the alternatives. Replacing takes time and documentation, and law, culture or politics may stop it. A clear message often leads people to move on; a better-suited or much smaller role can buy time; a move elsewhere helps only if they'll genuinely do well there.",
+            "Develop backups as soon as you're fairly sure someone won't make it, so the work carries on. Cross-training also removes single points of knowledge.",
+            "Treat everyone with respect throughout. Even when the team agrees a change is needed, they'll judge you by whether you handled it fairly.",
+            "Break the team's goals into parts, give each an owner, and make each measurable: from where, to where, by when.",
+            "Blend push (goals, measures, reporting, procedures, incentives) with pull (a shared vision, teamwork). Turnarounds supply push; in a realignment, lean on pull. Some people respond more to one than the other.",
+            "Match rewards to the work: non-monetary rewards where they're available and valued; fixed pay where contributions are hard to measure or results lag; team rewards where success depends on working together, as it does in Scrum.",
+            "Give the team a vision worth extra effort: one that draws on what people care about, makes them part of a larger story, and is vivid enough to picture. Draft it with them.",
         ],
         "pitfalls": [
             "Criticizing the previous leadership. Assess current behavior and results instead, and make the changes that improve them.",
@@ -1363,6 +1370,8 @@ TIPS = {
                    ("Work on a few processes at a time. Mark three at most as focus now.", "org-as-a-system", 37)],
     "/skills": [("Check all four kinds of knowledge against your core processes: individual, working together, core technology, and knowing where to go.", "org-as-a-system", 38),
                 ("Look for what your best performers do differently, and help it spread through pairing and group learning.", "org-as-a-system", 38)],
+    "/team-align": [("Every goal needs an owner and a number: from where, to where, by when.", "building-the-team", 42),
+                    ("In a realignment, push alone won't create urgency. Put more into pull: a shared vision the team helped write.", "building-the-team", 42)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
@@ -1475,7 +1484,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 41  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 42  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

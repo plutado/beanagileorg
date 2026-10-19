@@ -42,6 +42,8 @@ INTERDEPENDENCE = ("independent", "mixed", "interdependent")
 SITUATION_FIT = ("fits", "partly", "doesn't fit")
 DISPOSITIONS = ("keep in place", "keep and develop", "move to another role", "replace, low priority", "replace, high priority", "observe")
 VOLUNTEERED = ("volunteered it", "had to draw it out")
+MOTIVATION = ("push", "pull", "both")
+TEAM_GOAL_STATUS = ("open", "on track", "at risk", "met", "dropped")
 OWNERSHIP = ("owns problems", "makes excuses", "points at others")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
@@ -1695,6 +1697,29 @@ MIGRATIONS = [
             questions TEXT,
             warning_signs TEXT,
             notes TEXT
+        );
+        """,
+    ),
+    (
+        54,
+        """
+        ALTER TABLE team_assessments ADD COLUMN alternatives TEXT;
+        ALTER TABLE team_assessments ADD COLUMN motivation TEXT;
+        CREATE TABLE team_goals (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            parent_id INTEGER REFERENCES team_goals (id) ON DELETE CASCADE,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            whole_team INTEGER NOT NULL DEFAULT 0,
+            metric_id INTEGER REFERENCES metrics (id) ON DELETE SET NULL,
+            from_value REAL,
+            to_value REAL,
+            unit TEXT,
+            by_date TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
         );
         """,
     ),
@@ -3408,6 +3433,8 @@ team_assessments = Record(
         "disposition": Field("text", P, choices=DISPOSITIONS),
         "confident": Field("bool", P, default=False),
         "template_id": Field("int", P),
+        "alternatives": Field("json", P),
+        "motivation": Field("text", P, choices=MOTIVATION),
     },
     computed={"person_name": ("(SELECT name FROM people p WHERE p.id = team_assessments.person_id)", P)},
     hide_when_empty=True,
@@ -3429,6 +3456,32 @@ role_templates = Record(
         "warning_signs": Field("list", S),
         "notes": Field("text", P),
     },
+)
+
+# Goals broken into parts, each with an owner (or the whole team) and a measurable from, to and date.
+# Shareable: the team should see what it's accountable for.
+team_goals = Record(
+    entity="team_goal",
+    table="team_goals",
+    path="/api/team-goals",
+    order_by="parent_id IS NOT NULL, parent_id, position, id",
+    fields={
+        "title": Field("text", S, required=True),
+        "parent_id": Field("int", S),
+        "owner_id": Field("int", S),
+        "whole_team": Field("bool", S, default=False),
+        "metric_id": Field("int", S),
+        "from_value": Field("number", S),
+        "to_value": Field("number", S),
+        "unit": Field("text", S),
+        "by_date": Field("date", S),
+        "status": Field("text", S, choices=TEAM_GOAL_STATUS, default="open"),
+        "team_id": Field("int", S),
+        "notes": Field("text", P),
+        "position": Field("int", S, default=0),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = team_goals.owner_id)", S),
+              "metric_name": ("(SELECT name FROM metrics m WHERE m.id = team_goals.metric_id)", S)},
 )
 
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
@@ -3766,7 +3819,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,

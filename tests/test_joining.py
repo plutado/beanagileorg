@@ -193,3 +193,19 @@ def test_assessment_context_dispositions_and_templates(client):
     assert client.post("/api/role-templates/starter").status_code == 409
     i = client.post("/api/interviews", json={"person_id": p, "status": "done", "how_we_work": "[Placeholder]", "ownership": "owns problems"}).json()
     assert i["ownership"] == "owns problems" and client.get("/api/rollup").json()["notes"]["how_we_work"][0]["text"] == "[Placeholder]"
+
+
+def test_team_alignment(client):
+    g = client.post("/api/team-goals", json={"title": "[Placeholder goal]", "whole_team": True}).json()
+    client.post("/api/team-goals", json={"title": "[Placeholder part]", "parent_id": g["id"], "from_value": 6, "to_value": 2, "by_date": "2027-03-31"})
+    goals = {x["title"]: x for x in client.get("/api/team-align").json()["goals"]}
+    assert not goals["[Placeholder goal]"]["measurable"] and goals["[Placeholder part]"]["measurable"]
+    assert client.put("/api/team-align/tools", json={"vision": True, "bogus": True}).json() == {"vision": True}
+    r = client.put("/api/team-align/incentives", json={"nonmonetary_available": "high", "nonmonetary_valued": "medium", "measurable": "low", "lag": "long", "interdependence": "interdependent"}).json()
+    parts = {x["part"]: x["advice"] for x in r["incentive_mix"]}
+    assert parts["Fixed or performance-based"].startswith("Mostly fixed") and parts["Individual or group"].startswith("Mostly group")
+    assert client.put("/api/team-align/incentives", json={"lag": "forever"}).status_code == 400
+    v = client.put("/api/team-align/vision", json={"draft": "[Placeholder vision]", "lenses": ["team", "nope"], "checks": ["vivid"]}).json()
+    assert v["lenses"] == ["team"] and v["checks"] == ["vivid"]
+    client.post("/api/situations", json={"area": "[Area]", "kind": "realignment"})
+    assert client.get("/api/team-align").json()["mix"][0]["kind"] == "realignment"

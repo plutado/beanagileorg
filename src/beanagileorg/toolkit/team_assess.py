@@ -46,6 +46,15 @@ SITUATION_ADVICE = {
     "realignment": "In a realignment there's usually time to develop a promising B player, especially in a less critical role.",
     "sustaining success": "In a sustaining success you may have time to develop one or two high-potential people from B to A.",
 }
+ALTERNATIVES = [
+    ("message", "A clear, private message given about where they stand. People often choose to move on."),
+    ("shift", "A role on the team that suits their skills better, at least for now."),
+    ("shrink", "A much smaller role, so they aren't holding the team back."),
+    ("elsewhere", "A move elsewhere in the organization, only if you're convinced they'll do well there. Passing on a problem damages your reputation."),
+    ("backup", "A backup or successor in development, so the work carries on."),
+    ("hr", "Your HR partner involved, and a factual record of performance kept."),
+]
+RESPECT = "However this ends, treat the person with respect. The rest of the team will judge you by how fairly you handle it."
 DISPOSITION_HELP = "Place each person provisionally by about day 30, but only when you're at least 90% sure. If you're not, they stay in observe until you learn more."
 STARTER_TEMPLATES = [
     {"name": "Software developer",
@@ -93,7 +102,8 @@ def guide(viewer: Viewer = Depends(get_viewer)):
     return {"criteria": [{"key": k, "name": n, "question": q} for k, n, q in CRITERIA], "reflection": REFLECTION, "placements": models.PLACEMENTS,
             "changeable": models.CHANGEABLE, "interdependence": models.INTERDEPENDENCE, "interdependence_advice": INTERDEPENDENCE_ADVICE,
             "assumption": ASSUMPTION, "situation_fit": models.SITUATION_FIT, "dispositions": models.DISPOSITIONS, "disposition_help": DISPOSITION_HELP,
-            "critical": CRITICAL}
+            "critical": CRITICAL, "alternatives": [{"key": k, "text": t} for k, t in ALTERNATIVES], "respect": RESPECT,
+            "motivation": models.MOTIVATION}
 
 
 @router.post("/api/team-assessment/criteria", status_code=201)
@@ -182,7 +192,7 @@ def put_assessment(person_id: int, body: dict = Body(...), viewer: Viewer = Depe
     if crit is not None and (not isinstance(crit, int) or not 1 <= crit <= 10):
         raise HTTPException(400, "Rate how critical the position is from 1 to 10.")
     fields = {k: body[k] for k in ("ratings", "placement", "group_role", "considered_on", "notes", "criticality", "situation_fit",
-                                   "situation_notes", "judgment", "disposition", "confident", "template_id") if k in body}
+                                   "situation_notes", "judgment", "disposition", "confident", "template_id", "alternatives", "motivation") if k in body}
     row = conn.execute("SELECT id FROM team_assessments WHERE person_id = ?", (person_id,)).fetchone()
     existing = models.team_assessments.fetch(conn, row["id"]) if row else None
     if "first_impression" in body and not (existing and existing.get("first_on")):
