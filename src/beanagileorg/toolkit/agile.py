@@ -201,9 +201,17 @@ def reference(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """The reference, with how the team practices each entry. Status and notes show while presenting; they describe
     the team's way of working, not anyone in particular."""
     saved = _saved(conn)
-    entries = [{"key": k, "framework": f, "kind": kind, "name": n, "what": w, "why": y, "timebox": t, "link": link,
-                "status": saved.get(k, {}).get("status", "not yet"), "how": saved.get(k, {}).get("how", "")}
-               for k, f, kind, n, w, y, t, link in REFERENCE]
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (GUIDE_KEY,)).fetchone()
+    md = json.loads(row["value"])["markdown"] if row else None
+    entries = []
+    for k, f, kind, n, w, y, t, link in REFERENCE:
+        e = {"key": k, "framework": f, "kind": kind, "name": n, "what": w, "why": y, "timebox": t, "link": link,
+             "status": saved.get(k, {}).get("status", "not yet"), "how": saved.get(k, {}).get("how", ""), "guide_text": None, "guide_section": None}
+        if md and k in GUIDE_SECTIONS:
+            found = guide_section(md, *GUIDE_SECTIONS[k])
+            if found:
+                e["guide_section"], e["guide_text"] = found
+        entries.append(e)
     coverage = {}
     for e in entries:
         c = coverage.setdefault(e["framework"], {s: 0 for s in STATUSES})
@@ -235,6 +243,37 @@ GUIDE_KEY = "agile.scrum_guide"
 DEFINITIONS_KEY = "agile.definitions"
 GUIDE_URL = "https://scrumguides.org/scrum-guide.html"
 GUIDE_LICENSE = "Creative Commons Attribution-ShareAlike 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)"
+# Which section of the Scrum Guide each Scrum entry comes from, and whether its subsections belong with it.
+GUIDE_SECTIONS = {
+    "empiricism": ("Scrum Theory", True), "values": ("Scrum Values", False), "scrum-team": ("Scrum Team", False),
+    "product-owner": ("Product Owner", False), "scrum-master": ("Scrum Master", False), "developers": ("Developers", False),
+    "sprint": ("The Sprint", False), "sprint-planning": ("Sprint Planning", False), "daily-scrum": ("Daily Scrum", False),
+    "sprint-review": ("Sprint Review", False), "retrospective": ("Sprint Retrospective", False),
+    "product-backlog": ("Product Backlog", False), "product-goal": ("Product Backlog", False),
+    "sprint-backlog": ("Sprint Backlog", False), "sprint-goal": ("Sprint Backlog", False),
+    "increment": ("Increment", False), "definition-of-done": ("Increment", False),
+}
+
+
+def guide_section(md: str, title: str, with_sub: bool = False) -> tuple[int, str] | None:
+    """A section of the imported guide by its heading: its index among the guide's sections, and its text."""
+    lines = md.splitlines()
+    heads = [(n, len(ln) - len(ln.lstrip("#")), ln.lstrip("#").strip()) for n, ln in enumerate(lines) if ln.startswith("## ") or ln.startswith("### ")]
+    for idx, (n, level, text) in enumerate(heads):
+        if text.lower() != title.lower():
+            continue
+        end = len(lines)
+        for m, lv, _ in heads[idx + 1:]:
+            if lv <= level or not with_sub:
+                end = m
+                break
+        body = [ln for ln in lines[n + 1:end]]
+        if with_sub:
+            body = [("**" + ln.lstrip("#").strip() + "**") if ln.startswith("#") else ln for ln in body]
+        return idx, _join([ln for ln in body if ln.strip()])
+    return None
+
+
 STUDY_SESSIONS = [
     "Scrum Guide, part 1: purpose, definition, theory and values",
     "Scrum Guide, part 2: the Scrum Team (Developers, Product Owner, Scrum Master)",

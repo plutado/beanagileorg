@@ -81,3 +81,18 @@ def test_import_failure_and_paste(client, monkeypatch):
     assert g["how"] == "pasted" and g["definition"] == "[Placeholder]"
     client.put("/api/agile/definitions", json={"definitions": [{"title": "[Agile]", "text": "[Placeholder]", "source": "[Source]"}, {"text": ""}]})
     assert len(client.get("/api/agile/guide").json()["definitions"]) == 1
+
+
+def test_entries_show_guide_wording_once_imported(client, monkeypatch):
+    from beanagileorg.toolkit import agile
+
+    page = "<html><body><h1>[Guide]</h1><h2>Scrum Theory</h2><p>[Theory text]</p><h3>Transparency</h3><p>[Transparency text]</p>" \
+        "<h2>Scrum Values</h2><p>[Values text]</p><h2>Scrum Events</h2><h3>Daily Scrum</h3><p>[Daily text]</p>" + "<p>[Filler] Scrum</p>" * 150 + "</body></html>"
+    before = {e["key"]: e for e in client.get("/api/agile/reference").json()["entries"]}
+    assert before["daily-scrum"]["guide_text"] is None
+    monkeypatch.setattr(agile, "fetch_official", lambda url=agile.GUIDE_URL: page)
+    client.post("/api/agile/guide/import")
+    after = {e["key"]: e for e in client.get("/api/agile/reference").json()["entries"]}
+    assert after["daily-scrum"]["guide_text"].startswith("[Daily text]") and after["daily-scrum"]["guide_section"] == 4
+    assert "**Transparency**" in after["empiricism"]["guide_text"] and "[Values text]" not in after["empiricism"]["guide_text"]
+    assert after["refinement"]["guide_text"] is None

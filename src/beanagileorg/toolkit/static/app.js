@@ -1715,6 +1715,8 @@
             <section class="card sg-doc">${BA.md(g.markdown)}</section>`;
           const heads = [...main.querySelectorAll(".sg-doc h3, .sg-doc h4")]; // the Markdown renderer steps headings down one level
           main.querySelectorAll("[data-sec]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); const h = heads[Number(a.dataset.sec)]; if (h) h.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+          const want = new URLSearchParams(location.hash.split("?")[1] || "").get("sec");
+          if (want !== null && heads[Number(want)]) setTimeout(() => heads[Number(want)].scrollIntoView({ block: "start" }), 50);
         }
         if (!ro) {
           const imp = main.querySelector("#sg-import");
@@ -1741,9 +1743,12 @@
         ${fw === "scrum" ? defsBlock : ""}
         ${fw === "scrum" && !ro ? `<details class="card"><summary><b>Other definitions to show the team</b> <span class="quiet">(for example, a widely quoted definition of Agile, with its source)</span></summary><form id="defs">${[...g.definitions, {}].map((x) => `<div class="def-row grid2"><label>Title<input name="title" value="${esc(x.title || "")}"></label><label>Source<input name="source" value="${esc(x.source || "")}"></label><label style="grid-column:1/-1">Text<textarea name="text" rows="3">${esc(x.text || "")}</textarea></label></div>`).join("")}<div class="actions"><button class="btn" type="submit">Save</button></div></form></details>` : ""}
         <p class="quiet">${fw === "scrum" ? "Scrum as the Scrum Guide defines it: three accountabilities, five events, three artifacts and the commitment each carries." : fw === "practice" ? "Practices many teams add around Scrum. None is required by Scrum; use the ones that help." : "The main concepts of SAFe, for organizations that coordinate many teams on one cadence."}
-          Descriptions are in our own words.${src ? ` For the full text, see <a href="${src.url}" target="_blank" rel="noopener">${esc(src.label)} ${BA.icon("external-link")}</a>.` : ""}</p>
+          ${fw === "scrum" ? (g.markdown ? "Each entry shows the Scrum Guide's own wording, with our summary tucked below it." : "Entry summaries are in our own words; import the Scrum Guide to see its wording on each entry.") : "Descriptions are in our own words."}${src ? ` For the full text, see <a href="${src.url}" target="_blank" rel="noopener">${esc(src.label)} ${BA.icon("external-link")}</a>.` : ""}</p>
         ${groups.map((g) => `<section class="card"><h2>${esc(AGILE_KINDS[g] || g)}</h2>${list.filter((e) => e.kind === g).map((e) => `<details class="plan-item" data-ag="${e.key}"><summary><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><b>${esc(e.name)}</b><span class="spacer"></span>${e.timebox ? `<span class="quiet">${esc(e.timebox)}</span>` : ""}</summary>
-          <p>${esc(e.what)}</p><p class="quiet"><b>Why it matters:</b> ${esc(e.why)}</p>${e.link ? `<p><a class="btn" href="${e.link}">Where the toolkit supports it</a></p>` : ""}
+          ${e.guide_text ? `<div class="sg-quote" style="border-left:3px solid var(--accent);padding-left:12px;margin:8px 0"><p class="quiet"><b>From the Scrum Guide</b></p>${BA.md(e.guide_text)}<p><a href="#/agile/guide?sec=${e.guide_section}">Read it in the Scrum Guide</a></p></div>
+            <details><summary class="quiet">Our summary and note (not the official text)</summary><p>${esc(e.what)}</p><p class="quiet">${esc(e.why)}</p></details>`
+            : `<p class="quiet"><b>Summary in our own words, not the official text.</b>${e.framework === "scrum" ? ' <a href="#/agile/guide">Import the Scrum Guide</a> to see its own wording here.' : ""}</p><p>${esc(e.what)}</p><p class="quiet"><b>Our note on why it matters:</b> ${esc(e.why)}</p>`}
+          ${e.link ? `<p><a class="btn" href="${e.link}">Where the toolkit supports it</a></p>` : ""}
           ${ro ? (e.how ? `<p><b>How we do it here:</b> ${esc(e.how)}</p>` : "") : `<form class="row" style="align-items:flex-start"><select name="status" style="max-width:150px">${opts(d.statuses, e.status)}</select><textarea name="how" rows="2" placeholder="How we do it here" style="flex:1;min-width:220px">${esc(e.how)}</textarea><button class="btn" type="submit">Save</button></form>`}</details>`).join("")}</section>`).join("")}`;
       if (ro) return;
       const df = main.querySelector("#defs");
