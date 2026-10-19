@@ -1,6 +1,6 @@
 # Sharing between installs
 
-A plan, not yet built (beyond the roster file and the coaching pack). Engineering managers who each run their own copy of the toolkit sometimes want to share part of what they hold: a roster, a few risks, a regression plan, an SDLC policy, the role templates they use, a team's status. They should be able to do that without ever giving each other access to their copies, and without sharing anything they didn't choose.
+A plan, partly built. Steps 1 to 3 below are done for role templates, SDLC policies and regression plans (Share with another manager in the toolkit), alongside the roster file and the coaching pack. Engineering managers who each run their own copy of the toolkit sometimes want to share part of what they hold: a roster, a few risks, a regression plan, an SDLC policy, the role templates they use, a team's status. They should be able to do that without ever giving each other access to their copies, and without sharing anything they didn't choose.
 
 ## Principles
 

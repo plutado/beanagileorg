@@ -1845,6 +1845,27 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        62,
+        """
+        ALTER TABLE role_templates ADD COLUMN pack_uid TEXT;
+        ALTER TABLE role_templates ADD COLUMN origin TEXT;
+        ALTER TABLE sdlc_policies ADD COLUMN pack_uid TEXT;
+        ALTER TABLE sdlc_policies ADD COLUMN origin TEXT;
+        ALTER TABLE regression_plans ADD COLUMN pack_uid TEXT;
+        ALTER TABLE regression_plans ADD COLUMN origin TEXT;
+        CREATE TABLE import_log (
+            id INTEGER PRIMARY KEY,
+            at TEXT NOT NULL DEFAULT (datetime('now')),
+            pack_from TEXT,
+            pack_about TEXT,
+            pack_created TEXT,
+            checksum TEXT,
+            summary TEXT,
+            source TEXT
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2718,6 +2739,8 @@ regression_plans = Record(
         "signoff_by_id": Field("int", S),
         "signoff_date": Field("date", E),
         "notes": Field("text", P),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={
         "owner_name": ("(SELECT name FROM people p WHERE p.id = regression_plans.owner_id)", S),
@@ -2988,6 +3011,8 @@ sdlc_policies = Record(
         "status": Field("text", E, choices=POLICY_STATUS, default="draft"),
         "agreed_on": Field("date", E),
         "owner_id": Field("int", S),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = sdlc_policies.owner_id)", S)},
 )
@@ -3593,6 +3618,8 @@ role_templates = Record(
         "questions": Field("list", S),
         "warning_signs": Field("list", S),
         "notes": Field("text", P),
+        "pack_uid": Field("text", S),
+        "origin": Field("json", S),
     },
 )
 

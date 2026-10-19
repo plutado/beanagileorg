@@ -118,7 +118,7 @@ In priority order:
 
 ## Shared base and platform
 
-- [ ] **Sharing between installs** (#24): managers share chosen records and fields between their own copies through packs, never direct access. Pick kinds, then records, then fields (nothing selected to start); preview on import and decide record by record (add, update, keep mine, merge fields, add as a copy); repeatable merges through pack identities; an import log and the origin on each record. Plan: docs/specs/sharing-between-installs.md
+- [ ] **Sharing between installs, next** (#24): links between shared records (beyond names), more kinds in the plan's order (risks and decisions, Scrum of Scrums items, Agile practices, metrics, team status packs, core processes), the roster and coaching pack folded in as kinds, signing and timed pulls. Built so far: managers share chosen records and fields between their own copies through packs, never direct access. Pick kinds, then records, then fields (nothing selected to start); preview on import and decide record by record (add, update, keep mine, merge fields, add as a copy); repeatable merges through pack identities; an import log and the origin on each record. Plan: docs/specs/sharing-between-installs.md
 - [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location
 - [ ] Timed sharing (Share control): same-network and Tailscale modes, read-only presentable view, access code, auto-timeout, banner, visit log
 - [ ] Optional Odysseus integration: documents, calendar, local models, scheduled jobs
@@ -134,6 +134,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Sharing between installs, steps 1 to 3 (#24): pack identity and origin on role templates, SDLC policies and regression plans, an import log, granular export (kinds, records, fields, private fields, people links, review), and import with a preview and a decision per record (add, update, keep mine, merge field by field, add as a copy, skip), repeatable merges and conflict detection (migration 62); 301 tests
 - [x] 2026-10-19: Export People as a roster file (#23), readable by the roster import, shareable fields by default; the plan for granular sharing between installs written (docs/specs/sharing-between-installs.md); 298 tests
 - [x] 2026-10-19: Change requests Who asks and a stakeholder policy summary (#21); Culture upward questions log with Today reminders (#22) (migration 61). The backup warning on Today was already built, so it's off the backlog; 297 tests
 - [x] 2026-10-19: Roadmap drag to reorder and a timeline view (#20): rows reorder by dragging; the timeline lays items out by day in lanes by kind, stacked so labels never overlap, and dragging an item changes its target day. Time to restore joins the starter metrics; 295 tests

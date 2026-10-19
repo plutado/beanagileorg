@@ -305,6 +305,13 @@ TOOLKIT = {
         "privacy": "Shareable, so release notes and status can go to stakeholders; notes are private.",
         "related": ["/sdlc", "/qa", "/metrics", "/coaching/quality-culture"],
     },
+    "/sharing": {
+        "purpose": "Share a small, chosen part of what you hold with another manager through a pack file, without either of you getting into the other's copy.",
+        "steps": ["Under Export, tick the kinds of record, then the records, then the fields; private fields need their own tick, and some never leave.", "Choose whether links to people go as a name or not at all, review the pack, then download or copy it.",
+                  "Under Import, open a pack to preview it: new, changed, conflicting and unchanged records, field by field.", "Decide for each record (add, update, keep mine, merge field by field, add as a copy, skip), then apply. The Log keeps every pack in and out."],
+        "privacy": "Hidden while presenting. Packs carry only what you choose; notes and private records never leave.",
+        "related": ["/people", "/sdlc", "/qa", "/coaching"],
+    },
     "/alignment": {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
         "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",

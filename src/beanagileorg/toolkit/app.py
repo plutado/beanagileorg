@@ -33,6 +33,7 @@ from .team_assess import router as team_assess_router
 from .team_align import router as team_align_router
 from .alliances import router as alliances_router
 from .releases import router as releases_router
+from .packs import router as packs_router
 from .ask_info import info as ask_info
 from beanagileorg.core.ask import build_router as build_ask_router
 from .reporting import router as reporting_router
@@ -84,6 +85,7 @@ NAV = [
     {"group": "Me"},
     {"path": "/coaching", "icon": "compass", "label": "Coaching"},
     {"path": "/me", "icon": "user-round", "label": "My development"},
+    {"path": "/sharing", "icon": "send", "label": "Share with another manager"},
     {"path": "/help", "icon": "circle-help", "label": "Help"},
     {"path": "/settings", "icon": "settings", "label": "Settings"},
 ]
@@ -98,7 +100,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, alignment_router, processes_router, skillbase_router, team_assess_router, team_align_router, alliances_router, releases_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
+        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, alignment_router, processes_router, skillbase_router, team_assess_router, team_align_router, alliances_router, releases_router, packs_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )
