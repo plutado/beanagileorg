@@ -45,6 +45,7 @@ VOLUNTEERED = ("volunteered it", "had to draw it out")
 MOTIVATION = ("push", "pull", "both")
 TEAM_GOAL_STATUS = ("open", "on track", "at risk", "met", "dropped")
 DECISION_PROCESSES = ("decide alone", "consult and decide", "build consensus", "unanimous")
+POWER_SOURCES = ("expertise", "information", "connections", "resources", "loyalty")
 OWNERSHIP = ("owns problems", "makes excuses", "points at others")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
@@ -1732,6 +1733,40 @@ MIGRATIONS = [
         ALTER TABLE decisions_needed ADD COLUMN process_told INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    (
+        56,
+        """
+        ALTER TABLE people ADD COLUMN power_sources TEXT;
+        ALTER TABLE people ADD COLUMN opinion_leader INTEGER NOT NULL DEFAULT 0;
+        CREATE TABLE influence_links (
+            id INTEGER PRIMARY KEY,
+            from_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            to_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            strength INTEGER NOT NULL DEFAULT 2,
+            topic TEXT,
+            notes TEXT
+        );
+        CREATE TABLE power_coalitions (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            member_ids TEXT,
+            agenda TEXT,
+            notes TEXT
+        );
+        CREATE TABLE alliance_plans (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            plan_item_id INTEGER REFERENCES plan_items (id) ON DELETE SET NULL,
+            team_change_id INTEGER REFERENCES team_changes (id) ON DELETE SET NULL,
+            objective TEXT,
+            rows TEXT,
+            winning_ids TEXT,
+            blocking_ids TEXT,
+            pivotal TEXT,
+            notes TEXT
+        );
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1778,6 +1813,8 @@ people = Record(
         "change_style": Field("text", P, choices=CHANGE_STYLES),
         "change_agent": Field("bool", P, default=False),
         "key_person": Field("bool", P, default=False),
+        "power_sources": Field("list", P),
+        "opinion_leader": Field("bool", P, default=False),
     },
     computed={
         "manager_name": ("(SELECT name FROM people m WHERE m.id = people.manager_id)", S),
@@ -3496,6 +3533,55 @@ team_goals = Record(
               "metric_name": ("(SELECT name FROM metrics m WHERE m.id = team_goals.metric_id)", S)},
 )
 
+# The shadow organization: who influences whom, on what, and how strongly. Private.
+influence_links = Record(
+    entity="influence_link",
+    table="influence_links",
+    path="/api/influence-links",
+    order_by="strength DESC, id",
+    fields={
+        "from_id": Field("int", P, required=True),
+        "to_id": Field("int", P, required=True),
+        "strength": Field("int", P, default=2),
+        "topic": Field("text", P),
+        "notes": Field("text", P),
+    },
+    computed={"from_name": ("(SELECT name FROM people p WHERE p.id = influence_links.from_id)", P),
+              "to_name": ("(SELECT name FROM people p WHERE p.id = influence_links.to_id)", P)},
+    hide_when_empty=True,
+)
+
+# Groups that cooperate over time to pursue goals or protect privileges. Private.
+power_coalitions = Record(
+    entity="power_coalition",
+    table="power_coalitions",
+    path="/api/power-coalitions",
+    order_by="name",
+    fields={"name": Field("text", P, required=True), "member_ids": Field("ids", P), "agenda": Field("text", P), "notes": Field("text", P)},
+    hide_when_empty=True,
+)
+
+# Whose support an early win needs: who, what, by when; the winning and blocking alliances; and what drives the
+# pivotal people. Private.
+alliance_plans = Record(
+    entity="alliance_plan",
+    table="alliance_plans",
+    path="/api/alliance-plans",
+    order_by="id",
+    fields={
+        "title": Field("text", P, required=True),
+        "plan_item_id": Field("int", P),
+        "team_change_id": Field("int", P),
+        "objective": Field("text", P),
+        "rows": Field("json", P),
+        "winning_ids": Field("ids", P),
+        "blocking_ids": Field("ids", P),
+        "pivotal": Field("json", P),
+        "notes": Field("text", P),
+    },
+    hide_when_empty=True,
+)
+
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
 preference_assessments = Record(
     entity="preference_assessment",
@@ -3831,7 +3917,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, influence_links, power_coalitions, alliance_plans, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,

@@ -227,3 +227,21 @@ def test_vision_offsite_before_and_decisions(client):
     assert d["process"] == "build consensus" and d["process_told"]
     assert client.post("/api/culture/agreements/distributed").json()["agreements"] == 6
     assert client.post("/api/culture/agreements/distributed").status_code == 409
+
+
+def test_alliances(client):
+    a = client.post("/api/people", json={"name": "[Decider A]"}).json()["id"]
+    b = client.post("/api/people", json={"name": "[Decider B]"}).json()["id"]
+    c = client.post("/api/people", json={"name": "[Influencer C]", "opinion_leader": True, "power_sources": ["expertise"]}).json()["id"]
+    d = client.post("/api/people", json={"name": "[Blocker D]"}).json()["id"]
+    client.post("/api/influence-links", json={"from_id": c, "to_id": a, "strength": 3, "topic": "[branding]"})
+    plan = client.post("/api/alliance-plans", json={"title": "[Placeholder early win]"}).json()
+    rows = {"rows": [{"person_id": a, "what": "[approve]", "stance": "undecided"}, {"person_id": b, "stance": "for"}, {"person_id": d, "stance": "against"}]}
+    client.patch(f"/api/alliance-plans/{plan['id']}", json={"rows": rows, "winning_ids": [a, b], "blocking_ids": [d], "pivotal": {str(d): {"resist": ["power"], "status_quo": True}}})
+    dg = client.get(f"/api/alliance-plans/{plan['id']}/diagram").json()
+    ids = {n["id"]: n for n in dg["nodes"]}
+    assert set(ids) == {a, b, c, d} and ids[c]["opinion_leader"] and ids[d]["blocking"] and ids[a]["winning"]
+    assert dg["edges"] == [{"from": c, "to": a, "strength": 3, "topic": "[branding]"}]
+    g = client.get("/api/alliances/guide").json()
+    assert len(g["resist"]) == 5 and len(g["persuadable"]) == 3
+    assert client.post("/api/power-coalitions", json={"name": "[Placeholder coalition]", "member_ids": [c, d]}).status_code == 201

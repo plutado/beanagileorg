@@ -231,6 +231,42 @@ GUIDES = [
         "related": ["/alignment", "/teams", "/raci", "/sdlc"], "reading": [F90],
     },
     {
+        "slug": "building-alliances", "theme": "stakeholders", "minutes": 7, "since": 44,
+        "title": "Building alliances",
+        "summary": "Your early wins depend on people you have no authority over. Work out whose support you need, who could block you, and who influences them, then persuade the people who can tip it.",
+        "why": "A strong business case rarely carries the day by itself. New leaders, especially those used to positional authority, often present a rational plan to a big room and watch it sink. Support has to be built, person by person, before you need it.",
+        "practices": [
+            "Invest early in relationships with people you'll need later, before you need them. Think about who you haven't met yet who'll matter.",
+            "For each early win, list who you need, what you need them to do, and by when.",
+            "Identify the winning alliance (the people who together can say yes) and any blocking alliance (the people who together can say no). Aim for a critical mass, not everyone.",
+            "Map the influence network behind the decision makers: who defers to whom on which topics, and where people's influence comes from (expertise, information, connections, resources, loyalty). Watch who people look at when an issue comes up.",
+            "Find the opinion leaders, whose informal authority, expertise or personality carries weight. Convince them and others follow. Notice power coalitions, and link your agenda to theirs where you can without watering it down.",
+            "Draw it: decision makers in the middle, who influences them and how strongly, and where each person stands.",
+            "Nurture supporters rather than taking them for granted, and ask them to help persuade others. Look for allies among people who pushed for change before, people quietly improving things, newcomers, and people who agree with you on this one issue.",
+            "Probe resistance before labeling anyone an opponent. People resist out of comfort with the status quo, fear of looking incompetent, threats to their values or power, or worry about people they care about; each has a response.",
+            "Persuade the undecided: trade with the indifferent, educate the undecided, and show momentum to those waiting to see which way the wind blows.",
+            "For the pivotal people, understand what motivates them, the pressures pushing and holding them, and the choices they believe they have. We tend to blame personality and overlook the situation.",
+            "If someone thinks resistance can keep things as they are, show that the status quo is no longer an option. If people doubt promises will be kept, phase the change in, each step tied to the last.",
+        ],
+        "pitfalls": [
+            "Assuming a good business case will win on its own.",
+            "Presenting to a large group before you've built support one to one.",
+            "Trying to win over every single stakeholder.",
+            "Taking supporters for granted.",
+            "Writing people off as opponents without understanding why they resist.",
+        ],
+        "questions": [
+            "Who together can say yes to my most important early win, and who together can say no?",
+            "Whose opinion do my key decision makers rely on?",
+            "What would it take to move the most important undecided person?",
+        ],
+        "try": [
+            "Start an alliance plan for your most important early win, and draw its influence diagram.",
+            "Ask your manager for a list of the people outside your team you should meet early.",
+        ],
+        "related": ["/alliances", "/people", "/plans"], "reading": [F90],
+    },
+    {
         "slug": "your-manager", "theme": "transition", "minutes": 6,
         "title": "Building the relationship with your manager",
         "summary": "Agree early on what success looks like, how you'll keep them informed, and what support you need.",
@@ -1332,7 +1368,8 @@ TIPS = {
                  ("Add acronyms and names to the Glossary as you hear them. Speaking like the locals builds trust quickly.", "joining-from-outside", 14)],
     "/search": [("Search when you know the word; Ask when you have a question. Both see only what your privacy level allows.", "learn-fast", 20)],
     "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
-    "/people": [("Assess what people do now and the results they get, not the previous leader. Criticizing who came before gains nothing.", "building-the-team", 39),
+    "/people": [("Notice who people defer to on which topics. Mark opinion leaders and where their influence comes from.", "building-alliances", 44),
+                ("Assess what people do now and the results they get, not the previous leader. Criticizing who came before gains nothing.", "building-the-team", 39),
                ("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
                 ("Ask each person what they want to learn next, and look for work that stretches them toward it.", "delegation"),
@@ -1381,6 +1418,8 @@ TIPS = {
                 ("Look for what your best performers do differently, and help it spread through pairing and group learning.", "org-as-a-system", 38)],
     "/team-align": [("Every goal needs an owner and a number: from where, to where, by when.", "building-the-team", 42),
                     ("In a realignment, push alone won't create urgency. Put more into pull: a shared vision the team helped write.", "building-the-team", 42)],
+    "/alliances": [("You need a critical mass of support, not everyone. Who together can say yes, and who together can say no?", "building-alliances", 44),
+                   ("Build support one to one before you present to a large group.", "building-alliances", 44)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
@@ -1494,7 +1533,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 43  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 44  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

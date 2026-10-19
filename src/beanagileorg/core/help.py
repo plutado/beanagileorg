@@ -281,6 +281,14 @@ TOOLKIT = {
         "privacy": "Goals are shareable; how individuals prefer to be motivated stays private.",
         "related": ["/metrics", "/first90", "/alignment", "/coaching/building-the-team"],
     },
+    "/alliances": {
+        "purpose": "Build the support your early wins need from people you don't manage: who you need, who could block you, who influences them, and how to move the pivotal people.",
+        "steps": ["Start an alliance plan for each early win: who, what you need them to do, by when, and their stance on it.", "Tick the winning alliance and any blocking alliance, then read the influence diagram.",
+                  "Add influence links (who influences whom, on what) and note power coalitions; mark opinion leaders on people's pages.",
+                  "For each pivotal person, note motivators, the forces pushing and holding them, and the choices they think they have; use the playbook."],
+        "privacy": "Private. Hidden while presenting and never exported.",
+        "related": ["/people", "/plans", "/coaching/building-alliances"],
+    },
     "/alignment": {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
         "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",

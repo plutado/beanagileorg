@@ -220,7 +220,7 @@
   const FIELD_LABELS = { start_date: "Start date", location: "Location", timezone: "Time zone", background: "Background", skills: "Skills", certifications: "Certifications", goals: "Goals and plans",
     wants_to_learn: "Wants to learn", can_teach: "Can teach", working_style: "Working style", support_notes: "Support notes", contact: "Contact details", tags: "Tags", cadence_days: "Check-in cadence",
     influence: "Influence", stance: "Stance", communication: "How they like to communicate", motivations: "What motivates them", personal_context: "Personal context",
-    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring", change_style: "Style when leading change", change_agent: "Change agent", key_person: "Key person" };
+    things_to_remember: "Things to remember", key_dates: "Key dates", next_meeting: "Next meeting", manager_id: "Reports to", offer_them: "What I can offer them", need_from_them: "What I need from them", expects_from_me: "What they expect from me", advice: "Advice I go to them for", insight: "Insight they bring", change_style: "Style when leading change", change_agent: "Change agent", key_person: "Key person", power_sources: "Sources of power", opinion_leader: "Opinion leader" };
   const peopleTabs = (active) => `<nav class="tabs">${[["", "People"], ["org", "Org chart"], ["balance", "Balance"], ["fields", "Fields"]].map(([k, l]) => `<a href="#/people${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const revealed = (id) => { try { return sessionStorage.getItem(`ba-reveal-${id}`) === "1"; } catch { return false; } };
   const masked = (id, label, html) => `<div class="sensitive${revealed(id) ? " shown" : ""}"><div class="sensitive-head"><b>${esc(label)}</b><span class="spacer"></span>
@@ -522,6 +522,8 @@
         ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("insight", `<label>Insight they bring <span class="quiet">(where their view of the organization comes from)</span></label><div class="case-picks">${[["customer", "Customer or business user"], ["vendor", "Vendor or supplier"], ["frontline", "Frontline"], ["sales", "Sales or service"], ["staff", "Finance, legal or HR"], ["integrator", "Integrator"], ["historian", "Natural historian"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="insight" value="${k}"${(p.insight || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("change_agent", `<label class="check"><input type="checkbox" name="change_agent"${p.change_agent ? " checked" : ""}> Change agent <span class="quiet">(has the drive to help lead change; private)</span></label>`)}
+        ${extra("opinion_leader", `<label class="check"><input type="checkbox" name="opinion_leader"${p.opinion_leader ? " checked" : ""}> Opinion leader <span class="quiet">(others defer to them, formally or not; private)</span></label>`)}
+        ${extra("power_sources", `<label>Sources of power <span class="quiet">(private)</span></label><div class="row">${["expertise", "information", "connections", "resources", "loyalty"].map((k) => `<label class="check"><input type="checkbox" name="power_sources" value="${k}"${(p.power_sources || []).includes(k) ? " checked" : ""}> ${k}</label>`).join("")}</div>`)}
         ${extra("key_person", `<label class="check"><input type="checkbox" name="key_person"${p.key_person ? " checked" : ""}> Key person <span class="quiet">(someone you can't afford to lose; Today reminds you to recognize them early; private)</span></label>`)}
         ${extra("change_style", `<label>Style when leading change <span class="quiet">(your read; private)</span><select name="change_style"><option value=""></option>${[["hero", "Hero: takes charge, moves fast"], ["steward", "Steward: builds consensus, patient"], ["both", "Some of each"]].map(([k, l]) => `<option value="${k}"${p.change_style === k ? " selected" : ""}>${l}</option>`).join("")}</select></label>`)}
         ${extra("expects_from_me", `<label>What they expect from me <span class="quiet">(especially anyone who shapes how my work is judged)</span><textarea name="expects_from_me" rows="2">${esc(p.expects_from_me || "")}</textarea></label>`)}
@@ -547,6 +549,8 @@
       if (form.elements.change_style) body.change_style = fd.get("change_style") || null;
       if (form.elements.change_agent) body.change_agent = form.elements.change_agent.checked;
       if (form.elements.key_person) body.key_person = form.elements.key_person.checked;
+      if (form.elements.opinion_leader) body.opinion_leader = form.elements.opinion_leader.checked;
+      if (form.querySelector('input[name="power_sources"]')) body.power_sources = fd.getAll("power_sources");
       if (form.elements.things_to_remember) body.things_to_remember = fd.get("things_to_remember").split("\n").map((x) => x.trim()).filter(Boolean);
       if (form.querySelector("#key-dates")) {
         const labels = fd.getAll("kd_label"), dates = fd.getAll("kd_date");
@@ -1950,6 +1954,131 @@
         BA.toast("Logged."); BA.rerender();
       })));
     }
+  }
+
+  // ---------------------------------------------------------------- Alliances
+
+  const PLAN_STANCE_FILL = { for: "var(--good-soft)", undecided: "var(--warn-soft)", against: "var(--bad-soft)" };
+  const PLAN_STANCE_LINE = { for: "var(--good)", undecided: "var(--warn)", against: "var(--bad)" };
+
+  // Decision makers in the center circle, everyone else around it: blockers to the right, the rest to the left (after Figure 8-1).
+  function influenceDiagram(dg) {
+    if (!dg.nodes.length) return '<p class="quiet">Add people to the plan to draw the diagram.</p>';
+    const W = 680, H = 440, cx = 340, cy = 220, pos = {};
+    const dms = dg.nodes.filter((n) => n.winning), others = dg.nodes.filter((n) => !n.winning);
+    dms.forEach((n, i) => (pos[n.id] = [cx + (dms.length === 1 ? 0 : (i - (dms.length - 1) / 2) * Math.min(130, 260 / Math.max(1, dms.length - 1))), cy]));
+    const right = others.filter((n) => n.blocking), left = others.filter((n) => !n.blocking);
+    const arc = (list, from, to) => list.forEach((n, i) => { const a = ((from + (list.length === 1 ? (to - from) / 2 : (i * (to - from)) / (list.length - 1))) * Math.PI) / 180; pos[n.id] = [cx + 285 * Math.cos(a), cy + 180 * Math.sin(a)]; });
+    arc(right, -50, 50);
+    arc(left, 130, 250);
+    const R = 34;
+    const edges = dg.edges.filter((e) => pos[e.from] && pos[e.to]).map((e) => {
+      const [x1, y1] = pos[e.from], [x2, y2] = pos[e.to], dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+      return `<line x1="${x1 + (dx / len) * R}" y1="${y1 + (dy / len) * R}" x2="${x2 - (dx / len) * (R + 4)}" y2="${y2 - (dy / len) * (R + 4)}" stroke="var(--ink)" stroke-opacity=".7" stroke-width="${e.strength * 1.5}" marker-end="url(#id-a)"><title>${esc(e.topic || "")}</title></line>`;
+    }).join("");
+    const nodes = dg.nodes.map((n) => { const [x, y] = pos[n.id]; const name = n.name.length > 14 ? n.name.slice(0, 13) + "…" : n.name;
+      return `<g><title>${esc(n.name)}${n.stance ? ": " + n.stance : ": stance not set"}${n.opinion_leader ? " (opinion leader)" : ""}</title><ellipse cx="${x}" cy="${y}" rx="${R + 18}" ry="${R - 8}" fill="${PLAN_STANCE_FILL[n.stance] || "var(--panel)"}" stroke="${PLAN_STANCE_LINE[n.stance] || "var(--line-strong)"}" stroke-width="${n.opinion_leader ? 3 : 1.5}"/>
+        <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--ink)">${esc(name)}</text></g>`; }).join("");
+    const bracket = right.length ? (() => { const ys = right.map((n) => pos[n.id][1]); const top = Math.min(...ys) - 30, bot = Math.max(...ys) + 30, x = Math.max(...right.map((n) => pos[n.id][0])) + 60;
+      return `<path d="M${x - 10},${top} L${x},${top} L${x},${bot} L${x - 10},${bot}" fill="none" stroke="var(--muted)"/><text x="${x + 6}" y="${(top + bot) / 2}" font-size="11" fill="var(--muted)" dominant-baseline="middle">blocking</text>`; })() : "";
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Influence diagram" style="width:100%;max-width:680px;display:block;margin:0 auto">
+      <defs><marker id="id-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker></defs>
+      ${dms.length ? `<ellipse cx="${cx}" cy="${cy}" rx="${Math.max(120, dms.length * 75)}" ry="95" fill="none" stroke="var(--line-strong)"/><text x="${cx}" y="${cy - 70}" text-anchor="middle" font-size="11" fill="var(--muted)">winning alliance</text>` : ""}
+      ${edges}${nodes}${bracket}</svg>
+      <p class="quiet" style="text-align:center">Green: for · amber: undecided · red: against · grey: not set. Thicker arrows mean more influence; a heavy outline marks an opinion leader.</p>`;
+  }
+
+  BA.view("/alliances", {
+    title: "Alliances",
+    async render(main, param) {
+      if (presenting()) { main.innerHTML = '<p class="empty">Alliances are private, so they\'re hidden while presenting.</p>'; return; }
+      if (param) return renderAlliancePlan(main, Number(param));
+      const [plans, links, coalitions, people, items, changes] = await Promise.all([BA.api("/api/alliance-plans"), BA.api("/api/influence-links"), BA.api("/api/power-coalitions"), BA.api("/api/people"), BA.api("/api/plan-items"), BA.api("/api/team-changes")]);
+      const pname = Object.fromEntries(people.map((p) => [p.id, p.name]));
+      const leaders = people.filter((p) => p.opinion_leader);
+      main.innerHTML = `<p class="quiet">You'll need people you have no authority over. For each early win, work out whose support you need, who could say no together, and who influences them. A good business case isn't enough on its own. Private.</p>
+        <section class="card"><h2>Alliance plans</h2>${plans.map((a) => `<div class="item"><a href="#/alliances/${a.id}"><b>${esc(a.title)}</b></a><span class="spacer"></span><span class="quiet">${((a.rows || {}).rows || []).length} people · ${a.winning_ids.length} in the winning alliance</span></div>`).join("") || '<p class="quiet">None yet. Start one for each early win.</p>'}
+          <form id="add-ap" class="grid2" style="margin-top:10px"><label>Plan for<input name="title" required placeholder="An early win or a change"></label>
+            <label>Early win it supports<select name="plan_item_id"><option value=""></option>${items.map((i) => `<option value="${i.id}">${esc(i.title)}</option>`).join("")}</select></label>
+            <label>Or a change you're bringing<select name="team_change_id"><option value=""></option>${changes.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join("")}</select></label>
+            <div class="actions"><button class="btn primary" type="submit">Start an alliance plan</button></div></form></section>
+        <section class="card"><h2>Influence network</h2><p class="quiet">The shadow organization: who people defer to, and on what. Watch who people look at when an issue comes up, whom they go to for advice, and who shares what news. Mark opinion leaders and sources of power on each person's page.</p>
+          ${links.map((l) => `<div class="item" data-link="${l.id}"><span>${esc(l.from_name || "")} <span class="quiet">influences</span> ${esc(l.to_name || "")}${l.topic ? ` <span class="quiet">on ${esc(l.topic)}</span>` : ""}</span><span class="spacer"></span><span class="pill">${["", "some", "strong", "very strong"][l.strength] || l.strength}</span><button class="icon-btn" title="Delete" data-link-del>${BA.icon("x")}</button></div>`).join("") || '<p class="quiet">No links yet.</p>'}
+          <form id="add-link" class="row" style="margin-top:8px"><select name="from_id" required style="max-width:200px"><option value="">Who</option>${people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select><span class="quiet">influences</span>
+            <select name="to_id" required style="max-width:200px"><option value="">whom</option>${people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>
+            <input name="topic" placeholder="On what" style="max-width:180px"><select name="strength" style="max-width:130px"><option value="1">some</option><option value="2" selected>strong</option><option value="3">very strong</option></select><button class="btn" type="submit">Add</button></form>
+          ${leaders.length ? `<p><b>Opinion leaders:</b> ${leaders.map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ")}</p>` : ""}</section>
+        <section class="card"><h2>Power coalitions</h2><p class="quiet">Groups that work together over time to pursue goals or protect privileges. Linking your agenda to theirs can build support, as long as it doesn't water down what you're trying to do.</p>
+          ${coalitions.map((c) => `<div class="item" data-coal="${c.id}"><span><b>${esc(c.name)}</b><br><span class="quiet">${c.member_ids.map((i) => esc(pname[i] || "")).join(", ")}${c.agenda ? " · " + esc(c.agenda) : ""}</span></span><span class="spacer"></span><button class="icon-btn" title="Delete" data-coal-del>${BA.icon("x")}</button></div>`).join("") || '<p class="quiet">None noted yet.</p>'}
+          <form id="add-coal" style="margin-top:8px"><div class="grid2"><label>Coalition<input name="name" required></label><label>What they pursue or protect<input name="agenda"></label></div>
+            <label>Members</label><div class="case-picks">${people.map((p) => `<label class="check"><input type="checkbox" name="member_ids" value="${p.id}"> ${esc(p.name)}</label>`).join("")}</div><div class="actions"><button class="btn" type="submit">Add</button></div></form></section>`;
+      const n = (v) => (v ? Number(v) : null);
+      main.querySelector("#add-ap").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); const a = await BA.api("/api/alliance-plans", { method: "POST", body: { title: fd.get("title"), plan_item_id: n(fd.get("plan_item_id")), team_change_id: n(fd.get("team_change_id")) } }); BA.go(`/alliances/${a.id}`); });
+      main.querySelector("#add-link").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); if (fd.get("from_id") === fd.get("to_id")) throw new Error("Pick two different people."); await BA.api("/api/influence-links", { method: "POST", body: { from_id: n(fd.get("from_id")), to_id: n(fd.get("to_id")), topic: fd.get("topic"), strength: Number(fd.get("strength")) } }); BA.rerender(); });
+      main.querySelector("#add-coal").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api("/api/power-coalitions", { method: "POST", body: { name: fd.get("name"), agenda: fd.get("agenda"), member_ids: fd.getAll("member_ids").map(Number) } }); BA.rerender(); });
+      main.querySelectorAll("[data-link-del]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/influence-links/${b.closest("[data-link]").dataset.link}`, { method: "DELETE" }); BA.rerender(); })));
+      main.querySelectorAll("[data-coal-del]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/power-coalitions/${b.closest("[data-coal]").dataset.coal}`, { method: "DELETE" }); BA.rerender(); })));
+    },
+  });
+
+  async function renderAlliancePlan(main, id) {
+    const [a, g, people, dg] = await Promise.all([BA.api(`/api/alliance-plans/${id}`), BA.api("/api/alliances/guide"), BA.api("/api/people"), BA.api(`/api/alliance-plans/${id}/diagram`)]);
+    document.getElementById("view-title").textContent = a.title;
+    let rows = ((a.rows || {}).rows || []).map((r) => ({ ...r }));
+    const pv = a.pivotal || {};
+    const pname = Object.fromEntries(people.map((p) => [p.id, p.name]));
+    const rowHtml = (r, i) => `<tr data-i="${i}"><td><select name="person_id" style="min-width:160px"><option value=""></option>${people.map((p) => `<option value="${p.id}"${r.person_id === p.id ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></td>
+      <td><input name="what" value="${esc(r.what || "")}" placeholder="What you need them to do" style="min-width:200px"></td><td><input name="when" value="${esc(r.when || "")}" placeholder="By when" style="min-width:110px"></td>
+      <td><select name="stance" style="min-width:110px"><option value=""></option>${opts(g.stances, r.stance)}</select></td>
+      <td style="text-align:center"><input type="checkbox" name="winning"${a.winning_ids.includes(r.person_id) ? " checked" : ""}></td><td style="text-align:center"><input type="checkbox" name="blocking"${a.blocking_ids.includes(r.person_id) ? " checked" : ""}></td>
+      <td><button class="icon-btn" type="button" data-rm title="Remove">${BA.icon("x")}</button></td></tr>`;
+    const pivotal = rows.filter((r) => r.person_id && (r.stance !== "for" || a.winning_ids.includes(r.person_id)));
+    const pivCard = (r) => { const v = pv[r.person_id] || {};
+      return `<details class="plan-item" data-pv="${r.person_id}"><summary><b>${esc(pname[r.person_id] || "")}</b><span class="spacer"></span>${r.stance ? `<span class="pill ${r.stance === "for" ? "good" : r.stance === "against" ? "bad" : "warn"}">${esc(r.stance)}</span>` : ""}${v.status_quo ? '<span class="pill warn">thinks the status quo can survive</span>' : ""}</summary><form>
+        <label>What motivates them</label><div class="row">${g.motivators.map((m) => `<label class="check"><input type="checkbox" name="motivators" value="${m}"${(v.motivators || []).includes(m) ? " checked" : ""}> ${m}</label>`).join("")}</div>
+        <div class="grid2"><label>Forces pushing them your way<textarea name="driving" rows="2">${esc(v.driving || "")}</textarea></label><label>Forces holding them back<textarea name="restraining" rows="2">${esc(v.restraining || "")}</textarea></label></div>
+        <label>The choices they believe they have<textarea name="alternatives" rows="2">${esc(v.alternatives || "")}</textarea></label>
+        <label class="check"><input type="checkbox" name="status_quo"${v.status_quo ? " checked" : ""}> They believe resisting can keep things as they are</label>
+        ${r.stance === "against" ? `<label>Why they resist</label>${g.resist.map((x) => `<label class="check"><input type="checkbox" name="resist" value="${x.key}"${(v.resist || []).includes(x.key) ? " checked" : ""}> ${esc(x.reason)} <span class="quiet">→ ${esc(x.response)}</span></label>`).join("")}` : ""}
+        ${r.stance === "undecided" ? `<label>Why they're undecided<select name="persuadable"><option value=""></option>${g.persuadable.map((x) => `<option value="${x.key}"${v.persuadable === x.key ? " selected" : ""}>${esc(x.name)}: ${esc(x.approach)}</option>`).join("")}</select></label>` : ""}
+        <label>What you could offer in return<input name="trade" value="${esc(v.trade || "")}"></label>
+        <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></details>`; };
+    const draw = () => {
+      main.innerHTML = `<p><a href="#/alliances">Alliances</a></p>
+        <section class="card"><h2>Influence diagram</h2>${influenceDiagram(dg)}<p class="quiet">Add influence links on the <a href="#/alliances">Alliances</a> page; anyone who influences someone in this plan appears here.</p></section>
+        <section class="card"><h2>Who, what and when</h2><p class="quiet">The people whose support you need, what you need them to do, and by when. Tick who's in the winning alliance (together they can say yes) and who could form a blocking one (together they can say no). You need a critical mass, not everyone.</p>
+          <div class="tablewrap"><table class="data" id="ap-rows"><thead><tr><th>Who</th><th>What</th><th>When</th><th>Stance on this</th><th>Winning</th><th>Blocking</th><th></th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table></div>
+          <div class="actions"><button class="btn left" type="button" id="ap-add">Add a person</button><button class="btn primary" type="button" id="ap-save">Save</button></div></section>
+        <section class="card"><h2>Pivotal people</h2><p class="quiet">${esc(g.forces)}</p>${pivotal.map(pivCard).join("") || '<p class="quiet">People who are undecided, against, or in the winning alliance show here once saved.</p>'}</section>
+        <section class="card"><h2>Objective and notes</h2><form id="ap-meta"><label>Plan<input name="title" value="${esc(a.title)}"></label><label>What you need agreed<textarea name="objective" rows="2">${esc(a.objective || "")}</textarea></label><label>Notes<textarea name="notes" rows="2">${esc(a.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" id="ap-del">Delete</button><button class="btn" type="submit">Save</button></div></form></section>
+        <section class="card"><h2>Playbook</h2><h3>Supporters</h3><div class="md"><ul>${g.supporters.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+          <h3>Opponents</h3><p>${esc(g.opponents)}</p><div class="md"><ul>${g.resist.map((x) => `<li><b>${esc(x.reason)}.</b> ${esc(x.response)}</li>`).join("")}</ul></div>
+          <h3>Persuadables</h3><div class="md"><ul>${g.persuadable.map((x) => `<li><b>${esc(x.name)}.</b> ${esc(x.approach)}</li>`).join("")}</ul></div>
+          <p class="callout">${esc(g.status_quo)} ${esc(g.phasing)}</p></section>`;
+      const readRows = () => main.querySelectorAll("#ap-rows tr[data-i]").forEach((tr) => { const i = Number(tr.dataset.i), q = (nm) => tr.querySelector(`[name=${nm}]`);
+        rows[i] = { person_id: q("person_id").value ? Number(q("person_id").value) : null, what: q("what").value, when: q("when").value, stance: q("stance").value || null, _w: q("winning").checked, _b: q("blocking").checked }; });
+      main.querySelector("#ap-add").onclick = () => { readRows(); rows.push({}); a.winning_ids = rows.filter((r) => r._w).map((r) => r.person_id); a.blocking_ids = rows.filter((r) => r._b).map((r) => r.person_id); draw(); };
+      main.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => { readRows(); rows.splice(Number(b.closest("tr").dataset.i), 1); a.winning_ids = rows.filter((r) => r._w).map((r) => r.person_id); a.blocking_ids = rows.filter((r) => r._b).map((r) => r.person_id); draw(); }));
+      main.querySelector("#ap-save").onclick = BA.guard(async () => {
+        readRows();
+        const keep = rows.filter((r) => r.person_id);
+        await BA.api(`/api/alliance-plans/${id}`, { method: "PATCH", body: { rows: { rows: keep.map(({ _w, _b, ...r }) => r) }, winning_ids: keep.filter((r) => r._w).map((r) => r.person_id), blocking_ids: keep.filter((r) => r._b).map((r) => r.person_id) } });
+        BA.toast("Saved."); BA.rerender();
+      });
+      main.querySelectorAll("[data-pv]").forEach((det) => {
+        const f = det.querySelector("form");
+        f.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const fd = new FormData(f), next = { ...pv, [det.dataset.pv]: { motivators: fd.getAll("motivators"), driving: fd.get("driving"), restraining: fd.get("restraining"), alternatives: fd.get("alternatives"), status_quo: fd.get("status_quo") === "on", resist: fd.getAll("resist"), persuadable: fd.get("persuadable") || null, trade: fd.get("trade") } };
+          await BA.api(`/api/alliance-plans/${id}`, { method: "PATCH", body: { pivotal: next } });
+          BA.toast("Saved."); BA.rerender();
+        });
+      });
+      main.querySelector("#ap-meta").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api(`/api/alliance-plans/${id}`, { method: "PATCH", body: { title: fd.get("title"), objective: fd.get("objective"), notes: fd.get("notes") } }); BA.toast("Saved."); BA.rerender(); });
+      main.querySelector("#ap-del").onclick = BA.guard(async () => { if (!confirm("Delete this alliance plan?")) return; await BA.api(`/api/alliance-plans/${id}`, { method: "DELETE" }); BA.go("/alliances"); });
+    };
+    draw();
   }
 
   // ---------------------------------------------------------------- Organizational alignment
