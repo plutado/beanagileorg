@@ -1369,7 +1369,8 @@ TIPS = {
     "/changes": [("New work goes to the backlog by default. When it must come in now, something of similar size comes out.", "change-mid-sprint", 7),
                  ("Tell the requester the decision and the reason the same day, especially when it's no or later.", "change-mid-sprint", 7),
                  ("Look at scope change per sprint in your retros. A trend is easier to discuss than a single request.", "change-mid-sprint", 7)],
-    "/culture": [("Culture follows the setup: what's measured, how goals and incentives work, and what leaders do. Change those, not slogans.", "org-as-a-system", 38),
+    "/culture": [("Close the loop on upward questions: answer quickly, and tell the team what you heard. Asking only feels worth it when something comes back.", "psychological-safety", 48),
+                 ("Culture follows the setup: what's measured, how goals and incentives work, and what leaders do. Change those, not slogans.", "org-as-a-system", 38),
                  ('What you tolerate becomes the standard. Address harmful behavior early, privately, and follow up.', 'calling-out-harm', 6),
                  ("Read today's standard before your first meeting, and look for one chance to live it.", 'consistency-and-integrity', 6),
                  ("Note the good moments too. Reinforcing what you want to see works faster than correcting what you don't.", 'culture-of-trust', 6),
@@ -1546,7 +1547,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 47  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 48  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

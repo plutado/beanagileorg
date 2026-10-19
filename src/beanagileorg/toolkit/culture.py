@@ -236,6 +236,10 @@ def culture_due(conn) -> dict:
         "unaddressed": [{"id": o["id"], "title": o["title"], "date": o["date"]} for o in _unaddressed(conn)],
         "follow_ups": [{"id": o["id"], "title": o["title"], "follow_up": o["follow_up"]} for o in models.culture_observations.fetch_all(conn, "status != 'addressed' AND follow_up IS NOT NULL AND follow_up <= ?", (week,))],
         "pulse_due": bool(mine) and (_today() - date.fromisoformat(mine[0]["date"])).days >= days,
+        # Questions sent upward two weeks ago with no answer yet, and answers the team hasn't heard back.
+        "upward_waiting": [{"id": q["id"], "question": q["question"], "sent_on": q["sent_on"]} for q in models.upward_questions.fetch_all(
+            conn, "status = 'sent' AND sent_on IS NOT NULL AND sent_on <= ?", ((_today() - timedelta(days=14)).isoformat(),))],
+        "upward_untold": [{"id": q["id"], "question": q["question"]} for q in models.upward_questions.fetch_all(conn, "status = 'answered' AND shared_on IS NULL")],
     }
 
 

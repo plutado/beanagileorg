@@ -150,11 +150,13 @@
             ...d.vendor_concerns.map((c) => `<div class="item"><span class="pill">concern</span><a href="#/vendors/${c.vendor_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(c.due)}</span></div>`),
           ].join("") || empty("No renewals or vendor concerns coming up.")
         }</section>
-        ${d.culture && (d.culture.standard || d.culture.unaddressed.length || d.culture.follow_ups.length || d.culture.pulse_due) ? `<section class="card culture-today"><h2>Culture and trust</h2>
+        ${d.culture && (d.culture.standard || d.culture.unaddressed.length || d.culture.follow_ups.length || d.culture.pulse_due || (d.culture.upward_waiting || []).length || (d.culture.upward_untold || []).length) ? `<section class="card culture-today"><h2>Culture and trust</h2>
           ${d.culture.standard ? `<blockquote class="standard-quote">${esc(d.culture.standard.text)}</blockquote>` : ""}
           ${d.culture.unaddressed.map((o) => `<div class="item"><span class="pill bad">unaddressed</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">noticed ${BA.fmtDate(o.date)}</span></div>`).join("")}
           ${d.culture.follow_ups.map((o) => `<div class="item"><span class="pill warn">follow up</span><a href="#/culture/noticing">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(o.follow_up)}</span></div>`).join("")}
-          ${d.culture.pulse_due ? '<div class="item"><span class="pill">pulse</span><a href="#/culture/pulse">Time for a trust pulse</a></div>' : ""}</section>` : ""}
+          ${d.culture.pulse_due ? '<div class="item"><span class="pill">pulse</span><a href="#/culture/pulse">Time for a trust pulse</a></div>' : ""}
+          ${(d.culture.upward_waiting || []).map((q) => `<div class="item"><span class="pill warn">chase</span><a href="#/culture/upward">${esc(q.question)}</a><span class="spacer"></span><span class="quiet">sent ${BA.fmtDate(q.sent_on)}</span></div>`).join("")}
+          ${(d.culture.upward_untold || []).map((q) => `<div class="item"><span class="pill">tell the team</span><a href="#/culture/upward">${esc(q.question)}</a></div>`).join("")}</section>` : ""}
         ${d.people_due && d.people_due.neighbors && d.people_due.neighbors.length ? `<section class="card"><h2>Meet them before an incident</h2>
           <p class="quiet">People named on your systems you haven't had a conversation with yet. Better to meet now than in the middle of an outage.</p>
           ${d.people_due.neighbors.map((n) => `<div class="item"><a href="#/people/${n.id}">${esc(n.name)}</a><span class="spacer"></span><span class="quiet">${esc(n.systems.join(", "))}</span></div>`).join("")}</section>` : ""}
@@ -5441,14 +5443,14 @@
   const C_STATUS = ["open", "watching", "addressed"];
   const C_STATUS_TONES = { open: "warn", watching: "accent", addressed: "good" };
   const A_AREAS = ["working together", "disagreement", "meetings", "code review", "communication", "quality", "other"];
-  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["map", "Culture map"], ["glossary", "Glossary"], ["behaviors", "Behaviors to change"], ["brief", "Role brief"]]
+  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["map", "Culture map"], ["glossary", "Glossary"], ["behaviors", "Behaviors to change"], ["upward", "Upward questions"], ["brief", "Role brief"]]
     .map(([k, l]) => `<a href="#/culture${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const bars = (vals, max = 5) => `<span class="mini-bars">${vals.map((v) => `<span title="${v ?? "–"}" style="height:${v ? Math.round((v / max) * 100) : 4}%"></span>`).join("")}</span>`;
 
   BA.view("/culture", {
     title: "Culture and trust",
     async render(main, param) {
-      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, map: renderCultureMap, glossary: renderGlossary, behaviors: renderBehaviors, brief: renderBrief };
+      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, map: renderCultureMap, glossary: renderGlossary, behaviors: renderBehaviors, upward: renderUpward, brief: renderBrief };
       if (views[param]) return views[param](main);
       const d = await BA.api("/api/culture/overview");
       if (!d.private) {
@@ -5474,6 +5476,41 @@
           : `<section class="card"><h2>Role brief</h2><p class="quiet">Write down what you were brought in to do and the situation you inherited, so it stays beside the day-to-day. <a href="#/culture/brief">Write it</a>.</p></section>`}`;
     },
   });
+
+  // Questions the team wants leadership to answer: who it went to, the answer, how long it took, and whether the team heard back.
+  async function renderUpward(main) {
+    const [qs, people] = await Promise.all([BA.api("/api/upward-questions"), BA.api("/api/people")]);
+    const ro = presenting();
+    const answered = qs.filter((q) => q.days_to_answer != null), avg = answered.length ? Math.round(answered.reduce((a, q) => a + q.days_to_answer, 0) / answered.length) : null;
+    const tone = { open: "", sent: "warn", answered: "good", closed: "" };
+    const fields = (q = {}) => `<div class="grid2"><label>Question<textarea name="question" rows="2" required>${esc(q.question || "")}</textarea></label>
+        <div><label class="check"><input type="checkbox" name="anonymous"${q.anonymous ? " checked" : ""}> Anonymous <span class="quiet">(don't record who asked)</span></label>
+        <label data-asker${q.anonymous ? ' style="display:none"' : ""}>Asked by <span class="quiet">(private)</span><select name="asked_by_id">${personOptions(people, q.asked_by_id)}</select></label>
+        <label>Asked on<input type="date" name="asked_on" value="${esc(q.asked_on || BA.today())}"></label></div>
+        <label>Went to<select name="went_to_id">${personOptions(people, q.went_to_id)}</select></label><label>Sent on<input type="date" name="sent_on" value="${esc(q.sent_on || "")}"></label>
+        ${q.id ? `<label>Answer<textarea name="answer" rows="2">${esc(q.answer || "")}</textarea></label><div><label>Answered on<input type="date" name="answered_on" value="${esc(q.answered_on || "")}"></label>
+          <label>Shared back with the team on<input type="date" name="shared_on" value="${esc(q.shared_on || "")}"></label></div>` : ""}</div>`;
+    const read = (form) => { const fd = new FormData(form), anon = fd.get("anonymous") === "on";
+      const body = { question: fd.get("question"), anonymous: anon, asked_by_id: anon ? null : numOrNull(fd.get("asked_by_id")), asked_on: fd.get("asked_on") || null, went_to_id: numOrNull(fd.get("went_to_id")), sent_on: fd.get("sent_on") || null };
+      if (form.elements.answer) Object.assign(body, { answer: fd.get("answer"), answered_on: fd.get("answered_on") || null, shared_on: fd.get("shared_on") || null });
+      body.status = body.answered_on || (body.answer || "").trim() ? (body.shared_on ? "closed" : "answered") : body.sent_on ? "sent" : "open";
+      return body; };
+    main.innerHTML = `${cultureTabs("upward")}
+      <p class="quiet">Questions the team wants answered by leadership. Log each one, who it went to and when, the answer, and when you told the team. Answering quickly, and closing the loop, shows that asking is worth it. The question and answer can be shown; who asked stays private, or isn't recorded at all.</p>
+      <section class="card"><div class="stat-row"><div><b>${qs.filter((q) => q.status === "open").length}</b><span>not yet sent</span></div><div><b>${qs.filter((q) => q.status === "sent").length}</b><span>waiting on an answer</span></div><div><b>${qs.filter((q) => q.status === "answered").length}</b><span>answered, not shared yet</span></div><div><b>${avg ?? "–"}</b><span>days to answer, on average</span></div></div></section>
+      ${ro ? "" : `<form id="add-upq" class="card"><h2>Log a question</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}
+      <section class="card">${qs.map((q) => `<details class="plan-item" data-upq="${q.id}"><summary><span>${esc(q.question)}</span><span class="spacer"></span>${q.anonymous ? '<span class="quiet">anonymous</span>' : ""}${q.went_to_name ? `<span class="quiet">to ${esc(q.went_to_name)}</span>` : ""}${q.days_to_answer != null ? `<span class="quiet">${q.days_to_answer} day${q.days_to_answer === 1 ? "" : "s"}</span>` : ""}<span class="pill ${tone[q.status]}">${esc(q.status)}</span></summary>
+          ${ro ? (q.answer ? BA.md(q.answer) : '<p class="quiet">No answer yet.</p>') : `<form>${fields(q)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("") || '<p class="quiet">No questions logged yet.</p>'}</section>`;
+    if (ro) return;
+    const wireAnon = (form) => { const cb = form.querySelector("[name=anonymous]"), box = form.querySelector("[data-asker]"); cb.onchange = () => (box.style.display = cb.checked ? "none" : ""); };
+    const add = main.querySelector("#add-upq"); wireAnon(add);
+    add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/upward-questions", { method: "POST", body: read(add) }); BA.toast("Logged."); BA.rerender(); });
+    main.querySelectorAll("[data-upq]").forEach((det) => {
+      const form = det.querySelector("form"), id = det.dataset.upq; wireAnon(form);
+      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/upward-questions/${id}`, { method: "PATCH", body: read(form) }); BA.toast("Saved."); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this question?")) return; await BA.api(`/api/upward-questions/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+  }
 
   async function renderNoticing(main) {
     const [obs, people] = await Promise.all([BA.api("/api/culture-observations"), BA.api("/api/people")]);
@@ -5736,7 +5773,7 @@
       if (param === "all") return renderAllChanges(main);
       if (param === "policy") return renderChangePolicy(main);
       if (param) return renderChange(main, Number(param));
-      const d = await BA.api("/api/change-requests/overview");
+      const [d, who] = await Promise.all([BA.api("/api/change-requests/overview"), BA.api("/api/change-requests/requesters")]);
       const s = d.sprint;
       const maxPts = Math.max(1, ...d.churn.map((c) => Math.max(c.points_in, c.points_out)));
       main.innerHTML = `${changeTabs("")}
@@ -5753,7 +5790,9 @@
             <b>S${c.number}</b><span class="quiet">${c.requests} req${c.changed_pct != null ? ` · ${c.changed_pct}%` : ""}</span></div>`).join("")}</div>
           <p class="quiet"><span class="legend in"></span> points added <span class="legend out"></span> points swapped out. The percentage is points added against what was committed at planning.</p>` : '<p class="quiet">No requests recorded against a sprint yet.</p>'}</section>
         <section class="card"><h2>Recently decided</h2>${d.recent.map(crRow).join("") || '<p class="quiet">None yet.</p>'}</section>
-        ${d.policy ? "" : '<section class="card"><h2>Write your policy</h2><p class="quiet">Agree with your product owner how mid-sprint requests are handled, and share it with stakeholders before the first one arrives. <a href="#/changes/policy">Start from a draft</a>.</p></section>'}`;
+        ${d.policy ? "" : '<section class="card"><h2>Write your policy</h2><p class="quiet">Agree with your product owner how mid-sprint requests are handled, and share it with stakeholders before the first one arrives. <a href="#/changes/policy">Start from a draft</a>.</p></section>'}
+        ${who.total ? `<section class="card"><h2>Who asks</h2><p class="quiet">Who brings work mid-sprint most often, and how much of it was accepted. Frequent askers are people to talk to early in planning, so their needs reach the backlog before the sprint starts.</p>
+          ${[["By person", who.people], ["By source", who.sources]].filter(([, rows]) => rows.length).map(([title, rows]) => `<h3>${title}</h3><div class="tablewrap"><table class="data"><thead><tr><th></th><th>Requests</th><th>Accepted</th><th>To the backlog</th><th>Declined</th><th>Emergencies</th><th>Last asked</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.requests}</td><td>${r.accepted}${r.accepted_pct != null ? ` <span class="quiet">(${r.accepted_pct}%)</span>` : ""}</td><td>${r.deferred}</td><td>${r.rejected}</td><td>${r.emergencies ? `<span class="pill warn">${r.emergencies}</span>` : "0"}</td><td>${BA.fmtDate(r.last)}</td></tr>`).join("")}</tbody></table></div>`).join("")}</section>` : ""}`;
     },
   });
 
@@ -5850,7 +5889,9 @@
     main.innerHTML = `${changeTabs("policy")}
       <section class="card"><h2>How we handle requests during a sprint</h2>${d.policy ? BA.md(d.policy) : '<p class="quiet">No policy yet.</p>'}</section>
       ${ro ? "" : `<form id="policy" class="card"><h2>Edit the policy</h2><p class="quiet">Write the rules for what happens when someone asks for new work in the middle of a sprint. Before you use it, agree it with the product owner and the team, then explain it to the people who send requests. For headings and lists, start a line with # or -.</p>
-        <textarea name="policy" rows="16">${esc(d.policy || "")}</textarea><div class="actions">${d.policy ? "" : '<button class="btn left" type="button" id="starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}`;
+        <textarea name="policy" rows="16">${esc(d.policy || "")}</textarea><div class="actions">${d.policy ? "" : '<button class="btn left" type="button" id="starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}
+      <section class="card"><h2>Share it with stakeholders</h2><p class="quiet">A short summary for the people who send requests: your policy, what's happened over the last few sprints, and how to ask. Copy it into a message, a page, or the Comms studio.</p><button class="btn" id="policy-summary">Copy the summary</button></section>`;
+    main.querySelector("#policy-summary").onclick = BA.guard(async () => { const x = await BA.api("/api/change-requests/policy-summary"); await navigator.clipboard.writeText(x.markdown); BA.toast("Summary copied as Markdown."); });
     if (ro) return;
     const form = main.querySelector("#policy");
     form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/change-requests/policy", { method: "PUT", body: { policy: form.elements.policy.value } }); BA.toast("Saved."); BA.rerender(); });

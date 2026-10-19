@@ -25,8 +25,7 @@ In priority order:
 - [ ] People: export the current People list as a roster file, so a team can be moved between installs; open seats (a role you're hiring for) as their own kind of placeholder
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
-- [ ] Change requests: who asks most often and what share of their requests were accepted; link a request to a Jira issue and import interruptions flagged in Jira; a stakeholder-facing summary of the policy to share
-- [ ] Culture: an upward questions log (questions the team wants answered by leadership, with an anonymous option, who it went to, the answer and the time to answer)
+- [ ] Change requests: import interruptions flagged in Jira (who asks most and the stakeholder summary are done)
 - [ ] Culture: import outside culture signals (themes from public reviews) as organization-level notes with a source and date, so they sit beside what you see yourself
 - [ ] Culture: show agreed team agreements inside the retro view, and a growth-path page for direct reports (levels and what moves someone up)
 - [ ] People: a stakeholder map (influence against stance) drawn from the CRM fields; import contacts from a CSV; reminders before a one-on-one with an agenda drafted from open follow-ups
@@ -119,7 +118,7 @@ In priority order:
 
 ## Shared base and platform
 
-- [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location; a warning on Today when the last good backup is more than two days old
+- [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location
 - [ ] Timed sharing (Share control): same-network and Tailscale modes, read-only presentable view, access code, auto-timeout, banner, visit log
 - [ ] Optional Odysseus integration: documents, calendar, local models, scheduled jobs
 - [ ] MCP server exposing toolkit tools, scoped like the API
@@ -134,6 +133,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Change requests Who asks and a stakeholder policy summary (#21); Culture upward questions log with Today reminders (#22) (migration 61). The backup warning on Today was already built, so it's off the backlog; 297 tests
 - [x] 2026-10-19: Roadmap drag to reorder and a timeline view (#20): rows reorder by dragging; the timeline lays items out by day in lanes by kind, stacked so labels never overlap, and dragging an item changes its target day. Time to restore joins the starter metrics; 295 tests
 - [x] 2026-10-19: Releases, next (#19). A release calendar beside regression windows with clash warnings; time to restore from incidents linked to failed releases, recorded to Metrics; accepted change requests linked to the release they landed in, and in its release notes (migration 60); 293 tests
 - [x] 2026-10-19: Follow-ups to releases, metrics and plans. Plan check-in reminders on Today and check-in counts on each plan; compare any two plan versions; What I heard collapsible above the plans so they use the full width; each metric's direction on Metrics and in the weekly report; release go/no-go decisions logged under Risks and decisions; 292 tests

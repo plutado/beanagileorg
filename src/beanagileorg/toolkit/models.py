@@ -49,6 +49,7 @@ POWER_SOURCES = ("expertise", "information", "connections", "resources", "loyalt
 RELEASE_STATUS = ("planned", "in progress", "in QA", "ready", "released", "cancelled")
 RELEASE_DECISIONS = ("pending", "go", "no-go")
 RELEASE_OUTCOMES = ("clean", "hotfix", "rollback", "incident")
+UPWARD_STATUS = ("open", "sent", "answered", "closed")
 OWNERSHIP = ("owns problems", "makes excuses", "points at others")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
@@ -1823,6 +1824,25 @@ MIGRATIONS = [
         60,
         """
         ALTER TABLE releases ADD COLUMN change_request_ids TEXT;
+        """,
+    ),
+    (
+        61,
+        """
+        CREATE TABLE upward_questions (
+            id INTEGER PRIMARY KEY,
+            question TEXT NOT NULL,
+            asked_on TEXT,
+            anonymous INTEGER NOT NULL DEFAULT 0,
+            asked_by_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            went_to_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            sent_on TEXT,
+            answer TEXT,
+            answered_on TEXT,
+            shared_on TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            notes TEXT
+        );
         """,
     ),
 ]
@@ -3692,6 +3712,33 @@ releases = Record(
     },
 )
 
+# Questions the team wants answered by leadership: who it went to, the answer, how long it took, and whether the
+# team heard back. The question and answer are shareable; who asked stays private, or isn't recorded at all.
+upward_questions = Record(
+    entity="upward_question",
+    table="upward_questions",
+    path="/api/upward-questions",
+    order_by="status IN ('answered', 'closed'), asked_on DESC, id DESC",
+    fields={
+        "question": Field("text", S, required=True),
+        "asked_on": Field("date", S),
+        "anonymous": Field("bool", S, default=False),
+        "asked_by_id": Field("int", P),
+        "went_to_id": Field("int", S),
+        "sent_on": Field("date", S),
+        "answer": Field("text", S),
+        "answered_on": Field("date", S),
+        "shared_on": Field("date", S),
+        "status": Field("text", S, choices=UPWARD_STATUS, default="open"),
+        "notes": Field("text", P),
+    },
+    computed={
+        "went_to_name": ("(SELECT name FROM people p WHERE p.id = upward_questions.went_to_id)", S),
+        "asked_by_name": ("(SELECT name FROM people p WHERE p.id = upward_questions.asked_by_id)", P),
+        "days_to_answer": ("(CASE WHEN upward_questions.answered_on IS NOT NULL AND upward_questions.sent_on IS NOT NULL THEN CAST(julianday(upward_questions.answered_on) - julianday(upward_questions.sent_on) AS INTEGER) END)", S),
+    },
+)
+
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
 preference_assessments = Record(
     entity="preference_assessment",
@@ -4027,7 +4074,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, influence_links, power_coalitions, alliance_plans, releases, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, influence_links, power_coalitions, alliance_plans, releases, upward_questions, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items, plan_versions,
