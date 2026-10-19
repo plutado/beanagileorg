@@ -2608,7 +2608,7 @@
   BA.view("/metrics", {
     title: "Metrics",
     async render(main) {
-      const metrics = await BA.api("/api/metrics");
+      const [metrics, readings] = await Promise.all([BA.api("/api/metrics"), BA.api("/api/metric-readings")]);
       if (!metrics.length) {
         main.innerHTML = starterButton("metrics");
         wireStarter(main);
@@ -2628,7 +2628,17 @@
             <td>${presenting() ? `${esc(m.benchmark || "")}<div class="quiet">${esc(m.benchmark_source || "")}</div>` : `<input name="benchmark" value="${esc(m.benchmark || "")}" placeholder="Outside reference" style="max-width:150px"><input name="benchmark_source" value="${esc(m.benchmark_source || "")}" placeholder="Source" style="max-width:150px;margin-top:4px">`}</td>
             <td>${fmt(m.latest, m.unit)}<div class="quiet">${BA.fmtDate(m.latest_date)}</div></td><td>${onTrack(m)}</td>
             ${presenting() ? "" : `<td><span class="row"><input type="date" data-rdate="${m.id}" value="${BA.today()}" style="max-width:160px"><input type="number" step="any" data-rval="${m.id}" placeholder="Value" style="max-width:100px"><button class="btn" data-radd="${m.id}">Add</button></span></td>`}</tr>`)
-          .join("")}</tbody></table></div>`;
+          .join("")}</tbody></table></div>
+        <section class="card"><h2>Trends</h2><p class="quiet">Each measure over time, against its baseline and target. Look at the direction, not single readings. Hover a point for its value.</p>
+          <div class="metric-trends" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${metrics.map((m) => metricTrend(m, readings.filter((r) => r.metric_id === m.id))).join("")}</div>
+          <div id="trend-tip" role="tooltip" style="position:fixed;display:none;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px;font-size:12px;box-shadow:var(--shadow-sm);z-index:50"></div></section>`;
+      const tip = main.querySelector("#trend-tip");
+      main.querySelectorAll("[data-pt]").forEach((pt) => {
+        pt.onmouseenter = (e) => { tip.textContent = pt.dataset.pt; tip.style.display = "block"; tip.style.left = `${e.clientX + 12}px`; tip.style.top = `${e.clientY - 28}px`; };
+        pt.onmousemove = (e) => { tip.style.left = `${e.clientX + 12}px`; tip.style.top = `${e.clientY - 28}px`; };
+        pt.onmouseleave = () => (tip.style.display = "none");
+      });
+      main.querySelectorAll("[data-rdel]").forEach((b) => (b.onclick = BA.guard(async () => { if (!confirm("Delete this reading?")) return; await BA.api(`/api/metric-readings/${b.dataset.rdel}`, { method: "DELETE" }); BA.rerender(); })));
       main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
         if (["benchmark", "benchmark_source"].includes(e.target.name)) { await BA.api(`/api/metrics/${tr.dataset.id}`, { method: "PATCH", body: { [e.target.name]: e.target.value || null } }); BA.toast("Saved."); return; }
         if (!["baseline", "target"].includes(e.target.name)) return;
@@ -2644,6 +2654,38 @@
       })));
     },
   });
+
+  // One metric over time: a 2px line with markers, dashed baseline and target lines, the latest value labeled,
+  // a hover tooltip on every reading, and the readings as a table for anyone who'd rather read numbers.
+  function metricTrend(m, rs) {
+    const pts = rs.filter((r) => r.date && r.value != null).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
+    const unit = m.unit ? " " + m.unit : "", num = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const head = `<div class="row" style="align-items:baseline"><b>${esc(m.name)}</b><span class="spacer"></span><span class="quiet">${m.higher_is_better ? "higher is better" : "lower is better"}</span></div>`;
+    const table = pts.length ? `<details style="margin-top:4px"><summary class="quiet">Readings (${pts.length})</summary><div class="tablewrap"><table class="data"><thead><tr><th>Date</th><th>Value</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${pts.slice().reverse().map((r) => `<tr><td>${BA.fmtDate(r.date)}</td><td>${num(r.value)}${esc(unit)}</td>${presenting() ? "" : `<td><button class="icon-btn" title="Delete" data-rdel="${r.id}">${BA.icon("x")}</button></td>`}</tr>`).join("")}</tbody></table></div></details>` : "";
+    if (pts.length < 2) return `<div class="card" style="margin:0">${head}<p class="quiet">${pts.length ? `One reading so far: ${num(pts[0].value)}${esc(unit)} on ${BA.fmtDate(pts[0].date)}. A trend needs two.` : "No readings yet. Add one in the table above."}</p>${table}</div>`;
+    const W = 300, H = 150, L = 40, R = 44, T = 12, B = 22;
+    const refs = [m.baseline, m.target].filter((v) => v != null).map(Number);
+    let lo = Math.min(...pts.map((p) => p.value), ...refs), hi = Math.max(...pts.map((p) => p.value), ...refs);
+    if (lo === hi) { lo -= 1; hi += 1; }
+    const pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
+    if (lo < 0 && Math.min(...pts.map((p) => p.value), ...refs) >= 0) lo = 0;
+    const t0 = Date.parse(pts[0].date), t1 = Date.parse(pts[pts.length - 1].date), span = t1 - t0 || 1;
+    const x = (d) => L + ((Date.parse(d) - t0) / span) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+    const ref = (v, label) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3"/><text x="${W - R + 4}" y="${y(v)}" dominant-baseline="middle" font-size="10" fill="var(--muted)">${label}</text>`;
+    const last = pts[pts.length - 1];
+    const desc = `${m.name}: ${pts.length} readings from ${pts[0].date} to ${last.date}, latest ${num(last.value)}${unit}`;
+    return `<div class="card" style="margin:0">${head}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(desc)}" style="width:100%;display:block">
+        <line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" stroke="var(--line)"/>
+        <text x="${L - 6}" y="${y(hi - pad)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--muted)">${num(hi - pad)}</text>
+        <text x="${L - 6}" y="${y(lo + pad)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--muted)">${num(lo + pad)}</text>
+        <text x="${L}" y="${H - 6}" font-size="10" fill="var(--muted)">${BA.fmtDate(pts[0].date)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="10" fill="var(--muted)">${BA.fmtDate(last.date)}</text>
+        ${m.baseline != null ? ref(Number(m.baseline), "baseline") : ""}${m.target != null ? ref(Number(m.target), "target") : ""}
+        <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${pts.map((p) => `<circle cx="${x(p.date)}" cy="${y(p.value)}" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/><circle cx="${x(p.date)}" cy="${y(p.value)}" r="11" fill="transparent" data-pt="${esc(BA.fmtDate(p.date) + ": " + num(p.value) + unit)}" style="cursor:default"/>`).join("")}
+        <text x="${x(last.date)}" y="${y(last.value) - 10}" text-anchor="end" font-size="11" font-weight="600" fill="var(--ink)">${num(last.value)}</text>
+      </svg>${table}</div>`;
+  }
 
   // ---------------------------------------------------------------- Weekly status
 

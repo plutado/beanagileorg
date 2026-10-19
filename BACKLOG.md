@@ -42,7 +42,7 @@ In priority order:
 - [ ] QA: placeholder seed data; pull automated suite results from Bitbucket Pipelines or another CI instead of typing them; a test-run section in the weekly status draft; per-story QA sign-off tied to PI planning stories; flaky-test tracking over time
 - [ ] Business landscape: placeholder seed data; link assessments to listening-tour themes, incidents and metrics as evidence; a shareable summary of selected points for leadership; an org chart drawing; capabilities each system supports (a capability map)
 - [ ] Plans: a version history of each plan as presented, so a later review can show what changed and why; a day-30/60/90 check-in that marks each item met, moved or dropped with a note
-- [ ] Metrics: a small trend chart per metric, and automatic readings from Bitbucket (readings from the release log are done)
+- [ ] Metrics: automatic readings from Bitbucket (trend charts and readings from the release log are done)
 - [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
 - [ ] Roadmap: drag to reorder, and a timeline view
 
@@ -136,6 +136,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Metric trend charts (#17). Each metric over time against baseline and target, latest value labeled, hover values, and a readings table with delete; 288 tests
 - [x] 2026-10-19: Releases (#16). A record per release with the path to production from settings or SDLC environments, stories and Jira keys from the sprint, regression plan, QA sign-off, a go/no-go readiness check, outcome, release notes, release-log metrics recorded to Metrics, and Today reminders (migration 58). Tips on Releases; 288 tests
 - [x] 2026-10-19: Influence strategies. Alliance plans gain framing per pivotal person (Table 8-3) with social-influence checks, counterarguments, choice shaping, an incremental path, a sequence and action-forcing events shown on Today; seven closing questions on Alliances; the Comms studio's video pitch template gains logos, ethos and pathos framing and counterarguments (migration 57). Guide practices and a themes tip; 285 tests
 - [x] 2026-10-19: Alliances. A new page with an alliance plan per early win (Table 8-1, winning and blocking alliances, pivotal people after Table 8-2), an influence diagram (after Figure 8-1), an influence network, power coalitions and a playbook; people gain opinion leader and sources of power (migration 56). New guide, Building alliances; tips on Alliances and People; 284 tests

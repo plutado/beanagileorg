@@ -202,7 +202,8 @@ TOOLKIT = {
     },
     "/metrics": {
         "purpose": "Track a few delivery measures over time, with a baseline and a target, to see whether changes are working.",
-        "steps": ["Load the four starter metrics or add your own.", "Record a baseline before setting a target.", "Add readings regularly and look at the trend, not single numbers."],
+        "steps": ["Load the four starter metrics or add your own.", "Record a baseline before setting a target.", "Add readings regularly, or record them from the release log under Releases.",
+                  "Read the trend charts against baseline and target, not single numbers; open Readings to see or remove values."],
         "privacy": "Shareable.",
         "related": ["/status", "/coaching/metrics-without-blame"],
     },
