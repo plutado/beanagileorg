@@ -145,6 +145,7 @@ GUIDES = [
             "Use this at any level. A project, a product launch or a system rollout can be a start-up, a turnaround or a realignment just as a whole company can.",
             "Treat it as a portfolio: sort each product, process, project, system and team into its situation, decide how much of your effort each gets, and use that picture with your manager and team.",
             "Check your preferences. If the situation you enjoy most is getting the most effort, make sure that's what the work needs.",
+            "Lead change differently by situation. A turnaround calls for fast technical learning and bold moves on strategy and structure; a realignment calls for cultural and political learning first, then deliberate moves on systems, skills and culture.",
         ],
         "pitfalls": [
             "Assuming the team needs fixing because you were hired.",
@@ -198,6 +199,7 @@ GUIDES = [
         "summary": "Pick a few visible improvements that solve real problems people already feel, and deliver them well.",
         "why": "Early wins give people a reason to believe change is possible and give you the credibility to take on harder work. The wrong early win, one that ignores how the team works or solves a problem nobody has, costs more than it earns.",
         "practices": [
+            "Pick the kind of win the situation needs. In a turnaround, visible results that move people from despair to hope. In a realignment, getting people to see the problem: clear metrics, outside benchmarks and respected outside voices, so it isn't one person's opinion.",
             "Choose problems the team already complains about. You'll find them in the listening tour themes.",
             "Keep them small enough to finish in weeks, not months.",
             "Involve the team. A win they helped shape is theirs, not yours.",
@@ -780,6 +782,7 @@ GUIDES = [
             "Start with changes that solve a pain people already feel, so the first wins are theirs.",
             "Keep every change visible in one place, with where it stands.",
             "Give each person their own first 90 days with you: a first one-on-one, a career conversation, a growth goal and feedback both ways.",
+            "Fit team changes to the situation. In a realignment, make a few high-payoff changes and promote promising people from within; it shows you value the team's strengths, not only its gaps.",
         ],
         "pitfalls": [
             "Arriving with the answers and changing everything in the first month.",
@@ -1159,7 +1162,8 @@ TIPS = {
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager")],
     "/debt": [("Describe each debt item by what leaving it costs the business, not by how ugly the code is.", "tech-debt-case", 2),
               ("Agree a standing share of each sprint for debt, then report against it, instead of arguing every item.", "tech-debt-case", 2)],
-    "/metrics": [("Measure the system, never individuals. Set a baseline before a target.", "metrics-without-blame")],
+    "/metrics": [("Measure the system, never individuals. Set a baseline before a target.", "metrics-without-blame"),
+                 ("Add an outside benchmark where you can. Facts from outside the team make the case for change better than opinions.", "early-wins", 23)],
     "/qa": [("Bring QA into refinement. Quality built in costs less than quality tested in.", "quality-culture")],
     "/dev-sync": [("Follow up on every item, even when the answer is no. Closed loops build trust.", "earning-trust")],
     "/learning": [("Teaching others is one of the fastest ways to learn. Invite people to present what they know.", "delegation")],
@@ -1248,7 +1252,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 22  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 23  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

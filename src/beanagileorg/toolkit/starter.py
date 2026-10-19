@@ -25,6 +25,10 @@ ROADMAP = [
 
 RACI = ["Backlog priority", "Technical design", "Release go/no-go", "QA sign-off", "Production changes"]
 
+# An outside benchmark helps a team see where it stands without it being one person's opinion. The values are left
+# for you to fill in from the current report rather than quoted here.
+DORA = "DORA State of DevOps research, latest report"
+BENCHMARKS = {"Cycle time": DORA, "Deployment frequency": DORA, "Change failure rate": DORA}
 METRICS = [
     ("Cycle time", "days", "From started to done, per story", False),
     ("Deployment frequency", "per week", "Production deployments", True),
@@ -53,6 +57,7 @@ def load_starter(conn, source: str) -> dict:
         loaded["raci_decisions"] = len(RACI)
     if _empty(conn, "metrics"):
         for name, unit, method, higher in METRICS:
-            models.metrics.create(conn, {"name": name, "unit": unit, "method": method, "higher_is_better": higher}, source)
+            extra = {"benchmark": "[Placeholder: value from the latest report]", "benchmark_source": BENCHMARKS[name]} if name in BENCHMARKS else {}
+            models.metrics.create(conn, {"name": name, "unit": unit, "method": method, "higher_is_better": higher, **extra}, source)
         loaded["metrics"] = len(METRICS)
     return loaded

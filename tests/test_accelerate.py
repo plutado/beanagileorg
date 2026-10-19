@@ -156,3 +156,10 @@ def test_situation_portfolio_and_preference_check(client):
     client.put("/api/situations/preferred", json={"kind": "turnaround"})
     p = client.get("/api/situations/portfolio").json()
     assert p["preferred"] == "turnaround" and p["preference_check"] is True
+
+
+def test_playbooks_and_realignment_learning_nudge(client):
+    g = client.get("/api/situations/guide").json()
+    assert len(g["turnaround"]["playbook"]) == 6 and len(g["realignment"]["playbook"]) == 6 and g["start-up"]["playbook"] == []
+    client.post("/api/situations", json={"area": "[Area]", "kind": "realignment"})
+    assert client.get("/api/learning-questions/agenda").json()["balance"]["realignment"] is True

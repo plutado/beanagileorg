@@ -1464,6 +1464,13 @@ MIGRATIONS = [
         ALTER TABLE situations ADD COLUMN effort INTEGER;
         """,
     ),
+    (
+        37,
+        """
+        ALTER TABLE metrics ADD COLUMN benchmark TEXT;
+        ALTER TABLE metrics ADD COLUMN benchmark_source TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -1947,6 +1954,8 @@ metrics = Record(
         "target": Field("number", E),
         "method": Field("text", E),
         "higher_is_better": Field("bool", E, default=True),
+        "benchmark": Field("text", E),
+        "benchmark_source": Field("text", E),
     },
     computed={
         "latest": ("(SELECT value FROM metric_readings r WHERE r.metric_id = metrics.id ORDER BY date DESC, id DESC LIMIT 1)", E),

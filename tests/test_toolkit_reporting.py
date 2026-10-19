@@ -83,6 +83,9 @@ def test_starter_loads_once(client):
     loaded = client.post("/api/delivery/starter").json()
     assert loaded == {"roadmap_items": 15, "raci_decisions": 5, "metrics": 6}
     assert client.post("/api/delivery/starter").status_code == 409
+    m = {x["name"]: x for x in client.get("/api/metrics").json()}
+    assert m["Change failure rate"]["benchmark_source"].startswith("DORA") and m["Change failure rate"]["benchmark"].startswith("[Placeholder")
+    assert m["Escaped defects"]["benchmark"] is None
 
 
 # ---- status draft ----

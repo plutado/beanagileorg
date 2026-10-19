@@ -93,6 +93,24 @@ SITUATION_FACTORS = {
                            ["A strong team may already be in place", "People are motivated to continue a record of success", "Foundations for continued success may already exist"]),
 }
 
+# How the six moves of a transition differ between a turnaround and a realignment, after Table 3-3 in The First 90
+# Days, in our own words.
+PLAYBOOK_LEVERS = ["Learn", "Strategic intent", "Priorities", "Your team", "Early wins", "Alliances"]
+SITUATION_PLAYBOOK = {
+    "turnaround": ["Learn the technical side fast: strategy, customers, systems and process. Be ready to act quickly.",
+                   "Cut what isn't core, and say clearly what the team will become.",
+                   "Make faster, bolder moves, mostly on strategy and structure.",
+                   "Change people at the top where you need to, and bring in outside talent.",
+                   "Move people from despair to hope with visible results.",
+                   "Win support and resources from your manager and other stakeholders."],
+    "realignment": ["Learn the culture and politics above all. Prepare deliberately before acting.",
+                    "Sharpen and build on the strengths already there, and encourage new ideas.",
+                    "Make slower, more deliberate moves, mostly on systems, skills and culture.",
+                    "Make a few high-payoff changes, and promote promising people from within.",
+                    "Move people from denial to awareness with facts: clear metrics, outside benchmarks, respected outside voices.",
+                    "Build alliances sideways and down, so changes are actually carried out."],
+}
+
 STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
 
 BOSS_TOPICS = [
@@ -138,7 +156,9 @@ def agenda(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         q["due"] = _due(start, q.get("due_day"))
         q["late"] = q["status"] == "open" and bool(q["due"]) and q["due"] < t
         q["ask_names"] = [names[i] for i in q.get("ask_ids") or [] if i in names]
-    return {"questions": qs, "areas": list(models.LEARNING_AREAS), "balance": learning_balance(qs), "sources": insight_sources(conn),
+    balance = learning_balance(qs)
+    balance["realignment"] = bool(conn.execute("SELECT 1 FROM situations WHERE kind = 'realignment'").fetchone())
+    return {"questions": qs, "areas": list(models.LEARNING_AREAS), "balance": balance, "sources": insight_sources(conn),
             "counts": {s: sum(1 for q in qs if q["status"] == s) for s in models.LEARNING_STATUS}, "late": sum(1 for q in qs if q["late"])}
 
 
@@ -283,7 +303,9 @@ def put_learning_step(key: str, body: dict = Body(...), viewer: Viewer = Depends
 @router.get("/api/situations/guide")
 def situation_guide(viewer: Viewer = Depends(get_viewer)):
     return {k: {"what": w, "approach": a, "mood": m, "mood_job": j, "pace": p, "pace_label": pl,
-                "challenges": SITUATION_FACTORS[k][0], "opportunities": SITUATION_FACTORS[k][1]} for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
+                "challenges": SITUATION_FACTORS[k][0], "opportunities": SITUATION_FACTORS[k][1],
+                "playbook": [{"lever": l, "move": mv} for l, mv in zip(PLAYBOOK_LEVERS, SITUATION_PLAYBOOK[k])] if k in SITUATION_PLAYBOOK else []}
+            for k, (w, a, m, j, p, pl) in SITUATION_GUIDE.items()}
 
 
 PREFERRED_KEY = "first90.preferred_situation"

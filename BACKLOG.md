@@ -137,6 +137,8 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-18: Leading change by situation. Turnarounds and realignments each show six moves (learning, strategic intent, priorities, team, early wins, alliances), after Table 3-3 in our own words. Metrics gain an outside benchmark and source, with DORA suggested for the delivery starters and values left to fill in. The learning agenda's balance warning notes when an area is a realignment. Guide practices on leading change, early wins and team changes by situation; 247 tests
+
 - [x] 2026-10-18: Situation portfolio. Each area records what kind of piece it is (product, process, project, system, team) and its share of your effort over the next 90 days. A portfolio view groups areas by situation with pace and effort, warns when effort doesn't total 100%, flags when your favorite kind of situation is getting the most effort, works in presentation mode and copies as Markdown. Guide practices on the portfolio and on not treating a realignment as a turnaround; 246 tests
 
 - [x] 2026-10-18: Situation challenges and opportunities. Each kind of situation lists its typical challenges and opportunities (after the STARS table, in our own words), shown in the guide and beside each area, and each area gains an "Opportunities I see" field; 245 tests
