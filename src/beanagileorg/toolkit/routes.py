@@ -458,3 +458,18 @@ def seed(viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
     if not loaded:
         raise HTTPException(409, "Placeholder data only loads into empty parts of the toolkit, and none are empty.")
     return loaded
+
+
+@router.post("/api/roadmap/reorder")
+def reorder_roadmap(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Set the order of roadmap items from a dragged list: position follows the order of the ids given."""
+    require_write(viewer)
+    ids = body.get("ids")
+    if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+        raise HTTPException(400, "Give the roadmap item ids in their new order.")
+    known = {r["id"] for r in conn.execute("SELECT id FROM roadmap_items").fetchall()}
+    if set(ids) - known:
+        raise HTTPException(400, "Some of those aren't roadmap items.")
+    for pos, i in enumerate(ids):
+        models.roadmap_items.update(conn, i, {"position": pos}, viewer.source)
+    return {"order": ids}

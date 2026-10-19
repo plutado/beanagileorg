@@ -28,11 +28,12 @@ RACI = ["Backlog priority", "Technical design", "Release go/no-go", "QA sign-off
 # An outside benchmark helps a team see where it stands without it being one person's opinion. The values are left
 # for you to fill in from the current report rather than quoted here.
 DORA = "DORA State of DevOps research, latest report"
-BENCHMARKS = {"Cycle time": DORA, "Deployment frequency": DORA, "Change failure rate": DORA}
+BENCHMARKS = {"Cycle time": DORA, "Deployment frequency": DORA, "Change failure rate": DORA, "Time to restore": DORA}
 METRICS = [
     ("Cycle time", "days", "From started to done, per story", False),
     ("Deployment frequency", "per week", "Production deployments", True),
     ("Change failure rate", "%", "Share of releases needing a fix or rollback", False),
+    ("Time to restore", "days", "From a failed release's incident to its resolution", False),
     ("Escaped defects", "per sprint", "Bugs found after release", False),
     ("Meetings per week (team)", "meetings", "A weekly tally from the team's calendars; the cost of coordination", False),
     ("Meetings rescheduled", "%", "Share of planned meetings moved or cancelled each week; planning to plan", False),

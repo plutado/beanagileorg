@@ -176,7 +176,8 @@ TOOLKIT = {
     },
     "/roadmap": {
         "purpose": "Your Agile adoption roadmap: what you'll introduce and when, by day of your contract.",
-        "steps": ["Load the starter roadmap or add your own items.", "Set your start date in My development to turn days into dates.", "Update status as items land; it feeds the weekly status."],
+        "steps": ["Load the starter roadmap or add your own items.", "Set your start date in My development to turn days into dates.", "Drag rows to reorder; on the Timeline, drag an item sideways to change its target day.",
+                  "Update status as items land; it feeds the weekly status."],
         "privacy": "Shareable.",
         "related": ["/status", "/plans", "/coaching/introducing-scrum"],
     },
@@ -202,7 +203,7 @@ TOOLKIT = {
     },
     "/metrics": {
         "purpose": "Track a few delivery measures over time, with a baseline and a target, to see whether changes are working.",
-        "steps": ["Load the four starter metrics or add your own.", "Record a baseline before setting a target.", "Add readings regularly, or record them from the release log under Releases.",
+        "steps": ["Load the starter metrics (delivery, including the four DORA measures, and meeting load) or add your own.", "Record a baseline before setting a target.", "Add readings regularly, or record them from the release log under Releases.",
                   "Read the trend charts against baseline and target, not single numbers; each shows whether it's improving, holding steady or getting worse, and so does the weekly report."],
         "privacy": "Shareable.",
         "related": ["/status", "/coaching/metrics-without-blame"],

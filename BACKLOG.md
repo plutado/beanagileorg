@@ -43,7 +43,6 @@ In priority order:
 - [ ] Business landscape: placeholder seed data; link assessments to listening-tour themes, incidents and metrics as evidence; a shareable summary of selected points for leadership; an org chart drawing; capabilities each system supports (a capability map)
 - [ ] Metrics: automatic readings from Bitbucket (trend charts and readings from the release log are done)
 - [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
-- [ ] Roadmap: drag to reorder, and a timeline view
 
 - [ ] Vendors: attach documents (contracts, statements of work) from the docs library, and a vendor scorecard reviewed at renewal
 - [ ] Themes as their own records (version 1 stores them as tags on each one-on-one)
@@ -135,6 +134,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-19: Roadmap drag to reorder and a timeline view (#20): rows reorder by dragging; the timeline lays items out by day in lanes by kind, stacked so labels never overlap, and dragging an item changes its target day. Time to restore joins the starter metrics; 295 tests
 - [x] 2026-10-19: Releases, next (#19). A release calendar beside regression windows with clash warnings; time to restore from incidents linked to failed releases, recorded to Metrics; accepted change requests linked to the release they landed in, and in its release notes (migration 60); 293 tests
 - [x] 2026-10-19: Follow-ups to releases, metrics and plans. Plan check-in reminders on Today and check-in counts on each plan; compare any two plan versions; What I heard collapsible above the plans so they use the full width; each metric's direction on Metrics and in the weekly report; release go/no-go decisions logged under Risks and decisions; 292 tests
 - [x] 2026-10-19: Plan versions and check-ins (#18). A version saved when a plan is presented or on demand, what's changed since, and a checkpoint check-in (met, partly, moved, dropped with a reason) with a summary to copy (migration 59); 290 tests

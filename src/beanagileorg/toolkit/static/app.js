@@ -1631,15 +1631,71 @@
     return `Day ${n} · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   };
   const starterButton = (what) =>
-    presenting() ? "" : `<section class="card"><p class="quiet">Load the starter ${what}: the Agile adoption roadmap, the five RACI decisions and the four delivery metrics. Edit any of it afterwards.</p><button class="btn primary" data-starter>Load starter content</button></section>`;
+    presenting() ? "" : `<section class="card"><p class="quiet">Load the starter ${what}: the Agile adoption roadmap, the five RACI decisions and the starter metrics, including the four DORA measures. Edit any of it afterwards.</p><button class="btn primary" data-starter>Load starter content</button></section>`;
   const wireStarter = (main) => {
     const b = main.querySelector("[data-starter]");
     if (b) b.onclick = BA.guard(async () => (await BA.api("/api/delivery/starter", { method: "POST" }), BA.rerender()));
   };
 
+  // The roadmap on a timeline by day of the role, one lane per kind. Drag an item sideways to change its target day.
+  function renderRoadmapTimeline(main, items, settings, head) {
+    const ro = presenting();
+    const dated = items.filter((i) => i.target_day != null), undated = items.filter((i) => i.target_day == null);
+    const kinds = ROADMAP_KINDS.filter((k) => dated.some((i) => i.kind === k));
+    const maxDay = Math.max(180, ...dated.map((i) => i.target_day + 10)), W = 820, L = 96, R = 20, rowH = 20;
+    const x = (d) => L + ((d - 1) / (maxDay - 1)) * (W - L - R), dayAt = (px) => Math.max(1, Math.min(maxDay, Math.round(1 + ((px - L) / (W - L - R)) * (maxDay - 1))));
+    // Stack items into rows within each lane so labels never overlap: each goes in the first row that's clear.
+    let y0 = 30;
+    const lanes = kinds.map((k) => {
+      const rows = [], placed = dated.filter((i) => i.kind === k).sort((a, b) => a.target_day - b.target_day).map((i) => {
+        const label = i.title.length > 28 ? i.title.slice(0, 27) + "…" : i.title, cx = x(i.target_day), endX = cx + 12 + label.length * 5.6;
+        let r = rows.findIndex((last) => last < cx - 10);
+        if (r === -1) { rows.push(0); r = rows.length - 1; }
+        rows[r] = endX;
+        return { i, label, cx, r };
+      });
+      const lane = { k, top: y0, h: Math.max(1, rows.length) * rowH + 12, placed };
+      y0 += lane.h;
+      return lane;
+    });
+    const H = y0 + 12;
+    const ticks = []; for (let d = 1; d <= maxDay; d += 30) ticks.push(d);
+    const today = settings.start_date ? Math.floor((Date.parse(BA.today()) - Date.parse(settings.start_date)) / 864e5) + 1 : null;
+    const fill = { "not started": "var(--panel)", "in progress": "var(--accent-soft)", done: "var(--good-soft)", "at risk": "var(--bad-soft)" };
+    const line = { "not started": "var(--line-strong)", "in progress": "var(--accent)", done: "var(--good)", "at risk": "var(--bad)" };
+    const marks = lanes.map((ln) => ln.placed.map(({ i, label, cx, r }) => { const cy = ln.top + 6 + r * rowH + rowH / 2;
+      return `<g class="rm-mark" data-rm="${i.id}" data-day="${i.target_day}" style="cursor:${ro ? "default" : "ew-resize"}"><title>${esc(i.title)}: ${dayDateOf(settings.start_date, i.target_day)} (${esc(i.status)})</title>
+        <path d="M${cx},${cy - 6} L${cx + 6},${cy} L${cx},${cy + 6} L${cx - 6},${cy} Z" fill="${fill[i.status]}" stroke="${line[i.status]}" stroke-width="2"/>
+        <text x="${cx + 10}" y="${cy}" dominant-baseline="middle" font-size="10" fill="var(--ink)">${esc(label)}</text></g>`; }).join("")).join("");
+    main.innerHTML = `${head}<section class="card"><div class="tablewrap"><svg id="rm-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Roadmap timeline by day of the role" style="width:100%;min-width:680px;display:block;touch-action:none">
+        ${ticks.map((d) => `<line x1="${x(d)}" x2="${x(d)}" y1="22" y2="${H - 10}" stroke="var(--line)"/><text x="${x(d) + 3}" y="16" font-size="10" fill="var(--muted)">${settings.start_date ? BA.fmtDate(new Date(Date.parse(settings.start_date) + (d - 1) * 864e5).toISOString().slice(0, 10)) : "Day " + d}</text>`).join("")}
+        ${lanes.map((ln) => `<text x="4" y="${ln.top + ln.h / 2}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(ln.k)}</text><line x1="${L}" x2="${W - R}" y1="${ln.top + ln.h}" y2="${ln.top + ln.h}" stroke="var(--line)" stroke-opacity=".5"/>`).join("")}
+        ${today != null && today >= 1 && today <= maxDay ? `<line x1="${x(today)}" x2="${x(today)}" y1="22" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${x(today) + 3}" y="${H - 2}" font-size="10" fill="var(--ink)">today</text>` : ""}
+        ${marks}</svg></div>
+      <p class="quiet">Fill shows status: done green, in progress blue, at risk red.${ro ? "" : " Drag an item sideways to change its target day."}</p>
+      ${undated.length ? `<p class="quiet">Not on the timeline yet (no target day): ${undated.map((i) => esc(i.title)).join(", ")}.</p>` : ""}</section>`;
+    if (ro) return;
+    const svg = main.querySelector("#rm-svg");
+    const toSvgX = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()).x; };
+    svg.querySelectorAll(".rm-mark").forEach((g) => {
+      g.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); try { g.setPointerCapture(e.pointerId); } catch {}
+        const start = toSvgX(e), orig = Number(g.dataset.day); let day = orig;
+        const move = (ev) => { day = dayAt(x(orig) + (toSvgX(ev) - start)); g.setAttribute("transform", `translate(${x(day) - x(orig)},0)`); g.querySelector("title").textContent = `Day ${day}`; };
+        const up = BA.guard(async () => {
+          g.removeEventListener("pointermove", move); g.removeEventListener("pointerup", up);
+          if (day === orig) { g.removeAttribute("transform"); return; }
+          await BA.api(`/api/roadmap/${g.dataset.rm}`, { method: "PATCH", body: { target_day: day } });
+          BA.toast(`Moved to ${dayDateOf(settings.start_date, day)}.`); BA.rerender();
+        });
+        g.addEventListener("pointermove", move); g.addEventListener("pointerup", up);
+      });
+    });
+  }
+
   BA.view("/roadmap", {
     title: "Roadmap",
-    async render(main) {
+    async render(main, param) {
       const [items, settings, people] = await Promise.all([BA.api("/api/roadmap"), BA.api("/api/toolkit/settings"), BA.api("/api/people")]);
       if (!items.length) {
         main.innerHTML = starterButton("roadmap");
@@ -1647,11 +1703,14 @@
         return;
       }
       const done = items.filter((i) => i.status === "done").length;
-      main.innerHTML = `<p class="quiet">${done} of ${items.length} done. ${settings.start_date ? "" : 'Set the contract start date under <a href="#/me">My development</a> to turn days into dates.'}</p>
-        <div class="tablewrap"><table class="data"><thead><tr><th>Item</th><th>Kind</th><th>Target</th><th>Status</th><th>Owner</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${items
+      const tabs = `<nav class="tabs"><a href="#/roadmap" class="${param ? "" : "active"}">List</a><a href="#/roadmap/timeline" class="${param === "timeline" ? "active" : ""}">Timeline</a></nav>`;
+      const head = `${tabs}<p class="quiet">${done} of ${items.length} done. ${settings.start_date ? "" : 'Set the contract start date under <a href="#/me">My development</a> to turn days into dates.'}</p>`;
+      if (param === "timeline") return renderRoadmapTimeline(main, items, settings, head);
+      main.innerHTML = `${head}${presenting() ? "" : '<p class="quiet">Drag a row by its handle to reorder. Moving an item among items with a different target day gives it their day.</p>'}
+        <div class="tablewrap"><table class="data" id="rm-table"><thead><tr>${presenting() ? "" : "<th></th>"}<th>Item</th><th>Kind</th><th>Target</th><th>Status</th><th>Owner</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${items
           .map((i) => presenting()
             ? `<tr><td><b>${esc(i.title)}</b> ${BA.issueKeys(i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td><td>${dayDateOf(settings.start_date, i.target_day)}</td><td>${BA.statusPill(i.status)}</td><td>${esc(i.owner_name || "")}</td></tr>`
-            : `<tr data-id="${i.id}"><td><b>${esc(i.title)}</b> ${BA.keysEditor(`/api/roadmap/${i.id}`, i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
+            : `<tr data-id="${i.id}" data-day="${i.target_day ?? ""}" draggable="true"><td class="drag-handle" title="Drag to reorder" style="cursor:grab;color:var(--muted);user-select:none">⠿</td><td><b>${esc(i.title)}</b> ${BA.keysEditor(`/api/roadmap/${i.id}`, i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
               <td><input type="number" name="target_day" value="${esc(i.target_day ?? "")}" style="max-width:90px"> <span class="quiet">${dayDateOf(settings.start_date, i.target_day).replace(/^Day \d+ · /, "")}</span></td>
               <td><select name="status">${ROADMAP_STATUS.map((s) => `<option${s === i.status ? " selected" : ""}>${s}</option>`).join("")}</select></td>
               <td><select name="owner_id">${personOptions(people, i.owner_id)}</select></td><td><button class="btn danger" data-del="${i.id}">Delete</button></td></tr>`)
@@ -1666,6 +1725,28 @@
         if (el.name !== "owner_id") BA.rerender();
         else BA.toast("Saved.");
       })));
+      const tbody = main.querySelector("#rm-table tbody");
+      let dragged = null;
+      tbody.querySelectorAll("tr[data-id]").forEach((tr) => {
+        tr.addEventListener("dragstart", (e) => { if (!e.target.closest || !tr.querySelector(".drag-handle")) return; dragged = tr; tr.style.opacity = ".4"; e.dataTransfer.effectAllowed = "move"; });
+        tr.addEventListener("dragend", () => { tr.style.opacity = ""; });
+        tr.addEventListener("dragover", (e) => { if (!dragged || dragged === tr) return; e.preventDefault(); const r = tr.getBoundingClientRect(); tbody.insertBefore(dragged, e.clientY < r.top + r.height / 2 ? tr : tr.nextSibling); });
+        tr.addEventListener("drop", (e) => e.preventDefault());
+      });
+      tbody.addEventListener("drop", BA.guard(async () => {
+        if (!dragged) return;
+        const rows = [...tbody.querySelectorAll("tr[data-id]")], i = rows.indexOf(dragged), mine = dragged.dataset.day;
+        const next = rows[i + 1], prev = rows[i - 1];
+        const fits = (!prev || prev.dataset.day === "" || mine === "" || Number(prev.dataset.day) <= Number(mine)) && (!next || next.dataset.day === "" || mine === "" || Number(mine) <= Number(next.dataset.day));
+        const id = Number(dragged.dataset.id); dragged = null;
+        if (!fits && mine !== "") {
+          const day = Number((next && next.dataset.day) || (prev && prev.dataset.day));
+          await BA.api(`/api/roadmap/${id}`, { method: "PATCH", body: { target_day: day } });
+          BA.toast(`Moved, and its target day is now day ${day}.`);
+        }
+        await BA.api("/api/roadmap/reorder", { method: "POST", body: { ids: rows.map((r) => Number(r.dataset.id)) } });
+        BA.rerender();
+      }));
       main.querySelectorAll("[data-del]").forEach((b) => (b.onclick = BA.guard(async () => {
         if (!confirm("Delete this roadmap item?")) return;
         await BA.api(`/api/roadmap/${b.dataset.del}`, { method: "DELETE" });
