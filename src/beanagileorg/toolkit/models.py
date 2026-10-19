@@ -44,6 +44,7 @@ DISPOSITIONS = ("keep in place", "keep and develop", "move to another role", "re
 VOLUNTEERED = ("volunteered it", "had to draw it out")
 MOTIVATION = ("push", "pull", "both")
 TEAM_GOAL_STATUS = ("open", "on track", "at risk", "met", "dropped")
+DECISION_PROCESSES = ("decide alone", "consult and decide", "build consensus", "unanimous")
 OWNERSHIP = ("owns problems", "makes excuses", "points at others")
 SOURCE_KINDS = ("vendor support", "partner", "community", "outside expert", "other")
 DECISION_STATUS = ("open", "decided")
@@ -1723,6 +1724,14 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        55,
+        """
+        ALTER TABLE decisions_needed ADD COLUMN process TEXT;
+        ALTER TABLE decisions_needed ADD COLUMN process_why TEXT;
+        ALTER TABLE decisions_needed ADD COLUMN process_told INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2200,6 +2209,9 @@ decisions_needed = Record(
         "outcome": Field("text", E),
         "jira_keys": Field("keys", E),
         "team_id": Field("int", S),
+        "process": Field("text", E, choices=DECISION_PROCESSES),
+        "process_why": Field("text", E),
+        "process_told": Field("bool", E, default=False),
     },
     computed={"from_name": ("(SELECT name FROM people p WHERE p.id = decisions_needed.from_id)", E)},
 )

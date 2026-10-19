@@ -527,6 +527,15 @@ GUIDES = [
             "Blend push (goals, measures, reporting, procedures, incentives) with pull (a shared vision, teamwork). Turnarounds supply push; in a realignment, lean on pull. Some people respond more to one than the other.",
             "Match rewards to the work: non-monetary rewards where they're available and valued; fixed pay where contributions are hard to measure or results lag; team rewards where success depends on working together, as it does in Scrum.",
             "Give the team a vision worth extra effort: one that draws on what people care about, makes them part of a larger story, and is vivid enough to picture. Draft it with them.",
+            "Make the vision shared: be clear about what isn't negotiable, and genuinely open on the rest. Tell it through stories and metaphors, repeat a few core themes long after people have heard them, and build channels to reach people you won't talk to directly.",
+            "Live the vision. One undercut by how you or your team behave is worse than none.",
+            "Before an offsite, be clear on its purpose: understanding the business, vision and strategy, how the team works, relationships, a plan, or conflict. Pick two at most, and lay the foundations (a shared view of the business, working relationships) before vision and strategy. Facilitate it yourself only if you're skilled, respected and not part of a conflict.",
+            "Learn how the team worked before you arrived (roles, meetings, who decided what, your predecessor's style) so you keep what worked and change what didn't. If your style differs sharply from your predecessor's, say so and explain how you'll work.",
+            "Check who sits in core meetings. Too many people slows decisions; shrink the group to signal focus. Too few leaves important voices out; broaden it to show you won't play favorites.",
+            "Match the decision process to the decision. Consult and decide suits divisive calls, inexperienced teams, and times you need to establish authority; building consensus suits decisions that need energetic follow-through from people you can't easily oversee, and realignments. Time pressure alone isn't a reason to decide alone.",
+            "Tell people which process you're using and why, run a fair process, and never fake consensus for a decision already made.",
+            "With people working remotely: meet in person early if you can, agree channels and response times, rotate support roles such as note-taker, keep a steady rhythm, and celebrate wins where everyone can see them.",
+            "You'll know the team is built when it gives back more energy than you put in. Charge the battery before you try to start the engine.",
         ],
         "pitfalls": [
             "Criticizing the previous leadership. Assess current behavior and results instead, and make the changes that improve them.",
@@ -1374,7 +1383,8 @@ TIPS = {
                     ("In a realignment, push alone won't create urgency. Put more into pull: a shared vision the team helped write.", "building-the-team", 42)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
-    "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
+    "/risks": [("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
+               ("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
                ("Don't just bring your manager a problem; bring a plan for starting to address it, even if it's only finding out more.", "your-manager", 25),
                ("Run the predictable surprises scan, especially in the areas you know least. Most surprises were visible to someone in advance.", "early-wins", 33)],
     "/debt": [("Describe each debt item by what leaving it costs the business, not by how ugly the code is.", "tech-debt-case", 2),
@@ -1484,7 +1494,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 42  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 43  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

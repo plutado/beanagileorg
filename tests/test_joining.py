@@ -209,3 +209,21 @@ def test_team_alignment(client):
     assert v["lenses"] == ["team"] and v["checks"] == ["vivid"]
     client.post("/api/situations", json={"area": "[Area]", "kind": "realignment"})
     assert client.get("/api/team-align").json()["mix"][0]["kind"] == "realignment"
+
+
+def test_vision_offsite_before_and_decisions(client):
+    v = client.put("/api/team-align/vision", json={"draft": "[Placeholder]", "themes": [{"theme": "[Theme A]", "said_in": [{"date": "2026-10-19", "where": "[weekly note]"}]}, {"theme": ""}], "live_it": True}).json()
+    assert v["themes"] == [{"theme": "[Theme A]", "said_in": [{"date": "2026-10-19", "where": "[weekly note]"}]}] and v["live_it"]
+    o = client.put("/api/team-align/offsite", json={"purposes": ["strategy", "planning", "conflict"]}).json()
+    assert len(o["warnings"]) == 2
+    assert client.put("/api/team-align/offsite", json={"purposes": ["diagnostic", "relationships"]}).json()["warnings"] == []
+    b = client.put("/api/team-assessment/before", json={"roles": {"peacemaker": "[Placeholder]", "bogus": "x"}, "core_meeting": "too inclusive"}).json()
+    assert b["roles"] == {"peacemaker": "[Placeholder]"} and client.get("/api/team-assessment/before").json()["advice"].startswith("Shrink")
+    r = client.post("/api/decisions/suggest", json={"divisive": True, "inexperienced": True}).json()
+    assert r["process"] == "consult and decide" and len(r["reasons"]) == 2
+    client.post("/api/situations", json={"area": "[Area]", "kind": "realignment"})
+    assert client.post("/api/decisions/suggest", json={"implementation": True}).json()["process"] == "build consensus"
+    d = client.post("/api/decisions-needed", json={"decision": "[Placeholder decision]", "process": "build consensus", "process_told": True}).json()
+    assert d["process"] == "build consensus" and d["process_told"]
+    assert client.post("/api/culture/agreements/distributed").json()["agreements"] == 6
+    assert client.post("/api/culture/agreements/distributed").status_code == 409

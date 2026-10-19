@@ -104,6 +104,33 @@ def starter_standards(viewer: Viewer = Depends(get_viewer), conn=Depends(get_con
     return {"standards": len(STARTER_STANDARDS)}
 
 
+# For teams with people working remotely or across time zones.
+DISTRIBUTED_AGREEMENTS = [
+    ("communication", "We agree which channel is for what: urgent, everyday, decisions, and social."),
+    ("communication", "Urgent messages get an answer within an agreed time; everything else within a working day."),
+    ("meetings", "In remote meetings we interrupt less, and make our point briefly."),
+    ("meetings", "We rotate the support roles: someone takes notes, someone keeps the agenda, and follow-ups are written down."),
+    ("working together", "We keep a steady rhythm: the same meeting times, the same agenda shape."),
+    ("working together", "We celebrate wins where everyone can see them, not only in the room."),
+]
+
+
+@router.post("/api/culture/agreements/distributed", status_code=201)
+def distributed_agreements(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Suggested agreements for a team that isn't all in one place, added as proposals, skipping any already there."""
+    require_write(viewer)
+    team = body.get("team_id")
+    have = {r["text"] for r in conn.execute("SELECT text FROM team_agreements").fetchall()}
+    added = 0
+    for area, text in DISTRIBUTED_AGREEMENTS:
+        if text not in have:
+            models.team_agreements.create(conn, {"text": text, "area": area, "team_id": team, "position": 100 + added}, viewer.source)
+            added += 1
+    if not added:
+        raise HTTPException(409, "These suggestions are already in your agreements.")
+    return {"agreements": added}
+
+
 @router.post("/api/culture/agreements/starter", status_code=201)
 def starter_agreements(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """Suggested agreements, loaded as proposals for the team to change, cut or agree."""

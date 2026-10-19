@@ -1832,7 +1832,7 @@
 
   // ---------------------------------------------------------------- Aligning the team
 
-  const ALIGN_TABS = [["", "Goals and owners"], ["push-pull", "Push and pull"], ["incentives", "Incentives"], ["vision", "Vision"]];
+  const ALIGN_TABS = [["", "Goals and owners"], ["push-pull", "Push and pull"], ["incentives", "Incentives"], ["vision", "Vision"], ["offsite", "Offsite"]];
 
   BA.view("/team-align", {
     title: "Aligning the team",
@@ -1845,6 +1845,7 @@
       if (tab === "push-pull") return renderPushPull(main, d, tabs + intro, ro);
       if (tab === "incentives") return renderIncentives(main, d, tabs + intro, ro);
       if (tab === "vision") return renderVision(main, d, tabs + intro, ro);
+      if (tab === "offsite") return renderOffsite(main, d, tabs + intro, ro);
       const fmt = (v) => (v == null ? "?" : String(v));
       const goalLine = (g) => `<div class="item" data-goal="${g.id}" style="${g.parent_id ? "padding-left:28px" : ""}"><span><b>${esc(g.title)}</b><br><span class="quiet">${[g.whole_team ? "the whole team" : g.owner_name ? esc(g.owner_name) : "no owner yet",
           g.to_value != null ? `from ${fmt(g.from_value)} to ${fmt(g.to_value)}${g.unit ? " " + esc(g.unit) : ""}` : "", g.by_date ? `by ${BA.fmtDate(g.by_date)}` : "", g.metric_name ? esc(g.metric_name) : ""].filter(Boolean).join(" · ")}</span></span><span class="spacer"></span>
@@ -1890,6 +1891,22 @@
     if (f && !ro) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/team-align/tools", { method: "PUT", body: Object.fromEntries([...d.push, ...d.pull].map((x) => [x.key, fd.get(x.key) === "on"])) }); BA.toast("Saved."); BA.rerender(); });
   }
 
+  function renderOffsite(main, d, head, ro) {
+    const o = d.offsite || {};
+    main.innerHTML = `${head}<section class="card"><h2>Planning an offsite or working session</h2><p class="quiet">First be clear why you're meeting. Pick two purposes at most for a day or two, and lay foundations before vision and strategy. Keep early sessions on the business, not team-building, until the core team is in place.</p>
+      ${(o.warnings || []).map((w) => `<p class="callout warn">${esc(w)}</p>`).join("")}
+      <form id="offsite"><h3>Purpose</h3>${d.offsite_purposes.map((p) => `<label class="check"><input type="checkbox" name="purpose" value="${p.key}"${(o.purposes || []).includes(p.key) ? " checked" : ""}${ro ? " disabled" : ""}> <b>${esc(p.name)}</b> <span class="quiet">${esc(p.what)}</span></label>`).join("")}
+        <label class="check"><input type="checkbox" name="foundations_done"${o.foundations_done ? " checked" : ""}${ro ? " disabled" : ""}> The foundations are already in place: a shared understanding of the business, and working relationships.</label>
+        <h3>Details</h3><div class="grid2"><label>When<input name="when" value="${esc(o.when || "")}"${ro ? " readonly" : ""}></label><label>Where<input name="where" value="${esc(o.where || "")}"${ro ? " readonly" : ""}></label></div>
+        <label>Topics, in order<textarea name="agenda" rows="4"${ro ? " readonly" : ""}>${esc(o.agenda || "")}</textarea></label>
+        <h3>Who facilitates?</h3><p class="quiet">${esc(d.facilitator_help)}</p>
+        <div class="row"><label class="check"><input type="radio" name="facilitator" value="me"${o.facilitator === "me" ? " checked" : ""}${ro ? " disabled" : ""}> I will</label><label class="check"><input type="radio" name="facilitator" value="outsider"${o.facilitator === "outsider" ? " checked" : ""}${ro ? " disabled" : ""}> Someone from outside</label></div>
+        <label>Why<input name="facilitator_why" value="${esc(o.facilitator_why || "")}"${ro ? " readonly" : ""}></label>
+        ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form></section>`;
+    const f = main.querySelector("#offsite");
+    if (f && !ro) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/team-align/offsite", { method: "PUT", body: { purposes: fd.getAll("purpose"), foundations_done: fd.get("foundations_done") === "on", when: fd.get("when"), where: fd.get("where"), agenda: fd.get("agenda"), facilitator: fd.get("facilitator"), facilitator_why: fd.get("facilitator_why") } }); BA.toast("Saved."); BA.rerender(); });
+  }
+
   function renderIncentives(main, d, head, ro) {
     main.innerHTML = `${head}<section class="card"><h2>The incentive equation</h2><p class="quiet">Total reward is non-monetary plus monetary. Monetary is fixed plus performance-based. Performance-based is individual plus group. Answer five questions to see the mix that fits. You may not set pay, but you do set recognition, growth and what goes into reviews.</p>
       <form id="inc">${d.incentive_questions.map((q) => `<label>${esc(q.question)}<select name="${q.key}" style="max-width:220px"${ro ? " disabled" : ""}><option value=""></option>${opts(q.options, d.incentives[q.key])}</select></label>`).join("")}
@@ -1909,10 +1926,30 @@
         <label>Draft vision<textarea name="draft" rows="4"${ro ? " readonly" : ""}>${esc(v.draft || "")}</textarea></label>
         <label>${esc(d.vision_test)}<textarea name="why_effort" rows="2"${ro ? " readonly" : ""}>${esc(v.why_effort || "")}</textarea></label>
         <h3>Does it work?</h3>${d.vision_checks.map((c) => `<label class="check"><input type="checkbox" name="check" value="${c.key}"${(v.checks || []).includes(c.key) ? " checked" : ""}${ro ? " disabled" : ""}> ${esc(c.text)}</label>`).join("")}
+        <h3>Make it shared</h3><p class="quiet">Be clear about what isn't up for debate, and genuinely open on the rest, so people help shape it and own it.</p>
+        <div class="grid2"><label>Non-negotiable<textarea name="non_negotiables" rows="3"${ro ? " readonly" : ""}>${esc(v.non_negotiables || "")}</textarea></label><label>Open to the team's ideas<textarea name="open_to_input" rows="3"${ro ? " readonly" : ""}>${esc(v.open_to_input || "")}</textarea></label></div>
+        <h3>Tell it, and keep telling it</h3><label>Stories and metaphors that carry it <span class="quiet">(a short story often says more than the statement)</span><textarea name="stories" rows="3"${ro ? " readonly" : ""}>${esc(v.stories || "")}</textarea></label>
+        <label>Channels <span class="quiet">(how it reaches people you won't talk to directly: video, the weekly note, sprint reviews)</span><textarea name="channels" rows="2"${ro ? " readonly" : ""}>${esc(v.channels || "")}</textarea></label>
+        <p class="quiet">Two or three core themes, repeated until they sink in, and then some. Log each time you use one.</p>
+        ${[0, 1, 2].map((i) => { const t = (v.themes || [])[i] || {}; return `<div class="row" style="align-items:center;margin-bottom:6px"><input name="theme${i}" value="${esc(t.theme || "")}" placeholder="Core theme ${i + 1}" style="max-width:320px"${ro ? " readonly" : ""}>
+          <span class="quiet">${plural((t.said_in || []).length, "time")}${(t.said_in || []).length ? `, last ${BA.fmtDate(t.said_in[t.said_in.length - 1].date)} in ${esc(t.said_in[t.said_in.length - 1].where)}` : ""}</span>
+          ${ro || !t.theme ? "" : `<input data-said="${i}" placeholder="Said it in…" style="max-width:200px"><button class="btn" type="button" data-said-btn="${i}">Log</button>`}</div>`; }).join("")}
+        <label class="check"><input type="checkbox" name="live_it"${v.live_it ? " checked" : ""}${ro ? " disabled" : ""}> I'm living it, and so is my team. <span class="quiet">A vision undercut by how leaders behave is worse than none. Check against <a href="#/culture/standards">your standards</a>.</span></label>
         ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form>
       <p class="quiet">Carry it into the vision field of your <a href="#/alignment">alignment check</a>. To share it, tell it as a short story: the Comms studio's video pitch template is built for this.</p></section>`;
     const f = main.querySelector("#vis");
-    if (f && !ro) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/team-align/vision", { method: "PUT", body: { draft: fd.get("draft"), story: fd.get("story"), why_effort: fd.get("why_effort"), lenses: fd.getAll("lens"), checks: fd.getAll("check") } }); BA.toast("Saved."); BA.rerender(); });
+    const body = (extra) => { const fd = new FormData(f); return { draft: fd.get("draft"), story: fd.get("story"), why_effort: fd.get("why_effort"), lenses: fd.getAll("lens"), checks: fd.getAll("check"),
+      non_negotiables: fd.get("non_negotiables"), open_to_input: fd.get("open_to_input"), stories: fd.get("stories"), channels: fd.get("channels"), live_it: fd.get("live_it") === "on",
+      themes: [0, 1, 2].map((i) => ({ theme: fd.get(`theme${i}`) || "", said_in: [...(((v.themes || [])[i] || {}).said_in || []), ...(extra && extra.i === i ? [extra.entry] : [])] })) }; };
+    if (f && !ro) {
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/team-align/vision", { method: "PUT", body: body() }); BA.toast("Saved."); BA.rerender(); });
+      main.querySelectorAll("[data-said-btn]").forEach((b) => (b.onclick = BA.guard(async () => {
+        const i = Number(b.dataset.saidBtn), where = main.querySelector(`[data-said="${i}"]`).value.trim();
+        if (!where) throw new Error("Say where you used it: a video, the weekly note, a sprint review.");
+        await BA.api("/api/team-align/vision", { method: "PUT", body: body({ i, entry: { date: BA.today(), where } }) });
+        BA.toast("Logged."); BA.rerender();
+      })));
+    }
   }
 
   // ---------------------------------------------------------------- Organizational alignment
@@ -2122,7 +2159,7 @@
   BA.view("/risks", {
     title: "Risks and decisions",
     async render(main) {
-      const [risks, decisions, people, scan] = await Promise.all([BA.api("/api/risks"), BA.api("/api/decisions-needed"), BA.api("/api/people"), BA.api("/api/risks/surprise-scan")]);
+      const [risks, decisions, people, scan, pg] = await Promise.all([BA.api("/api/risks"), BA.api("/api/decisions-needed"), BA.api("/api/people"), BA.api("/api/risks/surprise-scan"), BA.api("/api/decisions/process-guide")]);
       keepTeam(risks);
       const areaName = Object.fromEntries(scan.areas.map((a) => [a.key, a.name]));
       keepTeam(decisions);
@@ -2148,22 +2185,34 @@
             ${ro ? "" : `<form class="row surprise" data-area="${a.key}"><input name="title" placeholder="A surprise you can see coming" required style="max-width:420px">
               <select name="level" style="max-width:120px"><option>high</option><option selected>medium</option><option>low</option></select><button class="btn" type="submit">Add as a risk</button></form>`}</div>`).join("")}
           <p><b>Silos.</b> ${esc(scan.silos)}</p></details></section>
-        <section class="card"><h2>Decisions needed</h2><div class="tablewrap"><table class="data"><thead><tr><th>Decision</th><th>From whom</th><th>Needed by</th><th>Status</th><th>Outcome</th></tr></thead><tbody>${
+        <section class="card"><h2>Decisions needed</h2><div class="tablewrap"><table class="data"><thead><tr><th>Decision</th><th>From whom</th><th>Needed by</th><th>How it's decided</th><th>Status</th><th>Outcome</th></tr></thead><tbody>${
           decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b> ${BA.keysEditor(`/api/decisions-needed/${d.id}`, d.jira_keys)}</td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
+            <td>${ro ? esc(d.process || "") : `<select name="process" style="max-width:170px"><option value=""></option>${opts(pg.processes.map((x) => x.key), d.process)}</select><label class="check quiet" title="Told the people involved which process, and why"><input type="checkbox" name="process_told"${d.process_told ? " checked" : ""}> told them</label>`}</td>
             <td>${ro ? esc(d.status) : `<select name="status">${["open", "decided"].map((s) => `<option${s === d.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td>
             <td>${ro ? esc(d.outcome || "") : `<input name="outcome" value="${esc(d.outcome || "")}">`}</td></tr>`).join("") ||
-          '<tr><td colspan="5" class="empty">No decisions pending.</td></tr>'
+          '<tr><td colspan="6" class="empty">No decisions pending.</td></tr>'
         }</tbody></table></div>
         ${ro ? "" : `<form id="add-dec" class="row" style="margin-top:10px"><input name="decision" placeholder="Decision needed" required style="max-width:320px">
           <select name="from_id" style="max-width:220px">${personOptions(people)}</select><input type="date" name="needed_by" style="max-width:170px">
-          <button class="btn primary" type="submit">Add decision</button></form>`}</section>`;
+          <button class="btn primary" type="submit">Add decision</button></form>`}</section>
+        <section class="card"><details><summary><b>Choosing how a decision gets made</b> <span class="quiet">· from deciding alone to unanimous</span></summary>
+          ${pg.processes.map((x) => `<p><b>${esc(x.key[0].toUpperCase() + x.key.slice(1))}.</b> ${esc(x.what)}</p>`).join("")}
+          <form id="dp-suggest"><p class="quiet">Answer what applies to the decision in front of you.</p>${pg.questions.map((q) => `<label class="check"><input type="checkbox" name="${q.key}"> ${esc(q.question)}</label>`).join("")}
+            ${pg.situations.length ? `<p class="quiet">Your situations (${pg.situations.map(esc).join(", ")}) are weighed in too.</p>` : ""}<div class="actions"><button class="btn" type="submit">Suggest a process</button></div></form><div id="dp-result"></div>
+          <p class="callout">${esc(pg.fair)}</p><p class="quiet">${esc(pg.charade)} ${esc(pg.switch)} ${esc(pg.time)}</p></details></section>`;
       const num = (v) => (v ? Number(v) : null);
       main.querySelectorAll("tr[data-risk]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
         await BA.api(`/api/risks/${tr.dataset.risk}`, { method: "PATCH", body: { [e.target.name]: e.target.value } });
         BA.toast("Saved.");
       })));
+      const dps = main.querySelector("#dp-suggest");
+      if (dps) dps.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(dps), r = await BA.api("/api/decisions/suggest", { method: "POST", body: Object.fromEntries(pg.questions.map((q) => [q.key, fd.get(q.key) === "on"])) });
+        main.querySelector("#dp-result").innerHTML = r.process ? `<p><b>Suggested: ${esc(r.process)}.</b></p><div class="md"><ul>${r.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : '<p class="quiet">Tick what applies, or set your situations, to get a suggestion.</p>';
+      });
       main.querySelectorAll("tr[data-dec]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
-        await BA.api(`/api/decisions-needed/${tr.dataset.dec}`, { method: "PATCH", body: { [e.target.name]: e.target.value } });
+        await BA.api(`/api/decisions-needed/${tr.dataset.dec}`, { method: "PATCH", body: { [e.target.name]: e.target.type === "checkbox" ? e.target.checked : e.target.value || null } });
         BA.toast("Saved.");
       })));
       main.querySelectorAll("form.surprise").forEach((form) => (form.onsubmit = BA.guard(async (e) => {
@@ -5034,11 +5083,13 @@
           ${teams.length > 1 ? `<span class="quiet">${esc(tname[a.team_id] || "all teams")}</span>` : ""}<button class="btn" type="submit">Save</button><button class="icon-btn" type="button" data-del title="Delete">${BA.icon("x")}</button></form>`).join("") || '<p class="quiet">None yet.</p>'}
         <form id="add-agr" class="row" style="margin-top:8px"><input name="text" required placeholder="We agree that..." style="flex:1;min-width:240px"><select name="area" style="max-width:170px">${opts(A_AREAS, "working together")}</select><button class="btn" type="submit">Add as a proposal</button>
           ${list.length ? "" : '<button class="btn" type="button" id="agr-starter">Start from suggestions</button>'}</form>
-        <p class="quiet">Suggestions load as proposals. Agree them with the team, then mark them agreed; the date is recorded.</p></section>`}`;
+        <p class="quiet">Suggestions load as proposals. Agree them with the team, then mark them agreed; the date is recorded. <button class="btn" type="button" id="agr-distributed">Add suggestions for a distributed team</button></p></section>`}`;
     if (ro) return;
     main.querySelector("#add-agr").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api("/api/team-agreements", { method: "POST", body: { text: fd.get("text"), area: fd.get("area") } }); BA.rerender(); });
     const st = main.querySelector("#agr-starter");
     if (st) st.onclick = BA.guard(async () => { await BA.api("/api/culture/agreements/starter", { method: "POST", body: {} }); BA.rerender(); });
+    const dist = main.querySelector("#agr-distributed");
+    if (dist) dist.onclick = BA.guard(async () => { await BA.api("/api/culture/agreements/distributed", { method: "POST", body: {} }); BA.toast("Added as proposals."); BA.rerender(); });
     main.querySelectorAll("[data-agr]").forEach((f) => {
       f.onsubmit = BA.guard(async (e) => {
         e.preventDefault();
@@ -5432,6 +5483,40 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     main.querySelector("#rt-add").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/role-templates", { method: "POST", body: { name: new FormData(e.target).get("name") } }); BA.rerender(); });
   }
 
+  function teamBeforeCard(b) {
+    if (!b || b.hidden) return "";
+    const v = b.data || {}, r = v.roles || {};
+    return `<section class="card"><h2>How the team worked before you</h2><p class="quiet">Learn this before changing anything, so you keep what worked. Ask team members, peers and your manager; read meeting notes and reports. Private.</p>
+      <form id="before"><h3>Roles people played</h3><div class="grid2">${b.roles.map((x) => `<label>${esc(x.label)}<input name="r.${x.key}" value="${esc(r[x.key] || "")}"></label>`).join("")}</div>
+        <h3>Meetings and decisions</h3><div class="grid2"><label>How often the team met<input name="meetings_often" value="${esc(v.meetings_often || "")}"></label><label>Who took part<input name="meetings_who" value="${esc(v.meetings_who || "")}"></label>
+          <label>Who set the agendas<input name="meetings_agenda" value="${esc(v.meetings_agenda || "")}"></label><label>Who decided what, who was consulted, who was told after<input name="decisions" value="${esc(v.decisions || "")}"></label></div>
+        <label>Core meetings were<select name="core_meeting" style="max-width:200px"><option value=""></option>${opts(b.core_meeting, v.core_meeting)}</select></label>${b.advice ? `<p class="quiet">${esc(b.advice)}</p>` : ""}
+        <h3>Leadership style</h3><div class="grid2"><label>Your predecessor's style <span class="quiet">(how they learned, communicated, motivated and decided)</span><textarea name="predecessor_style" rows="2">${esc(v.predecessor_style || "")}</textarea></label>
+          <label>How yours differs, and how you'll handle it <span class="quiet">(say it in "Working with me")</span><textarea name="style_difference" rows="2">${esc(v.style_difference || "")}</textarea></label>
+          <label>What worked and should stay<textarea name="keep" rows="2">${esc(v.keep || "")}</textarea></label><label>What to change, specifically<textarea name="change" rows="2">${esc(v.change || "")}</textarea></label></div>
+        <div class="actions"><button class="btn" type="submit">Save</button></div></form></section>`;
+  }
+
+  // The six questions that close the chapter on building the team, answered from what's on record.
+  function teamChecklistCard(d, ta, align, before) {
+    if (!ta || ta.hidden) return "";
+    const prof = ta.profile, people = ta.people || [], tp = d.team_plan || {}, bd = (before && before.data) || {};
+    const placed = people.filter((x) => x.disposition !== "observe"), urgent = people.filter((x) => x.disposition === "replace, high priority");
+    const alts = people.filter((x) => (x.disposition || "").startsWith("replace") && ((x.assessment || {}).alternatives || {}).done && x.assessment.alternatives.done.length);
+    const tools = align.tools || {}, pushN = (align.push || []).filter((t) => tools[t.key]).length, pullN = (align.pull || []).filter((t) => tools[t.key]).length;
+    const answers = [
+      ["What are your criteria, and how do function, teamwork, situation and criticality affect the weights?", [prof ? `Criteria set ${BA.fmtDate(prof.date)}${prof.threshold ? `, threshold ${prof.threshold}` : ""}${prof.interdependence ? `, work is ${prof.interdependence}` : ""}` : "", people.filter((x) => (x.assessment || {}).criticality).length ? `${people.filter((x) => (x.assessment || {}).criticality).length} positions rated for criticality` : ""]],
+      ["How will you assess the team?", [`${people.filter((x) => (x.assessment || {}).first_on).length} of ${people.length} first impressions, ${people.filter((x) => x.considered).length} considered views`, tp.conclusions_due ? `conclusions due ${BA.fmtDate(tp.conclusions_due)}` : ""]],
+      ["What changes do you need, which are urgent, and how will you create backups and options?", [placed.length ? `${placed.length} placed with confidence` : "", urgent.length ? `${urgent.length} high-priority` : "", people.length - placed.length ? `${people.length - placed.length} still observing` : ""]],
+      ["How will you make high-priority changes while preserving people's dignity, and who will help?", [alts.length ? `Alternatives considered for ${alts.length}` : "", tp.act_due ? `act by ${BA.fmtDate(tp.act_due)}` : ""]],
+      ["How will you align the team: what mix of push and pull?", [`${pushN} push and ${pullN} pull tools in use`, (align.goals || []).length ? `${align.goals.length} goals, ${align.goals.filter((g) => g.measurable).length} measurable` : "", (align.vision || {}).draft ? "a vision drafted" : ""]],
+      ["How should the team operate: roles, the size of the core team, and decision-making?", [bd.core_meeting ? `core meetings were ${bd.core_meeting}` : "", bd.change ? "changes named" : "", Object.keys(bd.roles || {}).length ? `${Object.keys(bd.roles).length} roles noted` : ""]],
+    ];
+    return `<section class="card"><h2>Six questions on building the team</h2><p class="quiet">Answered from what you've filled in. You'll know the team is built when it gives back more energy than you put in.</p>
+      <div class="md"><ol>${answers.map(([q, a]) => { const got = a.filter(Boolean); return `<li><b>${esc(q)}</b><br>${got.length ? esc(got.join(" · ")) : '<span class="quiet">Nothing yet.</span>'}</li>`; }).join("")}</ol></div>
+      <p class="quiet"><a href="#/team-align">Aligning the team</a> holds goals, push and pull, incentives and the vision.</p></section>`;
+  }
+
   function teamPlanCard(tp, unrec) {
     if (!tp) return "";
     const ro = presenting();
@@ -5453,7 +5538,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   }
 
   async function renderF90Team(main) {
-    const [d, rc, allPeople, ta, tg] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations"), BA.api("/api/people"), BA.api("/api/team-assessment"), BA.api("/api/team-assessment/guide")]);
+    const [d, rc, allPeople, ta, tg, before, align] = await Promise.all([BA.api("/api/first90/team"), BA.api("/api/first90/report-conversations"), BA.api("/api/people"), BA.api("/api/team-assessment"), BA.api("/api/team-assessment/guide"), BA.api("/api/team-assessment/before"), BA.api("/api/team-align")]);
     const agents = allPeople.filter((p) => p.change_agent && p.active !== false);
     const agentsCard = `<section class="card"><h2>Change agents</h2><p class="quiet">People at any level with the drive to help lead change. Ask them to lead early win projects; giving promising people real ownership early also helps them stay. Mark them under Details on their page.</p>
       ${agents.map((p) => `<div class="item"><a href="#/people/${p.id}">${esc(p.name)}</a><span class="quiet">${esc(p.role || "")}</span></div>`).join("") || '<p class="quiet">None marked yet.</p>'}</section>`;
@@ -5474,6 +5559,8 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       ${!d.people.length ? `<section class="card"><p class="quiet">${d.has_me ? 'Nobody reports to you yet, apart from new hires. Open each report\'s page under People, go to Details, and set Reports to.' : 'Open your own page under <a href="#/people">People</a> and press This is me, then set who reports to you.'}</p></section>` : ""}
       ${teamPlanCard(d.team_plan, d.unrecognized)}
       ${teamAssessCard(ta, tg)}
+      ${teamBeforeCard(before)}
+      ${teamChecklistCard(d, ta, align, before)}
       ${rcCard}
       ${agentsCard}
       <section class="card"><h2>Team check-ins at days 30, 60 and 90</h2><p class="quiet">Take a <a href="#/culture/pulse">trust pulse</a> near each one, ask the listening tour questions again, and tell the team what changed because of what they said.</p>
@@ -5496,6 +5583,15 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         BA.toast("Saved.");
         BA.rerender();
       });
+    });
+    const bf = main.querySelector("#before");
+    if (bf) bf.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(bf), roles = {};
+      for (const [k, val] of fd.entries()) if (k.startsWith("r.") && String(val).trim()) roles[k.slice(2)] = val;
+      await BA.api("/api/team-assessment/before", { method: "PUT", body: { roles, core_meeting: fd.get("core_meeting") || null, ...Object.fromEntries(["meetings_often", "meetings_who", "meetings_agenda", "decisions", "predecessor_style", "style_difference", "keep", "change"].map((k) => [k, fd.get(k)])) } });
+      BA.toast("Saved.");
+      BA.rerender();
     });
     const dyf = main.querySelector("#dynamics");
     if (dyf) dyf.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/team-assessment/dynamics", { method: "PUT", body: Object.fromEntries(new FormData(dyf)) }); BA.toast("Saved."); });

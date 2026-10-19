@@ -158,6 +158,36 @@ def _dynamics(conn) -> dict:
     return json.loads(row["value"]) if row else {}
 
 
+BEFORE_KEY = "team.before"
+BEFORE_ROLES = [("influencer", "Had the most influence on key issues"), ("devils_advocate", "Played devil's advocate"), ("innovator", "The innovator"),
+                ("avoider", "Avoided uncertainty"), ("listened_to", "The one everyone listened to most"), ("peacemaker", "The peacemaker"), ("rabble_rouser", "The rabble-rouser")]
+CORE_MEETING = ("about right", "too inclusive", "too exclusive")
+CORE_MEETING_ADVICE = {"too inclusive": "Shrink the core group and streamline the meetings: it signals that you value focus and efficiency.",
+                       "too exclusive": "Broaden participation carefully: it signals that you won't play favorites or listen to only a few voices."}
+
+
+@router.get("/api/team-assessment/before")
+def get_before(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (BEFORE_KEY,)).fetchone()
+    data = json.loads(row["value"]) if row else {}
+    return {"data": data, "roles": [{"key": k, "label": l} for k, l in BEFORE_ROLES], "core_meeting": CORE_MEETING,
+            "advice": CORE_MEETING_ADVICE.get(data.get("core_meeting"))}
+
+
+@router.put("/api/team-assessment/before")
+def put_before(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """How the team worked before you arrived: roles, meetings, decisions, and your predecessor's style next to yours."""
+    require_write(viewer)
+    role_keys = {k for k, _ in BEFORE_ROLES}
+    clean = {"roles": {k: str(v) for k, v in (body.get("roles") or {}).items() if k in role_keys and str(v).strip()},
+             **{k: str(body.get(k) or "") for k in ("meetings_often", "meetings_who", "meetings_agenda", "decisions", "predecessor_style", "style_difference", "keep", "change")},
+             "core_meeting": body.get("core_meeting") if body.get("core_meeting") in CORE_MEETING else None}
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (BEFORE_KEY, json.dumps(clean)))
+    return clean
+
+
 @router.put("/api/team-assessment/dynamics")
 def put_dynamics(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """How the team works as a whole: alliances, who defers to whom, and whether one-on-one answers were too uniform or too scattered."""

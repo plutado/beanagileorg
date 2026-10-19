@@ -77,6 +77,7 @@ TOOLKIT = {
                   "Under Team decisions, set the days for conclusions about the team and for acting on them, mark where alignment and the team stand, and recognize key people early.",
                   "Under Assessing the team, keep a first impression of each person, then a considered view on six criteria weighted by your own (set under My development).",
                   "Add each person's position criticality, situation fit and judgment, place them only when 90% sure, note the team's dynamics, and use role templates for unfamiliar functions.",
+                  "Record how the team worked before you, then check the six questions on building the team.",
                   "Write 'Working with me' and share it in week one: how you work, what you've been asked to do, what you'll change and protect. Plan how you'll engage each audience in your first days.",
                   "Add each change you're bringing. Announce it, try it for a set time, review it with the team, then keep or drop it.",
                   "Check each change's readiness: awareness, diagnosis, vision, plan and support. Missing pieces are built together before planning.",
@@ -195,7 +196,7 @@ TOOLKIT = {
     },
     "/risks": {
         "purpose": "Keep risks and pending decisions visible, with an owner, a next step and a date.",
-        "steps": ["Log a risk with its level, owner and next step.", "Run Look for predictable surprises: four areas with prompts. Anything you spot becomes a risk tagged with its area.", "Log decisions you need from others, with who decides and by when.", "Record the outcome when a decision is made."],
+        "steps": ["Log a risk with its level, owner and next step.", "For each decision, pick how it's decided and tick when you've told people; the guide below suggests a process.", "Run Look for predictable surprises: four areas with prompts. Anything you spot becomes a risk tagged with its area.", "Log decisions you need from others, with who decides and by when.", "Record the outcome when a decision is made."],
         "privacy": "Risks and decisions are shareable; notes are private.",
         "related": ["/status", "/coaching/your-manager", "/coaching/early-wins"],
     },
@@ -276,7 +277,7 @@ TOOLKIT = {
     "/team-align": {
         "purpose": "Make sure each person knows how they support the team's goals, and wants to: owned, measurable goals, a blend of push and pull, rewards that fit the work, and a shared vision.",
         "steps": ["Break goals into parts with an owner or the whole team, a metric, a from, a to and a date.", "Tick the push and pull tools you're using, and read the advice for your situations.",
-                  "Answer the five incentive questions to see the reward mix that fits.", "Draft a vision with the team using the seven lenses, and check it against the three tests."],
+                  "Answer the five incentive questions to see the reward mix that fits.", "Draft a vision with the team using the seven lenses, and check it against the three tests.", "Plan any offsite: two purposes at most, foundations first, and the right facilitator."],
         "privacy": "Goals are shareable; how individuals prefer to be motivated stays private.",
         "related": ["/metrics", "/first90", "/alignment", "/coaching/building-the-team"],
     },
