@@ -266,6 +266,7 @@ TOOLKIT = {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
         "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",
                   "Note the climate and the outside players that matter.", "Under Direction, write the mission, vision and strategy, what you won't do, and test it for coherence, adequacy and how it was made.",
+                  "Under Structure, judge its four parts, mark the balances now and where they should be, and tick the common problems you see.",
                   "Mark where two elements are out of step, pick the situation to see where to start, then name the root cause and the case to make."],
         "privacy": "Private. The diagram shows while presenting, but your diagnosis doesn't.",
         "related": ["/teams", "/raci", "/coaching/org-as-a-system"],

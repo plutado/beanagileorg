@@ -1572,6 +1572,12 @@ MIGRATIONS = [
         ALTER TABLE alignment_checks ADD COLUMN sequence TEXT;
         """,
     ),
+    (
+        48,
+        """
+        ALTER TABLE alignment_checks ADD COLUMN structure TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -3171,6 +3177,7 @@ alignment_checks = Record(
         "direction": Field("json", P),
         "mismatches": Field("json", P),
         "sequence": Field("text", P, choices=ALIGNMENT_SEQUENCES),
+        "structure": Field("json", P),
     },
     hide_when_empty=True,
 )

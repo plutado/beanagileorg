@@ -107,6 +107,40 @@ SEQUENCES = {
     "other": ("Follow the logic of a long voyage: destination and route (direction), then the boat (structure), how it's fitted out (processes), and the crew (skills). Keep watching for reefs that aren't on the chart.", ["direction", "structure", "processes", "skills"]),
 }
 CLOSE_THE_LOOP = "Close the loop. What you learn about structure, processes and skills shows the team's capability and its capacity for change, which in turn shows what change of direction is realistic, and how fast."
+# Structure in four parts, the balances every structure strikes, and the problems that come with them.
+STRUCTURE_CAUTION = "Structure decides who has authority to do what, so changing it moves power. Change it only when it's clearly needed, as in a turnaround or fast growth. In a realignment, with no crisis to drive it, early structural change is risky."
+STRUCTURE_PARTS = [
+    ("units", "Units", "How people are grouped: by function, product, customer or place.", [
+        "Does the grouping help the area achieve its mission and carry out its strategy?",
+        "Are the right people in the right places for the core objectives?",
+    ]),
+    ("reporting", "Reporting lines and integration", "Who reports to whom, how effort is coordinated, and how work moves between units.", [
+        "Do reporting lines help line up effort? Is it clear who's accountable for what?",
+        "Is the work of different units joined up well, or does it fall between them?",
+    ]),
+    ("decisions", "Decision rights and rules", "Who can decide what, and the rules that keep decisions in line with the strategy.", [
+        "Are decisions made by the people with the most relevant knowledge?",
+        "Is the balance right between deciding centrally and locally, and between standard and custom?",
+    ]),
+    ("incentives", "Measures and incentives", "What people are measured on and rewarded for.", [
+        "Are we measuring and rewarding what matters most to the strategy?",
+        "Is the balance right between fixed and performance-based rewards, and between individual and team incentives?",
+    ]),
+]
+BALANCES = [
+    ("central", "Decisions made centrally", "Decisions made locally"),
+    ("standard", "Standard ways of working", "Custom to each team or customer"),
+    ("rewards", "Fixed rewards", "Performance-based rewards"),
+    ("incentives", "Individual incentives", "Team incentives"),
+]
+BALANCE_STEPS = ("far left", "leans left", "balanced", "leans right", "far right")
+STRUCTURE_PROBLEMS = [
+    ("silos", "Silos of excellence", "Grouping like with like builds deep expertise but isolates it. Who bridges the gaps, and are there cross-team mechanisms and shared goals?", "/sos", "Scrum of Scrums"),
+    ("scope", "Decision scope too narrow or too broad", "Too central, and decisions are slow, poorly informed and wear out the few who make them. Too broad without the bigger picture, and people make unwise calls.", "/raci", "RACI"),
+    ("incentives", "Incentives to do the wrong thing", "People do what they're rewarded for. Rewards that serve individuals at the group's expense, or reward neither, pull people apart.", "/metrics", "Metrics"),
+    ("accountability", "Compartments or blurred accountability", "Hierarchy keeps accountability clear but traps information; shared or matrix reporting spreads information but can leave nobody accountable.", "/raci", "RACI"),
+]
+STRUCTURE_SCRUM = "Scrum's three accountabilities (product owner, Scrum Master, developers) are decision rights: the product owner orders the backlog, the developers decide how to do the work. A cross-functional team and the Scrum of Scrums are integration mechanisms. Team goals are the incentive Scrum relies on; individual velocity targets undo it."
 CLIMATE_PROMPT = "What is the climate like: morale, trust, energy, and how recent changes have landed? The culture map holds the deeper read."
 
 
@@ -123,6 +157,10 @@ def alignment_guide(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)
         "mismatch_states": MISMATCH_STATES,
         "sequences": {k: {"why": w, "order": o} for k, (w, o) in SEQUENCES.items()},
         "close_the_loop": CLOSE_THE_LOOP,
+        "structure": {"caution": STRUCTURE_CAUTION, "scrum": STRUCTURE_SCRUM,
+                      "parts": [{"key": k, "name": n, "what": w, "prompts": p} for k, n, w, p in STRUCTURE_PARTS],
+                      "balances": [{"key": k, "left": l, "right": r} for k, l, r in BALANCES], "steps": BALANCE_STEPS,
+                      "problems": [{"key": k, "name": n, "what": w, "path": a, "label": b} for k, n, w, a, b in STRUCTURE_PROBLEMS]},
         "situations": situations,
         "elements": [{"key": k, "name": n, "what": w, "prompts": p, "scrum": s, "look": [{"path": a, "label": b} for a, b in look]} for k, n, w, p, s, look in ELEMENTS],
         "links": LINKS,

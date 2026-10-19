@@ -192,6 +192,12 @@ GUIDES = [
             "Test an inherited direction three ways: is it coherent (do the parts connect), adequate (is it enough for the next two or three years), and how was it made (rushed, or a slow political compromise)?",
             "Watch for the common mismatches: direction and skills, direction and processes, structure and processes, structure and skills.",
             "Judge a direction by what people do, not what they say. Look at the decisions being made, the goals really being chased, whether the stated measures are used, and whether people get the help they need to build new skills. It tells you whether to fix the direction or how it's carried out.",
+            "Remember that structure allocates power: it decides who can do what. Change it only when it's clearly needed, as in a turnaround or fast growth. In a realignment, with no crisis to drive change, early restructuring is especially risky.",
+            "Look at structure in four parts: how people are grouped, reporting lines and how work is joined up, who decides what, and what people are measured and rewarded on. Check that the parts fit each other, not only the strategy.",
+            "There's no perfect structure, only trade-offs: central or local decisions, standard or custom ways of working, fixed or performance rewards, individual or team incentives. Find the balance your situation needs.",
+            "Watch for the common structural problems: silos of excellence with nobody bridging them; decisions held too centrally or pushed out without the bigger picture; incentives that reward the wrong thing; and hierarchy that traps information versus shared reporting that blurs accountability.",
+            "Put each decision with the people who have the most relevant knowledge, as long as their incentives point them toward what's best for the group. In Scrum, the product owner orders the backlog and the developers decide how to do the work.",
+            "People do what they're rewarded for. If the team is meant to work as one, measure and reward it as one; individual velocity targets undo teamwork.",
             "If the direction is the wrong path, raise questions so your manager and others re-examine it rather than changing it alone. If it's right but not fast or far enough, adjust it modestly early, and save bigger changes until you've learned more and built support.",
             "When you assess strengths and weaknesses, start outside. List threats and opportunities first, then ask which weaknesses leave you exposed to a threat and which strengths let you pursue an opportunity. Turn those pairs into priorities. Some call this TOWS rather than SWOT, to get the order right.",
         ],
@@ -1275,7 +1281,8 @@ TIPS = {
     "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
               ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
-    "/teams": [("Before blaming a team for a practice that won't stick, check its structure and incentives: who it serves, how it's measured, what it owns.", "org-as-a-system", 34),
+    "/teams": [("Watch for silos of excellence: deep expertise in one group, poor links to the rest. Ask who bridges the gaps.", "org-as-a-system", 36),
+               ("Before blaming a team for a practice that won't stick, check its structure and incentives: who it serves, how it's measured, what it owns.", "org-as-a-system", 34),
                ("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4),
                ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6),
                ("Know what each peer team is trying to achieve. It's the start of every useful trade.", "peer-relationships", 10)],
@@ -1292,7 +1299,8 @@ TIPS = {
                 ('Start with a minute of silent writing so the quiet voices get heard before the loud ones.', 'strong-and-quiet-voices', 6)],
     "/pi": [("Make cross-team dependencies visible early, each with an owner and a needed-by date.", "scrum-of-scrums")],
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
-    "/raci": [("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
+    "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
+              ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
                ("Don't just bring your manager a problem; bring a plan for starting to address it, even if it's only finding out more.", "your-manager", 25),
                ("Run the predictable surprises scan, especially in the areas you know least. Most surprises were visible to someone in advance.", "early-wins", 33)],
@@ -1401,7 +1409,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 35  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 36  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

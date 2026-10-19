@@ -1686,7 +1686,7 @@
             <section class="card grid2"><label>Area<input name="area" value="${esc(check.area)}" required></label><label>Date of this read<input type="date" name="date" value="${esc(check.date || BA.today())}"></label></section>
             ${alignSequenceCard(g, check)}
             ${g.elements.map((e) => { const v = els[e.key] || {}; return `<section class="card" id="al-${e.key}"><h2>${esc(e.name)} ${v.fit ? `<span class="pill ${FIT_TONE[v.fit]}">${esc(v.fit)}</span>` : ""}</h2><p class="quiet">${esc(e.what)}</p>
-              <div class="md"><ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>${e.key === "direction" ? alignDirectionBlock(g, check) : ""}
+              <div class="md"><ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>${e.key === "direction" ? alignDirectionBlock(g, check) : e.key === "structure" ? alignStructureBlock(g, check) : ""}
               <p class="quiet">Look at: ${e.look.map((l) => `<a href="#${l.path}">${esc(l.label)}</a>`).join(" · ")}</p>
               <div class="row" style="align-items:flex-start"><select name="fit.${e.key}" style="max-width:160px"><option value="">Fit: not judged</option>${opts(g.fits, v.fit)}</select>
               <textarea name="notes.${e.key}" rows="3" placeholder="What you see, with evidence" style="flex:1;min-width:220px">${esc(v.notes || "")}</textarea></div></section>`; }).join("")}
@@ -1715,7 +1715,7 @@
             cs: Object.fromEntries(g.direction.four_cs.map((x) => [x.key, fd.get(`cs.${x.key}`) || ""])),
             tests: Object.fromEntries(g.direction.tests.map((x) => [x.key, { rating: fd.get(`test.${x.key}`) || null, notes: fd.get(`testn.${x.key}`) || "" }])) };
           await BA.api(`/api/alignment-checks/${check.id}`, { method: "PATCH", body: { area: fd.get("area"), date: fd.get("date") || null, elements, external, climate: fd.get("climate"), root_cause: fd.get("root_cause") || null, the_case: fd.get("the_case"), next_step: fd.get("next_step"),
-            sequence: fd.get("sequence") || null, direction, mismatches } });
+            sequence: fd.get("sequence") || null, direction, mismatches, structure: alignReadStructure(g, fd) } });
           BA.toast("Saved.");
           BA.rerender();
         });
@@ -1758,6 +1758,29 @@
       ${(() => { const sug = alignSuggestedMove(d.verdict, check.sequence); const m = g.direction.moves.find((x) => x.key === sug); return m ? `<p class="quiet">Suggested from the verdict${check.sequence ? " and the situation" : ""}: <b>${esc(m.label)}</b>.</p>` : ""; })()}
       <label>What I'll do about the direction<select name="dir.move" style="max-width:420px"><option value="">Not decided</option>${g.direction.moves.map((m) => `<option value="${m.key}"${m.key === d.move ? " selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
       ${d.move ? `<p class="quiet">${esc(g.direction.moves.find((m) => m.key === d.move).why)}</p>` : ""}`;
+  }
+
+  function alignReadStructure(g, fd) {
+    const S = g.structure, n = (v) => (v === null || v === "" ? null : Number(v));
+    return {
+      parts: Object.fromEntries(S.parts.map((x) => [x.key, { fit: fd.get(`sp.${x.key}`) || null, notes: fd.get(`spn.${x.key}`) || "" }])),
+      balances: Object.fromEntries(S.balances.map((b) => [b.key, { now: n(fd.get(`bn.${b.key}`)), should: n(fd.get(`bs.${b.key}`)) }])),
+      problems: Object.fromEntries(S.problems.map((x) => [x.key, { seen: fd.get(`pr.${x.key}`) === "on", notes: fd.get(`prn.${x.key}`) || "" }])),
+    };
+  }
+
+  function alignStructureBlock(g, check) {
+    const st = check.structure || {}, parts = st.parts || {}, bal = st.balances || {}, probs = st.problems || {}, S = g.structure;
+    const stepOpts = (v) => S.steps.map((x, i) => `<option value="${i}"${String(v) === String(i) ? " selected" : ""}>${esc(x)}</option>`).join("");
+    return `<p class="callout warn">${esc(S.caution)}</p>
+      ${S.parts.map((x) => { const v = parts[x.key] || {}; return `<h3>${esc(x.name)} ${v.fit ? `<span class="pill ${FIT_TONE[v.fit]}">${esc(v.fit)}</span>` : ""}</h3><p class="quiet">${esc(x.what)}</p><div class="md"><ul>${x.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div>
+        <div class="row" style="align-items:flex-start"><select name="sp.${x.key}" style="max-width:160px"><option value="">Fit: not judged</option>${opts(g.fits, v.fit)}</select><textarea name="spn.${x.key}" rows="2" placeholder="What you see" style="flex:1;min-width:220px">${esc(v.notes || "")}</textarea></div>`; }).join("")}
+      <h3>The balances it strikes</h3><p class="quiet">Every structure is a trade-off. Mark where the area is now, and where it should be.</p>
+      <div class="tablewrap"><table class="data"><thead><tr><th>Between</th><th>Now</th><th>Should be</th><th>And</th></tr></thead><tbody>${S.balances.map((b) => { const v = bal[b.key] || {}; return `<tr><td>${esc(b.left)}</td>
+        <td><select name="bn.${b.key}" style="max-width:150px"><option value="">–</option>${stepOpts(v.now)}</select></td><td><select name="bs.${b.key}" style="max-width:150px"><option value="">–</option>${stepOpts(v.should)}</select></td><td>${esc(b.right)}</td></tr>`; }).join("")}</tbody></table></div>
+      <h3>Common problems</h3>${S.problems.map((x) => { const v = probs[x.key] || {}; return `<div style="margin-bottom:8px"><label class="check"><input type="checkbox" name="pr.${x.key}"${v.seen ? " checked" : ""}> <b>${esc(x.name)}</b> <span class="quiet">seen here</span></label>
+        <p class="quiet">${esc(x.what)} <a href="#${x.path}">${esc(x.label)}</a></p><input name="prn.${x.key}" value="${esc(v.notes || "")}" placeholder="Where you see it"></div>`; }).join("")}
+      <p class="callout">${esc(S.scrum)}</p>`;
   }
 
   // Formulation problems are re-examined in a turnaround, adjusted modestly elsewhere; implementation problems leave the direction alone.

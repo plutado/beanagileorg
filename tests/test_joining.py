@@ -133,3 +133,11 @@ def test_tows_priorities(client):
     r = client.post(f"/api/assessments/{threat['id']}/to-roadmap?priority=true").json()
     assert any(i["title"] == "Blunt: [Threat]" for i in client.get("/api/roadmap").json()) and r["status"] == "acted on"
     assert len(client.get("/api/landscape/swot").json()["priorities"]) == 2
+
+
+def test_alignment_structure(client):
+    S = client.get("/api/alignment/guide").json()["structure"]
+    assert [p["key"] for p in S["parts"]] == ["units", "reporting", "decisions", "incentives"] and len(S["balances"]) == 4 and len(S["problems"]) == 4
+    c = client.post("/api/alignment-checks", json={"area": "[Placeholder area]"}).json()
+    st = {"parts": {"incentives": {"fit": "misaligned"}}, "balances": {"incentives": {"now": 0, "should": 3}}, "problems": {"silos": {"seen": True}}}
+    assert client.patch(f"/api/alignment-checks/{c['id']}", json={"structure": st}).json()["structure"]["balances"]["incentives"]["should"] == 3
