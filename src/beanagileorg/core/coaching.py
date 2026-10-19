@@ -1447,7 +1447,8 @@ TIPS = {
     "/learning": [("Keep early group sessions on the business. Save team-building activities until the team you want is mostly in place.", "building-the-team", 39),
                ("Teaching others is one of the fastest ways to learn. Invite people to present what they know.", "delegation")],
     "/vendors": [("Talk to key vendors regularly, not only during incidents.", "vendor-partnerships")],
-    "/plans": [("Present the plan as your recommendation, with the options you weighed. Leave room for your manager to shape it, then agree it.", "leading-upward", 12),
+    "/plans": [("At each checkpoint, show what was met, what moved and why, and what you dropped. A plan that changes with good reasons builds more trust than one that pretends nothing changed.", "your-manager", 47),
+               ("Present the plan as your recommendation, with the options you weighed. Leave room for your manager to shape it, then agree it.", "leading-upward", 12),
                ("Your plans deliver your mandate. Check each plan item against the outcomes you agreed with your manager.", "your-mandate", 9),
                ("Agree what success looks like at each step with your manager, in writing.", "your-manager"),
                ("Pick a few early wins that solve problems people already feel.", "early-wins"),
@@ -1545,7 +1546,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 46  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 47  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

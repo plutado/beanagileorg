@@ -1805,6 +1805,20 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        59,
+        """
+        CREATE TABLE plan_versions (
+            id INTEGER PRIMARY KEY,
+            plan_id INTEGER NOT NULL REFERENCES plans (id) ON DELETE CASCADE,
+            taken_on TEXT NOT NULL,
+            label TEXT,
+            reason TEXT,
+            snapshot TEXT
+        );
+        ALTER TABLE plan_items ADD COLUMN checkin TEXT;
+        """,
+    ),
 ]
 
 # Names and roles may show on a shared screen; everything personal stays private.
@@ -2526,6 +2540,16 @@ plans = Record(
     },
 )
 
+# A plan as it stood at a moment, such as when it was presented, so a later review can show what changed and why.
+plan_versions = Record(
+    entity="plan_version",
+    table="plan_versions",
+    path="/api/plan-versions",
+    order_by="plan_id, taken_on DESC, id DESC",
+    fields={"plan_id": Field("int", E, required=True), "taken_on": Field("date", E, required=True), "label": Field("text", E),
+            "reason": Field("text", E), "snapshot": Field("json", E)},
+)
+
 plan_items = Record(
     entity="plan_item",
     table="plan_items",
@@ -2549,6 +2573,7 @@ plan_items = Record(
         "member_ids": Field("ids", S),
         "behavior": Field("text", S),
         "position": Field("int", S, default=0),
+        "checkin": Field("json", E),  # at a checkpoint: met, partly, moved or dropped, with a note
     },
     computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = plan_items.owner_id)", S),
               "ew_total": ("(SELECT CASE WHEN plan_items.ew_scores IS NULL THEN NULL ELSE (SELECT SUM(value) FROM json_each(plan_items.ew_scores)) END)", P)},
@@ -3998,7 +4023,7 @@ RECORDS = [
     alignment_checks, core_processes, skill_gaps, knowledge_sources, criteria_profiles, team_assessments, role_templates, team_goals, influence_links, power_coalitions, alliance_plans, releases, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
-    plans, plan_items,
+    plans, plan_items, plan_versions,
     departments, offerings, assessments,
     test_cases, regression_plans, test_runs, test_results, test_suites,
     integrations, arch_decisions, guides,

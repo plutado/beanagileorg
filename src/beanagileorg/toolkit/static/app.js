@@ -3167,10 +3167,61 @@
   const PLAN_STATUS_TONES = { draft: "", reviewed: "warn", presented: "accent", agreed: "good" };
   const NOTE_TITLES = { change_first: "What to change first", frustrating: "What's frustrating", gaps: "Gaps", opportunities: "Opportunities", dont_change: "What not to change", if_you_were_me: "If you were me" };
 
+  const CHECKIN_TONES = { met: "good", partly: "warn", moved: "accent", dropped: "" };
+
+  // Versions (the plan as presented, or at a moment you chose) and the checkpoint check-in: met, partly, moved or dropped.
+  function planReviewBlock(h, versions, horizons, ro) {
+    const items = h.items.filter((i) => i.status !== "dropped" || (i.checkin || {}).outcome);
+    const later = horizons.filter((x) => x.horizon_days > h.horizon_days);
+    return `<details class="plan-review" data-review="${h.id}" style="margin-top:10px"><summary class="quiet">Versions (${versions.length}) and check-in</summary>
+      <h4>Versions</h4><p class="quiet">The plan as it stood when presented, or whenever you save one, so a later review can show what changed and why. Marking a plan presented saves a version.</p>
+      ${versions.map((v) => `<div class="item"><span><b>${esc(v.label || "Version")}</b> <span class="quiet">${BA.fmtDate(v.taken_on)} · ${v.items} items${v.reason ? " · " + esc(v.reason) : ""}</span></span><span class="spacer"></span><button class="btn" type="button" data-compare="${v.id}">What's changed since</button></div>`).join("") || '<p class="quiet">No versions yet.</p>'}
+      <div data-compare-out></div>
+      ${ro ? "" : `<form class="save-version row" style="margin-top:6px"><input name="label" placeholder="Label, such as Day-30 review" style="max-width:220px"><input name="reason" placeholder="Why now (optional)" style="max-width:260px"><button class="btn" type="submit">Save a version</button></form>`}
+      <h4>Check-in</h4><p class="quiet">At the checkpoint, mark each item met, partly met, moved or dropped. Moved and dropped need a reason; that's what the review is about.</p>
+      ${items.map((i) => { const c = i.checkin || {}; return `<form class="checkin row" data-ci="${i.id}" style="align-items:center;margin-bottom:6px"><span style="flex:1;min-width:180px">${esc(i.title)}</span>
+        <select name="outcome" style="max-width:130px"${ro ? " disabled" : ""}><option value="">not checked</option>${opts(["met", "partly", "moved", "dropped"], c.outcome)}</select>
+        <input name="note" value="${esc(c.note || "")}" placeholder="Note" style="max-width:240px"${ro ? " disabled" : ""}>
+        ${ro ? "" : `<input type="number" name="due_day" min="1" placeholder="New day" style="max-width:100px" title="If moved: the new day"><select name="plan_id" style="max-width:150px" title="If moved: to another plan"><option value="">same plan</option>${later.map((x) => `<option value="${x.id}">${esc(x.title)}</option>`).join("")}</select><button class="btn" type="submit">Save</button>`}</form>`; }).join("") || '<p class="quiet">No items to check.</p>'}
+      <div class="row"><span class="quiet" data-ci-counts></span><span class="spacer"></span>${ro ? "" : '<button class="btn" type="button" data-ci-copy>Copy the check-in summary</button>'}</div></details>`;
+  }
+
+  function bindPlanReviews(main) {
+    main.querySelectorAll("[data-review]").forEach((box) => {
+      const pid = box.dataset.review;
+      box.addEventListener("toggle", async () => {
+        if (!box.open) return;
+        const sum = await BA.api(`/api/plans/${pid}/checkin`);
+        box.querySelector("[data-ci-counts]").textContent = Object.entries(sum.counts).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(" · ") || "Nothing to check yet.";
+      });
+      box.querySelectorAll("[data-compare]").forEach((b) => (b.onclick = BA.guard(async () => {
+        const c = await BA.api(`/api/plans/${pid}/compare?version_id=${b.dataset.compare}`);
+        const val = (v) => (v === null || v === undefined || v === "" ? "–" : esc(String(v)));
+        const fieldName = { title: "title", kind: "kind", due_day: "day", status: "status", detail: "detail", early_win: "early win" };
+        box.querySelector("[data-compare-out]").innerHTML = `<div class="callout"><b>Since ${esc(c.version.label || "that version")} (${BA.fmtDate(c.version.taken_on)})</b>
+          ${c.title_changed ? "<p>The plan was renamed.</p>" : ""}${c.summary_changed ? `<p>Headline was: ${val(c.was_summary)}<br>Now: ${val(c.now_summary)}</p>` : ""}
+          ${c.added.length ? `<p><b>Added:</b> ${c.added.map((i) => esc(i.title)).join("; ")}</p>` : ""}${c.removed.length ? `<p><b>Removed:</b> ${c.removed.map((i) => esc(i.title)).join("; ")}</p>` : ""}
+          ${c.changed.length ? `<div class="md"><ul>${c.changed.map((x) => `<li><b>${esc(x.title)}:</b> ${x.changes.map((d) => `${fieldName[d.field] || d.field} ${val(d.was)} → ${val(d.now)}`).join(", ")}</li>`).join("")}</ul></div>` : ""}
+          ${!c.added.length && !c.removed.length && !c.changed.length && !c.summary_changed && !c.title_changed ? "<p>Nothing has changed.</p>" : ""}</div>`;
+      })));
+      const sv = box.querySelector(".save-version");
+      if (sv) sv.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(sv); await BA.api(`/api/plans/${pid}/versions`, { method: "POST", body: { label: fd.get("label"), reason: fd.get("reason") } }); BA.toast("Version saved."); BA.rerender(); });
+      box.querySelectorAll("form.checkin").forEach((f) => (f.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(f), outcome = fd.get("outcome") || null;
+        await BA.api(`/api/plan-items/${f.dataset.ci}/checkin`, { method: "PUT", body: { outcome, note: fd.get("note"), due_day: fd.get("due_day") ? Number(fd.get("due_day")) : null, plan_id: fd.get("plan_id") ? Number(fd.get("plan_id")) : null } });
+        BA.toast("Checked in."); BA.rerender();
+      })));
+      const cp = box.querySelector("[data-ci-copy]");
+      if (cp) cp.onclick = BA.guard(async () => { const sum = await BA.api(`/api/plans/${pid}/checkin`); await navigator.clipboard.writeText(sum.markdown); BA.toast("Check-in summary copied as Markdown."); });
+    });
+  }
+
   BA.view("/plans", {
     title: "30/60/90 plans",
     async render(main) {
       const [d, people, mov] = await Promise.all([BA.api("/api/plans/overview"), BA.api("/api/people"), BA.api("/api/mandates/overview")]);
+      const versions = Object.fromEntries(await Promise.all(d.horizons.map(async (h) => [h.id, await BA.api(`/api/plans/${h.id}/versions`)])));
       const ro = presenting();
       const ev = d.evidence;
       const outcomes = (mov.mine && mov.mine.outcomes) || [];
@@ -3180,6 +3231,7 @@
       const dateRange = (h) => (h.start ? `${BA.fmtDate(h.start)} to ${BA.fmtDate(h.end)}` : `Days ${h.first_day} to ${h.last_day}`);
       const itemRow = (i) => `<details class="plan-item${i.status === "dropped" ? " dropped" : ""}" data-item="${i.id}"><summary>
           <span>${esc(i.title)}</span><span class="spacer"></span>
+          ${(i.checkin || {}).outcome ? `<span class="pill ${CHECKIN_TONES[i.checkin.outcome]}" title="${esc(i.checkin.note || "")}">${esc(i.checkin.outcome)}</span>` : ""}
           ${i.themes?.length ? BA.chips(i.themes) : ""}
           ${i.due ? `<span class="quiet">${BA.fmtDate(i.due)}</span>` : i.due_day ? `<span class="quiet">${BA.roleDay(i.due_day)}</span>` : ""}
           ${i.outside ? '<span class="pill warn" title="The day falls outside this plan\'s window">outside window</span>' : ""}
@@ -3216,6 +3268,7 @@
             <button class="btn" type="submit">Save</button><span class="spacer"></span><button class="btn danger" type="button" data-del-plan="${h.id}">Delete plan</button></form></details>`}
           ${ro ? (h.summary ? `<p>${esc(h.summary)}</p>` : "") : `<label>The headline for this stretch<textarea name="summary" class="plan-summary" placeholder="What will be true by day ${h.last_day}?">${esc(h.summary || "")}</textarea></label>`}
           ${groups.map(([k, list]) => `<h3>${PLAN_KIND_TITLES[k]}</h3>${list.map(itemRow).join("")}`).join("") || '<p class="quiet">Nothing here yet.</p>'}
+          ${planReviewBlock(h, versions[h.id] || [], d.horizons, ro)}
           ${ro ? "" : `<form class="plan-add row"><select name="kind" style="max-width:150px">${PLAN_KINDS.map((k) => `<option value="${k}">${k === "keep" ? "won't change" : k}</option>`).join("")}</select>
             <input name="title" placeholder="Add to this plan" required style="max-width:340px"><input type="number" name="due_day" min="${h.first_day}" max="${h.last_day}" placeholder="Day" style="max-width:90px">
             <input name="themes" placeholder="Themes" list="plan-themes" style="max-width:180px"><button class="btn" type="submit">Add</button></form>`}</section>`;
@@ -3247,6 +3300,7 @@
             .filter(([k]) => ev.notes[k]?.length)
             .map(([k, title]) => `<details><summary>${title} (${ev.notes[k].length})</summary>${ev.notes[k].map((n) => `<p><b>${esc(n.person || "")}</b> ${esc(n.text)}</p>`).join("")}</details>`)
             .join("") || '<p class="quiet">Nothing yet.</p>'}</section>` : ""}</aside></div>`;
+      bindPlanReviews(main);
       if (ro) return;
       const num = (v) => (v === "" || v == null ? null : Number(v));
       const themes = (v) => (v || "").split(",").map((s) => s.trim()).filter(Boolean);

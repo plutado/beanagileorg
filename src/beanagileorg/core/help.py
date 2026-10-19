@@ -237,7 +237,8 @@ TOOLKIT = {
     "/plans": {
         "purpose": "Your 30/60/90-day and six-month plans, built from the listening tour and ready to present.",
         "steps": ["Plan each early win as a project with FOG LAMP (focus, oversight, goals, leadership, abilities, means, process), with a lead and a team from People.", "Score early win candidates with the evaluation (four questions, 0 to 4 each); the ranking at the top helps you keep three or four.", "Write a headline for each month.", "Add outcomes, actions, measures and what you won't change, tagged with the themes behind them.",
-                  "Check What I heard for themes no item answers yet.", "Copy the outline, or build a deck from it in the Comms studio, and mark the plans presented."],
+                  "Check What I heard for themes no item answers yet.", "Copy the outline, or build a deck from it in the Comms studio, and mark the plans presented; that saves a version.",
+                  "At each checkpoint, open Versions and check-in: mark items met, partly, moved or dropped with a reason, see what changed since you presented, and copy the summary."],
         "privacy": "Plans are shareable; your evidence notes are private.",
         "related": ["/rollup", "/status", "/coaching/your-manager"],
     },
