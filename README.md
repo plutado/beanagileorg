@@ -4,7 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 
-A private, local workspace for people who lead software teams. Two small web apps run on your own machine: a **Toolkit** for the day-to-day work of managing people and delivery (one-on-ones, an org chart, a new role's first 90 days, sprint planning, retros, risks, reports), and a **Comms studio** for writing the updates and decks that come out of it. Everything is stored in a SQLite file on your disk, the apps listen on localhost only, and every field carries a privacy level, so you can share your screen in a meeting without exposing private notes. No account, no cloud service and no telemetry.
+**Be an Agile organization.** beanagileorg is a private, local toolkit for the people who bring Agile to software teams and keep it working: engineering managers, Scrum Masters and delivery leads. It starts from Scrum as the Scrum Guide defines it, helps a team adopt it one trial at a time, scales to a Scrum of Scrums and is ready for SAFe, and keeps the people side (trust, one-on-ones, a new leader's first 90 days) beside the delivery side.
+
+Two small web apps run on your own machine: a **Toolkit** for leading the team and its delivery (sprints, retros, the backlog, the Scrum of Scrums, people, plans and reports), and a **Comms studio** for the updates and decks that make progress visible. Everything is stored in a SQLite file on your disk, the apps listen on localhost only, and every field carries a privacy level, so you can share your screen in a meeting without exposing private notes. No account, no cloud service and no telemetry.
 
 | | |
 | --- | --- |
@@ -17,7 +19,22 @@ All screenshots use the built-in placeholder data; every value in brackets is in
 
 ## Who it's for
 
-Engineering managers, Scrum Masters and delivery leads who want one place for the notes, people, plans and delivery records that usually end up scattered across documents, spreadsheets and chat, and who want that place to be private and under their own control. It suits someone starting a new leadership role (the First 90 days screens, listening tour and 30/60/90 plans are built for that), and someone running an established team week to week.
+People responsible for making Agile real, not just named: a manager bringing Scrum to a team that has been working ad hoc, a Scrum Master who wants the events, artifacts and commitments to actually work, or a leader asked to spread good practice across several teams and run their Scrum of Scrums. It suits someone starting a new leadership role (the First 90 days screens, listening tour and 30/60/90 plans are built for that) as well as someone running an established team week to week, and it keeps everything in one private place instead of scattered across documents, spreadsheets and chat.
+
+## Becoming an Agile organization
+
+How the toolkit maps onto the work of adopting Agile:
+
+| | Where it lives |
+| --- | --- |
+| **Start from the definition.** Import the official Scrum Guide into your own data, read it together in four planned team sessions, and see the definition of Scrum first. | Agile reference |
+| **Know where you stand.** Every Scrum accountability, event, artifact and commitment, common practices and SAFe concepts, each marked as practiced, partly or not yet, with a coverage view of the gaps. | Agile reference |
+| **Run the events.** Sprint planning against capacity and a sprint goal, the daily scrum's follow-ups, sprint reviews and retrospectives whose commitments are reviewed next time. | Sprint planning, Dev-sync log, Sprint notebook, Retrospectives |
+| **Keep the artifacts honest.** One refined, estimated product backlog beside Jira, sprint backlogs, a definition of ready and a definition of done, with QA built in. | Sprint planning, QA resources, SDLC |
+| **Bring change in well.** Each change announced with its reason, tried for a set time, reviewed with the team and then kept or dropped, in waves rather than all at once, with team agreements and the behaviors you want to shift. | First 90 days, Culture and trust |
+| **Read the situation.** Diagnose each area as a start-up, turnaround, accelerated growth, realignment or sustaining success, and lead change at the pace each needs. | First 90 days |
+| **Make the case with facts.** Delivery metrics beside outside benchmarks such as DORA, sprint and weekly reports, and updates that need no meeting. | Metrics, Reports, Comms studio |
+| **Scale it.** Teams, a Scrum of Scrums with owners and dates on every cross-team item, PI planning when the organization runs SAFe, and support for mentoring other managers as they adopt the practices. | Teams, Scrum of Scrums, PI planning, First 90 days |
 
 ## Status
 
