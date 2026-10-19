@@ -198,6 +198,11 @@ GUIDES = [
             "Watch for the common structural problems: silos of excellence with nobody bridging them; decisions held too centrally or pushed out without the bigger picture; incentives that reward the wrong thing; and hierarchy that traps information versus shared reporting that blurs accountability.",
             "Put each decision with the people who have the most relevant knowledge, as long as their incentives point them toward what's best for the group. In Scrum, the product owner orders the backlog and the developers decide how to do the work.",
             "People do what they're rewarded for. If the team is meant to work as one, measure and reward it as one; individual velocity targets undo teamwork.",
+            "Decide what each process is for. Flawless execution needs both the ends and the means spelled out in detail; innovation needs clear ends and checks at key milestones, with people free to choose how. Too much prescribed process stifles new ideas.",
+            "List your core processes, decide which matter most to the strategy, and judge each on productivity, timeliness, reliability and quality.",
+            "Think of structure as the anatomy and processes as the physiology: both must be sound and support each other. Teams that compete for the same customers with different processes undercut each other.",
+            "Improve a process by mapping it with the people who run each stage, from start to finish. Then look for bottlenecks and for the handoffs between people, where most failures happen. The mapping itself builds shared understanding.",
+            "Manage processes as a portfolio: work on a few at a time, and factor in how much change the team can absorb.",
             "If the direction is the wrong path, raise questions so your manager and others re-examine it rather than changing it alone. If it's right but not fast or far enough, adjust it modestly early, and save bigger changes until you've learned more and built support.",
             "When you assess strengths and weaknesses, start outside. List threats and opportunities first, then ask which weaknesses leave you exposed to a threat and which strengths let you pursue an opportunity. Turn those pairs into priorities. Some call this TOWS rather than SWOT, to get the order right.",
         ],
@@ -1278,7 +1283,8 @@ TIPS = {
     "/agile": [("When a Scrum practice won't stick, look at structure and incentives before the team. Individual targets and split ownership undo team practices.", "org-as-a-system", 34),
                ("Scrum is deliberately small. Get the events, artifacts and commitments working before adding more practices.", "introducing-scrum", 29),
                ("Mark what the team really practices, not what it's supposed to. The gaps are your agenda for the next retro.", "introducing-scrum", 29)],
-    "/sdlc": [("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
+    "/sdlc": [("A stage list says what should happen. A workflow map, drawn with the people who do the work, shows where it actually gets stuck.", "org-as-a-system", 37),
+              ("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
               ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
     "/teams": [("Watch for silos of excellence: deep expertise in one group, poor links to the rest. Ask who bridges the gaps.", "org-as-a-system", 36),
@@ -1299,6 +1305,8 @@ TIPS = {
                 ('Start with a minute of silent writing so the quiet voices get heard before the loud ones.', 'strong-and-quiet-voices', 6)],
     "/pi": [("Make cross-team dependencies visible early, each with an owner and a needed-by date.", "scrum-of-scrums")],
     "/roadmap": [("Introduce practices a few at a time, and review each at a retro before adding more.", "introducing-scrum")],
+    "/processes": [("Map a process with the people who run each stage. Most failures happen at the handoffs between people.", "org-as-a-system", 37),
+                   ("Work on a few processes at a time. Mark three at most as focus now.", "org-as-a-system", 37)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
     "/risks": [("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
@@ -1409,7 +1417,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 36  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 37  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

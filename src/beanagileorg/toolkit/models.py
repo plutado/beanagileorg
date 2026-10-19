@@ -28,6 +28,8 @@ RISK_LEVELS = ("high", "medium", "low")
 SURPRISE_AREAS = ("external", "market", "internal", "politics")
 ALIGNMENT_ELEMENTS = ("direction", "structure", "processes", "skills")
 ALIGNMENT_SEQUENCES = ("turnaround", "realignment", "other")
+PROCESS_IMPORTANCE = ("high", "medium", "low")
+PROCESS_AIMS = ("execution", "innovation", "both")
 DECISION_STATUS = ("open", "decided")
 RETRO_FORMATS = {
     "went well / didn't / ideas": ("Went well", "Didn't go well", "Ideas"),
@@ -1576,6 +1578,25 @@ MIGRATIONS = [
         48,
         """
         ALTER TABLE alignment_checks ADD COLUMN structure TEXT;
+        """,
+    ),
+    (
+        49,
+        """
+        CREATE TABLE core_processes (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            area TEXT,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            owner_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            importance TEXT,
+            aim TEXT,
+            ratings TEXT,
+            focus INTEGER NOT NULL DEFAULT 0,
+            map TEXT,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
         """,
     ),
 ]
@@ -3182,6 +3203,29 @@ alignment_checks = Record(
     hide_when_empty=True,
 )
 
+# The processes that turn work into value, how well each performs, and a map of who hands what to whom.
+# Shareable, so the team can map and improve them together; notes stay private.
+core_processes = Record(
+    entity="core_process",
+    table="core_processes",
+    path="/api/core-processes",
+    order_by="focus DESC, CASE importance WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, position, id",
+    fields={
+        "name": Field("text", E, required=True),
+        "area": Field("text", E),
+        "team_id": Field("int", S),
+        "owner_id": Field("int", E),
+        "importance": Field("text", E, choices=PROCESS_IMPORTANCE),
+        "aim": Field("text", E, choices=PROCESS_AIMS),
+        "ratings": Field("json", E),
+        "focus": Field("bool", E, default=False),
+        "map": Field("json", E),
+        "notes": Field("text", P),
+        "position": Field("int", E, default=0),
+    },
+    computed={"owner_name": ("(SELECT name FROM people p WHERE p.id = core_processes.owner_id)", E)},
+)
+
 # A self-assessment of which kinds of problems you're drawn to, so you can spot likely blind spots. Private.
 preference_assessments = Record(
     entity="preference_assessment",
@@ -3517,7 +3561,7 @@ RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
-    alignment_checks, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
+    alignment_checks, core_processes, program_increments, sprints, ceremony_notes, roadmap_items, raci_decisions, risks, decisions_needed, metrics, metric_readings,
     retros, retro_items, retro_commitments,
     pi_objectives, epics, features, stories, dependencies, pi_milestones, pi_risks,
     plans, plan_items,

@@ -1626,6 +1626,110 @@
     },
   });
 
+  // ---------------------------------------------------------------- Core processes
+
+  const RATING_TONE = { strong: "good", adequate: "warn", weak: "bad" };
+
+  // Swimlanes: one lane per person or group, steps left to right, red where something gets stuck or lost (after Figure 6-2).
+  function processMap(steps) {
+    if (!steps.length) return '<p class="quiet">No steps yet.</p>';
+    const lanes = [...new Set(steps.map((s) => (s.who || "[Who]").trim()))];
+    const LW = 150, CW = 170, RH = 74, BW = 140, BH = 46, W = LW + CW * steps.length + 20, H = RH * lanes.length + 10;
+    const pos = steps.map((s, i) => [LW + CW * i + (CW - BW) / 2, 5 + RH * lanes.indexOf((s.who || "[Who]").trim()) + (RH - BH) / 2]);
+    const wrap = (t, x, y) => { const words = String(t).split(/\s+/), lines = [""]; words.forEach((w) => { if ((lines[lines.length - 1] + " " + w).trim().length > 20) lines.push(w); else lines[lines.length - 1] = (lines[lines.length - 1] + " " + w).trim(); });
+      return lines.slice(0, 3).map((l, i, a) => `<text x="${x}" y="${y + (i - (a.length - 1) / 2) * 13}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--ink)">${esc(l)}</text>`).join(""); };
+    const lanesSvg = lanes.map((l, i) => `<rect x="0" y="${5 + RH * i}" width="${W}" height="${RH}" fill="${i % 2 ? "var(--bg)" : "var(--panel)"}" stroke="var(--line)"/><text x="10" y="${5 + RH * i + RH / 2}" dominant-baseline="middle" font-size="12" font-weight="600" fill="var(--muted)">${esc(l.slice(0, 18))}</text>`).join("");
+    const arrows = steps.slice(0, -1).map((s, i) => {
+      const [x1, y1] = pos[i], [x2, y2] = pos[i + 1], bad = !!(s.handoff_issue || "").trim();
+      const sx = x1 + BW, sy = y1 + BH / 2, ex = x2, ey = y2 + BH / 2, mx = (sx + ex) / 2;
+      return `<path d="M${sx},${sy} C${mx},${sy} ${mx},${ey} ${ex - 4},${ey}" fill="none" stroke="${bad ? "var(--bad)" : "var(--muted)"}" stroke-width="${bad ? 2.5 : 1.5}" ${bad ? 'stroke-dasharray="5 3"' : ""} marker-end="url(#pm-arrow${bad ? "-bad" : ""})"><title>${esc(bad ? "Problem handoff: " + s.handoff_issue : s.passes || "")}</title></path>`;
+    }).join("");
+    const boxes = steps.map((s, i) => { const [x, y] = pos[i]; return `<g><title>${esc(s.text)}${s.bottleneck ? " (bottleneck)" : ""}</title><rect x="${x}" y="${y}" width="${BW}" height="${BH}" rx="8" fill="${s.bottleneck ? "var(--bad-soft)" : "var(--accent-soft)"}" stroke="${s.bottleneck ? "var(--bad)" : "var(--accent)"}" stroke-width="${s.bottleneck ? 2.5 : 1}"/>${wrap(`${i + 1}. ${s.text}`, x + BW / 2, y + BH / 2)}</g>`; }).join("");
+    return `<div class="tablewrap"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Workflow map in swimlanes" style="display:block">
+      <defs><marker id="pm-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker><marker id="pm-arrow-bad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--bad)"/></marker></defs>
+      ${lanesSvg}${arrows}${boxes}</svg></div><p class="quiet">Red boxes are bottlenecks; red dashed arrows are handoffs where things get stuck or lost.</p>`;
+  }
+
+  BA.view("/processes", {
+    title: "Core processes",
+    async render(main, param) {
+      if (param) return renderProcess(main, Number(param));
+      const [list, g] = await Promise.all([BA.api("/api/core-processes"), BA.api("/api/processes/guide")]);
+      const ro = presenting();
+      const ratingPills = (p) => g.measures.map((m) => { const r = ((p.ratings || {})[m.key] || {}).rating; return r ? `<span class="pill ${RATING_TONE[r]}" title="${esc(m.name)}: ${esc(r)}">${esc(m.name[0])}</span>` : ""; }).join(" ");
+      main.innerHTML = `<p class="quiet">The ways your team turns work into value. Decide which matter most to the strategy, judge each on productivity, timeliness, reliability and quality, and map the workflow with the people who run it to find bottlenecks and failing handoffs. Work on a few at a time.</p>
+        ${g.focus_count > g.focus_limit ? `<p class="callout warn">${g.focus_count} processes are marked focus now. Pick ${g.focus_limit} at most: the team can only absorb so much change at once.</p>` : ""}
+        <section class="card"><h2>Processes</h2>${list.map((p) => `<div class="item"><a href="#/processes/${p.id}"><b>${esc(p.name)}</b></a>${p.focus ? '<span class="pill accent">focus now</span>' : ""}${p.importance ? `<span class="quiet">${esc(p.importance)} importance</span>` : ""}${p.aim ? `<span class="quiet">· ${esc(p.aim)}</span>` : ""}
+            <span class="spacer"></span>${ratingPills(p)}<span class="quiet">${((p.map || {}).steps || []).length} steps</span>${p.owner_name ? `<span class="quiet">${esc(p.owner_name)}</span>` : ""}</div>`).join("") || '<p class="quiet">None yet.</p>'}
+          ${ro ? "" : `<form id="add-proc" class="row" style="margin-top:10px"><input name="name" placeholder="A process, such as release and deploy" required style="max-width:340px"><button class="btn primary" type="submit">Add</button>
+            ${list.length ? "" : '<button class="btn" type="button" id="proc-starter">Start from a common list</button>'}</form>`}</section>
+        <section class="card"><h2>Execution or innovation?</h2>${Object.entries(g.aims).map(([k, v]) => `<p><b>${esc(k[0].toUpperCase() + k.slice(1))}.</b> ${esc(v)}</p>`).join("")}<p class="callout">${esc(g.scrum)}</p></section>`;
+      if (ro) return;
+      main.querySelector("#add-proc").onsubmit = BA.guard(async (e) => { e.preventDefault(); const c = await BA.api("/api/core-processes", { method: "POST", body: { name: new FormData(e.target).get("name"), team_id: newTeamId() } }); BA.go(`/processes/${c.id}`); });
+      const st = main.querySelector("#proc-starter");
+      if (st) st.onclick = BA.guard(async () => { await BA.api("/api/core-processes/starter", { method: "POST", body: {} }); BA.rerender(); });
+    },
+  });
+
+  async function renderProcess(main, id) {
+    const [p, g, people] = await Promise.all([BA.api(`/api/core-processes/${id}`), BA.api("/api/processes/guide"), BA.api("/api/people")]);
+    document.getElementById("view-title").textContent = p.name;
+    const ro = presenting();
+    let steps = ((p.map || {}).steps || []).map((s) => ({ ...s }));
+    const ratings = p.ratings || {};
+    const stepRow = (s, i) => `<tr data-i="${i}"><td>${i + 1}</td><td><input name="text" value="${esc(s.text || "")}" placeholder="What happens" style="min-width:180px"></td><td><input name="who" value="${esc(s.who || "")}" placeholder="Person or group" style="min-width:130px"></td>
+      <td><input name="passes" value="${esc(s.passes || "")}" placeholder="What goes to the next step" style="min-width:150px"></td><td style="text-align:center"><input type="checkbox" name="bottleneck"${s.bottleneck ? " checked" : ""}></td>
+      <td><input name="handoff_issue" value="${esc(s.handoff_issue || "")}" placeholder="What goes wrong passing it on" style="min-width:180px"></td>
+      <td style="white-space:nowrap"><button class="icon-btn" type="button" data-up title="Move up">${BA.icon("arrow-up")}</button><button class="icon-btn" type="button" data-down title="Move down">${BA.icon("arrow-down")}</button><button class="icon-btn" type="button" data-rm title="Remove">${BA.icon("x")}</button>
+      ${s.bottleneck || (s.handoff_issue || "").trim() ? `<button class="btn" type="button" data-to="devsync">Dev sync</button><button class="btn" type="button" data-to="risk">Risk</button>` : ""}</td></tr>`;
+    const draw = () => {
+      main.innerHTML = `<p><a href="#/processes">Core processes</a></p>
+        <section class="card"><h2>Workflow map</h2>${processMap(steps)}</section>
+        ${ro ? "" : `<section class="card"><h2>Steps</h2><p class="quiet">Ask the people who run each stage to chart it from start to finish, then mark where work gets stuck (bottlenecks) and where it goes wrong between people (handoffs). Turn either into a dev-sync item or a risk.</p>
+          <div class="tablewrap"><table class="data" id="steps"><thead><tr><th>#</th><th>Step</th><th>Who</th><th>Passes on</th><th>Bottleneck</th><th>Problem handing on</th><th></th></tr></thead><tbody>${steps.map(stepRow).join("")}</tbody></table></div>
+          <div class="actions"><button class="btn left" type="button" id="add-step">Add a step</button>${steps.length ? "" : '<button class="btn" type="button" id="from-sdlc">Start from the SDLC</button>'}<button class="btn primary" type="button" id="save-steps">Save the map</button></div></section>`}
+        <form id="proc-form" class="card"><h2>About this process</h2><div class="grid2">
+          <label>Name<input name="name" value="${esc(p.name)}" required${ro ? " disabled" : ""}></label><label>Area<input name="area" value="${esc(p.area || "")}"${ro ? " disabled" : ""}></label>
+          <label>Owner<select name="owner_id"${ro ? " disabled" : ""}>${personOptions(people, p.owner_id)}</select></label>
+          <label>How much it matters to the strategy<select name="importance"${ro ? " disabled" : ""}><option value=""></option>${opts(g.importance, p.importance)}</select></label>
+          <label>Aim<select name="aim"${ro ? " disabled" : ""}><option value=""></option>${opts(Object.keys(g.aims), p.aim)}</select></label>
+          <label class="check" style="align-self:end"><input type="checkbox" name="focus"${p.focus ? " checked" : ""}${ro ? " disabled" : ""}> Focus now <span class="quiet">(${g.focus_limit} at most)</span></label></div>
+          ${p.aim ? `<p class="quiet">${esc(g.aims[p.aim])}</p>` : ""}
+          <h3>How well it works</h3>${g.measures.map((m) => { const r = ratings[m.key] || {}, linked = g.linked_metrics[m.key] || []; return `<div class="row" style="align-items:flex-start;margin-bottom:10px"><span style="flex:0 0 300px;max-width:100%"><b>${esc(m.name)}</b><br><span class="quiet">${esc(m.question)}</span><br><span class="quiet">${linked.length ? "See " + linked.map((x) => `<a href="#/metrics">${esc(x.name)}</a>`).join(", ") : `Usually measured by ${esc(m.metrics.join(" or ").toLowerCase())}`}</span></span>
+            <select name="r.${m.key}" style="max-width:140px"${ro ? " disabled" : ""}><option value="">Not judged</option>${opts(g.ratings, r.rating)}</select><input name="rn.${m.key}" value="${esc(r.notes || "")}" placeholder="Evidence" style="flex:1;min-width:160px"${ro ? " disabled" : ""}></div>`; }).join("")}
+          ${ro ? "" : `<label>Private notes<textarea name="notes" rows="3">${esc(p.notes || "")}</textarea></label>
+          <div class="actions"><button class="btn danger left" type="button" id="del-proc">Delete</button>${BA.historyButton("core_process", id)}<button class="btn primary" type="submit">Save</button></div>`}</form>`;
+      if (ro) return;
+      const readRows = () => { main.querySelectorAll("#steps tr[data-i]").forEach((tr) => { const i = Number(tr.dataset.i), q = (n) => tr.querySelector(`[name=${n}]`);
+        steps[i] = { text: q("text").value.trim(), who: q("who").value.trim(), passes: q("passes").value.trim(), bottleneck: q("bottleneck").checked, handoff_issue: q("handoff_issue").value.trim() }; }); };
+      main.querySelector("#add-step").onclick = () => { readRows(); steps.push({ text: "", who: steps.length ? steps[steps.length - 1].who : "", passes: "", bottleneck: false, handoff_issue: "" }); draw(); };
+      main.querySelectorAll("#steps tr[data-i]").forEach((tr) => {
+        const i = Number(tr.dataset.i);
+        tr.querySelector("[data-up]").onclick = () => { readRows(); if (i > 0) [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; draw(); };
+        tr.querySelector("[data-down]").onclick = () => { readRows(); if (i < steps.length - 1) [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; draw(); };
+        tr.querySelector("[data-rm]").onclick = () => { readRows(); steps.splice(i, 1); draw(); };
+        tr.querySelectorAll("[data-to]").forEach((b) => (b.onclick = BA.guard(async () => {
+          await BA.api(`/api/core-processes/${id}/step-to`, { method: "POST", body: { index: i, to: b.dataset.to } });
+          BA.toast(b.dataset.to === "risk" ? "Logged as a risk." : "Added to the dev-sync log.");
+        })));
+      });
+      main.querySelector("#save-steps").onclick = BA.guard(async () => { readRows(); steps = steps.filter((s) => s.text); await BA.api(`/api/core-processes/${id}`, { method: "PATCH", body: { map: { steps } } }); BA.toast("Map saved."); BA.rerender(); });
+      const fs = main.querySelector("#from-sdlc");
+      if (fs) fs.onclick = BA.guard(async () => { await BA.api(`/api/core-processes/${id}/from-sdlc`, { method: "POST", body: {} }); BA.rerender(); });
+      const form = main.querySelector("#proc-form");
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const r = Object.fromEntries(g.measures.map((m) => [m.key, { rating: fd.get(`r.${m.key}`) || null, notes: fd.get(`rn.${m.key}`) || "" }]));
+        await BA.api(`/api/core-processes/${id}`, { method: "PATCH", body: { name: fd.get("name"), area: fd.get("area"), owner_id: numOrNull(fd.get("owner_id")), importance: fd.get("importance") || null, aim: fd.get("aim") || null, focus: fd.get("focus") === "on", ratings: r, notes: fd.get("notes") } });
+        BA.toast("Saved.");
+        BA.rerender();
+      });
+      main.querySelector("#del-proc").onclick = BA.guard(async () => { if (!confirm("Delete this process and its map?")) return; await BA.api(`/api/core-processes/${id}`, { method: "DELETE" }); BA.go("/processes"); });
+    };
+    draw();
+  }
+
   // ---------------------------------------------------------------- Organizational alignment
 
   const FIT_TONE = { aligned: "good", strained: "warn", misaligned: "bad" };
@@ -1668,7 +1772,7 @@
       const g = await BA.api("/api/alignment/guide");
       const intro = `<p class="quiet">Direction, structure, processes and skills have to fit together. Change one and think through the others. Diagnose here before you restructure anything, and build the case when a misalignment above you is the real blocker.</p>`;
       if (presenting()) { main.innerHTML = `${intro}<section class="card">${alignmentDiagram(g, null)}</section><p class="empty">Your diagnosis is private, so it's hidden while presenting.</p>`; return; }
-      const checks = await BA.api("/api/alignment-checks");
+      const [checks, procs] = await Promise.all([BA.api("/api/alignment-checks"), BA.api("/api/core-processes")]);
       const teams = BA.teamList || [];
       let sel = Number(sessionStorage.getItem("ba-align") || 0);
       const check = checks.find((c) => c.id === sel) || checks[0];
@@ -1686,7 +1790,7 @@
             <section class="card grid2"><label>Area<input name="area" value="${esc(check.area)}" required></label><label>Date of this read<input type="date" name="date" value="${esc(check.date || BA.today())}"></label></section>
             ${alignSequenceCard(g, check)}
             ${g.elements.map((e) => { const v = els[e.key] || {}; return `<section class="card" id="al-${e.key}"><h2>${esc(e.name)} ${v.fit ? `<span class="pill ${FIT_TONE[v.fit]}">${esc(v.fit)}</span>` : ""}</h2><p class="quiet">${esc(e.what)}</p>
-              <div class="md"><ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>${e.key === "direction" ? alignDirectionBlock(g, check) : e.key === "structure" ? alignStructureBlock(g, check) : ""}
+              <div class="md"><ul>${e.prompts.map((q) => `<li>${esc(q)}</li>`).join("")}</ul></div><p class="callout"><b>Scrum lens.</b> ${esc(e.scrum)}</p>${e.key === "direction" ? alignDirectionBlock(g, check) : e.key === "structure" ? alignStructureBlock(g, check) : e.key === "processes" ? alignProcessesBlock(procs) : ""}
               <p class="quiet">Look at: ${e.look.map((l) => `<a href="#${l.path}">${esc(l.label)}</a>`).join(" · ")}</p>
               <div class="row" style="align-items:flex-start"><select name="fit.${e.key}" style="max-width:160px"><option value="">Fit: not judged</option>${opts(g.fits, v.fit)}</select>
               <textarea name="notes.${e.key}" rows="3" placeholder="What you see, with evidence" style="flex:1;min-width:220px">${esc(v.notes || "")}</textarea></div></section>`; }).join("")}
@@ -1758,6 +1862,13 @@
       ${(() => { const sug = alignSuggestedMove(d.verdict, check.sequence); const m = g.direction.moves.find((x) => x.key === sug); return m ? `<p class="quiet">Suggested from the verdict${check.sequence ? " and the situation" : ""}: <b>${esc(m.label)}</b>.</p>` : ""; })()}
       <label>What I'll do about the direction<select name="dir.move" style="max-width:420px"><option value="">Not decided</option>${g.direction.moves.map((m) => `<option value="${m.key}"${m.key === d.move ? " selected" : ""}>${esc(m.label)}</option>`).join("")}</select></label>
       ${d.move ? `<p class="quiet">${esc(g.direction.moves.find((m) => m.key === d.move).why)}</p>` : ""}`;
+  }
+
+  function alignProcessesBlock(procs) {
+    const focus = procs.filter((p) => p.focus), weak = procs.filter((p) => Object.values(p.ratings || {}).some((r) => r && r.rating === "weak"));
+    return `<p class="quiet">${procs.length ? `${procs.length} core process${procs.length === 1 ? "" : "es"} listed. ` : ""}<a href="#/processes">Core processes</a> holds each one's ratings and workflow map.</p>
+      ${focus.length ? `<p><b>Focus now:</b> ${focus.map((p) => `<a href="#/processes/${p.id}">${esc(p.name)}</a>`).join(", ")}</p>` : ""}
+      ${weak.length ? `<p><b>Rated weak somewhere:</b> ${weak.map((p) => `<a href="#/processes/${p.id}">${esc(p.name)}</a>`).join(", ")}</p>` : ""}`;
   }
 
   function alignReadStructure(g, fd) {

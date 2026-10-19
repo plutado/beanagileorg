@@ -27,6 +27,7 @@ from .mandates import router as mandates_router
 from .accelerate import router as accelerate_router
 from .devsync import router as devsync_router
 from .alignment import router as alignment_router
+from .processes import router as processes_router
 from .ask_info import info as ask_info
 from beanagileorg.core.ask import build_router as build_ask_router
 from .reporting import router as reporting_router
@@ -49,6 +50,7 @@ NAV = [
     {"group": "Delivery"},
     {"path": "/agile", "icon": "notebook", "label": "Agile reference"},
     {"path": "/sdlc", "icon": "git-branch", "label": "SDLC"},
+    {"path": "/processes", "icon": "workflow", "label": "Core processes"},
     {"path": "/planning", "icon": "list-ordered", "label": "Sprint planning"},
     {"path": "/changes", "icon": "arrow-left-right", "label": "Change requests"},
     {"path": "/sprints", "icon": "notebook-pen", "label": "Sprint notebook"},
@@ -88,7 +90,7 @@ def build(settings: Settings | None = None):
         settings,
         nav=NAV,
         migrations=models.MIGRATIONS,
-        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, alignment_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
+        routers=[router, agile_router, reporting_router, planning_router, plans_router, landscape_router, qa_router, architecture_router, onboarding_router, sdlc_router, coaching_router, debt_router, jira_router, sprint_planning_router, teams_router, people_crm_router, culture_router, reports_router, changes_router, first90_router, mandates_router, accelerate_router, devsync_router, alignment_router, processes_router, build_ask_router(lambda: ask_info(NAV)), *(record.router() for record in models.RECORDS)],
         static_dir=Path(__file__).parent / "static",
         scopes=SCOPES,
     )

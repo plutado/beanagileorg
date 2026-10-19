@@ -34,7 +34,7 @@ ELEMENTS = [
         "Is the path to production written down, followed, and the same for everyone?",
         "Which process would, if improved, move overall performance the most?",
     ], "The Scrum events, the definition of done and the release path are core processes. Look at which ones actually happen, and how well.",
-     [("/sdlc", "SDLC"), ("/agile/coverage", "Agile practice coverage"), ("/qa", "QA resources")]),
+     [("/processes", "Core processes"), ("/sdlc", "SDLC"), ("/agile/coverage", "Agile practice coverage"), ("/qa", "QA resources")]),
     ("skills", "Skill bases", "The capabilities of the key groups of people.", [
         "Which skills does the strategy need that the team doesn't have yet?",
         "Where does knowledge sit with one person?",

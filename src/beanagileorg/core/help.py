@@ -262,6 +262,14 @@ TOOLKIT = {
         "privacy": "Structure can be shown; the assessment is private and never exported.",
         "related": ["/architecture", "/coaching/read-the-situation"],
     },
+    "/processes": {
+        "purpose": "The ways your team turns work into value: which matter most, how well each performs, and a workflow map that shows where work gets stuck or lost.",
+        "steps": ["List your core processes, or start from a common list.", "For each, set its owner, how much it matters, and whether it aims at execution or innovation.",
+                  "Rate productivity, timeliness, reliability and quality, with evidence from Metrics.", "Map the steps with the people who run them; mark bottlenecks and problem handoffs, and turn them into dev-sync items or risks.",
+                  "Mark three at most as focus now."],
+        "privacy": "Shareable, so the team can map them together; notes are private.",
+        "related": ["/sdlc", "/metrics", "/alignment", "/coaching/org-as-a-system"],
+    },
     "/alignment": {
         "purpose": "Diagnose how well an area's strategic direction, structure, core processes and skills fit together, with the outside world and the climate around them, before changing any of them.",
         "steps": ["Start a check for an area: your team, a product or a wider group.", "Judge each element's fit with evidence. The prompts and Scrum lens help; the links take you to what the toolkit already holds.",
