@@ -16,6 +16,31 @@ from .routes import require_write
 
 router = APIRouter()
 PRACTICE_KEY = "agile.practice"
+SPRINT_WEEKS_KEY = "agile.sprint_weeks"
+DEFAULT_SPRINT_WEEKS = 2
+# The Scrum Guide's maximum length for each event in a one-month sprint; shorter sprints get proportionally shorter events.
+MONTH_MAX_HOURS = {"sprint-planning": 8, "sprint-review": 4, "retrospective": 3}
+WEEK_WORDS = {1: "one-week", 2: "two-week", 3: "three-week", 4: "four-week"}
+
+
+def _hours(h: float) -> str:
+    total = int(round(h * 60))
+    hrs, mins = divmod(total, 60)
+    if not hrs:
+        return f"{mins} minutes"
+    if mins == 30:
+        return "an hour and a half" if hrs == 1 else f"{hrs} and a half hours"
+    head = "1 hour" if hrs == 1 else f"{hrs} hours"
+    return f"{head} {mins} minutes" if mins else head
+
+
+def timebox_for(key: str, weeks: int) -> str | None:
+    """The timebox for an event, given the team's sprint length."""
+    if key == "sprint":
+        return f"{WEEK_WORDS[weeks].replace('-', ' ').capitalize()}s, your team's length (the Scrum Guide allows up to one month)"
+    if key in MONTH_MAX_HOURS:
+        return f"Up to {_hours(MONTH_MAX_HOURS[key] * weeks / 4)} for a {WEEK_WORDS[weeks]} sprint (the Scrum Guide's maximum is {MONTH_MAX_HOURS[key]} hours for a one-month sprint)"
+    return None
 STATUSES = ("not yet", "partly", "practiced", "not used here")
 SOURCES = {
     "scrum": ("The Scrum Guide", "https://scrumguides.org"),
@@ -47,19 +72,19 @@ REFERENCE = [
     # ---- Scrum: events
     ("sprint", "scrum", "event", "The Sprint",
      "A fixed-length container of one month or less in which the team turns ideas into value. A new sprint starts immediately after the last one ends. Changes that would endanger the Sprint Goal aren't made; scope can be clarified and renegotiated with the Product Owner as more is learned.",
-     "A steady rhythm makes delivery predictable and gives the organization regular chances to inspect and change direction.", "One month or less; many teams use two weeks", "#/sprints"),
+     "A steady rhythm makes delivery predictable and gives the organization regular chances to inspect and change direction.", None, "#/sprints"),
     ("sprint-planning", "scrum", "event", "Sprint Planning",
      "Starts the sprint. The team agrees why the sprint is valuable (the Sprint Goal), what can be done (items pulled from the Product Backlog), and how the work will get done (a plan for delivering the increment).",
-     "A shared goal lets the team adapt the details without losing sight of what matters.", "At most eight hours for a one-month sprint; shorter for shorter sprints", "#/planning"),
+     "A shared goal lets the team adapt the details without losing sight of what matters.", None, "#/planning"),
     ("daily-scrum", "scrum", "event", "Daily Scrum",
      "A short daily event for the Developers to inspect progress toward the Sprint Goal and adapt the plan for the next day. Same time and place each day. The format is theirs to choose.",
      "Surfaces impediments early and reduces the need for other meetings. Detailed discussions happen right after, with only the people who need to be there.", "15 minutes", "#/dev-sync"),
     ("sprint-review", "scrum", "event", "Sprint Review",
      "The team shows stakeholders what it accomplished and discusses what changed in the environment. Together they decide what to do next, which may adjust the Product Backlog. A working session, not a presentation.",
-     "Keeps the product pointed at what stakeholders actually need, and builds trust through working results.", "At most four hours for a one-month sprint", "#/sprints"),
+     "Keeps the product pointed at what stakeholders actually need, and builds trust through working results.", None, "#/sprints"),
     ("retrospective", "scrum", "event", "Sprint Retrospective",
      "The team inspects how the last sprint went for individuals, interactions, processes, tools and its Definition of Done, and picks the most helpful improvements to act on, sometimes in the very next sprint.",
-     "The engine of continuous improvement. Retros that never lead to change soon lose the team's attention.", "At most three hours for a one-month sprint", "#/retros"),
+     "The engine of continuous improvement. Retros that never lead to change soon lose the team's attention.", None, "#/retros"),
     # ---- Scrum: artifacts and their commitments
     ("product-backlog", "scrum", "artifact", "Product Backlog",
      "An ordered, emerging list of what is needed to improve the product: the single source of work for the Scrum Team. Items near the top are refined until they're ready to be selected in Sprint Planning.",
@@ -82,7 +107,7 @@ REFERENCE = [
     # ---- common practices teams add to Scrum
     ("refinement", "practice", "practice", "Backlog refinement",
      "An ongoing activity, not a Scrum event: breaking backlog items down, adding detail, estimating and ordering them so the top of the backlog is ready for planning. Many teams hold a regular session for it.",
-     "Short, effective Sprint Planning depends on refinement having happened before it.", "Often an hour or two each sprint", "#/planning"),
+     "Short, effective Sprint Planning depends on refinement having happened before it.", "Commonly no more than about a tenth of the team's time; for a two-week sprint, often one or two sessions of an hour", "#/planning"),
     ("definition-of-ready", "practice", "practice", "Definition of Ready",
      "A team's own checklist for when a backlog item is clear enough to bring into a sprint: understood, small enough, acceptance criteria written, dependencies known. Not part of Scrum, and best used as guidance rather than a gate.",
      "Cuts mid-sprint surprises caused by vague work.", None, "#/planning"),
@@ -201,11 +226,13 @@ def reference(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """The reference, with how the team practices each entry. Status and notes show while presenting; they describe
     the team's way of working, not anyone in particular."""
     saved = _saved(conn)
+    wrow = conn.execute("SELECT value FROM settings WHERE key = ?", (SPRINT_WEEKS_KEY,)).fetchone()
+    weeks = int(wrow["value"]) if wrow else DEFAULT_SPRINT_WEEKS
     row = conn.execute("SELECT value FROM settings WHERE key = ?", (GUIDE_KEY,)).fetchone()
     md = json.loads(row["value"])["markdown"] if row else None
     entries = []
     for k, f, kind, n, w, y, t, link in REFERENCE:
-        e = {"key": k, "framework": f, "kind": kind, "name": n, "what": w, "why": y, "timebox": t, "link": link,
+        e = {"key": k, "framework": f, "kind": kind, "name": n, "what": w, "why": y, "timebox": timebox_for(k, weeks) or t, "link": link,
              "status": saved.get(k, {}).get("status", "not yet"), "how": saved.get(k, {}).get("how", ""), "guide_text": None, "guide_section": None}
         if md and k in GUIDE_SECTIONS:
             found = guide_section(md, *GUIDE_SECTIONS[k])
@@ -216,8 +243,18 @@ def reference(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     for e in entries:
         c = coverage.setdefault(e["framework"], {s: 0 for s in STATUSES})
         c[e["status"]] += 1
-    return {"entries": entries, "statuses": list(STATUSES), "coverage": coverage,
+    return {"entries": entries, "statuses": list(STATUSES), "coverage": coverage, "sprint_weeks": weeks,
             "sources": {k: {"label": v[0], "url": v[1]} for k, v in SOURCES.items()}}
+
+
+@router.put("/api/agile/sprint-length")
+def put_sprint_length(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    weeks = body.get("weeks")
+    if weeks not in WEEK_WORDS:
+        raise HTTPException(400, "Sprints are one to four weeks.")
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (SPRINT_WEEKS_KEY, str(weeks)))
+    return {"weeks": weeks}
 
 
 @router.put("/api/agile/practice/{key}")

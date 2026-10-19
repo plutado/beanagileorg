@@ -96,3 +96,14 @@ def test_entries_show_guide_wording_once_imported(client, monkeypatch):
     assert after["daily-scrum"]["guide_text"].startswith("[Daily text]") and after["daily-scrum"]["guide_section"] == 4
     assert "**Transparency**" in after["empiricism"]["guide_text"] and "[Values text]" not in after["empiricism"]["guide_text"]
     assert after["refinement"]["guide_text"] is None
+
+
+def test_timeboxes_follow_sprint_length(client):
+    e = {x["key"]: x for x in client.get("/api/agile/reference").json()["entries"]}
+    assert client.get("/api/agile/reference").json()["sprint_weeks"] == 2
+    assert e["sprint-planning"]["timebox"].startswith("Up to 4 hours for a two-week sprint")
+    assert e["retrospective"]["timebox"].startswith("Up to an hour and a half")
+    assert client.put("/api/agile/sprint-length", json={"weeks": 6}).status_code == 400
+    client.put("/api/agile/sprint-length", json={"weeks": 4})
+    e = {x["key"]: x for x in client.get("/api/agile/reference").json()["entries"]}
+    assert e["sprint-review"]["timebox"].startswith("Up to 4 hours for a four-week sprint")
