@@ -112,7 +112,7 @@ REFERENCE = [
      "A team's own checklist for when a backlog item is clear enough to bring into a sprint: understood, small enough, acceptance criteria written, dependencies known. Not part of Scrum, and best used as guidance rather than a gate.",
      "Cuts mid-sprint surprises caused by vague work.", None, "#/planning"),
     ("user-stories", "practice", "practice", "User stories and acceptance criteria",
-     "A common way to write backlog items from the user's point of view, with the conditions that must be true for the item to be accepted.",
+     "A common way to write backlog items from the user's point of view (as a kind of user, I want a goal, so that a benefit), with the conditions that must be true for the item to be accepted. INVEST is a quick test of a good story: independent, negotiable, valuable, estimable, small and testable. The three Cs describe its life: the card that names it, the conversation that refines it, and the confirmation, its acceptance criteria. SAFe adds enabler stories for work the team needs, such as architecture, infrastructure, exploration or compliance, written from the team's point of view.",
      "Keeps the conversation on the value to users, and gives testers and developers the same target.", None, "#/planning"),
     ("estimation", "practice", "practice", "Estimation: story points and planning poker",
      "Relative sizing of backlog items by the people who'll do the work, often with planning poker so everyone estimates before anyone is anchored by others.",

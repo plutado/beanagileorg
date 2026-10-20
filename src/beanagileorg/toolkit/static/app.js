@@ -5818,7 +5818,8 @@
 
   // ---------------------------------------------------------------- Sprint planning
 
-  const BACKLOG_TYPES = ["story", "bug", "task", "spike", "tech debt"];
+  const BACKLOG_TYPES = ["story", "enabler", "bug", "task", "spike", "tech debt"];
+  const STORY_TEMPLATES = { user: "As a [kind of user], I want [goal] so that [benefit].", enabler: "As [the team], we need [capability] so that [what it enables for future stories]." };
   const BACKLOG_TONES = { "needs refinement": "warn", ready: "good", "in sprint": "accent", done: "good", removed: "" };
   // The Scrum Guide's commitment for the product backlog, shown wherever sprint goals are set.
   const productGoalCard = (pg, ro) => `<section class="card product-goal"><h2>Product goal</h2>${ro
@@ -5932,6 +5933,8 @@
           <label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
           <label>PI feature <span class="quiet">(optional)</span><select name="feature_id" data-features><option value=""></option></select></label></div>
           <label>Story <span class="quiet">(the problem or user story)</span><textarea name="description" rows="3">${esc(i.description || "")}</textarea></label>
+          <div class="row"><button class="btn" type="button" data-tpl="user">User story template</button><button class="btn" type="button" data-tpl="enabler">Enabler story template</button>
+            <span class="quiet">The card names it, refinement is the conversation, and the acceptance criteria are the confirmation.</span></div>
           <label>Acceptance criteria<textarea name="acceptance" rows="3">${esc(i.acceptance || "")}</textarea></label>
           <label>Technical notes <span class="quiet">(approach, risks, what to touch)</span><textarea name="technical_notes" rows="3">${esc(i.technical_notes || "")}</textarea></label>
           <label>Dependencies<input name="dependencies" value="${esc(i.dependencies || "")}"></label>
@@ -5949,6 +5952,12 @@
         ${ro ? "" : `<section class="card"><h2>Add one story</h2><form id="add-item" class="row"><input name="jira_key" placeholder="ABC-123" style="max-width:130px"><input name="title" required placeholder="Title" style="flex:1;min-width:220px">
           <select name="item_type" style="max-width:140px">${opts(BACKLOG_TYPES, "story")}</select><button class="btn" type="submit">Add</button></form></section>`}`;
       main.querySelector("#bf").onchange = (e) => { sessionStorage.setItem("ba-backlog-filter", e.target.value); BA.rerender(); };
+      main.querySelectorAll("[data-tpl]").forEach((b) => (b.onclick = () => {
+        const ta = b.closest("form").querySelector('textarea[name="description"]'), text = STORY_TEMPLATES[b.dataset.tpl];
+        ta.value = ta.value.trim() ? `${ta.value.trim()}\n\n${text}` : text;
+        if (b.dataset.tpl === "enabler") b.closest("form").querySelector('select[name="item_type"]').value = "enabler";
+        ta.focus();
+      }));
       wireProductGoal(main);
       if (ro) return;
       const features = (await Promise.all(pis.slice(0, 3).map((p) => BA.api(`/api/pis/${p.id}/board`).then((b) => b.features.map((f) => ({ ...f, pi: p.number })))))).flat();
@@ -6103,12 +6112,14 @@
       <section class="card"><h2>Definition of ready</h2><p class="quiet">What a story needs before the team pulls it into a sprint. Each backlog story is checked against this list. Agree it with the team, then revisit it at retros.</p>
         ${d.items.length ? `<ul class="checklist">${d.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : '<p class="quiet">Nothing agreed yet.</p>'}
         ${ro ? "" : `<form id="dor"><label>One item per line<textarea name="items" rows="8">${esc(d.items.join("\n"))}</textarea></label>
-          <div class="actions">${d.items.length ? "" : '<button class="btn left" type="button" id="dor-starter">Load a starter list</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}
+          <div class="actions">${d.items.length ? "" : '<button class="btn left" type="button" id="dor-starter">Load a starter list</button>'}${d.items.some((x) => x.startsWith("Independent:")) ? "" : '<button class="btn" type="button" id="dor-invest">Add the INVEST checks</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}
         <p class="quiet">Its partner, the <a href="#/qa/dod">definition of done</a>, lives under QA resources.</p></section>`;
     if (ro) return;
     main.querySelector("#dor").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/planning/definition-of-ready", { method: "PUT", body: { items: new FormData(e.target).get("items").split("\n") } }); BA.toast("Saved."); BA.rerender(); });
     const st = main.querySelector("#dor-starter");
     if (st) st.onclick = BA.guard(async () => { await BA.api("/api/planning/definition-of-ready/starter", { method: "POST", body: {} }); BA.rerender(); });
+    const inv = main.querySelector("#dor-invest");
+    if (inv) inv.onclick = BA.guard(async () => { await BA.api("/api/planning/definition-of-ready/invest", { method: "POST", body: {} }); BA.toast("Added the INVEST checks."); BA.rerender(); });
   }
 
   // ---------------------------------------------------------------- Teams and the ART sync

@@ -31,6 +31,15 @@ STARTER_DOR = [
     "Small enough to finish in one sprint",
     "Estimated by the team",
 ]
+# INVEST in plain words: a common test of a well-formed story, offered as definition-of-ready checks.
+INVEST = [
+    "Independent: can be built and released without waiting on another story",
+    "Negotiable: the details are open to conversation, not a fixed contract",
+    "Valuable: delivers something a user, customer or the business will notice",
+    "Estimable: the team understands it well enough to size it",
+    "Small: fits comfortably in one sprint",
+    "Testable: the acceptance criteria say how we'll know it's done",
+]
 LINE_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_]*-\d+)\s*[-:|\t]?\s*(.*?)\s*(?:[|\t]\s*(\d{1,3})\s*(?:pts?|points)?)?\s*$")
 TEAM = ("employee", "contractor")
 
@@ -100,6 +109,14 @@ def put_dor(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=D
     items = [i.strip() for i in body.get("items", []) if isinstance(i, str) and i.strip()]
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (DOR_KEY, json.dumps(items)))
     return {"items": items}
+
+
+@router.post("/api/planning/definition-of-ready/invest")
+def invest_dor(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Add the six INVEST checks to the definition of ready, skipping any already there."""
+    require_write(viewer)
+    current = _dor(conn)
+    return put_dor({"items": current + [i for i in INVEST if i not in current]}, viewer, conn)
 
 
 @router.post("/api/planning/definition-of-ready/starter")

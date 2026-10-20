@@ -47,3 +47,11 @@ def test_planning_shows_timeboxes_for_the_sprint_length(c):
     sprint = c.post("/api/sprints", json={"number": 1}).json()["id"]
     t = c.get(f"/api/sprint-planning/{sprint}").json()["timeboxes"]
     assert t["weeks"] == 2 and t["planning"].startswith("Up to 4 hours") and t["review"].startswith("Up to 2 hours")
+
+
+def test_invest_checks_join_the_definition_of_ready_once_and_enablers_are_a_type(c):
+    c.put("/api/planning/definition-of-ready", json={"items": ["[Our own check]"]})
+    items = c.post("/api/planning/definition-of-ready/invest").json()["items"]
+    assert items[0] == "[Our own check]" and len(items) == 7 and items[1].startswith("Independent:")
+    assert len(c.post("/api/planning/definition-of-ready/invest").json()["items"]) == 7
+    assert c.post("/api/backlog-items", json={"title": "[Enabler]", "item_type": "enabler"}).json()["item_type"] == "enabler"

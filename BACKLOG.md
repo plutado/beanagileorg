@@ -127,6 +127,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-20: Scrum building blocks: enabler stories as a backlog type, user and enabler story templates, INVEST checks for the definition of ready, user-stories reference entry with INVEST, the three Cs and enablers.
 - [x] 2026-10-20: Scrum events (#34): sprint review panel (done and not done, agenda, stakeholder feedback into backlog items), retro commitments onto the backlog as ready items, Scrum timeboxes on the planning screen.
 - [x] 2026-10-20: Scrum artifacts (#33): product goal on the backlog and sprint planning; sprint burndown rebuilt from the change log with an ideal line and scope changes, on the plan tab and in the sprint report; sprint goals guide.
 - [x] 2026-10-20: 90-day cycles after the first 90 days (#31): cycles with focus, goals, plan items by day, optional PI link, review with scorecard and mandate snapshot, summary, configurable length, Today prompts, core challenges check at each cycle end (migration 72); guide Working in 90-day cycles; 347 tests
