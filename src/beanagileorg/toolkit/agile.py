@@ -1,5 +1,5 @@
-"""An Agile reference: Scrum's accountabilities, events, artifacts and commitments, the common practices teams add
-around them, and the main concepts of SAFe, with how the team does each one here.
+"""An Agile reference: SAFe, the framework the toolkit is built around; Scrum, how each team inside it works (its
+accountabilities, events, artifacts and commitments); and the common practices teams add, with how each is done here.
 
 Every description is written in our own words. The Scrum Guide itself is at scrumguides.org; SAFe and Scaled
 Agile Framework are registered trademarks of Scaled Agile, Inc., and its own material is at scaledagileframework.com.
@@ -135,7 +135,7 @@ REFERENCE = [
     ("release-planning", "practice", "practice", "Release planning and release readiness",
      "Planning what goes into a release and checking it's ready: testing, sign-off, communication, rollback.",
      "Most broken releases trace back to skipped readiness steps.", None, "#/sdlc"),
-    ("scrum-of-scrums", "practice", "practice", "Scrum of Scrums",
+    ("scrum-of-scrums", "practice", "practice", "Scrum of Scrums (in SAFe, the coach sync)",
      "A regular meeting of representatives from several teams to manage dependencies, risks and blockers across them.",
      "Keeps teams that share a product from surprising each other.", "Often two or three times a week", "#/sos"),
     ("delivery-metrics", "practice", "practice", "Delivery metrics",

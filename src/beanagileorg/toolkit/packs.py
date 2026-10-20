@@ -92,7 +92,7 @@ KINDS = {k.key: k for k in (
          describe=("kind", "start_date", "status")),
     Kind("risks", "Risks", models.risks, "title", people_links=("owner_id",), never=("notes", "team_id"), describe=("level", "status", "due")),
     Kind("decisions_needed", "Decisions", models.decisions_needed, "decision", people_links=("from_id",), never=("team_id",), describe=("status", "needed_by")),
-    Kind("sos_items", "Scrum of Scrums items", models.sos_items, "question", people_links=("owner_id",), team_links=("raised_by_team_id", "owner_team_id"),
+    Kind("sos_items", "ART sync items", models.sos_items, "question", people_links=("owner_id",), team_links=("raised_by_team_id", "owner_team_id"),
          describe=("kind", "status", "due")),
     Kind("core_processes", "Core processes", models.core_processes, "name", people_links=("owner_id",), never=("notes", "team_id", "position"), describe=("importance", "aim")),
     Kind("metrics", "Metrics", models.metrics, "name", describe=("unit",), children=("readings", models.metric_readings, "metric_id", ("date", "value"))),

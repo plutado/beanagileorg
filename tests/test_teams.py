@@ -89,4 +89,4 @@ def test_scrum_of_scrums_log_meeting_summary_and_today(client):
     assert "| [Other team] | on track" in md and "[Their sprint 4]" in md and "## Overdue" in md and "[Shared API contract] (ABC-5)" in md
     assert "[Settled]: [Decided X]" in md and "[Private]" not in md
     assert client.get("/api/today").json()["sos_due"][0]["overdue"] is True
-    assert [f["kind"] for f in client.get("/api/jira/ABC-5").json()["found"]] == ["Scrum of Scrums item"]
+    assert [f["kind"] for f in client.get("/api/jira/ABC-5").json()["found"]] == ["ART sync item"]

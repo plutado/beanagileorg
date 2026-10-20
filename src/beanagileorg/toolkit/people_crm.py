@@ -284,7 +284,7 @@ def timeline(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(
         ev.append({"date": a["raised_on"], "kind": "dev-sync", "title": f"{role.capitalize()}: {a['concern']}", "route": f"/dev-sync/{a['id']}", "detail": a["status"]})
     for s in models.sos_items.fetch_all(conn):
         if s["owner_id"] == person_id or person_id in s["stakeholder_ids"]:
-            ev.append({"date": s["raised_on"], "kind": "Scrum of Scrums", "title": s["question"], "route": "/sos", "detail": s["status"]})
+            ev.append({"date": s["raised_on"], "kind": "ART sync", "title": s["question"], "route": "/sos", "detail": s["status"]})
     for r in models.retros.fetch_all(conn):
         if person_id in r["attendee_ids"]:
             ev.append({"date": r["date"], "kind": "retro", "title": f"Retrospective{' sprint ' + str(r['sprint_number']) if r['sprint_number'] else ''}", "route": f"/retros/{r['id']}", "detail": ""})

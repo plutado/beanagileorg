@@ -346,7 +346,7 @@ GUIDES = [
             "Name the behaviors that stand in the way (lack of focus, discipline, innovation, teamwork or urgency) and how you want people to work by the end of your time in the role.",
             "Pick the kind of win the situation needs. In a turnaround, visible results that move people from despair to hope. In a realignment, getting people to see the problem: clear metrics, outside benchmarks and respected outside voices, so it isn't one person's opinion.",
             "Look for predictable surprises: problems someone could have seen coming. Scan the outside world, customers and strategy, the team's own capabilities, and politics, and look hardest at the areas you're least comfortable with.",
-            "Join up the silos. Many surprises happen because the pieces of a problem sit with different groups and no one sees the whole. In Scrum, the Scrum of Scrums and cross-team syncs are where the pieces come together.",
+            "Join up the silos. Many surprises happen because the pieces of a problem sit with different groups and no one sees the whole. In Scrum, the ART sync and cross-team syncs are where the pieces come together.",
             "Choose problems the team already complains about. You'll find them in the listening tour themes.",
             "Keep them small enough to finish in weeks, not months.",
             "Involve the team. A win they helped shape is theirs, not yours.",
@@ -1609,10 +1609,10 @@ GUIDES = [
         "practices": [
             "Start each cycle with a short read of where things stand, then agree one focus and no more than three goals with your manager.",
             "Put the plan items and wins in the cycle's days, so progress shows as you go.",
-            "Let the existing rhythm carry the work: sprints, the weekly status, the Scrum of Scrums. A cycle adds no meetings.",
+            "Let the existing rhythm carry the work: sprints, the weekly status, the ART sync. A cycle adds no meetings.",
             "In the last two weeks, review: the scorecard against baselines and targets, what you said against what happened, and what to change.",
             "Set the next cycle's focus in the same review, so there's never a gap between plans.",
-            "If you run SAFe, match the cycle to your Program Increments and use PI planning as the planning step.",
+            "Match each cycle to your PIs: PI planning becomes the cycle's planning step, and Inspect and Adapt feeds its review.",
         ],
         "pitfalls": [
             "Treating day 90 as the finish line.",
@@ -1700,9 +1700,9 @@ TIPS = {
                ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6),
                ("Know what each peer team is trying to achieve. It's the start of every useful trade.", "peer-relationships", 10)],
     "/sos": [("Every cross-team item needs one owner, a due date and the outcome you expect. Otherwise it just gets discussed again next week.", "scrum-of-scrums", 4),
-             ("Keep the Scrum of Scrums short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4),
+             ("Keep the ART sync short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4),
              ('When an organization-wide habit keeps hurting delivery, bring evidence and a proposal, not a complaint.', 'challenging-the-organization', 6),
-             ('The Scrum of Scrums is where peer relationships pay off. Help another team before you need their help.', "peer-relationships", 10)],
+             ('The ART sync is where peer relationships pay off. Help another team before you need their help.', "peer-relationships", 10)],
     "/planning": [("Leave a little room in each sprint for support and surprises, so small requests don\'t need a debate.", "change-mid-sprint", 7),
                   ("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
@@ -1782,7 +1782,7 @@ TIPS = {
     "/changes/*": [("Look at the impact before deciding: what it would swap out of the sprint, and who needs to hear either way.", "change-mid-sprint", 54)],
     "/dev-sync/*": [("Every item needs an owner and a next action. A question nobody owns is a question nobody answers.", "delegation", 54)],
     "/releases/*": [("Go or no-go is a decision, not a date: check readiness and QA sign-off before the call, and say who made it.", "quality-culture", 54)],
-    "/teams/*": [("Keep each team's status current before the Scrum of Scrums, so the meeting spends its time on what's stuck.", "scrum-of-scrums", 54)],
+    "/teams/*": [("Keep each team's status current before the ART sync, so the meeting spends its time on what's stuck.", "scrum-of-scrums", 54)],
 }
 
 # Reflection prompts by how far into the role you are (day numbers from the contract start date).

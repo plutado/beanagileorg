@@ -135,12 +135,12 @@ BALANCES = [
 ]
 BALANCE_STEPS = ("far left", "leans left", "balanced", "leans right", "far right")
 STRUCTURE_PROBLEMS = [
-    ("silos", "Silos of excellence", "Grouping like with like builds deep expertise but isolates it. Who bridges the gaps, and are there cross-team mechanisms and shared goals?", "/sos", "Scrum of Scrums"),
+    ("silos", "Silos of excellence", "Grouping like with like builds deep expertise but isolates it. Who bridges the gaps, and are there cross-team mechanisms and shared goals?", "/sos", "ART sync"),
     ("scope", "Decision scope too narrow or too broad", "Too central, and decisions are slow, poorly informed and wear out the few who make them. Too broad without the bigger picture, and people make unwise calls.", "/raci", "RACI"),
     ("incentives", "Incentives to do the wrong thing", "People do what they're rewarded for. Rewards that serve individuals at the group's expense, or reward neither, pull people apart.", "/metrics", "Metrics"),
     ("accountability", "Compartments or blurred accountability", "Hierarchy keeps accountability clear but traps information; shared or matrix reporting spreads information but can leave nobody accountable.", "/raci", "RACI"),
 ]
-STRUCTURE_SCRUM = "Scrum's three accountabilities (product owner, Scrum Master, developers) are decision rights: the product owner orders the backlog, the developers decide how to do the work. A cross-functional team and the Scrum of Scrums are integration mechanisms. Team goals are the incentive Scrum relies on; individual velocity targets undo it."
+STRUCTURE_SCRUM = "Scrum's three accountabilities (product owner, Scrum Master, developers) are decision rights: the product owner orders the backlog, the developers decide how to do the work. A cross-functional team and the ART sync are integration mechanisms. Team goals are the incentive Scrum relies on; individual velocity targets undo it."
 CLIMATE_PROMPT = "What is the climate like: morale, trust, energy, and how recent changes have landed? The culture map holds the deeper read."
 
 

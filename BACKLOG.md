@@ -12,6 +12,7 @@ Nothing right now.
 
 In priority order:
 
+- [ ] **SAFe as the default framework** (#32): the toolkit presumes SAFe, with Scrum teams inside it and 90-day cycles lined up with PIs; no assumptions about any one organization. Terms: sprint (SAFe's iteration), PI (formerly Program Increment), IP sprint, ART sync (coach sync, close to a Scrum of Scrums), Scrum Master (SAFe's Team Coach). Wording done 2026-10-20. Still to build: the ART as a record (teams in a train, RTE and other train roles, an ART backlog); system demo and the Inspect and Adapt workshop with predictability across PIs; cycles following PIs by default; platform-neutral starters (platform-specific SDLC environments, onboarding items and release windows become an optional starter); later a portfolio level (epics, lean business cases, portfolio Kanban, WSJF across trains).
 - [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
 ## Toolkit, later versions

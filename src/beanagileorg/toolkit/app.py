@@ -61,7 +61,7 @@ NAV = [
     {"path": "/teams", "icon": "users-round", "label": "Teams"},
     {"path": "/team-align", "icon": "target", "label": "Aligning the team"},
     {"path": "/alliances", "icon": "share-2", "label": "Alliances"},
-    {"path": "/sos", "icon": "network", "label": "Scrum of Scrums"},
+    {"path": "/sos", "icon": "network", "label": "ART sync"},
     {"group": "Delivery"},
     {"path": "/agile", "icon": "notebook", "label": "Agile reference"},
     {"path": "/sdlc", "icon": "git-branch", "label": "SDLC"},

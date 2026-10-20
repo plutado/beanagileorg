@@ -3510,7 +3510,7 @@ sprint_availability = Record(
     },
 )
 
-# ---- teams and the Scrum of Scrums: structure is presentable; private notes stay private ----
+# ---- teams and the ART sync: structure is presentable; private notes stay private ----
 
 teams = Record(
     entity="team",

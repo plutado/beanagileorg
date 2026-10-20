@@ -1,7 +1,7 @@
 """90-day cycles: the first 90 days, then the same rhythm of planning, execution and review, cycle after cycle.
 
-Each cycle covers a span of days in the role (90 by default, or matched to Program Increments). It has a focus and a
-few goals, takes in the plan items and early wins due in its days, can link a Program Increment, and ends with a
+Each cycle covers a span of days in the role (90 by default, or matched to PIs). It has a focus and a
+few goals, takes in the plan items and early wins due in its days, can link a PI (Planning Interval), and ends with a
 review: the delivery scorecard kept as it stood, a mandate snapshot, what went well and what to change, and a
 one-page summary for your manager.
 """
@@ -78,7 +78,7 @@ def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 
 @router.put("/api/cycles/settings")
 def settings(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    """Cycle length in days: 90 by default, or the length of your Program Increments (between 8 and 17 weeks)."""
+    """Cycle length in days: 90 by default, or the length of your PIs (between 8 and 17 weeks)."""
     require_write(viewer)
     try:
         days = int(body.get("length_days"))

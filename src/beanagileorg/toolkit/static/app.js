@@ -29,7 +29,7 @@
   BA.command({ label: "Find a Jira key", hint: "Search everything that references it", icon: "search", run: () => { const k = prompt("Jira key, such as ABC-123"); if (k) BA.go(`/jira/${k.trim().toUpperCase()}`); } });
   BA.command({ label: "Plan the next sprint", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning/plan") });
   BA.command({ label: "Paste stories from Jira into the backlog", hint: "Sprint planning", icon: "list-ordered", run: () => BA.go("/planning") });
-  BA.command({ label: "Log a Scrum of Scrums item", hint: "Scrum of Scrums", icon: "network", run: () => BA.go("/sos") });
+  BA.command({ label: "Log an ART sync item", hint: "ART sync", icon: "network", run: () => BA.go("/sos") });
   BA.command({ label: "Update a team's status", hint: "Teams", icon: "users-round", run: () => BA.go("/teams") });
   BA.command({ label: "Log a conversation with someone", hint: "People", icon: "users", run: () => BA.go("/people") });
   BA.command({ label: "Open the org chart", hint: "People", icon: "users", run: () => BA.go("/people/org") });
@@ -209,7 +209,7 @@
           ${d.people_due.meetings.map((m) => `<div class="item"><span class="pill">meeting</span><a href="#/people/${m.id}">${esc(m.name)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.date)}</span><a class="btn" href="#/people/${m.id}" data-agenda="${m.id}" title="An agenda drafted from open follow-ups and commitments">Agenda</a></div>`).join("")}
           ${d.people_due.check_ins.map((c) => `<div class="item"><span class="pill warn">check in</span><a href="#/people/${c.id}">${esc(c.name)}</a><span class="spacer"></span><span class="quiet">last ${c.days_since == null ? "never" : c.days_since + " days ago"} · every ${c.cadence_days}</span></div>`).join("")}
           ${d.people_due.key_dates.map((k) => `<div class="item"><span class="pill">${esc(k.label)}</span><a href="#/people/${k.id}">${esc(k.name)}</a><span class="spacer"></span><span class="quiet">${k.days === 0 ? "today" : "in " + k.days + " days"}</span></div>`).join("")}</section>` : ""}
-        ${d.sos_due && d.sos_due.length ? `<section class="card"><h2>Scrum of Scrums</h2>${d.sos_due.map((x) => `<div class="item">${x.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/sos">${esc(x.question)}</a><span class="spacer"></span><span class="quiet">${esc(x.owner || "no owner")} · ${BA.fmtDate(x.due)}</span></div>`).join("")}</section>` : ""}
+        ${d.sos_due && d.sos_due.length ? `<section class="card"><h2>ART sync</h2>${d.sos_due.map((x) => `<div class="item">${x.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/sos">${esc(x.question)}</a><span class="spacer"></span><span class="quiet">${esc(x.owner || "no owner")} · ${BA.fmtDate(x.due)}</span></div>`).join("")}</section>` : ""}
         ${d.planning_due && d.planning_due.length ? `<section class="card"><h2>Sprint planning</h2>${d.planning_due.map((p) => `<div class="item"><a href="#/planning/${p.sprint_id}">Plan sprint ${p.number}</a><span class="spacer"></span><span class="quiet">starts ${BA.fmtDate(p.start_date)} · ${p.ready_stories} ready stories, ${p.ready_points} points</span></div>`).join("")}</section>` : ""}
         ${d.debt_due && d.debt_due.length ? `<section class="card"><h2>Technical debt</h2>${d.debt_due.map((x) => `<div class="item"><span class="pill ${x.kind === "deadline" ? "warn" : ""}">${x.kind === "deadline" ? "needed by" : "revisit"}</span><a href="#/debt">${esc(x.title)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(x.when)}</span></div>`).join("")}</section>` : ""}
         ${d.onboarding_due.length ? `<section class="card"><h2>Onboarding</h2>${d.onboarding_due.map((o) => `<div class="item">${o.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/onboarding/${o.onboarding_id}">${esc(o.title)}</a><span class="spacer"></span><span class="quiet">${esc(o.person_name)} · ${esc(o.owner_role)} · ${BA.fmtDate(o.due)}</span></div>`).join("")}</section>` : ""}
@@ -344,7 +344,7 @@
       <section class="card"><h2>Peers</h2><p class="quiet">The people you\'ve talked to least come first. To add someone, open their page, go to Details, and set the relationship to peer. Write down what you can offer each one and what you need from them: peer relationships run on exchange.</p>
         ${d.peers.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Peer</th><th>Influence</th><th>Last talked</th><th>What I can offer</th><th>What I need</th></tr></thead><tbody>${d.peers.map((p) => `<tr class="clickable" data-id="${p.id}">
             <td><b>${esc(p.name)}</b>${p.placeholder ? ' <span class="pill warn">placeholder</span>' : ""}<div class="quiet">${esc(p.role || "")}</div></td><td>${esc(p.influence || "")}${p.stance ? `<div class="quiet">${esc(p.stance)}</div>` : ""}</td>
-            <td>${p.quiet ? '<span class="pill warn">quiet</span> ' : ""}${ago(p.days_since)}</td><td class="quiet">${esc((p.offer_them || "").slice(0, 90)) || "–"}</td><td class="quiet">${p.i_owe || p.they_owe ? `<span class="pill ${p.i_owe ? "warn" : ""}">I owe ${p.i_owe}</span> <span class="pill">they owe ${p.they_owe}</span> ` : ""}${(p.sos_items || []).length ? `<span class="pill accent" title="${esc(p.sos_items.map((x) => x.question).join("; "))}">${p.sos_items.length} Scrum of Scrums</span> ` : ""}${esc((p.need_from_them || "").slice(0, 90)) || "–"}</td></tr>`).join("")}</tbody></table></div>`
+            <td>${p.quiet ? '<span class="pill warn">quiet</span> ' : ""}${ago(p.days_since)}</td><td class="quiet">${esc((p.offer_them || "").slice(0, 90)) || "–"}</td><td class="quiet">${p.i_owe || p.they_owe ? `<span class="pill ${p.i_owe ? "warn" : ""}">I owe ${p.i_owe}</span> <span class="pill">they owe ${p.they_owe}</span> ` : ""}${(p.sos_items || []).length ? `<span class="pill accent" title="${esc(p.sos_items.map((x) => x.question).join("; "))}">${p.sos_items.length} ART sync</span> ` : ""}${esc((p.need_from_them || "").slice(0, 90)) || "–"}</td></tr>`).join("")}</tbody></table></div>`
           : '<p class="quiet">No peers yet. Add the managers and leads at your level under People, with relationship "peer".</p>'}</section>`;
     main.querySelector("#bal-days").onchange = (e) => { try { sessionStorage.setItem("ba-balance-days", e.target.value); } catch {} BA.rerender(); };
     main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/people/${tr.dataset.id}`)));
@@ -699,7 +699,7 @@
 
     if (current === "timeline") {
       const tl = await BA.api(`/api/people/${id}/timeline`);
-      box.innerHTML = `<section class="card"><h2>Timeline</h2><p class="quiet">Everything in the toolkit involving ${esc(p.name)}: conversations, listening-tour notes, dev-sync items, Scrum of Scrums items and retros.</p>
+      box.innerHTML = `<section class="card"><h2>Timeline</h2><p class="quiet">Everything in the toolkit involving ${esc(p.name)}: conversations, listening-tour notes, dev-sync items, ART sync items and retros.</p>
         ${tl.events.map((ev) => `<div class="item"><span class="quiet tl-date">${BA.fmtDate(ev.date) || "no date"}</span><span class="pill">${esc(ev.kind)}</span><a href="#${esc(ev.route)}">${esc(ev.title)}</a><span class="spacer"></span><span class="quiet">${esc(ev.detail || "")}</span></div>`).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
       return;
     }
@@ -1865,7 +1865,7 @@
           sprints.map((s) => `<tr class="clickable" data-id="${s.id}"><td><b>${s.number}</b></td><td>${sprintRange(s)}</td><td>${esc(s.goal || "")}</td><td>${esc(s.kind)}</td><td>${s.pi_id ? piName(s.pi_id) : ""}</td>${presenting() ? "" : `<td>${s.note_count}</td>`}</tr>`).join("") ||
           '<tr><td colspan="6" class="empty">No sprints yet.</td></tr>'
         }</tbody></table></div>
-        <section class="card" style="margin-top:16px"><h2>Program Increments</h2><p class="quiet">Only if the organization runs SAFe: several development sprints, then an innovation and planning sprint.</p>${
+        <section class="card" style="margin-top:16px"><h2>Planning Intervals (PIs)</h2><p class="quiet">The train's shared cadence: several development sprints, then an Innovation and Planning (IP) sprint.</p>${
           pis.map((p) => `<div class="item"><b>PI ${p.number}</b><span class="quiet">${BA.fmtDate(p.start_date)} to ${BA.fmtDate(p.end_date)}</span><span>${esc(p.objectives || "")}</span></div>`).join("") || '<p class="quiet">None.</p>'
         }${presenting() ? "" : `<form id="add-pi" class="row" style="margin-top:8px"><input type="number" name="number" placeholder="PI number" required style="max-width:130px">
           <input type="date" name="start_date" style="max-width:170px"><input type="date" name="end_date" style="max-width:170px">
@@ -1920,7 +1920,7 @@
         <label>Kind<select name="kind">${["development", "innovation and planning"].map((k) => `<option${k === s.kind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
         <label>Start<input type="date" name="start_date" value="${esc(s.start_date || "")}"></label>
         <label>End<input type="date" name="end_date" value="${esc(s.end_date || "")}"></label>
-        <label>Program Increment<select name="pi_id"><option value=""></option>${pis.map((p) => `<option value="${p.id}"${p.id === s.pi_id ? " selected" : ""}>PI ${p.number}</option>`).join("")}</select></label></div>
+        <label>PI (Planning Interval)<select name="pi_id"><option value=""></option>${pis.map((p) => `<option value="${p.id}"${p.id === s.pi_id ? " selected" : ""}>PI ${p.number}</option>`).join("")}</select></label></div>
         <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>`;
     const addNote = main.querySelector("#add-note");
     addNote.onsubmit = BA.guard(async (e) => {
@@ -3153,8 +3153,8 @@
 
   // ---------------------------------------------------------------- Agile reference
 
-  const AGILE_TABS = [["", "Scrum"], ["guide", "The Scrum Guide"], ["practices", "Common practices"], ["safe", "SAFe"], ["coverage", "Coverage"]];
-  const AGILE_FW = { "": "scrum", practices: "practice", safe: "safe" };
+  const AGILE_TABS = [["", "SAFe"], ["scrum", "Scrum (team level)"], ["guide", "The Scrum Guide"], ["practices", "Common practices"], ["coverage", "Coverage"]];
+  const AGILE_FW = { "": "safe", scrum: "scrum", practices: "practice" };
   const AGILE_KINDS = { foundation: "Foundations", accountability: "Accountabilities", event: "Events", artifact: "Artifacts", commitment: "Commitments", practice: "Practices", structure: "Structure", role: "Roles" };
   const AGILE_TONES = { "not yet": "", partly: "warn", practiced: "good", "not used here": "" };
   BA.view("/agile", {
@@ -3195,11 +3195,11 @@
       if (tab === "coverage") {
         const fwName = { scrum: "Scrum", practice: "Common practices", safe: "SAFe" };
         main.innerHTML = `${tabs}<section class="card"><h2>What the team practices today</h2><div class="tablewrap"><table class="data"><thead><tr><th></th>${d.statuses.map((s) => `<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>${Object.entries(d.coverage).map(([fw, c]) => `<tr><td><b>${fwName[fw]}</b></td>${d.statuses.map((s) => `<td>${c[s]}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-          <h3>Not yet or only partly practiced</h3>${d.entries.filter((e) => ["not yet", "partly"].includes(e.status) && e.framework !== "safe").map((e) => `<div class="item"><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><a href="#/agile${e.framework === "practice" ? "/practices" : ""}">${esc(e.name)}</a></div>`).join("") || '<p class="quiet">Nothing outstanding in Scrum or the common practices.</p>'}
-          <p class="quiet">SAFe entries matter only if your organization runs it; mark the rest "not used here".</p></section>`;
+          <h3>Not yet or only partly practiced</h3>${d.entries.filter((e) => ["not yet", "partly"].includes(e.status)).map((e) => `<div class="item"><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><a href="#/agile${e.framework === "practice" ? "/practices" : e.framework === "scrum" ? "/scrum" : ""}">${esc(e.name)}</a></div>`).join("") || '<p class="quiet">Nothing outstanding in Scrum or the common practices.</p>'}
+          <p class="quiet">Mark anything your organization doesn't use "not used here".</p></section>`;
         return;
       }
-      const fw = AGILE_FW[tab] || "scrum";
+      const fw = AGILE_FW[tab] || "safe";
       const list = d.entries.filter((e) => e.framework === fw);
       const src = fw === "practice" ? null : d.sources[fw];
       const groups = [...new Set(list.map((e) => e.kind))];
@@ -3207,7 +3207,7 @@
         ${fw === "scrum" ? defsBlock : ""}
         ${fw === "scrum" ? `<section class="card row" style="align-items:center"><b>Our sprint length</b>${ro ? `<span>${d.sprint_weeks} weeks</span>` : `<select id="sprint-weeks" style="max-width:140px">${[1, 2, 3, 4].map((w) => `<option value="${w}"${w === d.sprint_weeks ? " selected" : ""}>${w} week${w > 1 ? "s" : ""}</option>`).join("")}</select>`}<span class="quiet">Event timeboxes below are scaled to it.</span></section>` : ""}
         ${fw === "scrum" && !ro ? `<details class="card"><summary><b>Other definitions to show the team</b> <span class="quiet">(for example, a widely quoted definition of Agile, with its source)</span></summary><form id="defs">${[...g.definitions, {}].map((x) => `<div class="def-row grid2"><label>Title<input name="title" value="${esc(x.title || "")}"></label><label>Source<input name="source" value="${esc(x.source || "")}"></label><label style="grid-column:1/-1">Text<textarea name="text" rows="3">${esc(x.text || "")}</textarea></label></div>`).join("")}<div class="actions"><button class="btn" type="submit">Save</button></div></form></details>` : ""}
-        <p class="quiet">${fw === "scrum" ? "Scrum as the Scrum Guide defines it: three accountabilities, five events, three artifacts and the commitment each carries." : fw === "practice" ? "Practices many teams add around Scrum. None is required by Scrum; use the ones that help." : "The main concepts of SAFe, for organizations that coordinate many teams on one cadence."}
+        <p class="quiet">${fw === "scrum" ? "Scrum as the Scrum Guide defines it: how each team inside the train works, with three accountabilities, five events, three artifacts and the commitment each carries. Where SAFe uses another word, the toolkit keeps the Scrum one (a sprint is SAFe's iteration)." : fw === "practice" ? "Practices many teams add around Scrum and SAFe. None is required; use the ones that help." : "SAFe, the framework this toolkit is built around: teams of teams on one cadence, planned together each PI. Teams inside it work in Scrum (see the next tab)."}
           ${fw === "scrum" ? (g.markdown ? "Each entry shows the Scrum Guide's own wording, with our summary tucked below it." : "Entry summaries are in our own words; import the Scrum Guide to see its wording on each entry.") : "Descriptions are in our own words."}${src ? ` For the full text, see <a href="${src.url}" target="_blank" rel="noopener">${esc(src.label)} ${BA.icon("external-link")}</a>.` : ""}</p>
         ${groups.map((g) => `<section class="card"><h2>${esc(AGILE_KINDS[g] || g)}</h2>${list.filter((e) => e.kind === g).map((e) => `<details class="plan-item" data-ag="${e.key}"><summary><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><b>${esc(e.name)}</b><span class="spacer"></span>${e.timebox ? `<span class="quiet">${esc(e.timebox)}</span>` : ""}</summary>
           ${e.guide_text ? `<div class="sg-quote" style="border-left:3px solid var(--accent);padding-left:12px;margin:8px 0"><p class="quiet"><b>From the Scrum Guide</b></p>${BA.md(e.guide_text)}<p><a href="#/agile/guide?sec=${e.guide_section}">Read it in the Scrum Guide</a></p></div>
@@ -3677,7 +3677,7 @@
       const people = await BA.api("/api/people");
       if (param) return renderPi(main, Number(param), people);
       const pis = await BA.api("/api/program-increments");
-      main.innerHTML = `<p class="quiet">For organizations running SAFe: plan a Program Increment's objectives, features, stories, dependencies and risks together, then present the board.</p>
+      main.innerHTML = `<p class="quiet">Plan a PI (Planning Interval) for the Agile Release Train: its objectives, features, stories, dependencies and risks together, then present the board.</p>
         <div class="tablewrap"><table class="data"><thead><tr><th>PI</th><th>Dates</th><th>Objectives</th><th>Confidence</th></tr></thead><tbody>${
           pis.map((p) => `<tr class="clickable" data-id="${p.id}"><td><b>PI ${p.number}</b></td><td>${BA.fmtDate(p.start_date)} to ${BA.fmtDate(p.end_date)}</td><td>${esc(p.objectives || "")}</td>
             <td>${p.confidence != null ? `<span class="pill ${p.confidence >= 3 ? "good" : "warn"}">${p.confidence} of 5</span>` : '<span class="quiet">not voted</span>'}</td></tr>`).join("") ||
@@ -3720,7 +3720,7 @@
       <section class="card"><div class="row"><h2>PI ${p.number}</h2><span class="quiet">${BA.fmtDate(p.start_date)} to ${BA.fmtDate(p.end_date)}</span><span class="spacer"></span>
         ${p.confidence != null ? `<span class="pill ${p.confidence >= 3 ? "good" : "warn"}">confidence ${p.confidence} of 5 · ${BA.fmtDate(p.confidence_date)}</span>` : ""}
         ${d.predictability != null ? `<span class="pill ${d.predictability >= 80 ? "good" : "warn"}">predictability ${d.predictability}%</span>` : ""}</div>
-        ${d.sprints.length ? "" : '<p class="quiet">Assign sprints to this PI from the sprint notebook (Sprint details, Program Increment) to build the board.</p>'}
+        ${d.sprints.length ? "" : '<p class="quiet">Assign sprints to this PI from the sprint notebook (Sprint details, PI) to build the board.</p>'}
         ${ro ? "" : `<form id="vote" class="row"><input name="votes" placeholder="Confidence votes, e.g. 4, 4, 3, 5" style="max-width:300px"><button class="btn" type="submit">Record fist-of-five</button></form>`}</section>
 
       <section class="card"><h2>PI objectives</h2><div class="tablewrap"><table class="data"><thead><tr><th>Objective</th><th>Kind</th><th>Business value planned</th><th>Actual</th><th>Status</th></tr></thead><tbody>${
@@ -6020,7 +6020,7 @@
     if (st) st.onclick = BA.guard(async () => { await BA.api("/api/planning/definition-of-ready/starter", { method: "POST", body: {} }); BA.rerender(); });
   }
 
-  // ---------------------------------------------------------------- Teams and the Scrum of Scrums
+  // ---------------------------------------------------------------- Teams and the ART sync
 
   const TEAM_STATUS = ["on track", "at risk", "off track"];
   const TEAM_TONES = { "on track": "good", "at risk": "warn", "off track": "bad" };
@@ -6039,7 +6039,7 @@
           <div class="quiet">${[t.sprint ? `Sprint ${t.sprint.number}` : t.current_sprint ? esc(t.current_sprint) : "", t.members.length ? `${t.members.length} people` : "", t.jira_project ? `Jira ${esc(t.jira_project)}` : "", t.status_date ? `updated ${BA.fmtDate(t.status_date)}` : ""].filter(Boolean).join(" · ")}</div>
           <div class="row">${t.open_sos ? `<span class="pill${t.overdue_sos ? " bad" : ""}">${t.open_sos} open across teams${t.overdue_sos ? `, ${t.overdue_sos} late` : ""}</span>` : ""}${t.dependencies ? `<span class="pill warn">${t.dependencies} dependencies</span>` : ""}
             ${t.kind === "mine" && t.open_actions ? `<span class="pill">${t.open_actions} dev-sync</span>` : ""}${t.kind === "mine" && t.open_risks ? `<span class="pill">${t.open_risks} risks</span>` : ""}</div></a>`;
-      main.innerHTML = `<p class="quiet">Your team, and the teams you work with or oversee. Your team's work is tracked across the toolkit; other teams are tracked lightly here, with what's open between you in the <a href="#/sos">Scrum of Scrums</a>.</p>
+      main.innerHTML = `<p class="quiet">Your team, and the teams you work with or oversee. Your team's work is tracked across the toolkit; other teams are tracked lightly here, with what's open between you in the <a href="#/sos">ART sync</a>.</p>
         <div class="sys-grid">${teams.map(card).join("")}</div>
         ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Add a team</h2><form id="add-team" class="row"><input name="name" required placeholder="Team name" style="max-width:280px">
           <input name="jira_project" placeholder="Jira project key" style="max-width:160px"><button class="btn primary" type="submit">Add</button></form></section>`}`;
@@ -6068,7 +6068,7 @@
         ${t.kind === "other" ? `<input name="current_sprint" value="${esc(t.current_sprint || "")}" placeholder="Their sprint" style="max-width:140px"><input type="date" name="sprint_ends" value="${esc(t.sprint_ends || "")}" style="max-width:160px">
           <input name="current_goal" value="${esc(t.current_goal || "")}" placeholder="Their sprint goal" style="max-width:260px">` : ""}<button class="btn primary" type="submit">Save</button></form></section>`}
       <div class="cards">
-        <section class="card"><h2>Open across teams</h2>${d.sos_open.map(sosRow).join("") || '<p class="quiet">Nothing open with this team.</p>'}<p class="quiet"><a href="#/sos">Scrum of Scrums</a></p></section>
+        <section class="card"><h2>Open across teams</h2>${d.sos_open.map(sosRow).join("") || '<p class="quiet">Nothing open with this team.</p>'}<p class="quiet"><a href="#/sos">ART sync</a></p></section>
         ${t.kind === "mine" ? `<section class="card"><h2>This team's open work</h2>${d.sprints.length ? `<p class="quiet">Latest sprint: ${d.sprints[0].number}${d.sprints[0].goal ? ", " + esc(d.sprints[0].goal) : ""}</p>` : ""}
           <p>${d.actions.length} open dev-sync items · ${d.risks.length} open risks</p>${d.risks.slice(0, 5).map((r) => `<div class="item"><a href="#/risks">${esc(r.title)}</a><span class="spacer"></span><span class="quiet">${esc(r.level)}</span></div>`).join("")}</section>` : ""}
         ${d.sos_done.length ? `<section class="card"><h2>Settled recently</h2>${d.sos_done.map((i) => `<div class="item"><span>${esc(i.question)}</span><span class="spacer"></span><span class="quiet">${esc(i.resolution || "")}</span></div>`).join("")}</section>` : ""}
@@ -6107,7 +6107,7 @@
   }
 
   BA.view("/sos", {
-    title: "Scrum of Scrums",
+    title: "ART sync",
     async render(main, param) {
       if (param === "summary") return renderSosSummary(main);
       if (param && /^m-\d+$/.test(param)) return renderSosMeeting(main, Number(param.slice(2)));
@@ -6166,8 +6166,8 @@
     const ro = presenting();
     const byId = Object.fromEntries(d.items.map((i) => [i.id, i]));
     const teamName = Object.fromEntries(d.teams.map((x) => [x.id, x.name]));
-    document.getElementById("view-title").textContent = `Scrum of Scrums, ${BA.fmtDate(m.date)}`;
-    main.innerHTML = `<p><a href="#/sos">Scrum of Scrums</a></p>
+    document.getElementById("view-title").textContent = `ART sync, ${BA.fmtDate(m.date)}`;
+    main.innerHTML = `<p><a href="#/sos">ART sync</a></p>
       <section class="card"><h2>${BA.fmtDate(m.date)}</h2><p class="quiet">Teams: ${(m.team_ids || []).map((x) => esc(teamName[x] || "")).join(", ")}</p>
         <h3>Walk the open items</h3>${(m.item_ids || []).map((iid) => byId[iid]).filter(Boolean).map((i) => `<div class="item">${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><span>${esc(i.question)}</span><span class="spacer"></span><span class="quiet">${esc(i.owner_name || i.owner_team_name || "no owner")}${i.due ? " · " + BA.fmtDate(i.due) : ""}</span></div>`).join("") || '<p class="quiet">Nothing was open.</p>'}
         <p class="quiet">Update each item in the <a href="#/sos">log</a> as you go.</p>
@@ -6700,7 +6700,7 @@
         ${c.total ? f90Progress(c.done, c.total) : ""}</div>
       ${ro ? `${c.focus ? `<p><b>Focus:</b> ${esc(c.focus)}</p>` : ""}${(c.goals || []).length ? `<ul>${c.goals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : ""}` : `<form class="cycle-form"><label>Focus <span class="quiet">(one sentence for the whole cycle)</span><input name="focus" value="${esc(c.focus || "")}"></label>
         <label>Goals <span class="quiet">(one per line, three at most)</span><textarea name="goals" rows="3">${esc((c.goals || []).join("\n"))}</textarea></label>
-        ${o.pis.length ? `<label>Program Increment<select name="pi_id"><option value=""></option>${o.pis.map((p) => `<option value="${p.id}"${c.pi && c.pi.id === p.id ? " selected" : ""}>PI ${p.number}</option>`).join("")}</select></label>` : ""}
+        ${o.pis.length ? `<label>PI (Planning Interval)<select name="pi_id"><option value=""></option>${o.pis.map((p) => `<option value="${p.id}"${c.pi && c.pi.id === p.id ? " selected" : ""}>PI ${p.number}</option>`).join("")}</select></label>` : ""}
         <div class="actions"><button class="btn" type="submit">Save</button></div></form>`}
       ${c.items.length ? `<h3>Plan items due in this cycle</h3>${c.items.map((i) => `<div class="item"><span class="quiet" style="min-width:64px">day ${i.due_day}</span><a href="#/plans">${esc(i.title)}</a>${i.early_win ? '<span class="pill accent">early win</span>' : ""}<span class="spacer"></span>${BA.statusPill(i.status === "planned" ? "not started" : i.status)}</div>`).join("")}` : '<p class="quiet">No plan items due in these days yet. Add them in the 30/60/90 plans with a due day.</p>'}
       ${c.status === "reviewed" ? `<p><b>Reviewed ${BA.fmtDate(c.reviewed_on)}.</b>${c.went_well ? ` Went well: ${esc(c.went_well)}.` : ""}${c.to_change ? ` To change: ${esc(c.to_change)}.` : ""}</p>` : ""}
@@ -6709,7 +6709,7 @@
           <label>Focus for the next cycle<input name="next_focus"></label><label>Private notes<textarea name="review_notes" rows="2"></textarea></label>
           <div class="actions"><button class="btn primary" type="button" data-review-save>Close the cycle</button></div><p class="quiet">Keeps the delivery scorecard as it stands now and a snapshot of your mandate, so the next review can compare.</p></div><div data-sum-out></div>`}</section>`;
     main.innerHTML = `${f90Tabs("cycles")}
-      <p class="quiet">The first 90 days is the first cycle, not the last. After it, the work keeps running in cycles: a short read of where things stand, a focus and a few goals agreed with your manager, about six sprints of work, then a review that sets up the next cycle. Every second cycle can end at a contract or role review. If you run SAFe, set the length to match your Program Increments. <a href="#/coaching/ninety-day-cycles">Working in 90-day cycles</a></p>
+      <p class="quiet">The first 90 days is the first cycle, not the last. After it, the work keeps running in cycles: a short read of where things stand, a focus and a few goals agreed with your manager, about six sprints of work, then a review that sets up the next cycle. Every second cycle can end at a contract or role review. Set the length to match your PIs, so each cycle is one PI. <a href="#/coaching/ninety-day-cycles">Working in 90-day cycles</a></p>
       ${o.day ? "" : '<p class="callout">Set your start date under <a href="#/me">My development</a> to see which cycle you\'re in.</p>'}
       ${o.cycles.map(card).join("")}
       ${ro ? "" : `<section class="card"><form id="cycle-len" class="row"><label class="check">Cycle length <input type="number" name="length_days" min="56" max="120" value="${o.length_days}" style="max-width:90px"> days</label><button class="btn" type="submit">Save</button><span class="quiet">90 by default; 70 for a five-sprint PI of two-week sprints, 84 for six.</span></form></section>`}`;

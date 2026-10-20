@@ -34,7 +34,7 @@ SOURCES = {
     "decision_needed": ("Decision", "/risks", "decision", {"decided"}),
     "roadmap_item": ("Roadmap", "/roadmap", "title", {"done"}),
     "backlog_item": ("Story", "/planning", "title", {"done"}),
-    "sos_item": ("Scrum of Scrums", "/sos", "question", {"done"}),
+    "sos_item": ("ART sync", "/sos", "question", {"done"}),
     "tech_debt": ("Tech debt", "/debt", "title", {"done"}),
     "incident": ("Incident", "/escalation", "summary", set()),
     "retro_commitment": ("Retro commitment", "/retros", "commitment", {"done"}),

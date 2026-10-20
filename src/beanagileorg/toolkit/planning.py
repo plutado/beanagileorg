@@ -128,7 +128,7 @@ def patterns(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 def pi_board(pi_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     pi = models.program_increments.fetch(conn, pi_id)
     if pi is None:
-        raise HTTPException(404, "No Program Increment with that id.")
+        raise HTTPException(404, "No PI with that id.")
     sprints = models.sprints.fetch_all(conn, "pi_id = ?", (pi_id,))
     sprints.sort(key=lambda s: s["number"])
     features = models.features.fetch_all(conn, "pi_id = ?", (pi_id,))
@@ -169,7 +169,7 @@ def confidence_vote(pi_id: int, body: dict = Body(...), viewer: Viewer = Depends
     """Record the fist-of-five confidence vote: the votes given, stored as their average."""
     require_write(viewer)
     if models.program_increments.fetch(conn, pi_id) is None:
-        raise HTTPException(404, "No Program Increment with that id.")
+        raise HTTPException(404, "No PI with that id.")
     votes = body.get("votes")
     if not isinstance(votes, list) or not votes or not all(isinstance(v, int) and 1 <= v <= 5 for v in votes):
         raise HTTPException(400, "votes must be a list of whole numbers from 1 to 5.")

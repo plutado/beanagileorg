@@ -1,4 +1,4 @@
-"""Teams and the Scrum of Scrums: your team and the teams around it, and the cross-team log above them.
+"""Teams and the ART sync: your team and the teams around it, and the cross-team log above them.
 
 Your own team's work is tracked in full elsewhere in the toolkit (every delivery record carries a team). Other teams
 are tracked lightly: who they are, their current sprint and goal, a status, and what's open between you.
@@ -133,7 +133,7 @@ def build_summary(conn) -> dict:
     names = {t["id"]: t["name"] for t in teams}
     items = models.sos_items.visible_all(models.sos_items.fetch_all(conn), viewer)
     open_items = [i for i in items if i["status"] in OPEN]
-    lines = ["# Scrum of Scrums summary", "", f"As of {today}.", "", "## Teams", "", "| Team | Status | Sprint | Goal | Note |", "| --- | --- | --- | --- | --- |"]
+    lines = ["# ART sync summary", "", f"As of {today}.", "", "## Teams", "", "| Team | Status | Sprint | Goal | Note |", "| --- | --- | --- | --- | --- |"]
     for t in teams:
         lines.append(f"| {t['name']} | {t.get('status') or 'not set'}{' (' + t['status_date'] + ')' if t.get('status_date') else ''} | {t.get('current_sprint') or ''} | {t.get('current_goal') or ''} | {t.get('status_note') or ''} |")
     late = [i for i in open_items if i["due"] and i["due"] < today]
@@ -149,7 +149,7 @@ def build_summary(conn) -> dict:
     recent = [i for i in items if i["status"] == "done"][:8]
     if recent:
         lines += ["", "## Settled recently", ""] + [f"- {i['question']}: {i.get('resolution') or 'done'}" for i in recent]
-    return {"title": "Scrum of Scrums summary", "markdown": "\n".join(lines).rstrip() + "\n"}
+    return {"title": "ART sync summary", "markdown": "\n".join(lines).rstrip() + "\n"}
 
 
 @router.get("/api/sos/summary")
@@ -166,7 +166,7 @@ def export_summary(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn))
 
 
 def sos_due(conn) -> list[dict]:
-    """For Today: Scrum of Scrums items overdue or due in the next seven days."""
+    """For Today: ART sync items overdue or due in the next seven days."""
     week = (date.today() + timedelta(days=7)).isoformat()
     rows = models.sos_items.fetch_all(conn, "status != 'done' AND due IS NOT NULL AND due <= ?", (week,))
     return [{"id": r["id"], "question": r["question"], "due": r["due"], "overdue": r["due"] < _today(), "owner": r["owner_name"] or r["owner_team_name"]} for r in rows]

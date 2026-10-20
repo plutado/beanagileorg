@@ -99,7 +99,7 @@ TOOLKIT = {
                   "The Portfolio sorts your areas into the five situations with a share of effort for each (adding to 100%), checks your favorite situation isn't getting the most by default, and copies as Markdown.",
                   "Note your natural style (hero or steward) under Problem preferences and your team's on their pages; the portfolio flags a mismatch with your situations and shows your team's mix.",
                   "Near day 90, preview and copy the day-90 summary for your manager, drawn from all three tracks and the delivery scorecard.",
-                  "Under 90-day cycles, give each cycle a focus and goals, review it in its last two weeks, and copy its summary. Set the length to match your PIs if you run SAFe."],
+                  "Under 90-day cycles, give each cycle a focus and goals, review it in its last two weeks, and copy its summary. Set the length to match your PIs."],
         "privacy": "Working with me and the team changes can be shown while presenting; milestones, check-in notes and your own track are private.",
         "related": ["/onboarding", "/plans", "/coaching/leading-change"],
     },
@@ -142,7 +142,7 @@ TOOLKIT = {
         "related": ["/sos", "/people", "/coaching/scrum-of-scrums"],
     },
     "/sos": {
-        "purpose": "The Scrum of Scrums log: questions, dependencies, decisions, risks, impediments and knowledge that cross team lines, each with stakeholders, an owner, the outcome expected and a date.",
+        "purpose": "The ART sync log (the coach sync, close to what many teams call a Scrum of Scrums): questions, dependencies, decisions, risks, impediments and knowledge that cross team lines, each with stakeholders, an owner, the outcome expected and a date.",
         "steps": ["Log each cross-team item with the teams involved, its stakeholders, an owner, the outcome or deliverable, and a due date.",
                   "Start a meeting to walk every open item, update them in the log, and write a short summary.",
                   "Record the resolution when an item is settled.", "Copy the leadership summary for the layer above."],
@@ -180,7 +180,7 @@ TOOLKIT = {
         "related": ["/sprints", "/coaching/retros"],
     },
     "/pi": {
-        "purpose": "Plan a Program Increment if your organization runs SAFe: objectives, features, stories, dependencies, milestones and risks on one board.",
+        "purpose": "Plan a PI (Planning Interval) for the Agile Release Train: objectives, features, stories, dependencies, milestones and risks on one board.",
         "steps": ["Create the PI and assign its sprints in the sprint notebook.", "Add objectives with business value, then features and stories in each sprint, each with its Jira key.",
                   "Check capacity per sprint, log dependencies and risks, and record the confidence vote."],
         "privacy": "Built to present; only risk notes are private.",
