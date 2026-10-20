@@ -243,6 +243,7 @@ def reference(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     for e in entries:
         c = coverage.setdefault(e["framework"], {s: 0 for s in STATUSES})
         c[e["status"]] += 1
+    coverage = {k: coverage[k] for k in ("safe", "scrum", "practice") if k in coverage}  # SAFe first, Scrum as its team level
     return {"entries": entries, "statuses": list(STATUSES), "coverage": coverage, "sprint_weeks": weeks,
             "sources": {k: {"label": v[0], "url": v[1]} for k, v in SOURCES.items()}}
 
