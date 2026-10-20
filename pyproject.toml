@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Local-first supporting apps for engineering leaders: a delivery toolkit and a comms studio."
 readme = "README.md"
 license = "MIT"
+authors = [{ name = "David Plutado Fugate" }]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
