@@ -2056,6 +2056,13 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        69,
+        """
+        ALTER TABLE people ADD COLUMN working_with_me TEXT;
+        ALTER TABLE team_changes ADD COLUMN policy_id INTEGER REFERENCES sdlc_policies (id) ON DELETE SET NULL;
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -2103,6 +2110,7 @@ people = Record(
         "expects_from_me": Field("text", P),
         "advice": Field("list", P),
         "outside_org": Field("bool", P),
+        "working_with_me": Field("text", P),
         "insight": Field("list", P),
         "change_style": Field("text", P, choices=CHANGE_STYLES),
         "change_agent": Field("bool", P, default=False),
@@ -4173,6 +4181,7 @@ team_changes = Record(
         "outcome": Field("text", S),
         "team_feedback": Field("text", S),
         "agreement_id": Field("int", S),
+        "policy_id": Field("int", S),
         "team_id": Field("int", S),
         "notes": Field("text", P),
         "position": Field("int", S, default=0),

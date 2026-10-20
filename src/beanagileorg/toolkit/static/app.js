@@ -204,7 +204,7 @@
         ${d.people_due && (d.people_due.check_ins.length || d.people_due.key_dates.length || d.people_due.meetings.length || (d.people_due.i_owe || []).length || (d.people_due.they_owe_late || []).length) ? `<section class="card"><h2>People</h2>
           ${(d.people_due.i_owe || []).map((c) => `<div class="item"><span class="pill ${c.late ? "bad" : "warn"}">I owe</span><a href="#/people/${c.person_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.name)} · ${BA.fmtDate(c.due)}</span></div>`).join("")}
           ${(d.people_due.they_owe_late || []).map((c) => `<div class="item"><span class="pill">follow up</span><a href="#/people/${c.person_id}">${esc(c.title)}</a><span class="spacer"></span><span class="quiet">${esc(c.name)} · was due ${BA.fmtDate(c.due)}</span></div>`).join("")}
-          ${d.people_due.meetings.map((m) => `<div class="item"><span class="pill">meeting</span><a href="#/people/${m.id}">${esc(m.name)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.date)}</span></div>`).join("")}
+          ${d.people_due.meetings.map((m) => `<div class="item"><span class="pill">meeting</span><a href="#/people/${m.id}">${esc(m.name)}</a><span class="spacer"></span><span class="quiet">${BA.fmtDate(m.date)}</span><a class="btn" href="#/people/${m.id}" data-agenda="${m.id}" title="An agenda drafted from open follow-ups and commitments">Agenda</a></div>`).join("")}
           ${d.people_due.check_ins.map((c) => `<div class="item"><span class="pill warn">check in</span><a href="#/people/${c.id}">${esc(c.name)}</a><span class="spacer"></span><span class="quiet">last ${c.days_since == null ? "never" : c.days_since + " days ago"} · every ${c.cadence_days}</span></div>`).join("")}
           ${d.people_due.key_dates.map((k) => `<div class="item"><span class="pill">${esc(k.label)}</span><a href="#/people/${k.id}">${esc(k.name)}</a><span class="spacer"></span><span class="quiet">${k.days === 0 ? "today" : "in " + k.days + " days"}</span></div>`).join("")}</section>` : ""}
         ${d.sos_due && d.sos_due.length ? `<section class="card"><h2>Scrum of Scrums</h2>${d.sos_due.map((x) => `<div class="item">${x.overdue ? '<span class="pill bad">overdue</span>' : ""}<a href="#/sos">${esc(x.question)}</a><span class="spacer"></span><span class="quiet">${esc(x.owner || "no owner")} · ${BA.fmtDate(x.due)}</span></div>`).join("")}</section>` : ""}
@@ -227,6 +227,7 @@
           d.goals_at_risk.map((g) => `<div class="item"><a href="#/me">${esc(g.goal)}</a></div>`).join("") || empty("None at risk.")
         }</section></div>`;
       bindSelfToday(main);
+      main.querySelectorAll("[data-agenda]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-person-tab", "manager"); } catch {} }));
       BA.askBox(main.querySelector("#ask-host"), { placeholder: "Ask the toolkit, such as: what's overdue, who haven't I talked to, what decisions are open?" });
       const ql = main.querySelector("#quick-log");
       ql.onsubmit = BA.guard(async (e) => {
@@ -329,7 +330,7 @@
       <section class="card"><h2>Peers</h2><p class="quiet">The people you\'ve talked to least come first. To add someone, open their page, go to Details, and set the relationship to peer. Write down what you can offer each one and what you need from them: peer relationships run on exchange.</p>
         ${d.peers.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Peer</th><th>Influence</th><th>Last talked</th><th>What I can offer</th><th>What I need</th></tr></thead><tbody>${d.peers.map((p) => `<tr class="clickable" data-id="${p.id}">
             <td><b>${esc(p.name)}</b>${p.placeholder ? ' <span class="pill warn">placeholder</span>' : ""}<div class="quiet">${esc(p.role || "")}</div></td><td>${esc(p.influence || "")}${p.stance ? `<div class="quiet">${esc(p.stance)}</div>` : ""}</td>
-            <td>${p.quiet ? '<span class="pill warn">quiet</span> ' : ""}${ago(p.days_since)}</td><td class="quiet">${esc((p.offer_them || "").slice(0, 90)) || "–"}</td><td class="quiet">${esc((p.need_from_them || "").slice(0, 90)) || "–"}</td></tr>`).join("")}</tbody></table></div>`
+            <td>${p.quiet ? '<span class="pill warn">quiet</span> ' : ""}${ago(p.days_since)}</td><td class="quiet">${esc((p.offer_them || "").slice(0, 90)) || "–"}</td><td class="quiet">${p.i_owe || p.they_owe ? `<span class="pill ${p.i_owe ? "warn" : ""}">I owe ${p.i_owe}</span> <span class="pill">they owe ${p.they_owe}</span> ` : ""}${(p.sos_items || []).length ? `<span class="pill accent" title="${esc(p.sos_items.map((x) => x.question).join("; "))}">${p.sos_items.length} Scrum of Scrums</span> ` : ""}${esc((p.need_from_them || "").slice(0, 90)) || "–"}</td></tr>`).join("")}</tbody></table></div>`
           : '<p class="quiet">No peers yet. Add the managers and leads at your level under People, with relationship "peer".</p>'}</section>`;
     main.querySelector("#bal-days").onchange = (e) => { try { sessionStorage.setItem("ba-balance-days", e.target.value); } catch {} BA.rerender(); };
     main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/people/${tr.dataset.id}`)));
@@ -586,6 +587,7 @@
             ${d.is_me ? '<p class="quiet">This is you.</p>' : ""}</section>
           <section class="card"><h2>Before you meet</h2>
             ${d.interactions[0] ? `<p class="quiet">Last time (${BA.fmtDate(d.interactions[0].date)}${d.interactions[0].title ? ", " + esc(d.interactions[0].title) : ""}):</p>${BA.md(d.interactions[0].takeaways || d.interactions[0].notes || "")}` : '<p class="quiet">No conversations logged yet.</p>'}
+            ${p.working_with_me ? `<h3>Working with them</h3>${BA.md(p.working_with_me)}` : ""}
             ${(p.things_to_remember || []).length && show("things_to_remember") ? `<h3>Things to remember</h3><ul class="checklist">${p.things_to_remember.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
             ${d.follow_ups.length ? `<h3>Open follow-ups</h3>${d.follow_ups.map((a) => `<div class="item"><a href="#/dev-sync/${a.id}">${esc(a.concern)}</a><span class="spacer"></span>${BA.statusPill(a.status)}</div>`).join("")}` : ""}
             ${d.sos.length ? `<h3>Across teams</h3>${d.sos.map((s) => `<div class="item"><a href="#/sos">${esc(s.question)}</a><span class="spacer"></span><span class="quiet">${s.due ? BA.fmtDate(s.due) : ""}</span></div>`).join("")}` : ""}</section></div>
@@ -705,6 +707,7 @@
         ${extra("need_from_them", `<label>What I need from them <span class="quiet">(support, information, decisions, introductions)</span><textarea name="need_from_them" rows="2">${esc(p.need_from_them || "")}</textarea></label>`)}
         ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["cultural", "Cultural: how things are done here, and the language"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>
           <label class="check"><input type="checkbox" name="outside_org"${p.outside_org ? " checked" : ""}> Outside the organization <span class="quiet">(for your advice network)</span></label>`)}
+        <label>Working with them <span class="quiet">(their own "Working with me": how they work best, in their words, if they've shared it)</span><textarea name="working_with_me" rows="3">${esc(p.working_with_me || "")}</textarea></label>
         ${extra("insight", `<label>Insight they bring <span class="quiet">(where their view of the organization comes from)</span></label><div class="case-picks">${[["customer", "Customer or business user"], ["vendor", "Vendor or supplier"], ["frontline", "Frontline"], ["sales", "Sales or service"], ["staff", "Finance, legal or HR"], ["integrator", "Integrator"], ["historian", "Natural historian"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="insight" value="${k}"${(p.insight || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("change_agent", `<label class="check"><input type="checkbox" name="change_agent"${p.change_agent ? " checked" : ""}> Change agent <span class="quiet">(has the drive to help lead change; private)</span></label>`)}
         ${extra("opinion_leader", `<label class="check"><input type="checkbox" name="opinion_leader"${p.opinion_leader ? " checked" : ""}> Opinion leader <span class="quiet">(others defer to them, formally or not; private)</span></label>`)}
@@ -731,6 +734,7 @@
       for (const f of ["communication", "motivations", "support_notes", "personal_context", "offer_them", "need_from_them", "expects_from_me"]) if (form.elements[f]) body[f] = fd.get(f);
       if (form.querySelector('input[name="advice"]')) body.advice = fd.getAll("advice");
       if (form.querySelector('input[name="outside_org"]')) body.outside_org = form.querySelector('input[name="outside_org"]').checked;
+      if (form.querySelector('textarea[name="working_with_me"]')) body.working_with_me = fd.get("working_with_me") || null;
       if (form.querySelector('input[name="insight"]')) body.insight = fd.getAll("insight");
       if (form.elements.change_style) body.change_style = fd.get("change_style") || null;
       if (form.elements.change_agent) body.change_agent = form.elements.change_agent.checked;
@@ -2400,15 +2404,30 @@
       <p class="quiet" style="text-align:center">Green: for · amber: undecided · red: against · grey: not set. Thicker arrows mean more influence; a heavy outline marks an opinion leader.</p>`;
   }
 
+  // Influence against stance, from what you've noted on each person. The top-right squares are where effort pays most.
+  function stakeholderCard(sm) {
+    if (!sm || sm.hidden) return "";
+    const any = sm.influence.some((i) => sm.stances.some((st) => sm.grid[i][st].length));
+    if (!any && !sm.unplaced.length) return `<section class="card"><h2>Stakeholder map</h2><p class="quiet">Note each person's influence and stance on their page (Details), and they'll appear here.</p></section>`;
+    const chip = (e) => `<a class="pill" href="#/people/${e.id}" title="${esc([e.role, e.offer_them ? `I can offer: ${e.offer_them}` : "", e.need_from_them ? `I need: ${e.need_from_them}` : ""].filter(Boolean).join(" · "))}">${esc(e.name)}</a>`;
+    return `<section class="card"><div class="row"><h2>Stakeholder map</h2><span class="spacer"></span><a class="btn" href="#/coaching/building-alliances">Building alliances</a></div>
+      <p class="quiet">Influence against stance, from what you've noted on each person. Hover a name for what each of you offers and needs. Private, never shared.</p>
+      <div class="tablewrap"><table class="data"><thead><tr><th>Influence</th>${sm.stances.map((st) => `<th><span class="pill ${STANCE_TONES[st]}">${esc(st)}</span></th>`).join("")}</tr></thead><tbody>
+        ${sm.influence.map((i) => `<tr><th scope="row">${esc(i)}</th>${sm.stances.map((st) => `<td>${sm.grid[i][st].map(chip).join(" ")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      ${sm.focus.length ? `<p class="callout warn">High influence, not yet with you: ${sm.focus.map(chip).join(" ")}. Probe what they'd be protecting before treating anyone as an opponent.</p>` : ""}
+      ${sm.unplaced.length ? `<p class="quiet">Only partly noted (influence or stance missing): ${sm.unplaced.map(chip).join(" ")}</p>` : ""}</section>`;
+  }
+
+
   BA.view("/alliances", {
     title: "Alliances",
     async render(main, param) {
       if (presenting()) { main.innerHTML = '<p class="empty">Alliances are private, so they\'re hidden while presenting.</p>'; return; }
       if (param) return renderAlliancePlan(main, Number(param));
-      const [plans, links, coalitions, people, items, changes] = await Promise.all([BA.api("/api/alliance-plans"), BA.api("/api/influence-links"), BA.api("/api/power-coalitions"), BA.api("/api/people"), BA.api("/api/plan-items"), BA.api("/api/team-changes")]);
+      const [plans, links, coalitions, people, items, changes, sm] = await Promise.all([BA.api("/api/alliance-plans"), BA.api("/api/influence-links"), BA.api("/api/power-coalitions"), BA.api("/api/people"), BA.api("/api/plan-items"), BA.api("/api/team-changes"), BA.api("/api/people/stakeholder-map")]);
       const pname = Object.fromEntries(people.map((p) => [p.id, p.name]));
       const leaders = people.filter((p) => p.opinion_leader);
-      main.innerHTML = `<p class="quiet">You'll need people you have no authority over. For each early win, work out whose support you need, who could say no together, and who influences them. A good business case isn't enough on its own. Private.</p>
+      main.innerHTML = `${stakeholderCard(sm)}<p class="quiet">You'll need people you have no authority over. For each early win, work out whose support you need, who could say no together, and who influences them. A good business case isn't enough on its own. Private.</p>
         <section class="card"><h2>Alliance plans</h2>${plans.map((a) => `<div class="item"><a href="#/alliances/${a.id}"><b>${esc(a.title)}</b></a><span class="spacer"></span><span class="quiet">${((a.rows || {}).rows || []).length} people · ${a.winning_ids.length} in the winning alliance</span></div>`).join("") || '<p class="quiet">None yet. Start one for each early win.</p>'}
           <form id="add-ap" class="grid2" style="margin-top:10px"><label>Plan for<input name="title" required placeholder="An early win or a change"></label>
             <label>Early win it supports<select name="plan_item_id"><option value=""></option>${items.map((i) => `<option value="${i.id}">${esc(i.title)}</option>`).join("")}</select></label>
@@ -6894,7 +6913,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   };
 
   async function renderF90Changes(main) {
-    const list = await BA.api("/api/team-changes");
+    const [list, agreements, policies] = await Promise.all([BA.api("/api/team-changes"), BA.api("/api/team-agreements"), BA.api("/api/sdlc-policies")]);
     const ro = presenting();
     const fields = (c = {}) => `<div class="grid2"><label>The change<input name="title" value="${esc(c.title || "")}" required></label><label>Area<select name="area">${opts(CHANGE_AREAS, c.area || "process")}</select></label>
         <label>Review with the team on<input type="date" name="review_on" value="${esc(c.review_on || "")}"></label>
@@ -6902,25 +6921,29 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       <label>Why: the problem it solves <span class="quiet">(in the team's words if you can)</span><textarea name="why" rows="2">${esc(c.why || "")}</textarea></label>
       <label>What changes for people day to day<textarea name="what_changes" rows="2">${esc(c.what_changes || "")}</textarea></label>
       <label>How we'll try it, and how we'll know it helped<textarea name="how_we_try" rows="2">${esc(c.how_we_try || "")}</textarea></label>
-      ${c.id ? `<label>What the team said<textarea name="team_feedback" rows="2">${esc(c.team_feedback || "")}</textarea></label><label>Outcome<input name="outcome" value="${esc(c.outcome || "")}"></label>` : ""}
+      ${c.id ? `<label>What the team said<textarea name="team_feedback" rows="2">${esc(c.team_feedback || "")}</textarea></label><label>Outcome<input name="outcome" value="${esc(c.outcome || "")}"></label>
+        <div class="grid2"><label>Became a team agreement<select name="agreement_id"><option value=""></option>${agreements.map((a) => `<option value="${a.id}"${a.id === c.agreement_id ? " selected" : ""}>${esc(a.text.slice(0, 70))}</option>`).join("")}</select></label>
+        <label>Became an SDLC policy<select name="policy_id"><option value=""></option>${policies.map((x) => `<option value="${x.id}"${x.id === c.policy_id ? " selected" : ""}>${esc(x.title)}</option>`).join("")}</select></label></div>` : ""}
       <label>Private notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label>`;
-    const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; if (form.elements.wave) o.wave = f.get("wave") ? Number(f.get("wave")) : null; o.review_on = f.get("review_on") || null; return o; };
+    const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; for (const k of ["agreement_id", "policy_id"]) if (form.elements[k]) o[k] = numOrNull(f.get(k)); if (form.elements.wave) o.wave = f.get("wave") ? Number(f.get("wave")) : null; o.review_on = f.get("review_on") || null; return o; };
     const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b>${BA.neverShare(`/api/team-changes/${c.id}`, c.never_share)}<span class="quiet">${esc(c.area)}${c.wave ? ` · wave ${c.wave}` : ""}</span><span class="spacer"></span>
         <span class="quiet">${c.status === "trial" && c.review_on ? `review ${BA.fmtDate(c.review_on)}` : c.decided_on ? BA.fmtDate(c.decided_on) : c.trial_start ? `trial from ${BA.fmtDate(c.trial_start)}` : c.announced_on ? `announced ${BA.fmtDate(c.announced_on)}` : ""}</span></summary>
       ${readinessBlock(c, ro)}
       ${c.why ? `<p><b>Why:</b> ${esc(c.why)}</p>` : ""}${c.what_changes ? `<p><b>What changes:</b> ${esc(c.what_changes)}</p>` : ""}${c.how_we_try ? `<p><b>How we'll try it:</b> ${esc(c.how_we_try)}</p>` : ""}
       ${c.team_feedback ? `<p><b>What the team said:</b> ${esc(c.team_feedback)}</p>` : ""}${c.outcome ? `<p><b>Outcome:</b> ${esc(c.outcome)}</p>` : ""}
+      ${c.agreement_id || c.policy_id ? `<p class="quiet">Became: ${[c.agreement_id ? `<a href="#/culture/agreements">a team agreement</a>` : "", c.policy_id ? `<a href="#/sdlc/policies">an SDLC policy</a>` : ""].filter(Boolean).join(" and ")}</p>` : ""}
       ${ro ? "" : `<div class="actions">${NEXT_STAGE[c.status] ? `<button class="btn primary" data-next="${NEXT_STAGE[c.status][0]}">${NEXT_STAGE[c.status][1]}</button>` : ""}
         ${["trial", "review"].includes(c.status) ? '<button class="btn" data-next="adopted">Keep it</button><button class="btn" data-next="dropped">Drop it</button>' : ""}</div>
         <details><summary class="quiet">Edit</summary><form>${fields(c)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("team_change", c.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
     const live = list.filter((c) => !["adopted", "dropped"].includes(c.status)), done = list.filter((c) => ["adopted", "dropped"].includes(c.status));
     main.innerHTML = `${f90Tabs("changes")}
-      <p class="quiet">Every change you bring, where the team can see it: announced with the reason, tried for a set time, reviewed together, then kept or dropped. This page can be shown to the team while presenting.</p>
+      <div class="row"><p class="quiet" style="flex:1">Every change you bring, where the team can see it: announced with the reason, tried for a set time, reviewed together, then kept or dropped. This page can be shown to the team while presenting.</p>${ro ? "" : '<button class="btn" type="button" id="copy-changes">Copy the change list for the team</button>'}</div>
       ${!ro && list.filter((c) => ["announced", "trial", "review"].includes(c.status)).length > 3 ? '<p class="callout warn">More than three changes are under way at once. If you keep changing things, nobody can tell what\'s working, and people tire. Let some settle before starting more.</p>' : ""}
       <section class="card"><h2>In progress</h2>${live.map(card).join("") || '<p class="quiet">Nothing yet.</p>'}</section>
       ${done.length ? `<section class="card"><h2>Decided</h2>${done.map(card).join("")}</section>` : ""}
       ${ro ? "" : `<form id="add-ch" class="card"><h2>A change to bring</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add as an idea</button></div></form>`}`;
     if (ro) return;
+    main.querySelector("#copy-changes").onclick = BA.guard(async () => { const r = await BA.api("/api/team-changes/summary/export", { method: "POST" }); await BA.shareText(r.markdown); BA.toast("Copied: one page the team can read. Private notes aren't included."); });
     const add = main.querySelector("#add-ch");
     add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/team-changes", { method: "POST", body: { ...read(add), position: list.length } }); BA.rerender(); });
     main.querySelectorAll("[data-ch]").forEach((det) => {
@@ -7181,7 +7204,8 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   }
 
   async function renderLearning(main) {
-    const [d, people, methods, lplan] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people"), BA.api("/api/first90/learning-methods"), BA.api("/api/first90/learning-plan")]);
+    const [d, people, methods, lplan, sug, offerings, depts] = await Promise.all([BA.api("/api/learning-questions/agenda"), BA.api("/api/people"), BA.api("/api/first90/learning-methods"), BA.api("/api/first90/learning-plan"), BA.api("/api/learning-questions/suggestions"), BA.api("/api/offerings"), BA.api("/api/departments")]);
+    const subjects = [...depts.map((x) => [`department:${x.id}`, `Department: ${x.name}`]), ...offerings.map((x) => [`offering:${x.id}`, `Offering: ${x.name}`])];
     if (d.hidden) { main.innerHTML = `${f90Tabs("learning")}<p class="empty">Private, so hidden while presenting.</p>`; return; }
     const f = (() => { try { return sessionStorage.getItem("ba-learn-filter") || "open"; } catch { return "open"; } })();
     const shown = d.questions.filter((q) => f === "all" || q.status === f);
@@ -7199,9 +7223,12 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
             <label>What I learned<textarea name="answer" rows="3">${esc(q.answer || "")}</textarea></label>
             <details${q.hypothesis ? " open" : ""}><summary class="quiet">Turn it into a hypothesis</summary><label>What I think is going on<textarea name="hypothesis" rows="2">${esc(q.hypothesis || "")}</textarea></label>
               <label>What would prove it wrong<textarea name="disprove_if" rows="2">${esc(q.disprove_if || "")}</textarea></label><label>Verdict<select name="verdict"><option value=""></option>${opts(["testing", "supported", "disproved", "mixed"], q.verdict)}</select></label></details>
-            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>
+          ${q.answer && subjects.length ? `<div class="row" data-landscape style="margin-top:6px"><span class="quiet">Add what you learned to the business landscape:</span><select name="subject" style="max-width:220px">${subjects.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("")}</select><select name="quadrant" style="max-width:130px">${["strength", "weakness", "opportunity", "threat"].map((x) => `<option>${x}</option>`).join("")}</select><button class="btn" type="button" data-to-landscape>Add</button></div>` : ""}</details>`).join("")}`).join("") || '<p class="quiet">Nothing here.</p>'}
         <form id="add-q" class="row" style="margin-top:10px"><select name="area" style="max-width:190px">${opts(LEARN_AREAS, "present")}</select><input name="question" required placeholder="What do you need to find out?" style="flex:1;min-width:240px"><input type="number" name="due_day" min="1" placeholder="By day" style="width:90px"><button class="btn" type="submit">Add</button>
           ${d.questions.length ? "" : '<button class="btn" type="button" id="lq-starter">Start from suggested questions</button>'}</form></section>
+      ${sug && (sug.suggestions || []).length ? `<section class="card"><h2>Suggested from the listening tour</h2><p class="quiet">Themes people keep raising that no learning question covers yet.</p>
+        ${sug.suggestions.map((x, i) => `<div class="item"><span class="pill">${x.times}×</span><span>${esc(x.question)}</span><span class="spacer"></span><button class="btn" type="button" data-sug="${i}">Add</button></div>`).join("")}</section>` : ""}
       <section class="card"><div class="row"><h2>Learning plan</h2><span class="quiet">${lplan.done} of ${lplan.total} done</span></div>
         <p class="quiet">The agenda says what to learn; the plan says how. Learning is the main job of the first 30 days. Collect, distill, form hypotheses and test them, and review them with your manager as you go.</p>
         ${lplan.phases.map((p) => `<h3>${esc(p.phase)}</h3>${p.steps.map((s) => `<div class="item" data-step="${s.key}"><label class="check" style="flex:1"><input type="checkbox"${s.done ? " checked" : ""}> <span${s.done ? ' class="quiet"' : ""}>${s.link ? `${esc(s.text)} <a href="${s.link}">Open</a>` : esc(s.text)}</span></label><span class="quiet">${s.due ? BA.fmtDate(s.due) : BA.roleDay(s.day)}</span></div>`).join("")}`).join("")}</section>
@@ -7213,6 +7240,12 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           ${methods.methods.map((m) => `<form class="row" data-method="${m.key}" style="align-items:center;margin-bottom:6px"><span style="flex:1;min-width:180px"><b>${m.link ? `<a href="${m.link}">${esc(m.label)}</a>` : esc(m.label)}</b><br><span class="quiet">${esc(m.about)}</span></span>
             <select name="status" style="max-width:120px">${opts(methods.statuses, m.status)}</select><input name="notes" value="${esc(m.notes)}" placeholder="Notes" style="max-width:200px"><button class="btn" type="submit">Save</button></form>`).join("")}</section>
       </div>`;
+    main.querySelectorAll("[data-sug]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api("/api/learning-questions", { method: "POST", body: { question: sug.suggestions[Number(b.dataset.sug)].question, area: "present" } }); BA.toast("Added to the learning agenda."); BA.rerender(); })));
+    main.querySelectorAll("[data-to-landscape]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const row = b.closest("[data-landscape]"), [type, sid] = row.querySelector("[name=subject]").value.split(":");
+      await BA.api(`/api/learning-questions/${b.closest("[data-q]").dataset.q}/to-assessment`, { method: "POST", body: { subject_type: type, subject_id: Number(sid), quadrant: row.querySelector("[name=quadrant]").value } });
+      BA.toast("Added to the business landscape.");
+    })));
     main.querySelectorAll("[data-step] input").forEach((cb) => (cb.onchange = BA.guard(async () => { await BA.api(`/api/first90/learning-plan/${cb.closest("[data-step]").dataset.step}`, { method: "PUT", body: { done: cb.checked } }); BA.rerender(); })));
     main.querySelectorAll("[data-method]").forEach((f) => (f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/first90/learning-methods/${f.dataset.method}`, { method: "PUT", body: { status: fd.get("status"), notes: fd.get("notes") } }); BA.toast("Saved."); })));
     main.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-learn-filter", b.dataset.f); } catch {} BA.rerender(); }));

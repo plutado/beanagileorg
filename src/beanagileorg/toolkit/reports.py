@@ -242,6 +242,19 @@ def _table(headers, rows) -> str:
     return "\n".join(lines + ["| " + " | ".join("" if c in (None, "") else str(c) for c in row) + " |" for row in rows])
 
 
+def mentoring_lines(conn, s: date, e: date) -> list[str]:
+    """For your manager: the mentoring of other managers this week, as counts and practices only, never session notes."""
+    sessions = conn.execute("SELECT COUNT(*) FROM mentoring_sessions WHERE date BETWEEN ? AND ?", (s.isoformat(), e.isoformat())).fetchone()[0]
+    names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM people")}
+    adopted = [p for p in models.mentored_practices.fetch_all(conn, "status = 'adopted'")]
+    new = [p for p in adopted if p.get("since") and s.isoformat() <= p["since"] <= e.isoformat()]
+    if not sessions and not adopted:
+        return []
+    out = ["", "## Mentoring the other managers", f"- {sessions} mentoring session{'s' if sessions != 1 else ''} this week; {len(adopted)} practice{'s' if len(adopted) != 1 else ''} adopted by other managers so far"]
+    out += [f"- New this week: {names.get(p['person_id'], 'a manager')} adopted {p['practice']}" for p in new]
+    return out
+
+
 def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     if audience not in AUDIENCE_FLOOR:
         raise HTTPException(400, "Audience is leadership or my manager.")
@@ -304,6 +317,8 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     team_moves = [c for c in team_moves if c.get("title")]  # only shown where the audience may see them
     if team_moves:
         md += ["", "## Changes I'm bringing to the team"] + [f"- {c['title']}: {c['status']}" + (f". {c['outcome']}" if c.get("outcome") and c["status"] in ("adopted", "dropped") else "") for c in team_moves]
+    if audience == "my manager":
+        md += mentoring_lines(conn, s, e)
 
     scope = changes_between(conn, s.isoformat(), e.isoformat(), floor)
     if scope:

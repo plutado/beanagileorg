@@ -362,6 +362,14 @@ def build_balance(conn, days: int = 30) -> dict:
                       "last_contact": lc, "days_since": since, "quiet": since is None or since > QUIET_DAYS, "placeholder": bool(p.get("placeholder")),
                       "offer_them": p.get("offer_them"), "need_from_them": p.get("need_from_them"), "cadence_days": p.get("cadence_days")})
     peers.sort(key=lambda x: (x["days_since"] is not None, -(x["days_since"] or 0)))
+    if peers:
+        ids = {p["id"] for p in peers}
+        open_c = [c for c in models.commitments.fetch_all(conn, "status = 'open'") if c["person_id"] in ids]
+        sos = models.sos_items.fetch_all(conn, "status != 'done'")
+        for p in peers:
+            p["i_owe"] = sum(1 for c in open_c if c["person_id"] == p["id"] and c["direction"] == "mine")
+            p["they_owe"] = sum(1 for c in open_c if c["person_id"] == p["id"] and c["direction"] == "theirs")
+            p["sos_items"] = [{"id": s["id"], "question": s["question"]} for s in sos if s.get("owner_id") == p["id"] or p["id"] in (s.get("stakeholder_ids") or [])][:5]
     now = _counts(conn, where, start, t.isoformat())
     before = _counts(conn, where, prev_start, (t - timedelta(days=days)).isoformat())
     return {"days": days, "has_me": bool(me_id(conn)), "counts": now, "previous": before, "peers": peers,
