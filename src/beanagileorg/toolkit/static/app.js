@@ -3748,6 +3748,7 @@
         <input type="number" name="value_planned" min="1" max="10" placeholder="Value 1-10" style="max-width:120px"><button class="btn primary" type="submit">Add objective</button></form>`}</section>
 
       <section class="card"><h2>Program board</h2>${board}</section>
+      <div id="pi-cadence"></div>
 
       ${ro ? "" : `<div class="cards">
         <section class="card"><h2>Add a feature</h2><form id="add-feature">
@@ -3825,6 +3826,54 @@
     main.querySelectorAll("[data-capacity]").forEach((el) => (el.onchange = BA.guard(async () => {
       await BA.api(`/api/sprints/${el.dataset.capacity}`, { method: "PATCH", body: { capacity: num(el.value) } });
       BA.rerender();
+    })));
+    showCadence(main.querySelector("#pi-cadence"), id, ro);
+  }
+
+  // The PI's rhythm: a system demo every development sprint, Inspect and Adapt at the end, and predictability.
+  const BAND_TONES = { healthy: "good", low: "warn", over: "warn" };
+  async function showCadence(box, piId, ro) {
+    if (!box) return;
+    const d = await BA.api(`/api/pis/${piId}/cadence`);
+    const pr = d.predictability, ia = d.inspect_adapt;
+    const demoRow = (s) => s.kind === "innovation and planning"
+      ? `<div class="plan-item"><b>Sprint ${s.number} (IP)</b> <span class="quiet">Innovation and Planning: Inspect and Adapt and the next PI planning happen here.</span></div>`
+      : s.demo
+        ? `<div class="plan-item"><div class="row"><b>Sprint ${s.number}</b><span class="pill good">demo held</span><span class="quiet">${esc(BA.fmtDate(s.demo.date))}</span></div>
+            ${s.demo.shown ? `<p><b>Shown:</b> ${esc(s.demo.shown)}</p>` : ""}${s.demo.feedback ? `<p class="quiet"><b>Feedback:</b> ${esc(s.demo.feedback)}</p>` : ""}</div>`
+        : `<div class="plan-item"><div class="row"><b>Sprint ${s.number}</b>${s.due ? '<span class="pill warn">demo due</span>' : `<span class="quiet">not yet${s.end_date ? ` · ends ${esc(BA.fmtDate(s.end_date))}` : ""}</span>`}</div>
+            ${ro ? "" : `<details${s.due ? " open" : ""}><summary class="quiet">Record it</summary><form class="demo-form" data-sprint="${s.id}"><div class="grid2"><label>Date<input type="date" name="date" value="${esc(s.end_date || "")}"></label><label>What was shown (integrated, working)<input name="shown"></label></div>
+              <label>Stakeholder feedback<textarea name="feedback" rows="2"></textarea></label><div class="actions"><button class="btn" type="submit">Record the system demo</button></div></form></details>`}</div>`;
+    const lines = (a) => (a || []).join("\n");
+    box.innerHTML = `<section class="card"><h2>PI cadence</h2>
+      <p><b>Predictability:</b> ${pr.percent == null ? '<span class="quiet">score the actual business value of each objective above to see it.</span>'
+        : `${pr.percent}% <span class="pill ${BAND_TONES[pr.band]}">${pr.band === "healthy" ? "in the 80 to 100% band" : pr.band === "low" ? "below 80%" : "above 100%"}</span> <span class="quiet">${pr.actual} of ${pr.planned} planned business value</span>`}</p>
+      <h3>System demos</h3>${d.sprints.map(demoRow).join("") || '<p class="quiet">Assign sprints to this PI to schedule its system demos.</p>'}
+      <h3>Inspect and Adapt</h3>${ia ? `<form id="ia-form"><div class="grid2"><label>Date<input type="date" name="date" value="${esc(ia.date || "")}"></label><label>Measures reviewed <span class="quiet">(predictability, flow, quality)</span><input name="measures" value="${esc(ia.measures || "")}"></label></div>
+          <label>PI system demo notes<textarea name="demo_notes" rows="2">${esc(ia.demo_notes || "")}</textarea></label>
+          <label>The problem to solve <span class="quiet">(one, stated plainly)</span><input name="problem" value="${esc(ia.problem || "")}"></label>
+          <div class="grid2"><label>Root causes <span class="quiet">(one per line; ask why five times)</span><textarea name="root_causes" rows="4">${esc(lines(ia.root_causes))}</textarea></label>
+          <label>Improvements <span class="quiet">(one per line)</span><textarea name="improvements" rows="4">${esc(lines(ia.improvements))}</textarea></label></div>
+          ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form>
+          ${(ia.improvements || []).map((t) => `<div class="item"><span>${esc(t)}</span><span class="spacer"></span>${ro ? "" : `<button class="btn" type="button" data-ia-item="${esc(t)}">To backlog</button>`}</div>`).join("")}`
+        : ro ? '<p class="quiet">Not held yet.</p>' : '<p class="quiet">At the end of the PI: the PI system demo, a look at the measures, and a short problem-solving workshop.</p><button class="btn" id="ia-start">Start Inspect and Adapt</button>'}
+      <p class="quiet"><a href="#/coaching/agile-release-train">Guide: running an Agile Release Train</a></p></section>`;
+    box.querySelectorAll(".demo-form").forEach((f) => (f.onsubmit = BA.guard(async (e) => {
+      e.preventDefault(); const fd = new FormData(f);
+      await BA.api("/api/system-demos", { method: "POST", body: { pi_id: piId, sprint_id: Number(f.dataset.sprint), date: fd.get("date") || null, shown: fd.get("shown"), feedback: fd.get("feedback") } });
+      BA.toast("System demo recorded."); showCadence(box, piId, ro);
+    })));
+    const st = box.querySelector("#ia-start");
+    if (st) st.onclick = BA.guard(async () => { await BA.api(`/api/pis/${piId}/inspect-adapt`, { method: "POST" }); showCadence(box, piId, ro); });
+    const f = box.querySelector("#ia-form");
+    if (f && !ro) f.onsubmit = BA.guard(async (e) => {
+      e.preventDefault(); const fd = new FormData(f), split = (k) => String(fd.get(k) || "").split("\n").map((x) => x.trim()).filter(Boolean);
+      await BA.api(`/api/inspect-adapts/${ia.id}`, { method: "PATCH", body: { date: fd.get("date") || null, measures: fd.get("measures"), demo_notes: fd.get("demo_notes"), problem: fd.get("problem"), root_causes: split("root_causes"), improvements: split("improvements") } });
+      BA.toast("Saved."); showCadence(box, piId, ro);
+    });
+    box.querySelectorAll("[data-ia-item]").forEach((b) => (b.onclick = BA.guard(async () => {
+      await BA.api(`/api/inspect-adapts/${ia.id}/to-backlog`, { method: "POST", body: { text: b.dataset.iaItem } });
+      BA.toast("On the backlog as a ready item."); b.disabled = true;
     })));
   }
 
@@ -6213,6 +6262,77 @@
       BA.rerender();
     });
     main.querySelector("#del-team").onclick = BA.guard(async () => { if (!confirm("Delete this team? Records tied to it are kept, without a team.")) return; await BA.api(`/api/teams/${id}`, { method: "DELETE" }); loadTeams(); BA.go("/teams"); });
+  }
+
+  // ---------------------------------------------------------------- Agile Release Train
+
+  BA.view("/art", {
+    title: "Agile Release Train",
+    async render(main, param) {
+      if (param && /^\d+$/.test(param)) return renderArt(main, Number(param));
+      const arts = await BA.api("/api/arts");
+      const ro = presenting();
+      if (arts.length === 1 && !param) return BA.go(`/art/${arts[0].id}`);
+      main.innerHTML = `<p class="quiet">The team of teams that plans and delivers together each PI: its mission, roles, teams and the backlog of features for the next PI.</p>
+        ${arts.map((a) => `<div class="item"><a href="#/art/${a.id}"><b>${esc(a.name)}</b></a><span class="quiet">${esc(a.mission || "")}</span></div>`).join("") || '<p class="empty">No train yet.</p>'}
+        ${ro ? "" : `<section class="card"><h2>Start a train</h2><form id="add-art" class="row"><input name="name" placeholder="Train name" required style="max-width:280px"><input name="mission" placeholder="Its mission in one sentence" style="flex:1"><button class="btn primary" type="submit">Create</button></form></section>`}`;
+      const f = main.querySelector("#add-art");
+      if (f) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); const a = await BA.api("/api/arts", { method: "POST", body: { name: fd.get("name"), mission: fd.get("mission") } }); BA.go(`/art/${a.id}`); });
+    },
+  });
+
+  async function renderArt(main, id) {
+    const [d, people] = await Promise.all([BA.api(`/api/arts/${id}/overview`), BA.api("/api/people")]);
+    const a = d.art, ro = presenting();
+    const active = people.filter((p) => p.active);
+    const nn = (v) => (v === "" || v == null ? null : Number(v));
+    document.getElementById("view-title").textContent = a.name;
+    const role = (field, label, name) => `<label>${label}${ro ? `<p>${esc(name || "Not set")}</p>` : `<select data-art="${field}">${personOptions(active, a[field])}</select>`}</label>`;
+    const score = (f, k) => ro ? `<td>${f[k] ?? ""}</td>` : `<td><input type="number" min="0" max="${k === "job_size" ? 100 : 20}" data-score="${k}" value="${esc(f[k] ?? "")}" style="max-width:70px"></td>`;
+    main.innerHTML = `<p><a href="#/art">All trains</a></p>
+      <section class="card"><h2>The train</h2>
+        ${ro ? `<p><b>${esc(a.name)}</b></p><p>${esc(a.mission || "")}</p>` : `<div class="grid2"><label>Name<input data-art="name" value="${esc(a.name)}"></label><label>Mission <span class="quiet">(one sentence)</span><input data-art="mission" value="${esc(a.mission || "")}"></label></div>`}
+        <div class="grid2">${role("rte_id", "Release Train Engineer", a.rte_name)}${role("product_manager_id", "Product Management", a.product_manager_name)}${role("architect_id", "System Architect", a.architect_name)}
+          <label>Business Owners${ro ? `<p>${esc(d.business_owners.map((b) => b.name).join(", ") || "Not set")}</p>` : `<select multiple data-owners size="4">${active.map((p) => `<option value="${p.id}"${(a.business_owner_ids || []).includes(p.id) ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`}</label></div></section>
+      <div class="cards">
+        <section class="card"><h2>Teams on the train <span class="quiet">${d.teams.length}</span></h2>
+          ${d.teams.map((t) => `<div class="item"><a href="#/teams">${esc(t.name)}</a>${t.status ? tonePill(t.status, TEAM_TONES) : ""}<span class="spacer"></span>${ro ? "" : `<button class="icon-btn" title="Take off the train" data-unteam="${t.id}">${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">No teams yet.</p>'}
+          ${ro || !d.other_teams.length ? "" : `<div class="row"><select id="add-team" style="max-width:260px"><option value="">Add a team…</option>${d.other_teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>`}</section>
+        <section class="card"><h2>PIs and predictability</h2>
+          ${d.pis.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>PI</th><th>Dates</th><th>Predictability</th></tr></thead><tbody>${d.pis.map((p) => `<tr><td><a href="#/pi/${p.id}">PI ${p.number}</a></td><td>${esc(BA.fmtDate(p.start_date))} to ${esc(BA.fmtDate(p.end_date))}</td>
+            <td>${p.predictability.percent == null ? '<span class="quiet">not scored</span>' : `${p.predictability.percent}% <span class="pill ${BAND_TONES[p.predictability.band]}">${p.predictability.band}</span>`}</td></tr>`).join("")}</tbody></table></div>` : '<p class="quiet">No PIs on this train yet.</p>'}
+          ${ro || !d.unassigned_pis.length ? "" : `<div class="row"><select id="add-pi" style="max-width:260px"><option value="">Add a PI…</option>${d.unassigned_pis.map((p) => `<option value="${p.id}">PI ${p.number}</option>`).join("")}</select></div>`}
+          <p class="quiet">The share of planned business value delivered each PI. Steady values between 80 and 100% build trust.</p></section>
+      </div>
+      <section class="card"><h2>ART backlog <span class="quiet">${d.backlog.length}</span></h2>
+        <p class="quiet">Features waiting for a PI, ranked by WSJF: cost of delay (business value + time criticality + risk reduction) divided by job size. Score each on the same relative scale, such as 1, 2, 3, 5, 8, 13, 20.</p>
+        <div class="tablewrap"><table class="data"><thead><tr><th>Feature</th><th>Value</th><th>Time</th><th>Risk</th><th>Size</th><th>WSJF</th><th>Plan into</th></tr></thead><tbody>
+          ${d.backlog.map((f) => `<tr data-feature="${f.id}"><td><b>${esc(f.title)}</b> ${f.feature_type === "enabler" ? '<span class="pill">enabler</span>' : ""}</td>${score(f, "business_value")}${score(f, "time_criticality")}${score(f, "risk_reduction")}${score(f, "job_size")}
+            <td><b>${f.wsjf ?? '<span class="quiet">—</span>'}</b></td><td>${ro ? "" : `<select data-plan style="max-width:140px"><option value="">Not yet</option>${d.pis.map((p) => `<option value="${p.id}">PI ${p.number}</option>`).join("")}</select>`}</td></tr>`).join("") ||
+            '<tr><td colspan="7" class="empty">No features waiting.</td></tr>'}</tbody></table></div>
+        ${ro ? "" : `<form id="add-art-feature" class="row"><input name="title" placeholder="A feature for the train" required style="flex:1"><select name="feature_type" style="max-width:140px"><option value="business">business</option><option value="enabler">enabler</option></select><button class="btn" type="submit">Add to the ART backlog</button></form>`}</section>`;
+    if (ro) return;
+    main.querySelectorAll("[data-art]").forEach((el) => (el.onchange = BA.guard(async () => {
+      const k = el.dataset.art;
+      await BA.api(`/api/arts/${id}`, { method: "PATCH", body: { [k]: k.endsWith("_id") ? nn(el.value) : el.value } });
+      BA.toast("Saved.");
+    })));
+    const owners = main.querySelector("[data-owners]");
+    if (owners) owners.onchange = BA.guard(async () => { await BA.api(`/api/arts/${id}`, { method: "PATCH", body: { business_owner_ids: [...owners.selectedOptions].map((o) => Number(o.value)) } }); BA.toast("Saved."); });
+    const at = main.querySelector("#add-team");
+    if (at) at.onchange = BA.guard(async () => { if (!at.value) return; await BA.api(`/api/teams/${at.value}`, { method: "PATCH", body: { art_id: id } }); BA.rerender(); });
+    main.querySelectorAll("[data-unteam]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/teams/${b.dataset.unteam}`, { method: "PATCH", body: { art_id: null } }); BA.rerender(); })));
+    const ap = main.querySelector("#add-pi");
+    if (ap) ap.onchange = BA.guard(async () => { if (!ap.value) return; await BA.api(`/api/program-increments/${ap.value}`, { method: "PATCH", body: { art_id: id } }); BA.rerender(); });
+    main.querySelectorAll("tr[data-feature]").forEach((row) => {
+      row.querySelectorAll("[data-score]").forEach((el) => (el.onchange = BA.guard(async () => {
+        await BA.api(`/api/features/${row.dataset.feature}`, { method: "PATCH", body: { [el.dataset.score]: nn(el.value) } }); BA.rerender();
+      })));
+      const pl = row.querySelector("[data-plan]");
+      if (pl) pl.onchange = BA.guard(async () => { if (!pl.value) return; await BA.api(`/api/features/${row.dataset.feature}/plan`, { method: "POST", body: { pi_id: Number(pl.value) } }); BA.toast("Planned into the PI."); BA.rerender(); });
+    });
+    const af = main.querySelector("#add-art-feature");
+    if (af) af.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(af); await BA.api("/api/features", { method: "POST", body: { title: fd.get("title"), feature_type: fd.get("feature_type"), art_id: id } }); BA.rerender(); });
   }
 
   BA.view("/sos", {

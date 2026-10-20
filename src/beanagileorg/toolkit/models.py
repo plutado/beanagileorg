@@ -61,6 +61,7 @@ RETRO_FORMATS = {
 }
 COMMITMENT_STATUS = ("committed", "in progress", "done", "dropped")
 PRIORITIES = ("highest", "high", "medium", "low")
+FEATURE_TYPES = ("business", "enabler")
 WORK_STATUS = ("not started", "in progress", "done", "blocked")
 OBJECTIVE_KINDS = ("committed", "stretch")
 DEPENDENCY_STATUS = ("open", "met", "at risk")
@@ -2110,6 +2111,50 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        73,
+        """
+        CREATE TABLE arts (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            mission TEXT,
+            rte_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            product_manager_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            architect_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            business_owner_ids TEXT NOT NULL DEFAULT '[]',
+            notes TEXT
+        );
+        ALTER TABLE teams ADD COLUMN art_id INTEGER REFERENCES arts (id) ON DELETE SET NULL;
+        ALTER TABLE program_increments ADD COLUMN art_id INTEGER REFERENCES arts (id) ON DELETE SET NULL;
+        ALTER TABLE features ADD COLUMN art_id INTEGER REFERENCES arts (id) ON DELETE SET NULL;
+        ALTER TABLE features ADD COLUMN feature_type TEXT NOT NULL DEFAULT 'business';
+        ALTER TABLE features ADD COLUMN business_value INTEGER;
+        ALTER TABLE features ADD COLUMN time_criticality INTEGER;
+        ALTER TABLE features ADD COLUMN risk_reduction INTEGER;
+        ALTER TABLE features ADD COLUMN job_size INTEGER;
+        CREATE TABLE system_demos (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER NOT NULL REFERENCES program_increments (id) ON DELETE CASCADE,
+            sprint_id INTEGER REFERENCES sprints (id) ON DELETE SET NULL,
+            date DATE,
+            shown TEXT,
+            feedback TEXT,
+            attendee_ids TEXT NOT NULL DEFAULT '[]',
+            notes TEXT
+        );
+        CREATE TABLE inspect_adapts (
+            id INTEGER PRIMARY KEY,
+            pi_id INTEGER NOT NULL UNIQUE REFERENCES program_increments (id) ON DELETE CASCADE,
+            date DATE,
+            demo_notes TEXT,
+            measures TEXT,
+            problem TEXT,
+            root_causes TEXT NOT NULL DEFAULT '[]',
+            improvements TEXT NOT NULL DEFAULT '[]',
+            notes TEXT
+        );
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -2496,6 +2541,7 @@ program_increments = Record(
         "objectives_met": Field("text", E),
         "confidence": Field("number", S),
         "confidence_date": Field("date", S),
+        "art_id": Field("int", S),
     },
 )
 
@@ -2758,8 +2804,17 @@ features = Record(
         "status": Field("text", S, choices=WORK_STATUS, default="not started"),
         "ticket_key": Field("key", S),
         "position": Field("int", S, default=0),
+        "art_id": Field("int", S),
+        "feature_type": Field("text", S, choices=FEATURE_TYPES, default="business"),
+        "business_value": Field("int", S),
+        "time_criticality": Field("int", S),
+        "risk_reduction": Field("int", S),
+        "job_size": Field("int", S),
     },
     computed={
+        "wsjf": ("(CASE WHEN features.job_size > 0 AND features.business_value IS NOT NULL AND features.time_criticality IS NOT NULL "
+                 "AND features.risk_reduction IS NOT NULL THEN ROUND((features.business_value + features.time_criticality + features.risk_reduction) * 1.0 "
+                 "/ features.job_size, 1) END)", S),
         "epic_title": ("(SELECT title FROM epics e WHERE e.id = features.epic_id)", S),
         "owner_name": ("(SELECT name FROM people p WHERE p.id = features.owner_id)", S),
         "points": ("(SELECT COALESCE(SUM(points), 0) FROM stories s WHERE s.feature_id = features.id)", S),
@@ -3537,6 +3592,7 @@ teams = Record(
         "current_goal": Field("text", S),
         "notes": Field("text", P),
         "position": Field("int", S, default=0),
+        "art_id": Field("int", S),
     },
     computed={
         "product_owner_name": ("(SELECT name FROM people p WHERE p.id = teams.product_owner_id)", S),
@@ -4549,6 +4605,63 @@ onboarding_feedback = Record(
 
 
 # 90-day cycles: after the first 90 days the work keeps running in cycles of planning, execution and review.
+# Agile Release Trains: the team of teams that plans and delivers together each PI. Structure is shareable.
+arts = Record(
+    entity="art",
+    table="arts",
+    path="/api/arts",
+    order_by="name",
+    fields={
+        "name": Field("text", S, required=True),
+        "mission": Field("text", S),
+        "rte_id": Field("int", S),
+        "product_manager_id": Field("int", S),
+        "architect_id": Field("int", S),
+        "business_owner_ids": Field("ids", S),
+        "notes": Field("text", P),
+    },
+    computed={
+        "rte_name": ("(SELECT name FROM people p WHERE p.id = arts.rte_id)", S),
+        "product_manager_name": ("(SELECT name FROM people p WHERE p.id = arts.product_manager_id)", S),
+        "architect_name": ("(SELECT name FROM people p WHERE p.id = arts.architect_id)", S),
+    },
+)
+
+# A system demo each sprint of a PI: the integrated work of the whole train, shown to stakeholders.
+system_demos = Record(
+    entity="system_demo",
+    table="system_demos",
+    path="/api/system-demos",
+    order_by="date IS NULL, date, id",
+    fields={
+        "pi_id": Field("int", S, required=True),
+        "sprint_id": Field("int", S),
+        "date": Field("date", S),
+        "shown": Field("text", S),
+        "feedback": Field("text", S),
+        "attendee_ids": Field("ids", S),
+        "notes": Field("text", P),
+    },
+)
+
+# Inspect and Adapt at the end of each PI: the PI system demo, the measures, and a problem-solving workshop.
+inspect_adapts = Record(
+    entity="inspect_adapt",
+    table="inspect_adapts",
+    path="/api/inspect-adapts",
+    order_by="pi_id",
+    fields={
+        "pi_id": Field("int", S, required=True),
+        "date": Field("date", S),
+        "demo_notes": Field("text", S),
+        "measures": Field("text", S),
+        "problem": Field("text", S),
+        "root_causes": Field("list", S),
+        "improvements": Field("list", S),
+        "notes": Field("text", P),
+    },
+)
+
 cycles = Record(
     entity="cycle",
     table="cycles",
@@ -4561,6 +4674,7 @@ cycles = Record(
 
 
 RECORDS = [
+    arts, system_demos, inspect_adapts,
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,

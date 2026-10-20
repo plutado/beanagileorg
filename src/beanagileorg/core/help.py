@@ -142,6 +142,17 @@ TOOLKIT = {
         "privacy": "Teams can be shown on screen; private notes stay private.",
         "related": ["/sos", "/people", "/coaching/scrum-of-scrums"],
     },
+    "/art": {
+        "purpose": "The Agile Release Train: the team of teams that plans and delivers together each PI, with its mission, roles, teams, PIs and the backlog of features waiting for the next PI.",
+        "steps": ["Create the train and write its mission in one sentence.",
+                  "Name the Release Train Engineer, Product Management, the System Architect and the Business Owners.",
+                  "Add the teams on the train and assign its PIs.",
+                  "Add features to the ART backlog and score them: business value, time criticality, risk reduction and job size give WSJF.",
+                  "Plan the top features into the next PI, then break them into stories on the PI planning board.",
+                  "Watch predictability from PI to PI; 80 to 100 percent of planned business value is the usual healthy band."],
+        "privacy": "The train's structure and backlog are shareable; its notes stay private.",
+        "related": ["/pi", "/teams", "/sos", "/coaching/agile-release-train"],
+    },
     "/sos": {
         "purpose": "The ART sync log (the coach sync, close to what many teams call a Scrum of Scrums): questions, dependencies, decisions, risks, impediments and knowledge that cross team lines, each with stakeholders, an owner, the outcome expected and a date.",
         "steps": ["Log each cross-team item with the teams involved, its stakeholders, an owner, the outcome or deliverable, and a due date.",

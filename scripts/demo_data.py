@@ -148,6 +148,19 @@ for k, item in enumerate(items):
     if k < 4:
         api("POST", f"/api/sprint-planning/{sprints[2]}/pull", {"item_id": item["id"]})
 
+# ---- the Agile Release Train: roles, the team, the PI, and an ART backlog scored by WSJF
+art = api("POST", "/api/arts", {"name": "[Placeholder train]", "mission": "[Placeholder train mission]", "rte_id": p(1),
+                                "product_manager_id": p(2), "architect_id": p(3), "business_owner_ids": [p(4), p(5)]})["id"]
+for team in api("GET", "/api/teams"):
+    api("PATCH", f"/api/teams/{team['id']}", {"art_id": art})
+api("PATCH", f"/api/program-increments/{pi}", {"art_id": art})
+for f in features:
+    api("PATCH", f"/api/features/{f}", {"art_id": art})
+for n, (kind, bv, tc, rr, size) in enumerate((("business", 13, 8, 5, 5), ("enabler", 5, 8, 13, 3), ("business", 8, 3, 2, 8),
+                                              ("business", 20, 13, 3, 13), ("enabler", 3, 2, 8, 2)), 1):
+    api("POST", "/api/features", {"title": f"[Placeholder next-PI feature {n}]", "art_id": art, "feature_type": kind,
+                                  "business_value": bv, "time_criticality": tc, "risk_reduction": rr, "job_size": size})
+
 # ---- an alliance plan with an influence diagram
 stances = ("champion", "supporter", "supporter", "neutral", "skeptic", "blocker")
 for i, s in enumerate(stances):

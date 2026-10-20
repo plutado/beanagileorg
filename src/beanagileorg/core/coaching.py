@@ -1659,6 +1659,37 @@ GUIDES = [
         ],
         "related": ["/planning", "/status", "/coaching/refinement-and-estimation"], "reading": [SG],
     },
+    {
+        "slug": "agile-release-train", "theme": "agile", "minutes": 6, "since": 57,
+        "title": "Running an Agile Release Train",
+        "summary": "A train is a long-lived team of agile teams that plans together each PI, demos integrated work every sprint, and improves at Inspect and Adapt. The point is alignment without endless coordination meetings.",
+        "why": "When several teams build one product, the hard problems live between them: dependencies, competing priorities, and integration that only happens at the end. A train puts those on a shared cadence and a shared backlog, so they surface in planning instead of in production.",
+        "practices": [
+            "Write the train's mission in one sentence everyone on it could repeat.",
+            "Make the roles explicit: a Release Train Engineer who runs the train, Product Management who owns the ART backlog, a System Architect, and the Business Owners who score value.",
+            "Keep one ART backlog of features above the team backlogs, and rank it by WSJF so the conversation is about cost of delay, not who shouts loudest.",
+            "Plan every PI together, with dependencies and risks on the board before anyone commits.",
+            "Hold a system demo every sprint showing integrated work, not each team's slides.",
+            "End each PI with Inspect and Adapt: score the objectives, look at the measures, and run a short problem-solving workshop that puts improvements on the backlog.",
+            "Track predictability from PI to PI. Steady values between 80 and 100 percent build trust; wild swings mean planning or delivery needs attention.",
+        ],
+        "pitfalls": [
+            "A train in name only: teams planning separately and meeting once a quarter.",
+            "Scoring WSJF once and never revisiting it as the cost of delay changes.",
+            "System demos that are status reports rather than working, integrated software.",
+            "Inspect and Adapt that produces a list nobody owns.",
+        ],
+        "questions": [
+            "Which dependency between teams surprised us last PI, and how will planning catch it this time?",
+            "If we could only deliver one feature next PI, which has the highest cost of delay?",
+            "What does our predictability trend say about how we plan?",
+        ],
+        "try": [
+            "Under Agile Release Train, score the top five features on the ART backlog and see whether WSJF agrees with your gut.",
+            "Open the current PI and schedule its system demos and Inspect and Adapt.",
+        ],
+        "related": ["/art", "/pi", "/sos"], "reading": [SG],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -1739,6 +1770,8 @@ TIPS = {
                   ("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
                   ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
+    "/art": [("Rank the ART backlog by WSJF, then argue about the scores, not the order.", "agile-release-train", 57),
+             ("Show integrated, working software at every system demo, not each team's slides.", "agile-release-train", 57)],
     "/retros": [("Open every retro by reviewing last time's commitments. That's what makes retros worth the hour.", "retros"),
                 ("If you're the manager, speak last.", "psychological-safety"),
                 ('Start with a minute of silent writing so the quiet voices get heard before the loud ones.', 'strong-and-quiet-voices', 6)],
@@ -1896,7 +1929,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 56  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 57  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

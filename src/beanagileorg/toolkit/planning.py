@@ -9,6 +9,7 @@ from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.privacy import Viewer
 
 from . import models
+from .trains import predictability
 from .routes import require_write
 
 router = APIRouter()
@@ -163,15 +164,12 @@ def pi_board(pi_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_
         s["planned_points"] = load.get(s["id"], 0)
         sprint_view.append(s)
     objectives = models.pi_objectives.fetch_all(conn, "pi_id = ?", (pi_id,))
-    committed = [o for o in objectives if o["kind"] == "committed"]
-    planned = sum(o["value_planned"] or 0 for o in committed)
-    actual = sum(o["value_actual"] or 0 for o in committed)
     epic_ids = {f["epic_id"] for f in features if f["epic_id"]}
     return {
         "pi": models.program_increments.visible(pi, viewer),
         "sprints": sprint_view,
         "objectives": models.pi_objectives.visible_all(objectives, viewer),
-        "predictability": round(100 * actual / planned) if planned and any(o["value_actual"] is not None for o in committed) else None,
+        "predictability": predictability(conn, pi_id)["percent"],
         "epics": models.epics.visible_all([e for e in models.epics.fetch_all(conn) if e["id"] in epic_ids], viewer),
         "features": models.features.visible_all(features, viewer),
         "stories": models.stories.visible_all(stories, viewer),
