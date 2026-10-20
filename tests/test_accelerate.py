@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from beanagileorg.core.config import Settings
+from beanagileorg.toolkit.accelerate import STARTER_QUESTIONS
 from beanagileorg.toolkit.app import build
 
 PASSWORD = "[placeholder-password]"
@@ -27,11 +28,11 @@ def start(client, day):
 
 def test_learning_agenda(client):
     start(client, 25)
-    assert client.post("/api/learning-questions/starter").json()["questions"] == 42
+    assert client.post("/api/learning-questions/starter").json()["questions"] == len(STARTER_QUESTIONS)
     assert client.post("/api/learning-questions/starter").status_code == 409
     a = client.get("/api/learning-questions/agenda").json()
     late = [q for q in a["questions"] if q["late"]]
-    assert a["counts"]["open"] == 42 and late and all(q["due_day"] < 25 for q in late)
+    assert a["counts"]["open"] == len(STARTER_QUESTIONS) and late and all(q["due_day"] < 25 for q in late)
     assert {q["area"] for q in a["questions"]} == set(a["areas"])
     peer = client.post("/api/people", json={"name": "[Peer]"}).json()["id"]
     q = late[0]
