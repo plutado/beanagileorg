@@ -99,6 +99,8 @@ def start_onboarding(body: dict = Body(...), viewer: Viewer = Depends(get_viewer
         if _applies(item, tracks):
             models.onboarding_tasks.create(conn, {"onboarding_id": ob["id"], "item_id": item["id"], **{k: item[k] for k in ("title", "description", "category", "due_day", "owner_role", "link", "minutes")}}, viewer.source)
             copied += 1
+    from .transitions import add_type_items
+    copied += add_type_items(conn, ob, viewer.source)
     return {**models.onboardings.visible(models.onboardings.fetch(conn, ob["id"]), viewer), "copied": copied}
 
 

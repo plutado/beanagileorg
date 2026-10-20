@@ -287,3 +287,6 @@ td.gap-cell { background: var(--warn-soft); }
 .trend circle.t-energy { fill: var(--accent); } .trend circle.t-confidence { fill: var(--good); stroke-dasharray: none; }
 .trend circle.t-incontrol { fill: var(--muted); stroke-dasharray: none; } .trend circle.t-load { fill: var(--bad); }
 .stress-curve { width: 100%; max-width: 360px; display: block; }
+td.heat-0 { background: transparent; } td.heat-1 { background: var(--warn-soft); } td.heat-2 { background: color-mix(in srgb, var(--warn) 30%, transparent); } td.heat-3 { background: color-mix(in srgb, var(--bad) 32%, transparent); }
+.dev-grid td { min-width: 70px; } .dev-grid th.gap-cell { background: var(--warn-soft); }
+.heat-table { min-width: 940px; } .heat-table select { width: 96px; } .heat-table input[data-change] { width: 170px; } .heat-table td { vertical-align: middle; }

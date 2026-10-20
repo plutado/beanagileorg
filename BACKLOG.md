@@ -22,7 +22,6 @@ In priority order:
 - [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
 - [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
 - [ ] Mandates: link plan items and roadmap items to the mandate outcome they serve; show mandate decision rights on the RACI; a version history view comparing what was agreed at day 30 and day 90
-- [ ] People: open seats (a role you're hiring for) as their own kind of placeholder
 - [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
 - [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
 - [ ] Change requests: import interruptions flagged in Jira (who asks most and the stakeholder summary are done)
@@ -134,6 +133,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-20: Accelerating everyone, chapter 10 (#29): transition heat map with evidence and existing support, set-up-to-fail check, transition types with set check-ins and a support team, open seats with interview risk into onboarding and day-90 lessons (also covers "open seats as their own placeholder"), development grid, common core kit (migration 67); four coaching guides; 327 tests
 - [x] 2026-10-20: Timed HR links for consented support summaries (#28): the first timed share link (core/shares.py, core migration 2): one page for one named person, expiring in 1 hour to 7 days, optional view limit, an access code sent another way, locked after five wrong codes, revocable, rendered fresh so withdrawn consent stops it, every creation and view logged; a share address setting for reaching this computer over a private network; 323 tests
 - [x] 2026-10-19: Managing yourself, chapter 9 (#27): core challenges check, transition self-check, personal disciplines and end-of-day review, asks I'm considering, advice network grid with cultural interpreters and inside/outside, reflection with in control, load and the expected dip, working-base checklist, and a Managing themselves tab for reports with consent and a summary for HR (migration 66); five coaching guides; 322 tests
 - [x] 2026-10-19: Never share on change requests, tech debt and team changes (#26): the toggle on each (migration 65); release notes leave marked requests out; making an update from a marked dev-sync item asks first; 316 tests

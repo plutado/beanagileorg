@@ -30,6 +30,7 @@ JUDGMENT_TABLES = frozenset({
     "mentoring_sessions", "first90_milestones", "reflections", "preference_assessments", "behavior_targets",
     "criteria_profiles", "boss_conversations", "alignment_checks", "learning_questions",
     "core_challenge_checks", "syndrome_checks", "disciplines", "day_reviews", "support_profiles", "support_checkins",
+    "seat_candidates", "career_entries",
 })
 
 # Fields on a person that record judgment, influence or personal context. Never exported.

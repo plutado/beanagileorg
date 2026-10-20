@@ -1502,11 +1502,111 @@ GUIDES = [
         ],
         "related": ['/people', '/coaching/one-on-ones', '/coaching/psychological-safety'], "reading": [F90],
     },
+    {
+        "slug": 'accelerating-everyone', "theme": "leaders", "minutes": 5, "since": 53,
+        "title": 'Accelerating everyone',
+        "summary": "Every transition affects the dozen or so people around it, and every big change sets off a cascade of them. Help everyone get up to speed, not only yourself.",
+        "why": "Slow or failed transitions cost results, delay work and lose good people. A quarter of leaders change jobs in a typical year, and growth, turnarounds and acquisitions multiply that. Organizations that run transitions like any other critical process get faster, more resilient and better at change.",
+        "practices": [
+            "Map where transitions are happening and how intense they are: onboarding, promotions, moves between teams. Support goes first where the heat is.",
+            "Remove the ways people get set up to fail: unclear expectations, leaps too big, sink or swim, promoted people still doing their old job, no help with culture or stakeholders.",
+            "Look at what support already exists before building something new.",
+            "Use one shared language for transitions (situation, learning, the five conversations, early wins, alliances), so these conversations actually happen.",
+            "Deliver support in small pieces at the right stage, and set check-ins rather than waiting for busy people to ask.",
+            "For a big change such as an acquisition, take the whole team through the same 90-day approach, from the top down.",
+        ],
+        "pitfalls": [
+            "Treating onboarding as access and a ticket.",
+            "Leaving contractors out of the support everyone else gets.",
+            "Building a program before knowing where transitions actually happen.",
+        ],
+        "questions": [
+            "Where are the most important transitions on my team right now, and who's supporting them?",
+            "Would a new person here say they were set up to succeed?",
+        ],
+        "try": [
+            "Fill in the transition heat map under Onboarding for your area, and pick the one cell where better support would matter most.",
+        ],
+        "related": ['/onboarding', '/first90', '/coaching/supporting-a-new-hire'], "reading": [F90],
+    },
+    {
+        "slug": 'supporting-a-new-hire', "theme": "team", "minutes": 4, "since": 53,
+        "title": "Supporting a new person's transition",
+        "summary": "As their manager you're also their transition coach. Give them a clear start, the right people, and check-ins on the calendar.",
+        "why": "New people are too busy to plan their own transition, and they can't yet tell who matters or how things really get done. A few structured moments from you save months of slow progress and avoidable mistakes.",
+        "practices": [
+            "Use the time before they start: share the plan, the key documents and who they'll meet.",
+            "Agree expectations early: the situation, what success looks like, what they can decide.",
+            "Introduce them to the people who'll shape their success; don't make them work it out.",
+            "Give everyone around them a small, clear job: the buddy, a culture guide or mentor, their HR contact.",
+            "Hold set check-ins at days 7, 30, 60 and 90, short and regular.",
+            "For a promotion, cover their old work and agree what success looks like at the new level.",
+        ],
+        "pitfalls": [
+            "Assuming a strong hire will figure it out.",
+            "Training that arrives months after it was needed.",
+            "Carrying hiring concerns in your head instead of into their plan.",
+        ],
+        "questions": [
+            "What did I learn in hiring that this person's plan should address?",
+            "Who are the three people they most need to meet in their first two weeks?",
+        ],
+        "try": [
+            "Open their onboarding and work through the Set up to succeed check with them at the day-7 check-in.",
+        ],
+        "related": ['/onboarding', '/people', '/coaching/accelerating-everyone'], "reading": [F90],
+    },
+    {
+        "slug": 'promotions-done-right', "theme": "team", "minutes": 3, "since": 53,
+        "title": 'Promotions done right',
+        "summary": "Being good at the current job doesn't prove someone will thrive at the next level. Set promoted people up for the new role, not the old one.",
+        "why": "The skills and behaviors that earned a promotion are often not the ones the new level needs. Promoted people who keep doing their old job, or get training months late, lose the window to build credibility.",
+        "practices": [
+            "Judge readiness on what the new level needs, not only on current performance.",
+            "Agree what success looks like at the new level, and have them assess themselves against it.",
+            "Cover their old work before they start, with a clear handover date.",
+            "Give training at the start, and a development plan by day 30.",
+        ],
+        "pitfalls": [
+            "Promoting the best engineer into management with no support.",
+            "Letting the old role quietly stay with them.",
+        ],
+        "questions": [
+            "What will this person need to stop doing in the new role?",
+        ],
+        "try": [
+            "Start their onboarding as a promotion; the extra items cover the old role, training and the new level.",
+        ],
+        "related": ['/onboarding', '/coaching/supporting-a-new-hire'], "reading": [F90],
+    },
+    {
+        "slug": 'transition-vs-development-coaching', "theme": "leaders", "minutes": 3, "since": 53,
+        "title": 'Transition coaching and development coaching',
+        "summary": "Helping someone through a new role is different from developing their skills over time. Know which one you're doing.",
+        "why": "Transition coaching helps a person read the business situation and themselves, build momentum, manage themselves and make a plan, and it needs someone who knows the business and the culture. Development coaching works on competencies and behaviors over a longer stretch. Mixing them up gives a new person skill-building when they need help navigating.",
+        "practices": [
+            "In someone's first months, coach the transition: the situation, early wins, relationships, their plan.",
+            "Save competency and behavior work for after they've found their feet, in their development plan.",
+            "Prefer coaches and mentors who know the organization and its culture for transitions.",
+        ],
+        "pitfalls": [
+            "Bringing in an outside coach who doesn't know the culture to steer a transition.",
+            "Starting a development program in someone's first week.",
+        ],
+        "questions": [
+            "Is this person still in transition, or ready to work on development?",
+        ],
+        "try": [
+            "For each newer report, write one line: transition or development, and what that means for your next one-on-one.",
+        ],
+        "related": ['/people', '/coaching/mentoring-managers', '/coaching/supporting-a-new-hire'], "reading": [F90],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
-    "/first90": [("Assess people on evidence from the work itself, not just conversations. Keep first impressions, then step back.", "building-the-team", 40),
+    "/first90": [("Your transition is one of many. Map where others are joining or moving in the heat map under Onboarding.", "accelerating-everyone", 53),
+        ("Assess people on evidence from the work itself, not just conversations. Keep first impressions, then step back.", "building-the-team", 40),
                  ("Agree your mandate early: what success looks like, and decision by decision, what you can do on your own.", "your-mandate", 9),
                  ("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
                  ("Bring changes one at a time, as trials with a review date, and review them with the team.", "leading-change", 8),
@@ -1547,7 +1647,8 @@ TIPS = {
                 ('Invest sideways as much as up. Your peers decide whether most of your changes stick.', "peer-relationships", 10),
                 ("Note what each key person expects from you, especially anyone who shapes how your work is judged.", "your-manager", 14),
                 ("Recognize quiet work too. Keeping things from breaking deserves as much credit as fixing what broke.", "read-the-situation", 24)],
-    "/onboarding": [("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
+    "/onboarding": [("Start each onboarding with its type (new hire, contractor, promotion, a move). The check-ins and the Set up to succeed check follow from it.", "supporting-a-new-hire", 53),
+        ("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
                     ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback"),
                     ("Hires from outside the company need a culture guide and a business orientation, not just accounts and tools.", "joining-from-outside", 13)],
@@ -1564,7 +1665,8 @@ TIPS = {
               ("A process the team helped write is one they'll follow. Agree policies together and mark them agreed.", "introducing-scrum"),
               ('A few clear, agreed rules beat chaos and beat bureaucracy. Start with the pain people already feel.', 'order-without-bureaucracy', 6)],
     "/sprints": [("Start planning with a sprint goal, then pull work that serves it, within real capacity.", "ceremonies")],
-    "/teams": [("Watch for silos of excellence: deep expertise in one group, poor links to the rest. Ask who bridges the gaps.", "org-as-a-system", 36),
+    "/teams": [("A big change, such as an acquisition, is a cascade of individual transitions. Take each team through the same 90-day approach.", "accelerating-everyone", 53),
+        ("Watch for silos of excellence: deep expertise in one group, poor links to the rest. Ask who bridges the gaps.", "org-as-a-system", 36),
                ("Before blaming a team for a practice that won't stick, check its structure and incentives: who it serves, how it's measured, what it owns.", "org-as-a-system", 34),
                ("Update each team's status in one line whenever you hear news. A dated status beats a detailed stale one.", "scrum-of-scrums", 4),
                ('Notice patterns across teams, not just inside yours. Note them under Culture and trust with evidence.', 'challenging-the-organization', 6),
@@ -1725,7 +1827,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 52  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 53  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

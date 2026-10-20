@@ -94,7 +94,11 @@ INTEGRATION_DIRECTIONS = ("one way", "two way")
 INTEGRATION_STATUS = ("planned", "live", "retiring", "retired")
 ADR_STATUS = ("proposed", "accepted", "superseded", "rejected")
 ONBOARDING_CATEGORIES = ("accounts and access", "tools and setup", "business", "people", "ways of working", "systems and architecture", "learning", "first work", "admin and compliance")
-ONBOARDING_OWNERS = ("new member", "manager", "buddy", "IT or admin")
+ONBOARDING_OWNERS = ("new member", "manager", "buddy", "IT or admin", "HR", "mentor")
+TRANSITION_TYPES = ("new hire", "contractor", "move between teams", "promotion", "lateral move")
+INTENSITY = ("none", "low", "medium", "high")
+SEAT_STATUS = ("open", "interviewing", "filled", "closed")
+CAREER_FUNCTIONS = ("Engineering", "Product", "QA", "Operations", "Sales and marketing", "Finance", "HR", "Other")
 ONBOARDING_TRACKS = ("Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor")
 ONBOARDING_STATUS = ("not started", "in progress", "done")
 POLICY_CATEGORIES = ("branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "communication", "other")
@@ -1970,6 +1974,68 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        67,
+        """
+        ALTER TABLE onboardings ADD COLUMN transition_type TEXT;
+        ALTER TABLE onboardings ADD COLUMN hr_contact_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        ALTER TABLE onboardings ADD COLUMN mentor_id INTEGER REFERENCES people (id) ON DELETE SET NULL;
+        ALTER TABLE onboardings ADD COLUMN risk_check TEXT;
+        ALTER TABLE onboardings ADD COLUMN risk_profile TEXT;
+        ALTER TABLE onboardings ADD COLUMN seat_id INTEGER;
+        CREATE TABLE transition_units (
+            id INTEGER PRIMARY KEY,
+            unit TEXT NOT NULL,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            change_event TEXT,
+            onboarding TEXT,
+            promotion TEXT,
+            moves TEXT,
+            geographic TEXT,
+            lateral TEXT,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE open_seats (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            team_id INTEGER REFERENCES teams (id) ON DELETE SET NULL,
+            situation TEXT,
+            job_spec TEXT,
+            risk_tolerance TEXT,
+            culture_notes TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            person_id INTEGER REFERENCES people (id) ON DELETE SET NULL,
+            onboarding_id INTEGER,
+            risks_real TEXT,
+            lessons TEXT,
+            opened_on DATE,
+            filled_on DATE
+        );
+        CREATE TABLE seat_candidates (
+            id INTEGER PRIMARY KEY,
+            seat_id INTEGER NOT NULL REFERENCES open_seats (id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            interviewed_on DATE,
+            strengths TEXT,
+            risks TEXT,
+            notes TEXT,
+            decision TEXT
+        );
+        CREATE TABLE career_entries (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            function TEXT,
+            situation TEXT,
+            kind TEXT NOT NULL DEFAULT 'role',
+            started TEXT,
+            ended TEXT,
+            notes TEXT,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -3048,6 +3114,12 @@ onboardings = Record(
         "tracks": Field("list", S),
         "buddy_id": Field("int", S),
         "status": Field("text", S, choices=ONBOARDING_STATUS, default="in progress"),
+        "transition_type": Field("text", S, choices=TRANSITION_TYPES),
+        "hr_contact_id": Field("int", S),
+        "mentor_id": Field("int", S),
+        "risk_check": Field("json", P),
+        "risk_profile": Field("json", P),
+        "seat_id": Field("int", P),
         "notes": Field("text", P),
     },
     computed={
@@ -4309,6 +4381,53 @@ support_checkins = Record(
 )
 
 
+# Accelerating everyone (chapter 10): where transitions are happening, open seats with the transition risk they carry,
+# and a development grid of each person's roles by function and situation.
+transition_units = Record(
+    entity="transition_unit",
+    table="transition_units",
+    path="/api/transition-units",
+    order_by="position, id",
+    fields={"unit": Field("text", S, required=True), "team_id": Field("int", S), "change_event": Field("text", S),
+            "onboarding": Field("text", S, choices=INTENSITY), "promotion": Field("text", S, choices=INTENSITY),
+            "moves": Field("text", S, choices=INTENSITY), "geographic": Field("text", S, choices=INTENSITY),
+            "lateral": Field("text", S, choices=INTENSITY), "notes": Field("text", P), "position": Field("int", S, default=0)},
+)
+
+open_seats = Record(
+    entity="open_seat",
+    table="open_seats",
+    path="/api/open-seats",
+    order_by="status IN ('filled', 'closed'), id DESC",
+    fields={"title": Field("text", S, required=True), "team_id": Field("int", S), "situation": Field("text", P, choices=SITUATION_KINDS),
+            "job_spec": Field("text", P), "risk_tolerance": Field("text", P, choices=("low", "medium", "high")), "culture_notes": Field("text", P),
+            "status": Field("text", S, choices=SEAT_STATUS, default="open"), "person_id": Field("int", P), "onboarding_id": Field("int", P),
+            "risks_real": Field("json", P), "lessons": Field("text", P), "opened_on": Field("date", S), "filled_on": Field("date", S)},
+)
+
+seat_candidates = Record(
+    entity="seat_candidate",
+    table="seat_candidates",
+    path="/api/seat-candidates",
+    order_by="interviewed_on DESC, id DESC",
+    fields={"seat_id": Field("int", P, required=True), "name": Field("text", P, required=True), "interviewed_on": Field("date", P),
+            "strengths": Field("text", P), "risks": Field("json", P), "notes": Field("text", P),
+            "decision": Field("text", P, choices=("considering", "offer", "hired", "declined", "withdrew"))},
+    hide_when_empty=True,
+)
+
+career_entries = Record(
+    entity="career_entry",
+    table="career_entries",
+    path="/api/career-entries",
+    order_by="person_id, position, id",
+    fields={"person_id": Field("int", P, required=True), "title": Field("text", P, required=True), "function": Field("text", P),
+            "situation": Field("text", P, choices=SITUATION_KINDS), "kind": Field("text", P, choices=("role", "project"), default="role"),
+            "started": Field("text", P), "ended": Field("text", P), "notes": Field("text", P), "position": Field("int", P, default=0)},
+    hide_when_empty=True,
+)
+
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -4329,4 +4448,5 @@ RECORDS = [
     interactions, commitments, manager_notes, growth_goals,
     standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, behavior_targets, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
     core_challenge_checks, syndrome_checks, disciplines, day_reviews, support_profiles, support_checkins,
+    transition_units, open_seats, seat_candidates, career_entries,
 ]

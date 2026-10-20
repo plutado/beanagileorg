@@ -40,7 +40,9 @@ def test_checklist_follows_tracks_and_dates(client):
     sf = client.post("/api/onboardings", json={"person_id": pid, "start_date": "2026-11-02", "tracks": ["Salesforce developer", "employee"]}).json()
     qa = client.post("/api/onboardings", json={"person_id": person(client, "[QA person]"), "tracks": ["QA", "contractor"]}).json()
     everyone = sum(1 for s in onboarding.STARTER if not s[6])
-    assert sf["copied"] == everyone + sum(1 for s in onboarding.STARTER if s[6] and set(s[6]) & {"Salesforce developer", "employee"})
+    from beanagileorg.toolkit.transitions import TYPE_ITEMS
+    checkins = len(TYPE_ITEMS["all"])  # the set check-ins every onboarding gets
+    assert sf["copied"] == everyone + checkins + sum(1 for s in onboarding.STARTER if s[6] and set(s[6]) & {"Salesforce developer", "employee"})
     titles = {t["title"] for p in client.get(f"/api/onboardings/{qa['id']}/board").json()["phases"] for t in p["tasks"]}
     assert "Run a MuleSoft application locally and deploy it to a non-production environment" not in titles
     assert "Confirm contract dates, agency contact and how time is reported" in titles
@@ -67,7 +69,7 @@ def test_template_edits_dont_touch_started_checklists(client):
     client.patch(f"/api/onboarding-items/{item['id']}", json={"title": "[Changed]"})
     client.post("/api/onboarding-items", json={"title": "[Retired]", "active": False})
     tasks = client.get(f"/api/onboardings/{ob['id']}/board").json()["phases"][0]["tasks"]
-    assert [t["title"] for t in tasks] == ["[Original]"]
+    assert [t["title"] for t in tasks if t["title"].startswith("[")] == ["[Original]"]
 
 
 def test_checklist_markdown_and_today(client):
@@ -78,14 +80,15 @@ def test_checklist_markdown_and_today(client):
     buddy = person(client, "[Buddy]")
     ob = client.post("/api/onboardings", json={"person_id": person(client), "start_date": start, "buddy_id": buddy}).json()
     tasks = client.get(f"/api/onboardings/{ob['id']}/board").json()
-    assert tasks["overdue"] == 2 and tasks["by_owner"]["manager"] == 1
+    assert tasks["overdue"] == 2 and tasks["by_owner"]["manager"] == 3  # the prep item plus the day-7 and day-60 check-ins
     client.patch(f"/api/onboarding-tasks/{tasks['phases'][0]['tasks'][0]['id']}", json={"notes": "[Private note]"})
     md = client.post(f"/api/onboardings/{ob['id']}/checklist/export").json()["markdown"]
     assert "# Welcome, [New member]" in md and "Your buddy: [Buddy]." in md
     assert "- [ ] [Manager prep] (manager)" in md and "#/sdlc" not in md and "https://example.invalid/course" in md and "[Private note]" not in md
     assert client.get("/api/exports").json()[0]["kind"] == "onboarding:markdown"
     due = client.get("/api/today").json()["onboarding_due"]
-    assert [d["title"] for d in due] == ["[Manager prep]"] and due[0]["overdue"]
+    assert [d["title"] for d in due if d["title"].startswith("[")] == ["[Manager prep]"] and due[0]["overdue"]
+    assert any(d["title"].startswith("Day-7 check-in") for d in due)  # the set check-in is due within the week
 
 
 def test_needs_a_real_person(client):

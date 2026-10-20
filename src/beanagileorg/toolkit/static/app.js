@@ -90,13 +90,14 @@
   // ---------------------------------------------------------------- Today
 
   // Today: the end-of-day (or Friday, end-of-week) review, checks that are due, asks to answer, the working base.
-  function selfToday(x) {
+  function selfToday(x, seats = []) {
     if (!x) return "";
     const r = x.review || {}, week = x.week_review_due;
     const items = [
       x.challenge_check_due ? `<div class="item"><span class="pill warn">check</span><a href="#/me/challenges">Day ${x.challenge_check_due}: take the core challenges check</a></div>` : "",
       x.self_check_due ? `<div class="item"><span class="pill">self-check</span><a href="#/me/self-check">Monthly transition self-check: boundaries, brittleness, isolation, avoidance</a></div>` : "",
       ...x.asks.map((a) => `<div class="item"><span class="pill ${a.late ? "bad" : "warn"}">answer</span><a href="#/me">${esc(a.title)}${a.requested_by ? ` (${esc(a.requested_by)})` : ""}</a><span class="spacer"></span><span class="quiet">by ${BA.fmtDate(a.answer_by)}</span></div>`),
+      ...seats.map((s) => `<div class="item"><span class="pill">hiring</span><a href="#/onboarding/seat-${s.id}">${esc(s.title)}: day 90 passed. Which risks turned out real?</a></div>`),
       x.working_base_left ? `<div class="item"><span class="pill">setup</span><a href="#/me">${x.working_base_left} working-base item${x.working_base_left === 1 ? "" : "s"} still to set up</a></div>` : "",
     ].join("");
     return `<section class="card" id="eod"><div class="row"><h2>${week ? "End of the week" : "End of the day"}</h2><span class="quiet">ten minutes</span><span class="spacer"></span>${x.review_done ? '<span class="pill good">reviewed</span>' : ""}<a class="btn" href="#/coaching/personal-disciplines">Why</a></div>
@@ -155,7 +156,7 @@
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
         ${BA.backupWarning(d.backup)}
-        ${selfToday(d.self)}
+        ${selfToday(d.self, d.seats_due)}
         ${d.accelerate && (d.accelerate.learning_late_count || d.accelerate.boss_unheld.length || d.accelerate.mentoring.length) ? `<section class="card"><h2>Getting up to speed</h2>
           ${d.accelerate.boss_unheld.length ? `<div class="item"><span class="pill warn">manager</span><a href="#/first90/mandates">Not yet discussed with your manager: ${esc(d.accelerate.boss_unheld.join(", ").toLowerCase())}</a></div>` : ""}
           ${d.accelerate.learning_late.map((q) => `<div class="item"><span class="pill">learn</span><a href="#/first90/learning">${esc(q.question)}</a></div>`).join("")}${d.accelerate.learning_late_count > d.accelerate.learning_late.length ? `<p class="quiet">and ${d.accelerate.learning_late_count - d.accelerate.learning_late.length} more open questions past the day you planned to answer them</p>` : ""}
@@ -543,8 +544,8 @@
     const show = (f) => !layout.hidden.includes(f);
     const sens = (f) => layout.sensitive.includes(f);
     let current = tab || sessionStorage.getItem("ba-person-tab") || "overview";
-    if ((current === "manager" || current === "support") && !d.is_report) current = "overview";
-    const tabs = `<nav class="tabs">${[["overview", "Overview"], ["conversations", "Conversations"], ...(d.is_report ? [["manager", "Manager"], ["support", "Managing themselves"]] : []), ["timeline", "Timeline"], ["details", "Details"]].filter(([k]) => !ro || k === "overview")
+    if (["manager", "support", "grid"].includes(current) && !d.is_report) current = "overview";
+    const tabs = `<nav class="tabs">${[["overview", "Overview"], ["conversations", "Conversations"], ...(d.is_report ? [["manager", "Manager"], ["support", "Managing themselves"], ["grid", "Development grid"]] : []), ["timeline", "Timeline"], ["details", "Details"]].filter(([k]) => !ro || k === "overview")
       .map(([k, l]) => `<a href="#/people/${id}" data-ptab="${k}" class="${k === current ? "active" : ""}">${l}</a>`).join("")}</nav>`;
     const fact = (f, label, val) => (show(f) && val ? `<div><span class="quiet">${esc(label)}</span> ${val}</div>` : "");
     const header = `<section class="card"><div class="row"><h2>${esc(p.name)}</h2>${p.active === false ? '<span class="pill">inactive</span>' : ""}${p.placeholder ? '<span class="pill warn" title="A stand-in until you know who this is. Give it the real name on Details.">placeholder</span>' : ""}<span class="spacer"></span>
@@ -571,6 +572,7 @@
     }));
 
     if (current === "support") return renderSupport(box, id, p, people);
+    if (current === "grid") return renderGridInto(box, id, p.name);
     if (current === "overview") {
       const h = d.health;
       const md = (f) => (p[f] ? BA.md(p[f]) : "");
@@ -1061,6 +1063,7 @@
         <div><h3>Transition self-check</h3><p class="quiet">Four patterns a transition tends to bring out. Monthly, and ask someone honest too.</p>
           ${lastS ? `<p>Last ${BA.fmtDate(lastS.date)}${high.length ? ` · watch <b>${high.map(esc).join(", ")}</b>` : " · nothing high"}</p>` : '<p class="quiet">Not taken yet.</p>'}
           <a class="btn" href="#/me/self-check">${lastS ? "Check again" : "Take the self-check"}</a></div>
+        <div><h3>Development grid</h3><p class="quiet">Every role and project by function and situation; the blank columns show what the next move could build.</p><a class="btn" href="#/me/grid">Open my grid</a></div>
       </div>
       <h3>My disciplines</h3><p class="quiet">Routines you hold yourself to. Tick off the ones you kept in the end-of-day review on Today. <a href="#/coaching/personal-disciplines">Personal disciplines</a></p>
       ${me.disciplines.map((d) => `<div class="item"><label class="check" style="min-width:210px;flex-shrink:0"><input type="checkbox" data-disc-active="${d.id}"${d.active ? " checked" : ""}> <b${d.active ? "" : ' class="quiet"'}>${esc(d.name)}</b></label><span class="quiet">${esc(d.success || "")}</span><span class="spacer"></span><button class="link-btn" type="button" data-disc-del="${d.id}">remove</button></div>`).join("") || '<p class="quiet">None yet.</p>'}
@@ -1179,6 +1182,12 @@
       if (param === "criteria") return renderCriteria(main);
       if (param === "challenges") return renderChallenges(main);
       if (param === "self-check") return renderSelfCheck(main);
+      if (param === "grid") {
+        document.getElementById("view-title").textContent = "My development grid";
+        const me = await BA.api("/api/me/person");
+        if (!me.person_id) { main.innerHTML = '<p><a href="#/me">My development</a></p><p class="callout">Mark which person in People is you (on your own page), then come back.</p>'; return; }
+        return renderGridInto(main, me.person_id, "", '<p><a href="#/me">My development</a></p>');
+      }
       const [settings, goals, log, tasks, obligations, advice, me] = await Promise.all([
         BA.api("/api/toolkit/settings"),
         BA.api("/api/learning-goals"),
@@ -4820,22 +4829,155 @@
   // ---------------------------------------------------------------- Onboarding
 
   const OB_CATEGORIES = ["accounts and access", "tools and setup", "people", "ways of working", "systems and architecture", "learning", "first work", "admin and compliance"];
-  const OB_OWNERS = ["new member", "manager", "buddy", "IT or admin"];
+  const OB_OWNERS = ["new member", "manager", "buddy", "IT or admin", "HR", "mentor"];
+  const TRANSITION_TYPES = ["new hire", "contractor", "move between teams", "promotion", "lateral move"];
   const OB_TRACKS = ["Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor"];
   const OB_PHASES = [["Before day 1", null, 0], ["Week 1", 1, 7], ["Weeks 2 to 4", 8, 30], ["Days 31 to 90", 31, 90], ["After day 90", 91, null]];
-  const OWNER_TONES = { manager: "warn", buddy: "good", "IT or admin": "", "new member": "accent" };
+  const OWNER_TONES = { manager: "warn", buddy: "good", "IT or admin": "", "new member": "accent", HR: "", mentor: "good" };
   const obPhase = (day) => (day == null ? "No date" : (OB_PHASES.find(([, lo, hi]) => (lo == null || day >= lo) && (hi == null || day <= hi)) || ["No date"])[0]);
   const dayLabel = (n) => (n == null ? "" : n === 0 || n === -1 ? "the day before" : n < 0 ? `${-n} days before` : `day ${n}`);
-  const obTabs = (active) => `<nav class="tabs">${[["", "New members"], ["template", "Checklist template"], ["materials", "Materials"]]
+  const obTabs = (active) => `<nav class="tabs">${[["", "New members"], ["transitions", "Transitions"], ["seats", "Open seats"], ["template", "Checklist template"], ["materials", "Materials"]]
     .map(([k, label]) => `<a href="#/onboarding${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
   const openLink = (link) => (!link ? "" : link.startsWith("#/") ? `<a class="btn" href="${esc(link)}">Open</a>` : /^https?:\/\//.test(link) ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Open ${BA.icon("external-link")}</a>` : "");
   const progress = (done, total) => `<div class="progress" title="${done} of ${total} done"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></div>`;
+
+  // ---- Accelerating everyone (chapter 10) ----
+  const RC_TONES = { ok: "good", risk: "bad", na: "" };
+  function riskCheckCard(rc) {
+    if (!rc || rc.hidden || !rc.items.length) return "";
+    const prof = rc.risk_profile || {};
+    const profLabels = { culture: "Fit with how things are done here", situation: "Experience with this kind of situation", stakeholders: "Building the relationships the role needs", leap: "Size of the step up" };
+    return `<section class="card" id="risk-check"><div class="row"><h2>Set up to succeed?</h2><span class="spacer"></span>${rc.risks ? `<span class="pill bad">${rc.risks} risk${rc.risks === 1 ? "" : "s"}</span>` : ""}${rc.open ? `<span class="pill">${rc.open} to check</span>` : ""}<a class="btn" href="#/coaching/supporting-a-new-hire">Why</a></div>
+      <p class="quiet">Common ways organizations set people up to fail in a ${esc(rc.type || "new role")}. Some are read from the toolkit; you judge the rest. A risk here is something to fix, not a mark against them.</p>
+      ${Object.keys(prof).length ? `<p><b>From hiring:</b> ${Object.entries(prof).map(([k, v]) => `${esc(profLabels[k] || k)}: <i>${esc(v)}</i>`).join(" · ")}</p>` : ""}
+      ${rc.items.map((i) => `<div class="item" data-rc="${i.key}"><span class="pill ${RC_TONES[i.status] || ""}" style="min-width:70px;text-align:center">${i.status === "ok" ? "fine" : i.status === "risk" ? "risk" : i.status === "na" ? "n/a" : "check"}</span><span>${esc(i.text)}${i.auto ? ' <span class="quiet">· from the toolkit unless you say otherwise</span>' : ""}</span><span class="spacer"></span>
+        <select data-rc-status style="max-width:110px"><option value=""></option>${[["ok", "fine"], ["risk", "risk"], ["na", "n/a"]].map(([v, l]) => `<option value="${v}"${(i.status === v && !i.auto) || (i.auto && i.status === v && i.note) ? " selected" : ""}>${l}</option>`).join("")}</select><input data-rc-note placeholder="Note" value="${esc(i.note || "")}" style="max-width:200px"></div>`).join("")}</section>`;
+  }
+  function bindRiskCheck(main, id) {
+    main.querySelectorAll("[data-rc]").forEach((row) => {
+      const save = BA.guard(async () => { await BA.api(`/api/onboardings/${id}/risk-check`, { method: "PUT", body: { [row.dataset.rc]: { status: row.querySelector("[data-rc-status]").value || null, note: row.querySelector("[data-rc-note]").value || null } } }); BA.rerender(); });
+      row.querySelector("[data-rc-status]").onchange = save;
+      row.querySelector("[data-rc-note]").onchange = save;
+    });
+  }
+
+  const HEAT = { none: "heat-0", low: "heat-1", medium: "heat-2", high: "heat-3" };
+  async function renderTransitions(main) {
+    const [t, teams, kit] = await Promise.all([BA.api("/api/transitions"), BA.api("/api/teams"), BA.api("/api/transition-kit")]);
+    const ro = presenting();
+    const cell = (u, k) => ro ? `<td class="${HEAT[u[k]] || ""}">${esc(u[k] || "")}</td>` : `<td class="${HEAT[u[k]] || ""}"><select data-heat="${k}"><option value=""></option>${t.intensity.map((v) => `<option${v === u[k] ? " selected" : ""}>${v}</option>`).join("")}</select></td>`;
+    main.innerHTML = `${obTabs("transitions")}
+      <section class="card"><div class="row"><h2>Transition heat map</h2><span class="spacer"></span><a class="btn" href="#/coaching/accelerating-everyone">Accelerating everyone</a></div>
+        <p class="quiet">Where people are joining, moving or stepping up, and how much. Every major change (growth, a turnaround, an acquisition) sets off a cascade of individual transitions; support goes first where the heat is. Evidence comes from your teams, people and open seats.</p>
+        <div class="tablewrap"><table class="data heat-table"><thead><tr><th>Unit</th><th>Major change</th>${t.columns.map((c) => `<th>${esc(c.label)}</th>`).join("")}<th>Evidence</th>${ro ? "" : "<th></th>"}</tr></thead><tbody>
+          ${t.units.map((u) => `<tr data-unit="${u.id}"><td><b>${esc(u.unit)}</b></td><td>${ro ? esc(u.change_event || "") : `<input data-change value="${esc(u.change_event || "")}">`}</td>${t.columns.map((c) => cell(u, c.key)).join("")}
+            <td class="quiet">${u.evidence ? `<span title="People who started in the last 6 months, onboardings in progress, open seats">${u.evidence.started_recently} new · ${u.evidence.onboarding} onboarding · ${u.evidence.open_seats} seat${u.evidence.open_seats === 1 ? "" : "s"}</span>` : "–"}</td>${ro ? "" : '<td><button class="link-btn" type="button" data-unit-del>remove</button></td>'}</tr>`).join("") || `<tr><td colspan="${t.columns.length + 4}" class="empty">No units yet.</td></tr>`}</tbody></table></div>
+        ${t.priorities.length ? `<p><b>Where support matters most:</b> ${t.priorities.map(esc).join(" · ")}</p>` : ""}
+        ${ro ? "" : `<form id="add-unit" class="row"><input name="unit" placeholder="Unit, group or project" required style="max-width:220px"><select name="team_id" style="max-width:200px"><option value="">Link a team (for evidence)</option>${teams.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select><input name="change_event" placeholder="Major change, such as [acquisition]" style="max-width:240px"><button class="btn" type="submit">Add</button></form>`}</section>
+      ${t.existing_support ? `<section class="card"><h2>Support that exists today</h2><p class="quiet">Before designing anything new, see what's already there and where the gaps are.</p>
+        ${t.existing_support.map((x) => `<div class="item" data-es="${x.key}"><span>${esc(x.label)}</span><span class="spacer"></span><select data-es-status style="max-width:110px"><option value=""></option>${["yes", "partly", "no"].map((v) => `<option${v === x.status ? " selected" : ""}>${v}</option>`).join("")}</select><input data-es-note value="${esc(x.note || "")}" placeholder="Note" style="max-width:220px"></div>`).join("")}</section>` : ""}
+      ${t.lessons && t.lessons.length ? `<section class="card"><h2>What hiring has taught us</h2><p class="quiet">From filled seats: which risks turned out real. This sharpens your picture of the culture for the next hire.</p>${t.lessons.map((l) => `<p><b>${esc(l.seat)}:</b> ${esc(l.lessons)}</p>`).join("")}</section>` : ""}
+      <section class="card"><h2>Common core kit</h2><p class="quiet">One language for everyone's transitions: the situation, what to learn, five conversations with the manager, early wins, alliances and support. Share the playbook with new people and other managers, and give each new person the 90-day template.</p>
+        <details><summary>The playbook</summary>${BA.md(kit.playbook)}</details><details><summary>The 90-day plan template</summary>${BA.md(kit.template)}</details>
+        <div class="actions"><button class="btn" type="button" data-kit="playbook">Copy the playbook</button><button class="btn" type="button" data-kit="template">Copy the template</button></div></section>`;
+    main.querySelectorAll("[data-kit]").forEach((b) => (b.onclick = BA.guard(async () => { const r = await BA.api("/api/transition-kit/export", { method: "POST", body: { which: b.dataset.kit } }); await BA.shareText(r.markdown); BA.toast("Copied as Markdown."); })));
+    if (ro) return;
+    main.querySelectorAll("[data-unit]").forEach((tr) => {
+      const uid = tr.dataset.unit;
+      tr.querySelectorAll("[data-heat]").forEach((sel) => (sel.onchange = BA.guard(async () => { await BA.api(`/api/transition-units/${uid}`, { method: "PATCH", body: { [sel.dataset.heat]: sel.value || null } }); BA.rerender(); })));
+      tr.querySelector("[data-change]").onchange = BA.guard(async (e) => { await BA.api(`/api/transition-units/${uid}`, { method: "PATCH", body: { change_event: e.target.value || null } }); BA.toast("Saved."); });
+      tr.querySelector("[data-unit-del]").onclick = BA.guard(async () => { if (!confirm("Remove this unit from the map?")) return; await BA.api(`/api/transition-units/${uid}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    const au = main.querySelector("#add-unit");
+    au.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(au); await BA.api("/api/transition-units", { method: "POST", body: { unit: fd.get("unit"), team_id: numOrNull(fd.get("team_id")), change_event: fd.get("change_event") || null, position: t.units.length } }); BA.rerender(); });
+    main.querySelectorAll("[data-es]").forEach((row) => {
+      const save = BA.guard(async () => { await BA.api("/api/transitions/existing-support", { method: "PUT", body: { [row.dataset.es]: { status: row.querySelector("[data-es-status]").value || null, note: row.querySelector("[data-es-note]").value || null } } }); BA.toast("Saved."); });
+      row.querySelector("[data-es-status]").onchange = save;
+      row.querySelector("[data-es-note]").onchange = save;
+    });
+  }
+
+  const SITUATIONS = ["start-up", "turnaround", "accelerated growth", "realignment", "sustaining success"];
+  async function renderSeats(main) {
+    const [seats, teams] = await Promise.all([BA.api("/api/open-seats"), BA.api("/api/teams")]);
+    const ro = presenting(), tname = Object.fromEntries(teams.map((x) => [x.id, x.name]));
+    main.innerHTML = `${obTabs("seats")}
+      <section class="card"><h2>Open seats</h2><p class="quiet">A role you're hiring for, before anyone's in it. Decide up front how much transition risk you can accept, look for it in interviews, carry what you find into their onboarding, and note at day 90 which risks were real.</p>
+        ${seats.map((x) => `<div class="item"><span class="pill ${x.status === "open" ? "warn" : x.status === "interviewing" ? "accent" : ""}">${esc(x.status)}</span><a href="#/onboarding/seat-${x.id}"><b>${esc(x.title)}</b></a><span class="quiet">${esc(tname[x.team_id] || "")}${x.situation ? ` · ${esc(x.situation)}` : ""}${x.risk_tolerance ? ` · ${esc(x.risk_tolerance)} risk tolerance` : ""}</span></div>`).join("") || '<p class="quiet">No open seats.</p>'}
+        ${ro ? "" : `<form id="add-seat" class="grid2"><label>Role<input name="title" required placeholder="[Salesforce developer]"></label><label>Team<select name="team_id"><option value=""></option>${teams.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></label>
+          <label>The situation they'd step into<select name="situation"><option value=""></option>${SITUATIONS.map((v) => `<option>${v}</option>`).join("")}</select></label><label>How much transition risk you can accept<select name="risk_tolerance"><option value=""></option><option>low</option><option>medium</option><option>high</option></select></label>
+          <label style="grid-column:1/-1">Job spec<textarea name="job_spec" rows="2"></textarea></label><label style="grid-column:1/-1">What it takes to fit here <span class="quiet">(how things are done, what newcomers struggle with)</span><textarea name="culture_notes" rows="2"></textarea></label>
+          <div class="actions"><button class="btn primary" type="submit">Add the seat</button></div></form>`}</section>`;
+    const f = main.querySelector("#add-seat");
+    if (f) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); const r = await BA.api("/api/open-seats", { method: "POST", body: { title: fd.get("title"), team_id: numOrNull(fd.get("team_id")), situation: fd.get("situation") || null, risk_tolerance: fd.get("risk_tolerance") || null, job_spec: fd.get("job_spec") || null, culture_notes: fd.get("culture_notes") || null, opened_on: BA.today() } }); BA.go(`/onboarding/seat-${r.id}`); });
+  }
+
+  async function renderSeat(main, id) {
+    const d = await BA.api(`/api/open-seats/${id}/detail`);
+    if (d.hidden) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    const s = d.seat, open = s.status === "open" || s.status === "interviewing";
+    document.getElementById("view-title").textContent = `Open seat: ${s.title}`;
+    main.innerHTML = `<p><a href="#/onboarding/seats">Open seats</a></p>
+      <section class="card"><div class="row"><h2>${esc(s.title)}</h2><span class="pill">${esc(s.status)}</span><span class="spacer"></span>${open ? `<select id="seat-status" style="max-width:150px">${["open", "interviewing", "closed"].map((v) => `<option${v === s.status ? " selected" : ""}>${v}</option>`).join("")}</select>` : ""}</div>
+        <p class="quiet">${s.situation ? `Situation: ${esc(s.situation)} · ` : ""}${s.risk_tolerance ? `Risk tolerance: ${esc(s.risk_tolerance)}` : ""}</p>${s.job_spec ? BA.md(s.job_spec) : ""}${s.culture_notes ? `<p><b>What it takes to fit here:</b> ${esc(s.culture_notes)}</p>` : ""}</section>
+      ${d.lessons_due || (s.status === "filled") ? `<section class="card"><h2>At day 90: which risks were real?</h2><p class="quiet">${d.day ? `Day ${d.day} for the person in this seat. ` : ""}What you learn here sharpens the picture of the culture for the next hire.</p>
+        <form id="lessons"><div class="row">${d.risk_areas.map((a) => `<label class="check"><input type="checkbox" name="real" value="${a.key}"${(s.risks_real || {})[a.key] ? " checked" : ""}> ${esc(a.label)}</label>`).join("")}</div>
+          <label>What we learned<textarea name="lessons" rows="2">${esc(s.lessons || "")}</textarea></label><div class="actions"><button class="btn primary" type="submit">Save</button></div></form>${s.onboarding_id ? `<p><a href="#/onboarding/${s.onboarding_id}">Their onboarding</a></p>` : ""}</section>` : ""}
+      <section class="card"><h2>Candidates</h2><p class="quiet">For each, the transition risk you see in the interview: it carries into their onboarding if you hire them. Private, never shared.</p>
+        ${d.candidates.map((c) => `<details class="plan-item"><summary><b>${esc(c.name)}</b><span class="quiet">${BA.fmtDate(c.interviewed_on)}</span><span class="spacer"></span>${c.decision ? `<span class="pill">${esc(c.decision)}</span>` : ""}</summary>
+          ${c.strengths ? `<p><b>Strengths:</b> ${esc(c.strengths)}</p>` : ""}${Object.entries(c.risks || {}).filter(([, v]) => v).map(([k, v]) => `<p class="quiet">${esc((d.risk_areas.find((a) => a.key === k) || {}).label || k)}: ${esc(v)}</p>`).join("")}
+          ${open ? `<button class="btn primary" type="button" data-hire="${c.id}">Hire ${esc(c.name)}</button>` : ""}</details>`).join("") || '<p class="quiet">No candidates yet.</p>'}
+        ${open ? `<form id="add-cand"><div class="grid2"><label>Name<input name="name" required placeholder="[Candidate]"></label><label>Interviewed<input type="date" name="interviewed_on" value="${BA.today()}"></label></div>
+          <label>Strengths<input name="strengths"></label>${d.risk_areas.map((a) => `<label>Risk: ${esc(a.label)}<input name="risk-${a.key}" placeholder="What might make this hard for them here"></label>`).join("")}
+          <div class="actions"><button class="btn" type="submit">Add candidate</button></div></form>
+          <details><summary class="quiet">Fill the seat without a candidate here</summary><form id="hire-direct" class="row"><input name="name" placeholder="Name" required style="max-width:220px"><select name="transition_type" style="max-width:180px">${TRANSITION_TYPES.map((t) => `<option>${t}</option>`).join("")}</select><input type="date" name="start_date" style="max-width:170px"><button class="btn" type="submit">Fill the seat</button></form></details>` : ""}</section>`;
+    const st = main.querySelector("#seat-status");
+    if (st) st.onchange = BA.guard(async () => { await BA.api(`/api/open-seats/${id}`, { method: "PATCH", body: { status: st.value } }); BA.rerender(); });
+    const ac = main.querySelector("#add-cand");
+    if (ac) ac.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(ac); await BA.api("/api/seat-candidates", { method: "POST", body: { seat_id: id, name: fd.get("name"), interviewed_on: fd.get("interviewed_on") || null, strengths: fd.get("strengths") || null, risks: Object.fromEntries(d.risk_areas.map((a) => [a.key, fd.get(`risk-${a.key}`) || ""])), decision: "considering" } }); if (s.status === "open") await BA.api(`/api/open-seats/${id}`, { method: "PATCH", body: { status: "interviewing" } }); BA.rerender(); });
+    main.querySelectorAll("[data-hire]").forEach((b) => (b.onclick = BA.guard(async () => {
+      const start = prompt("Their start date (YYYY-MM-DD), or leave empty for now:", "");
+      if (start === null) return;
+      const type = prompt(`Type of transition (${TRANSITION_TYPES.join(", ")}):`, "new hire");
+      if (type === null) return;
+      const r = await BA.api(`/api/open-seats/${id}/hire`, { method: "POST", body: { candidate_id: Number(b.dataset.hire), start_date: start || null, transition_type: type } });
+      BA.toast("Seat filled. Their onboarding carries the risks you noted.");
+      BA.go(`/onboarding/${r.onboarding_id}`);
+    })));
+    const hd = main.querySelector("#hire-direct");
+    if (hd) hd.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(hd); const r = await BA.api(`/api/open-seats/${id}/hire`, { method: "POST", body: { name: fd.get("name"), transition_type: fd.get("transition_type"), start_date: fd.get("start_date") || null } }); BA.go(`/onboarding/${r.onboarding_id}`); });
+    const ls = main.querySelector("#lessons");
+    if (ls) ls.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(ls); await BA.api(`/api/open-seats/${id}`, { method: "PATCH", body: { risks_real: Object.fromEntries(fd.getAll("real").map((k) => [k, true])), lessons: fd.get("lessons") || null } }); BA.toast("Saved."); BA.rerender(); });
+  }
+
+  // The development grid: each role and project by function and situation. Blank columns show situations not yet led through.
+  async function renderGridInto(box, personId, name, back) {
+    const g = await BA.api(`/api/people/${personId}/development-grid`);
+    if (g.hidden) { box.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    box.innerHTML = `${back || ""}<section class="card"><div class="row"><h2>Development grid${name ? `: ${esc(name)}` : ""}</h2><span class="spacer"></span><a class="btn" href="#/coaching/accelerating-everyone">Why</a></div>
+      <p class="quiet">Chart every role (●) and major project (▲) by function and by the situation it was. Numbers follow the order you add them, so you can trace the path. Blank columns and rows show situations and functions not yet led through: likely blind spots, and what the next move could build. Private, never shared.</p>
+      <div class="tablewrap"><table class="data dev-grid"><thead><tr><th></th>${g.situations.map((x) => `<th class="${g.blank_situations.includes(x) ? "gap-cell" : ""}">${esc(x)}</th>`).join("")}</tr></thead><tbody>
+        ${g.functions.map((f) => `<tr><th scope="row">${esc(f)}</th>${g.situations.map((x) => `<td>${g.grid[f][x].map((e) => `<span class="pill" title="${esc(e.title)}">${e.kind === "project" ? "▲" : "●"} ${e.n}</span>`).join(" ")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      ${g.blank_situations.length ? `<p class="callout">Not yet: <b>${g.blank_situations.map(esc).join(", ")}</b>. Worth weighing when choosing the next role or project.</p>` : ""}
+      ${g.entries.map((e, i) => `<div class="item"><span class="pill">${e.kind === "project" ? "▲" : "●"} ${i + 1}</span><b>${esc(e.title)}</b><span class="quiet">${esc(e.function || "")}${e.situation ? ` · ${esc(e.situation)}` : ""}${e.started ? ` · ${esc(e.started)}${e.ended ? `–${esc(e.ended)}` : ""}` : ""}</span><span class="spacer"></span><button class="link-btn" type="button" data-ce-del="${e.id}">remove</button></div>`).join("")}
+      <form id="add-ce" class="grid2"><label>Role or project<input name="title" required placeholder="[Role title]"></label><label>Kind<select name="kind"><option value="role">Role</option><option value="project">Project or task force</option></select></label>
+        <label>Function<select name="function">${g.functions.map((f) => `<option>${esc(f)}</option>`).join("")}</select></label><label>Situation<select name="situation"><option value=""></option>${g.situations.map((x) => `<option>${esc(x)}</option>`).join("")}</select></label>
+        <label>From<input name="started" placeholder="[Year]"></label><label>To<input name="ended" placeholder="[Year]"></label>
+        <div class="actions"><button class="btn primary" type="submit">Add</button></div></form></section>`;
+    const f = box.querySelector("#add-ce");
+    f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/career-entries", { method: "POST", body: { person_id: personId, title: fd.get("title"), kind: fd.get("kind"), function: fd.get("function"), situation: fd.get("situation") || null, started: fd.get("started") || null, ended: fd.get("ended") || null, position: g.entries.length } }); renderGridInto(box, personId, name, back); });
+    box.querySelectorAll("[data-ce-del]").forEach((b) => (b.onclick = BA.guard(async () => { if (!confirm("Remove this entry?")) return; await BA.api(`/api/career-entries/${b.dataset.ceDel}`, { method: "DELETE" }); renderGridInto(box, personId, name, back); })));
+  }
+
 
   BA.view("/onboarding", {
     title: "Onboarding",
     async render(main, param) {
       if (param === "template") return renderObTemplate(main);
       if (param === "materials") return renderObMaterials(main);
+      if (param === "transitions") return renderTransitions(main);
+      if (param === "seats") return renderSeats(main);
+      if (param && param.startsWith("seat-")) return renderSeat(main, Number(param.slice(5)));
       if (param && /^\d+$/.test(param)) return renderOnboarding(main, Number(param));
       const [obs, people, items] = await Promise.all([BA.api("/api/onboardings"), BA.api("/api/people"), BA.api("/api/onboarding-items")]);
       const ro = presenting();
@@ -4848,7 +4990,8 @@
         ${ro ? "" : `<section class="card" style="margin-top:16px"><h2>Someone's joining</h2><form id="start-ob"><div class="grid2">
           <label>Who <span class="quiet">(add them under <a href="#/people">People</a> first)</span><select name="person_id" required>${personOptions(people)}</select></label>
           <label>Start date<input type="date" name="start_date"></label>
-          <label>Buddy<select name="buddy_id">${personOptions(people)}</select></label></div>
+          <label>Buddy<select name="buddy_id">${personOptions(people)}</select></label>
+          <label>Type of transition<select name="transition_type">${TRANSITION_TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label></div>
           <label>Tracks <span class="quiet">(items for every track are always included)</span></label><div class="row">${OB_TRACKS.map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"> ${t}</label>`).join("")}</div>
           <div class="actions"><button class="btn primary" type="submit">Build their checklist</button></div></form></section>`}`;
       const starter = main.querySelector("#ob-starter");
@@ -4858,7 +5001,7 @@
         form.onsubmit = BA.guard(async (e) => {
           e.preventDefault();
           const f = new FormData(form);
-          const ob = await BA.api("/api/onboardings", { method: "POST", body: { person_id: numOrNull(f.get("person_id")), start_date: f.get("start_date") || null, buddy_id: numOrNull(f.get("buddy_id")), tracks: f.getAll("tracks") } });
+          const ob = await BA.api("/api/onboardings", { method: "POST", body: { person_id: numOrNull(f.get("person_id")), start_date: f.get("start_date") || null, buddy_id: numOrNull(f.get("buddy_id")), tracks: f.getAll("tracks"), transition_type: f.get("transition_type") } });
           BA.toast(`${ob.copied} items copied from the checklist.`);
           BA.go(`/onboarding/${ob.id}`);
         });
@@ -4866,7 +5009,7 @@
   });
 
   async function renderOnboarding(main, id) {
-    const [d, people] = await Promise.all([BA.api(`/api/onboardings/${id}/board`), BA.api("/api/people")]);
+    const [d, people, rc] = await Promise.all([BA.api(`/api/onboardings/${id}/board`), BA.api("/api/people"), BA.api(`/api/onboardings/${id}/risk-check`)]);
     const o = d.onboarding;
     const ro = presenting();
     document.getElementById("view-title").textContent = `Onboarding: ${o.person_name}`;
@@ -4883,11 +5026,12 @@
         ${progress(o.done_count, o.total)}<div class="row"><span class="quiet">${o.done_count} of ${o.total} done</span>${d.overdue ? `<span class="pill bad">${d.overdue} overdue</span>` : ""}
           ${Object.entries(d.by_owner).filter(([, n]) => n).map(([who, n]) => `<span class="pill ${OWNER_TONES[who] || ""}">${n} open for ${esc(who === "new member" ? "them" : who)}</span>`).join(" ")}<span class="spacer"></span>
           ${ro ? "" : `<button class="btn" id="copy-ob">${BA.icon("copy")} Copy checklist to send</button>`}</div>
-        ${o.tracks.length ? `<p>${BA.chips(o.tracks)}</p>` : ""}</section>
+        ${o.tracks.length || o.transition_type ? `<p>${o.transition_type ? `<span class="pill accent">${esc(o.transition_type)}</span> ` : ""}${BA.chips(o.tracks)}</p>` : ""}</section>
+      ${ro ? "" : riskCheckCard(rc)}
       ${d.phases.map((p) => `<section class="card"><h2>${esc(p.name)} <span class="quiet">${p.tasks.filter((t) => t.done).length} of ${p.tasks.length}</span></h2>${p.tasks.map(task).join("")}</section>`).join("") || '<p class="empty">No items. Add some below, or load the checklist template first.</p>'}
       ${ro ? "" : `<section class="card"><h2>Add an item just for ${esc(o.person_name)}</h2><form id="add-task" class="row"><input name="title" required placeholder="What needs doing" style="max-width:360px">
           <input type="number" name="due_day" placeholder="Day" style="max-width:90px"><select name="owner_role" style="max-width:160px">${opts(OB_OWNERS, "new member")}</select><button class="btn" type="submit">Add</button></form></section>
-        <form id="edit-ob" class="card"><h2>Details</h2><div class="grid2"><label>Start date<input type="date" name="start_date" value="${esc(o.start_date || "")}"></label><label>Buddy<select name="buddy_id">${personOptions(people, o.buddy_id)}</select></label></div>
+        <form id="edit-ob" class="card"><h2>Details</h2><div class="grid2"><label>Start date<input type="date" name="start_date" value="${esc(o.start_date || "")}"></label><label>Type of transition<select name="transition_type"><option value=""></option>${TRANSITION_TYPES.map((t) => `<option${t === o.transition_type ? " selected" : ""}>${t}</option>`).join("")}</select></label><label>HR contact<select name="hr_contact_id">${personOptions(people, o.hr_contact_id)}</select></label><label>Mentor or culture guide<select name="mentor_id">${personOptions(people, o.mentor_id)}</select></label><label>Buddy<select name="buddy_id">${personOptions(people, o.buddy_id)}</select></label></div>
           <label>Private notes <span class="quiet">(how it's going)</span><textarea name="notes">${esc(o.notes || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" id="del-ob">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}`;
     if (ro) return;
@@ -4899,6 +5043,7 @@
       const del = row.querySelector("[data-del]");
       if (del) del.onclick = BA.guard(async () => { if (!confirm("Remove this item from their checklist? The template keeps it.")) return; await BA.api(`/api/onboarding-tasks/${tid}`, { method: "DELETE" }); BA.rerender(); });
     });
+    bindRiskCheck(main, id);
     main.querySelector("#ob-status").onchange = BA.guard(async (e) => { await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { status: e.target.value } }); BA.toast("Saved."); });
     main.querySelector("#copy-ob").onclick = BA.guard(async () => {
       const out = await BA.api(`/api/onboardings/${id}/checklist/export`, { method: "POST", body: {} });
@@ -4915,7 +5060,8 @@
     edit.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const f = new FormData(edit);
-      await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { start_date: f.get("start_date") || null, buddy_id: numOrNull(f.get("buddy_id")), notes: f.get("notes") } });
+      await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { start_date: f.get("start_date") || null, buddy_id: numOrNull(f.get("buddy_id")), notes: f.get("notes"),
+        transition_type: f.get("transition_type") || null, hr_contact_id: numOrNull(f.get("hr_contact_id")), mentor_id: numOrNull(f.get("mentor_id")) } });
       BA.rerender();
     });
     main.querySelector("#del-ob").onclick = BA.guard(async () => {
