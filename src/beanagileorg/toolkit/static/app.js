@@ -3458,8 +3458,10 @@
         <div class="sprint-weeks">${rep.weeks.map((w) => `<div class="sw"><b>Week ${w.week}</b><span class="quiet">${BA.fmtDate(w.start)} to ${BA.fmtDate(w.end)}</span><span>${w.stories} stories · ${w.points} points</span>
           <a href="#/status?week=${w.start}">Weekly report</a></div>`).join("")}
           <div class="sw"><b>Sprint</b><span class="quiet">${esc(rep.sprint.goal || "No goal set")}</span><span>${p.done_points} of ${p.committed} points · ${p.done_stories} of ${p.stories} stories</span></div></div></section>
+      <div id="burndown"></div>
       <section class="card" id="report-box"></section>`;
     reportEditor(main, rep, "sprint");
+    showBurndown(main.querySelector("#burndown"), sid);
     bindAud(main);
     main.querySelector("#sprint-pick").onchange = (e) => BA.go(`/status/sprint?sprint=${e.target.value}`);
   }
@@ -5812,6 +5814,62 @@
 
   const BACKLOG_TYPES = ["story", "bug", "task", "spike", "tech debt"];
   const BACKLOG_TONES = { "needs refinement": "warn", ready: "good", "in sprint": "accent", done: "good", removed: "" };
+  // The Scrum Guide's commitment for the product backlog, shown wherever sprint goals are set.
+  const productGoalCard = (pg, ro) => `<section class="card product-goal"><h2>Product goal</h2>${ro
+    ? `<p>${esc(pg.text || "Not set yet.")}</p>`
+    : `<input id="pgoal" value="${esc(pg.text || "")}" placeholder="The one long-term objective every sprint goal steps toward">`}
+    <p class="quiet">The commitment for the product backlog. Each sprint goal should be a step toward it.${pg.updated_on ? ` Updated ${BA.fmtDate(pg.updated_on)}.` : ""}</p></section>`;
+  const wireProductGoal = (main) => {
+    const el = main.querySelector("#pgoal");
+    if (el) el.onchange = BA.guard(async () => { await BA.api("/api/planning/product-goal", { method: "PUT", body: { text: el.value } }); BA.toast("Product goal saved."); });
+  };
+
+  // Sprint burndown: points remaining at the end of each working day against an ideal line, with a hover readout and a table.
+  function burndownChart(b) {
+    if (!b.days.length) return `<p class="quiet">${esc(b.reason || "No burndown yet.")}</p>`;
+    const W = 720, H = 280, L = 48, R = 36, T = 16, B = 44;
+    const max = Math.max(1, b.start_scope, ...b.days.map((d) => Math.max(d.remaining || 0, d.scope || 0)));
+    const step = Math.max(1, Math.ceil(max / 4));
+    const top = step * 4;
+    const x = (i) => L + (b.days.length > 1 ? (i * (W - L - R)) / (b.days.length - 1) : (W - L - R) / 2);
+    const y = (v) => T + (H - T - B) * (1 - v / top);
+    const day = (iso) => { const d = new Date(iso + "T12:00:00"); return d.toLocaleDateString(undefined, { weekday: "short" }) + " " + d.getDate(); };
+    const actual = b.days.map((d, i) => [d, i]).filter(([d]) => d.remaining != null);
+    const grid = [0, 1, 2, 3, 4].map((k) => `<line x1="${L}" x2="${W - R}" y1="${y(k * step)}" y2="${y(k * step)}" class="bd-grid"></line><text x="${L - 8}" y="${y(k * step) + 5}" text-anchor="end" class="bd-axis">${k * step}</text>`).join("");
+    const labels = b.days.map((d, i) => `<text x="${x(i)}" y="${H - 14}" text-anchor="middle" class="bd-axis">${esc(day(d.date))}</text>`).join("");
+    const ideal = `<polyline class="bd-ideal" points="${b.days.map((d, i) => `${x(i)},${y(d.ideal)}`).join(" ")}"></polyline>`;
+    const line = actual.length ? `<polyline class="bd-actual" points="${actual.map(([d, i]) => `${x(i)},${y(d.remaining)}`).join(" ")}"></polyline>
+      ${actual.map(([d, i]) => `<circle class="bd-dot" cx="${x(i)}" cy="${y(d.remaining)}" r="4"></circle>`).join("")}` : "";
+    const colW = (W - L - R) / Math.max(1, b.days.length - 1);
+    const hits = b.days.map((d, i) => `<rect class="bd-hit" data-bd="${i}" x="${x(i) - colW / 2}" y="${T}" width="${colW}" height="${H - T - B}"></rect>`).join("");
+    const last = actual.length ? actual[actual.length - 1][0] : null;
+    const status = last == null ? "The sprint hasn't started yet." : last.remaining <= (last.ideal ?? 0)
+      ? `On or ahead of the ideal line: ${last.remaining} points left.` : `${last.remaining} points left, ${Math.round((last.remaining - last.ideal) * 10) / 10} behind the ideal line.`;
+    const scope = b.scope_added || b.scope_removed ? ` Scope changed during the sprint: ${b.scope_added ? `${b.scope_added} points added` : ""}${b.scope_added && b.scope_removed ? ", " : ""}${b.scope_removed ? `${b.scope_removed} removed` : ""}.` : "";
+    return `<div class="bd-legend"><span><i class="bd-key-actual"></i>Points remaining</span><span><i class="bd-key-ideal"></i>Ideal</span></div>
+      <div class="bd-wrap"><svg class="burndown" viewBox="0 0 ${W} ${H}" role="img" aria-label="Sprint ${b.sprint} burndown: ${esc(status)}">${grid}${labels}${ideal}${line}${hits}</svg><div class="bd-tip" hidden></div></div>
+      <p>${esc(status)}${esc(scope)}${b.unestimated ? ` <span class="pill warn">${b.unestimated} not estimated</span>` : ""}</p>
+      <details><summary class="quiet">Show as a table</summary><div class="tablewrap"><table class="data"><thead><tr><th>Day</th><th>Remaining</th><th>Ideal</th><th>Scope</th></tr></thead><tbody>
+        ${b.days.map((d) => `<tr><td>${esc(BA.fmtDate(d.date))}</td><td>${d.remaining ?? ""}</td><td>${d.ideal}</td><td>${d.scope ?? ""}${d.change ? ` (${d.change > 0 ? "+" : ""}${d.change})` : ""}</td></tr>`).join("")}</tbody></table></div></details>`;
+  }
+  async function showBurndown(box, sprintId) {
+    if (!box) return;
+    const b = await BA.api(`/api/sprint-planning/${sprintId}/burndown`);
+    box.innerHTML = `<section class="card"><h2>Burndown</h2>${burndownChart(b)}<p class="quiet">Built from when each story joined the sprint and when it was marked done, so it needs no daily updates. Mark stories done as they finish. <a href="#/coaching/sprint-goals">Guide: sprint goals and burndown</a></p></section>`;
+    const tip = box.querySelector(".bd-tip"), svg = box.querySelector("svg.burndown");
+    if (!tip || !svg) return;
+    box.querySelectorAll(".bd-hit").forEach((r) => {
+      r.onmouseenter = () => {
+        const d = b.days[Number(r.dataset.bd)];
+        tip.innerHTML = `<b>${esc(BA.fmtDate(d.date))}</b><br>${d.remaining == null ? "Not reached yet" : `${d.remaining} points left`} · ideal ${d.ideal}${d.change ? `<br>Scope ${d.change > 0 ? "+" : ""}${d.change}` : ""}`;
+        const box2 = svg.getBoundingClientRect(), rr = r.getBoundingClientRect();
+        tip.style.left = `${rr.left - box2.left + rr.width / 2}px`;
+        tip.hidden = false;
+      };
+      r.onmouseleave = () => { tip.hidden = true; };
+    });
+  }
+
   const planTabs = (active) => `<nav class="tabs">${[["", "Backlog"], ["plan", "Plan a sprint"], ["ready", "Definition of ready"]]
     .map(([k, label]) => `<a href="#/planning${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
   const readiness = (i) => (i.ready_total ? `<span class="pill ${i.ready_met === i.ready_total ? "good" : "warn"}" title="Definition of ready">${i.ready_met}/${i.ready_total} ready</span>` : "");
@@ -5855,7 +5913,8 @@
           <label>Private notes<textarea name="notes" rows="2">${esc(i.notes || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button>${BA.historyButton("backlog_item", i.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</details>`;
       main.innerHTML = `${planTabs("")}
-        <p class="quiet">The next set of candidate stories for the upcoming sprint, in priority order. Bring them over from Jira, refine them until they're ready, estimate together, then pull them into a sprint.</p>
+        ${productGoalCard(d.product_goal, ro)}
+        <p class="quiet">The next set of candidate stories for the upcoming sprint, in order. Bring them over from Jira, refine them until they're ready, estimate together, then pull them into a sprint.</p>
         ${ro ? "" : `<details class="card"${d.items.length ? "" : " open"}><summary><b>Bring stories over from Jira</b></summary>
           <form id="paste"><label>One per line: the Jira key, then the title. Add <code>| 5</code> at the end for points.<textarea name="text" rows="5" class="mono" placeholder="ABC-123 [Placeholder story title]&#10;ABC-124 [Placeholder story title] | 3"></textarea></label>
             <label class="check"><input type="checkbox" name="update"> Update titles and points of stories already here</label><div class="actions"><button class="btn primary" type="submit">Add to backlog</button></div></form><div id="paste-result"></div></details>`}
@@ -5865,6 +5924,7 @@
         ${ro ? "" : `<section class="card"><h2>Add one story</h2><form id="add-item" class="row"><input name="jira_key" placeholder="ABC-123" style="max-width:130px"><input name="title" required placeholder="Title" style="flex:1;min-width:220px">
           <select name="item_type" style="max-width:140px">${opts(BACKLOG_TYPES, "story")}</select><button class="btn" type="submit">Add</button></form></section>`}`;
       main.querySelector("#bf").onchange = (e) => { sessionStorage.setItem("ba-backlog-filter", e.target.value); BA.rerender(); };
+      wireProductGoal(main);
       if (ro) return;
       const features = (await Promise.all(pis.slice(0, 3).map((p) => BA.api(`/api/pis/${p.id}/board`).then((b) => b.features.map((f) => ({ ...f, pi: p.number })))))).flat();
       main.querySelectorAll("[data-features]").forEach((sel) => {
@@ -5956,6 +6016,7 @@
       <div class="row"><select id="sprint-pick" style="max-width:220px">${[...sprints].sort((a, b) => b.number - a.number).map((x) => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>Sprint ${x.number}${x.start_date ? " · " + BA.fmtDate(x.start_date) : ""}</option>`).join("")}</select>
         ${tonePill(plan.status, { planning: "warn", committed: "accent", closed: "good" })}<span class="quiet">${d.working_days ? `${d.working_days} working days` : "Set sprint dates in the sprint notebook"}</span><span class="spacer"></span>
         ${ro ? "" : `<button class="btn" id="copy-plan">${BA.icon("copy")} Copy plan</button>`}</div>
+      ${productGoalCard(d.product_goal, ro)}
       <section class="card"><h2>Sprint goal</h2>${ro || plan.status === "closed" ? `<p>${esc(s.goal || "Not set.")}</p>` : `<textarea id="goal" rows="2" placeholder="What will be true at the end of this sprint?">${esc(s.goal || "")}</textarea>`}</section>
       <div class="cards">
         <section class="card"><h2>Capacity</h2>
@@ -5967,6 +6028,7 @@
         <section class="card"><h2>Who's available</h2>${d.people.map((p) => `<div class="item"><span>${esc(p.name)}</span><span class="spacer"></span>${ro ? `<span class="quiet">${p.days ?? "?"} days</span>`
           : `<input type="number" min="0" data-avail="${p.person_id}" value="${esc(p.days ?? "")}" style="max-width:70px"><span class="quiet">days</span>`}</div>`).join("") || '<p class="quiet">No team members yet. Add people with the employee or contractor relationship.</p>'}</section>
       </div>
+      ${plan.status === "planning" ? "" : '<div id="burndown"></div>'}
       <div class="plan-cols">
         <section class="card"><h2>In sprint ${s.number} <span class="quiet">${d.pulled.length}</span></h2>${d.pulled.map((i) => row(i, true)).join("") || '<p class="quiet">Nothing pulled in yet.</p>'}</section>
         ${plan.status === "closed" ? "" : `<section class="card"><h2>Ready on the backlog <span class="quiet">${d.ready.length}</span></h2>${d.ready.map((i) => row(i, false)).join("") || '<p class="quiet">No ready stories. <a href="#/planning">Refine the backlog</a>.</p>'}</section>`}
@@ -5974,6 +6036,8 @@
       ${ro ? "" : `<div class="row">${plan.status === "planning" ? `<button class="btn primary" id="commit">Commit the sprint</button>` : ""}${plan.status === "committed" ? `<button class="btn" id="close-sprint">Close the sprint</button>` : ""}
         ${plan.status === "committed" ? `<span class="quiet">Committed ${plan.committed_points} points on ${BA.fmtDate(plan.committed_on)}.</span>` : ""}${plan.status === "closed" ? `<span class="quiet">Closed: ${plan.completed_points} of ${plan.committed_points ?? "?"} points done.</span>` : ""}</div>`}`;
     main.querySelector("#sprint-pick").onchange = (e) => BA.go(`/planning/${e.target.value}`);
+    wireProductGoal(main);
+    showBurndown(main.querySelector("#burndown"), s.id);
     if (ro) return;
     const goal = main.querySelector("#goal");
     if (goal) goal.onchange = BA.guard(async () => { await BA.api(`/api/sprints/${s.id}`, { method: "PATCH", body: { goal: goal.value } }); BA.toast("Goal saved."); });

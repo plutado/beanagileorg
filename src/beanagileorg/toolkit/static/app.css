@@ -291,3 +291,17 @@ td.heat-0 { background: transparent; } td.heat-1 { background: var(--warn-soft);
 .dev-grid td { min-width: 70px; } .dev-grid th.gap-cell { background: var(--warn-soft); }
 .heat-table { min-width: 940px; } .heat-table select { width: 96px; } .heat-table input[data-change] { width: 170px; } .heat-table td { vertical-align: middle; }
 .cycle-now { border-color: var(--accent); }
+.product-goal input { width: 100%; font-size: 1rem; }
+.bd-wrap { position: relative; }
+.burndown { width: 100%; max-width: 760px; display: block; }
+.burndown .bd-grid { stroke: var(--line); stroke-width: 1; }
+.burndown .bd-axis { fill: var(--muted); font-size: 14px; }
+.burndown .bd-ideal { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; }
+.burndown .bd-actual { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.burndown .bd-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.burndown .bd-hit { fill: transparent; cursor: crosshair; }
+.burndown .bd-hit:hover { fill: color-mix(in srgb, var(--accent) 8%, transparent); }
+.bd-tip { position: absolute; top: 8px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 10px; font-size: 0.875rem; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+.bd-legend { display: flex; gap: 18px; font-size: 0.875rem; color: var(--muted); margin-bottom: 4px; }
+.bd-legend i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 2px solid var(--accent); }
+.bd-legend i.bd-key-ideal { border-top: 2px dashed var(--muted); }

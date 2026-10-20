@@ -44,6 +44,15 @@ def _dor(conn) -> list[str]:
     return json.loads(row["value"]) if row else []
 
 
+PRODUCT_GOAL_KEY = "planning.product_goal"
+
+
+def product_goal(conn) -> dict:
+    """The Scrum Guide's commitment for the Product Backlog: the one long-term objective sprint goals step toward."""
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (PRODUCT_GOAL_KEY,)).fetchone()
+    return json.loads(row["value"]) if row else {"text": "", "updated_on": None}
+
+
 def working_days(start: str | None, end: str | None) -> int | None:
     if not start or not end:
         return None
@@ -101,13 +110,27 @@ def starter_dor(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     return put_dor({"items": STARTER_DOR}, viewer, conn)
 
 
+@router.get("/api/planning/product-goal")
+def get_product_goal(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    return product_goal(conn)
+
+
+@router.put("/api/planning/product-goal")
+def put_product_goal(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    value = {"text": (body.get("text") or "").strip(), "updated_on": _today()}
+    conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                 (PRODUCT_GOAL_KEY, json.dumps(value)))
+    return value
+
+
 # ---- the backlog ----
 
 
 @router.get("/api/backlog")
 def backlog(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     items = models.backlog_items.visible_all(models.backlog_items.fetch_all(conn, "sprint_id IS NULL AND status NOT IN ('done', 'removed')"), viewer)
-    return {"items": _decorate(conn, items), "definition_of_ready": _dor(conn)}
+    return {"items": _decorate(conn, items), "definition_of_ready": _dor(conn), "product_goal": product_goal(conn)}
 
 
 @router.post("/api/backlog/paste")
@@ -235,6 +258,7 @@ def build_plan(conn, sprint_id: int, viewer: Viewer) -> dict:
                      "velocity": vel, "suggested": suggested, "points": capacity, "planned": planned_points,
                      "unestimated": sum(1 for i in pulled if i.get("points") is None)},
         "pulled": pulled, "ready": ready, "carried": carried, "previous": dict(prev) if prev else None,
+        "product_goal": product_goal(conn),
     }
 
 
@@ -321,12 +345,93 @@ def close(sprint_id: int, body: dict = Body(default={}), viewer: Viewer = Depend
     return {"completed_points": done, "committed_points": plan["committed_points"], "carried": carried, "carried_to": to}
 
 
+def _sprint_days(start: str, end: str) -> list[str]:
+    d, e, out = date.fromisoformat(start), date.fromisoformat(end), []
+    while d <= e:
+        if d.weekday() < 5:
+            out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
+
+def burndown(conn, sprint_id: int) -> dict:
+    """Points remaining at the end of each working day, rebuilt from the change log: when each story joined or left the
+    sprint, and when it was marked done or removed. No daily data entry. The ideal line runs from what was in the sprint
+    on its first day to zero on its last."""
+    s = _sprint_or_404(conn, sprint_id)
+    if not s.get("start_date") or not s.get("end_date"):
+        return {"days": [], "reason": "Set the sprint's dates in the sprint notebook to see its burndown."}
+    days = _sprint_days(s["start_date"], s["end_date"])
+    if not days:
+        return {"days": [], "reason": "The sprint has no working days."}
+    sid = str(sprint_id)
+    rows = conn.execute(
+        "SELECT record_id, field, new_value, date(datetime(at, 'localtime')) AS d FROM change_log "
+        "WHERE entity = 'backlog_item' AND field IN ('sprint_id', 'status') ORDER BY id").fetchall()
+    ids = {r["record_id"] for r in rows if r["field"] == "sprint_id" and r["new_value"] == sid}
+    ids |= {str(i["id"]) for i in models.backlog_items.fetch_all(conn, "sprint_id = ?", (sprint_id,))}
+    items = {str(i["id"]): i for i in models.backlog_items.fetch_all(conn) if str(i["id"]) in ids}
+    events = {}
+    for r in rows:
+        if r["record_id"] in items:
+            events.setdefault(r["record_id"], []).append(r)
+
+    def state(item_id: str, day: str) -> tuple[bool, str]:
+        """Whether the story was in the sprint at the end of the given day, and its status then."""
+        if item_id not in events:  # no history: in the sprint from the start, at its current status
+            return True, items[item_id]["status"]
+        in_sprint, status = False, "needs refinement"
+        for e in events[item_id]:
+            if e["d"] > day:
+                break
+            if e["field"] == "sprint_id":
+                in_sprint = e["new_value"] == sid
+            else:
+                status = e["new_value"]
+        return in_sprint, status
+
+    def totals(day: str) -> tuple[int, int]:
+        """(scope, remaining) in points at the end of the day; removed stories leave the scope."""
+        scope = remaining = 0
+        for i, item in items.items():
+            in_sprint, status = state(i, day)
+            if not in_sprint or status == "removed":
+                continue
+            scope += item.get("points") or 0
+            if status != "done":
+                remaining += item.get("points") or 0
+        return scope, remaining
+
+    start_scope = totals(days[0])[0]
+    today = date.today().isoformat()
+    out, prev_scope = [], None
+    for n, day in enumerate(days):
+        ideal = round(start_scope * (1 - n / (len(days) - 1)), 1) if len(days) > 1 else 0
+        point = {"date": day, "ideal": ideal, "remaining": None, "scope": None, "change": 0}
+        if day <= today:
+            scope, remaining = totals(day)
+            point.update(remaining=remaining, scope=scope, change=0 if prev_scope is None else scope - prev_scope)
+            prev_scope = scope
+        out.append(point)
+    added = sum(p["change"] for p in out if p["change"] > 0)
+    dropped = -sum(p["change"] for p in out if p["change"] < 0)
+    return {"sprint": s["number"], "goal": s.get("goal"), "start_scope": start_scope, "days": out,
+            "scope_added": added, "scope_removed": dropped, "unestimated": sum(1 for i in items if items[i].get("points") is None)}
+
+
+@router.get("/api/sprint-planning/{sprint_id}/burndown")
+def get_burndown(sprint_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    return burndown(conn, sprint_id)
+
+
 def build_summary(conn, sprint_id: int) -> dict:
     d = build_plan(conn, sprint_id, Viewer(floor=Level.PRESENTABLE, source="plan", scopes=frozenset()))
     s, cap = d["sprint"], d["capacity"]
     lines = [f"# Sprint {s['number']} plan", ""]
     if s.get("start_date"):
         lines += [f"{s['start_date']} to {s.get('end_date') or ''}", ""]
+    if d["product_goal"]["text"]:
+        lines += [f"**Product goal:** {d['product_goal']['text']}", ""]
     lines += [f"**Goal:** {s.get('goal') or '[Placeholder: sprint goal]'}", ""]
     cap_line = f"**Capacity:** {cap['points']} points" if cap["points"] is not None else "**Capacity:** not set"
     if cap["ratio"] is not None and cap["full_days"]:

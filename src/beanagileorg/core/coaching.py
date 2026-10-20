@@ -1628,6 +1628,37 @@ GUIDES = [
         ],
         "related": ['/first90', '/plans', '/coaching/early-wins'], "reading": [F90],
     },
+    {
+        "slug": "sprint-goals", "theme": "agile", "minutes": 5, "since": 56,
+        "title": "Sprint goals, the product goal and the burndown",
+        "summary": "A sprint goal says why the sprint matters, as one outcome. The product goal says where the sprints are heading. The burndown shows, day by day, whether the work is on course.",
+        "why": "Without a goal, a sprint is a list of tickets, and every surprise becomes a negotiation about which ticket to drop. A clear goal lets the team change the plan and still deliver what matters, and the product goal keeps a run of sprints pointing the same way. The burndown makes drift visible early, while there's still time to adjust.",
+        "practices": [
+            "Write the product goal first: one long-term objective for the product, kept where the backlog is ordered.",
+            "Write each sprint goal as one outcome that will be true at the end of the sprint, not a list of stories.",
+            "Check the link: say out loud which step toward the product goal this sprint is. If you can't, reorder the backlog.",
+            "Pick stories that serve the goal; leave room so that if one slips, the goal can still be met another way.",
+            "Mark stories done as soon as they meet the definition of done, so the burndown stays honest without daily data entry.",
+            "Look at the burndown together at the daily scrum. A line flat above the ideal is a question for the team, not a verdict on anyone.",
+            "Treat scope added mid-sprint as a conversation with the product owner, and note it in the review.",
+        ],
+        "pitfalls": [
+            "A sprint goal that just restates the stories (\"finish [Story A], [Story B] and [Story C]\").",
+            "Changing the goal mid-sprint instead of renegotiating scope.",
+            "Using the burndown to judge individuals, or updating it to look good rather than to be true.",
+            "Counting work as done before it meets the definition of done.",
+        ],
+        "questions": [
+            "If only one thing were true at the end of this sprint, what should it be?",
+            "Which step toward the product goal does this sprint take?",
+            "Where is the burndown flat, and what is blocking it?",
+        ],
+        "try": [
+            "Under Sprint planning, write the product goal, then rewrite the next sprint goal as one outcome that serves it.",
+            "Open the current sprint's burndown at your next daily scrum and ask what the line is telling you.",
+        ],
+        "related": ["/planning", "/status", "/coaching/refinement-and-estimation"], "reading": [SG],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -1703,7 +1734,8 @@ TIPS = {
              ("Keep the ART sync short: dependencies, risks and blockers. Escalate quickly what it can't solve.", "scrum-of-scrums", 4),
              ('When an organization-wide habit keeps hurting delivery, bring evidence and a proposal, not a complaint.', 'challenging-the-organization', 6),
              ('The ART sync is where peer relationships pay off. Help another team before you need their help.', "peer-relationships", 10)],
-    "/planning": [("Leave a little room in each sprint for support and surprises, so small requests don\'t need a debate.", "change-mid-sprint", 7),
+    "/planning": [("Write the sprint goal as one outcome, and check it's a step toward the product goal.", "sprint-goals", 56),
+                  ("Leave a little room in each sprint for support and surprises, so small requests don\'t need a debate.", "change-mid-sprint", 7),
                   ("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
                   ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
@@ -1864,7 +1896,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 55  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 56  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

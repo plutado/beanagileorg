@@ -159,12 +159,14 @@ TOOLKIT = {
     },
     "/planning": {
         "purpose": "Plan each sprint beside Jira: the backlog of candidate stories, refinement until they're ready, estimating together, and pulling stories in against the team's real capacity.",
-        "steps": ["Paste stories from Jira (key and title, one per line) into the Backlog, in priority order.",
+        "steps": ["Write the product goal at the top of the Backlog: the one long-term objective each sprint goal should step toward.",
+                  "Paste stories from Jira (key and title, one per line) into the Backlog, in order.",
                   "Refine each one: the story, acceptance criteria, technical notes and dependencies, checked against the definition of ready.",
                   "Estimate together; a wide spread of votes means talk it through and vote again.",
-                  "In Plan a sprint, set availability and the goal, pull ready stories up to capacity, commit, then copy the plan back to Jira. Close the sprint to record what got done and carry the rest over."],
+                  "In Plan a sprint, set availability and the goal, pull ready stories up to capacity, commit, then copy the plan back to Jira. Close the sprint to record what got done and carry the rest over.",
+                  "Once committed, the burndown shows points left each day against an ideal line, built from when stories are marked done."],
         "privacy": "Stories and plans can be shown on screen; private notes stay private.",
-        "related": ["/sprints", "/pi", "/debt", "/coaching/refinement-and-estimation"],
+        "related": ["/sprints", "/pi", "/debt", "/coaching/refinement-and-estimation", "/coaching/sprint-goals"],
     },
     "/sprints": {
         "purpose": "Your private notebook for each sprint: what happened in each ceremony, what you noticed, and the follow-ups that came out of it.",
