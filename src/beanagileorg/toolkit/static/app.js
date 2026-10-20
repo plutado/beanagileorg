@@ -2006,11 +2006,11 @@
     const marks = lanes.map((ln) => ln.placed.map(({ i, label, cx, r }) => { const cy = ln.top + 6 + r * rowH + rowH / 2;
       return `<g class="rm-mark" data-rm="${i.id}" data-day="${i.target_day}" style="cursor:${ro ? "default" : "ew-resize"}"><title>${esc(i.title)}: ${dayDateOf(settings.start_date, i.target_day)} (${esc(i.status)})</title>
         <path d="M${cx},${cy - 6} L${cx + 6},${cy} L${cx},${cy + 6} L${cx - 6},${cy} Z" fill="${fill[i.status]}" stroke="${line[i.status]}" stroke-width="2"/>
-        <text x="${cx + 10}" y="${cy}" dominant-baseline="middle" font-size="10" fill="var(--ink)">${esc(label)}</text></g>`; }).join("")).join("");
+        <text x="${cx + 10}" y="${cy}" dominant-baseline="middle" font-size="14" fill="var(--ink)">${esc(label)}</text></g>`; }).join("")).join("");
     main.innerHTML = `${head}<section class="card"><div class="tablewrap"><svg id="rm-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Roadmap timeline by day of the role" style="width:100%;min-width:680px;display:block;touch-action:none">
-        ${ticks.map((d) => `<line x1="${x(d)}" x2="${x(d)}" y1="22" y2="${H - 10}" stroke="var(--line)"/><text x="${x(d) + 3}" y="16" font-size="10" fill="var(--muted)">${settings.start_date ? BA.fmtDate(new Date(Date.parse(settings.start_date) + (d - 1) * 864e5).toISOString().slice(0, 10)) : "Day " + d}</text>`).join("")}
-        ${lanes.map((ln) => `<text x="4" y="${ln.top + ln.h / 2}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(ln.k)}</text><line x1="${L}" x2="${W - R}" y1="${ln.top + ln.h}" y2="${ln.top + ln.h}" stroke="var(--line)" stroke-opacity=".5"/>`).join("")}
-        ${today != null && today >= 1 && today <= maxDay ? `<line x1="${x(today)}" x2="${x(today)}" y1="22" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${x(today) + 3}" y="${H - 2}" font-size="10" fill="var(--ink)">today</text>` : ""}
+        ${ticks.map((d) => `<line x1="${x(d)}" x2="${x(d)}" y1="22" y2="${H - 10}" stroke="var(--line)"/><text x="${x(d) + 3}" y="16" font-size="14" fill="var(--muted)">${settings.start_date ? BA.fmtDate(new Date(Date.parse(settings.start_date) + (d - 1) * 864e5).toISOString().slice(0, 10)) : "Day " + d}</text>`).join("")}
+        ${lanes.map((ln) => `<text x="4" y="${ln.top + ln.h / 2}" dominant-baseline="middle" font-size="14" fill="var(--muted)">${esc(ln.k)}</text><line x1="${L}" x2="${W - R}" y1="${ln.top + ln.h}" y2="${ln.top + ln.h}" stroke="var(--line)" stroke-opacity=".5"/>`).join("")}
+        ${today != null && today >= 1 && today <= maxDay ? `<line x1="${x(today)}" x2="${x(today)}" y1="22" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${x(today) + 3}" y="${H - 2}" font-size="14" fill="var(--ink)">today</text>` : ""}
         ${marks}</svg></div>
       <p class="quiet">Fill shows status: done green, in progress blue, at risk red.${ro ? "" : " Drag an item sideways to change its target day."}</p>
       ${undated.length ? `<p class="quiet">Not on the timeline yet (no target day): ${undated.map((i) => esc(i.title)).join(", ")}.</p>` : ""}</section>`;
@@ -2167,8 +2167,8 @@
     const LW = 150, CW = 170, RH = 74, BW = 140, BH = 46, W = LW + CW * steps.length + 20, H = RH * lanes.length + 10;
     const pos = steps.map((s, i) => [LW + CW * i + (CW - BW) / 2, 5 + RH * lanes.indexOf((s.who || "[Who]").trim()) + (RH - BH) / 2]);
     const wrap = (t, x, y) => { const words = String(t).split(/\s+/), lines = [""]; words.forEach((w) => { if ((lines[lines.length - 1] + " " + w).trim().length > 20) lines.push(w); else lines[lines.length - 1] = (lines[lines.length - 1] + " " + w).trim(); });
-      return lines.slice(0, 3).map((l, i, a) => `<text x="${x}" y="${y + (i - (a.length - 1) / 2) * 13}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--ink)">${esc(l)}</text>`).join(""); };
-    const lanesSvg = lanes.map((l, i) => `<rect x="0" y="${5 + RH * i}" width="${W}" height="${RH}" fill="${i % 2 ? "var(--bg)" : "var(--panel)"}" stroke="var(--line)"/><text x="10" y="${5 + RH * i + RH / 2}" dominant-baseline="middle" font-size="12" font-weight="600" fill="var(--muted)">${esc(l.slice(0, 18))}</text>`).join("");
+      return lines.slice(0, 3).map((l, i, a) => `<text x="${x}" y="${y + (i - (a.length - 1) / 2) * 13}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="var(--ink)">${esc(l)}</text>`).join(""); };
+    const lanesSvg = lanes.map((l, i) => `<rect x="0" y="${5 + RH * i}" width="${W}" height="${RH}" fill="${i % 2 ? "var(--bg)" : "var(--panel)"}" stroke="var(--line)"/><text x="10" y="${5 + RH * i + RH / 2}" dominant-baseline="middle" font-size="14" font-weight="600" fill="var(--muted)">${esc(l.slice(0, 18))}</text>`).join("");
     const arrows = steps.slice(0, -1).map((s, i) => {
       const [x1, y1] = pos[i], [x2, y2] = pos[i + 1], bad = !!(s.handoff_issue || "").trim();
       const sx = x1 + BW, sy = y1 + BH / 2, ex = x2, ey = y2 + BH / 2, mx = (sx + ex) / 2;
@@ -2406,12 +2406,12 @@
     }).join("");
     const nodes = dg.nodes.map((n) => { const [x, y] = pos[n.id]; const name = n.name.length > 14 ? n.name.slice(0, 13) + "…" : n.name;
       return `<g><title>${esc(n.name)}${n.stance ? ": " + n.stance : ": stance not set"}${n.opinion_leader ? " (opinion leader)" : ""}</title><ellipse cx="${x}" cy="${y}" rx="${R + 18}" ry="${R - 8}" fill="${PLAN_STANCE_FILL[n.stance] || "var(--panel)"}" stroke="${PLAN_STANCE_LINE[n.stance] || "var(--line-strong)"}" stroke-width="${n.opinion_leader ? 3 : 1.5}"/>
-        <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--ink)">${esc(name)}</text></g>`; }).join("");
+        <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="var(--ink)">${esc(name)}</text></g>`; }).join("");
     const bracket = right.length ? (() => { const ys = right.map((n) => pos[n.id][1]); const top = Math.min(...ys) - 30, bot = Math.max(...ys) + 30, x = Math.max(...right.map((n) => pos[n.id][0])) + 60;
-      return `<path d="M${x - 10},${top} L${x},${top} L${x},${bot} L${x - 10},${bot}" fill="none" stroke="var(--muted)"/><text x="${x + 6}" y="${(top + bot) / 2}" font-size="11" fill="var(--muted)" dominant-baseline="middle">blocking</text>`; })() : "";
+      return `<path d="M${x - 10},${top} L${x},${top} L${x},${bot} L${x - 10},${bot}" fill="none" stroke="var(--muted)"/><text x="${x + 6}" y="${(top + bot) / 2}" font-size="14" fill="var(--muted)" dominant-baseline="middle">blocking</text>`; })() : "";
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Influence diagram" style="width:100%;max-width:680px;display:block;margin:0 auto">
       <defs><marker id="id-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker></defs>
-      ${dms.length ? `<ellipse cx="${cx}" cy="${cy}" rx="${Math.max(120, dms.length * 75)}" ry="95" fill="none" stroke="var(--line-strong)"/><text x="${cx}" y="${cy - 70}" text-anchor="middle" font-size="11" fill="var(--muted)">winning alliance</text>` : ""}
+      ${dms.length ? `<ellipse cx="${cx}" cy="${cy}" rx="${Math.max(120, dms.length * 75)}" ry="95" fill="none" stroke="var(--line-strong)"/><text x="${cx}" y="${cy - 70}" text-anchor="middle" font-size="14" fill="var(--muted)">winning alliance</text>` : ""}
       ${edges}${nodes}${bracket}</svg>
       <p class="quiet" style="text-align:center">Green: for · amber: undecided · red: against · grey: not set. Thicker arrows mean more influence; a heavy outline marks an opinion leader.</p>`;
   }
@@ -2635,9 +2635,9 @@
     const clashes = cal.releases.filter((r) => r.clashes.length);
     if (!cal.windows.length && !cal.releases.length) return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases with a date, and regression plans with a window (Salesforce releases, peak-season freezes), appear here on one timeline so clashes show early.</p></section>`;
     const months = []; for (let dt = new Date(cal.from.slice(0, 7) + "-01T00:00:00"); dt.getTime() <= d1; dt.setMonth(dt.getMonth() + 1)) if (dt.getTime() >= d0) months.push(new Date(dt));
-    const grid = months.map((mo) => `<line x1="${x(mo.toISOString().slice(0, 10))}" x2="${x(mo.toISOString().slice(0, 10))}" y1="20" y2="${H - 10}" stroke="var(--line)"/><text x="${x(mo.toISOString().slice(0, 10)) + 3}" y="14" font-size="10" fill="var(--muted)">${mo.toLocaleString(undefined, { month: "short" })}</text>`).join("");
+    const grid = months.map((mo) => `<line x1="${x(mo.toISOString().slice(0, 10))}" x2="${x(mo.toISOString().slice(0, 10))}" y1="20" y2="${H - 10}" stroke="var(--line)"/><text x="${x(mo.toISOString().slice(0, 10)) + 3}" y="14" font-size="14" fill="var(--muted)">${mo.toLocaleString(undefined, { month: "short" })}</text>`).join("");
     const laneY = (i) => 30 + i * laneH;
-    const labels = lanes.map((l, i) => `<text x="4" y="${laneY(i) + laneH / 2}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(l.length > 18 ? l.slice(0, 17) + "…" : l)}</text>`).join("");
+    const labels = lanes.map((l, i) => `<text x="4" y="${laneY(i) + laneH / 2}" dominant-baseline="middle" font-size="14" fill="var(--muted)">${esc(l.length > 18 ? l.slice(0, 17) + "…" : l)}</text>`).join("");
     const bars = cal.windows.map((w) => { const i = kinds.indexOf(w.kind), x1 = Math.max(L, x(w.start)), x2 = Math.min(W - R, x(w.end) + 4);
       return `<rect x="${x1}" y="${laneY(i) + 5}" width="${Math.max(4, x2 - x1)}" height="${laneH - 10}" rx="4" fill="${cal.clash_kinds.includes(w.kind) ? "var(--warn-soft)" : "var(--accent-soft)"}" stroke="${cal.clash_kinds.includes(w.kind) ? "var(--warn)" : "var(--accent)"}"><title>${esc(w.title)}: ${w.start} to ${w.end}</title></rect>`; }).join("");
     const ri = lanes.length - 1;
@@ -2646,7 +2646,7 @@
     const todayX = x(cal.today);
     return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases beside the regression windows in your <a href="#/qa">QA plans</a>. A release planned inside a Salesforce release window or a peak-season freeze is marked red.</p>
       <div class="tablewrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Release calendar" style="width:100%;min-width:560px;display:block">${grid}${labels}${bars}
-        <line x1="${todayX}" x2="${todayX}" y1="20" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${todayX + 3}" y="${H - 2}" font-size="10" fill="var(--ink)">today</text>${marks}</svg></div>
+        <line x1="${todayX}" x2="${todayX}" y1="20" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${todayX + 3}" y="${H - 2}" font-size="14" fill="var(--ink)">today</text>${marks}</svg></div>
       ${clashes.length ? clashes.map((r) => `<p class="callout warn"><a href="#/releases/${r.id}">${esc(r.name)}</a> is planned for ${BA.fmtDate(r.date)}, inside ${r.clashes.map(esc).join(" and ")}.</p>`).join("") : ""}</section>`;
   }
 
@@ -2876,9 +2876,9 @@
     return `<svg viewBox="0 0 640 470" role="img" aria-label="Organizational architecture: four elements inside the external environment, with climate and culture at the center" style="width:100%;max-width:640px;display:block;margin:0 auto">
       <defs><marker id="al-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker><marker id="al-arrow-bad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--bad)"/></marker></defs>
       <ellipse cx="320" cy="235" rx="314" ry="230" fill="none" stroke="var(--line-strong)"/>
-      <text x="320" y="22" text-anchor="middle" font-size="12" fill="var(--muted)">External environment</text>
+      <text x="320" y="22" text-anchor="middle" font-size="14" fill="var(--muted)">External environment</text>
       <ellipse cx="320" cy="235" rx="205" ry="150" fill="var(--accent-soft)" fill-opacity=".35" stroke="var(--line-strong)"/>
-      <text x="320" y="378" text-anchor="middle" font-size="11" fill="var(--muted)">Organizational architecture</text>
+      <text x="320" y="378" text-anchor="middle" font-size="14" fill="var(--muted)">Organizational architecture</text>
       <g class="al-node" data-jump="al-climate" style="cursor:pointer"><title>Internal environment: climate and culture</title><ellipse cx="320" cy="235" rx="78" ry="50" fill="var(--bg)" stroke="var(--line-strong)"/>${words("Internal environment:\nclimate and culture", 320, 235, 11)}</g>
       ${arrows}${elNodes}${extNodes}</svg>`;
   }
@@ -3265,7 +3265,7 @@
           .join("")}</tbody></table></div>
         <section class="card"><h2>Trends</h2><p class="quiet">Each measure over time, against its baseline and target. Look at the direction, not single readings. Hover a point for its value.</p>
           <div class="metric-trends" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${metrics.map((m) => metricTrend(m, readings.filter((r) => r.metric_id === m.id))).join("")}</div>
-          <div id="trend-tip" role="tooltip" style="position:fixed;display:none;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px;font-size:12px;box-shadow:var(--shadow-sm);z-index:50"></div></section>`;
+          <div id="trend-tip" role="tooltip" style="position:fixed;display:none;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px;font-size:14px;box-shadow:var(--shadow-sm);z-index:50"></div></section>`;
       const tip = main.querySelector("#trend-tip");
       main.querySelectorAll("[data-pt]").forEach((pt) => {
         pt.onmouseenter = (e) => { tip.textContent = pt.dataset.pt; tip.style.display = "block"; tip.style.left = `${e.clientX + 12}px`; tip.style.top = `${e.clientY - 28}px`; };
@@ -3308,18 +3308,18 @@
     const t0 = Date.parse(pts[0].date), t1 = Date.parse(pts[pts.length - 1].date), span = t1 - t0 || 1;
     const x = (d) => L + ((Date.parse(d) - t0) / span) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
     const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
-    const ref = (v, label) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3"/><text x="${W - R + 4}" y="${y(v)}" dominant-baseline="middle" font-size="10" fill="var(--muted)">${label}</text>`;
+    const ref = (v, label) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3"/><text x="${W - R + 4}" y="${y(v)}" dominant-baseline="middle" font-size="14" fill="var(--muted)">${label}</text>`;
     const last = pts[pts.length - 1];
     const desc = `${m.name}: ${pts.length} readings from ${pts[0].date} to ${last.date}, latest ${num(last.value)}${unit}`;
     return `<div class="card" style="margin:0">${head}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(desc)}" style="width:100%;display:block">
         <line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" stroke="var(--line)"/>
-        <text x="${L - 6}" y="${y(hi - pad)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--muted)">${num(hi - pad)}</text>
-        <text x="${L - 6}" y="${y(lo + pad)}" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--muted)">${num(lo + pad)}</text>
-        <text x="${L}" y="${H - 6}" font-size="10" fill="var(--muted)">${BA.fmtDate(pts[0].date)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="10" fill="var(--muted)">${BA.fmtDate(last.date)}</text>
+        <text x="${L - 6}" y="${y(hi - pad)}" text-anchor="end" dominant-baseline="middle" font-size="14" fill="var(--muted)">${num(hi - pad)}</text>
+        <text x="${L - 6}" y="${y(lo + pad)}" text-anchor="end" dominant-baseline="middle" font-size="14" fill="var(--muted)">${num(lo + pad)}</text>
+        <text x="${L}" y="${H - 6}" font-size="14" fill="var(--muted)">${BA.fmtDate(pts[0].date)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="14" fill="var(--muted)">${BA.fmtDate(last.date)}</text>
         ${m.baseline != null ? ref(Number(m.baseline), "baseline") : ""}${m.target != null ? ref(Number(m.target), "target") : ""}
         <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
         ${pts.map((p) => `<circle cx="${x(p.date)}" cy="${y(p.value)}" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/><circle cx="${x(p.date)}" cy="${y(p.value)}" r="11" fill="transparent" data-pt="${esc(BA.fmtDate(p.date) + ": " + num(p.value) + unit)}" style="cursor:default"/>`).join("")}
-        <text x="${x(last.date)}" y="${y(last.value) - 10}" text-anchor="end" font-size="11" font-weight="600" fill="var(--ink)">${num(last.value)}</text>
+        <text x="${x(last.date)}" y="${y(last.value) - 10}" text-anchor="end" font-size="14" font-weight="600" fill="var(--ink)">${num(last.value)}</text>
       </svg>${table}</div>`;
   }
 
@@ -6731,11 +6731,11 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
   // The two tracks of Figure 7-1: organizational alignment and team restructuring move through the same four stages together.
   function teamTracksSvg(tp) {
     const W = 560, top = 40, gap = 62, ys = tp.stages.map((_, i) => top + i * gap);
-    const col = (x, stage, label) => `<text x="${x}" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">${label}</text>` + tp.stages.map((st, i) => {
+    const col = (x, stage, label) => `<text x="${x}" y="22" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">${label}</text>` + tp.stages.map((st, i) => {
       const on = stage === i, done = stage != null && i < stage;
       return `<rect x="${x - 85}" y="${ys[i] - 17}" width="170" height="34" rx="8" fill="${on ? "var(--accent-soft)" : done ? "var(--good-soft)" : "var(--panel)"}" stroke="${on ? "var(--accent)" : "var(--line-strong)"}" stroke-width="${on ? 2.5 : 1}"/>
-        <text x="${x}" y="${ys[i]}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="var(--ink)">${esc(st.question)}</text>`; }).join("");
-    const labels = tp.stages.map((st, i) => `<text x="10" y="${ys[i]}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(st.name)}</text>`).join("");
+        <text x="${x}" y="${ys[i]}" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="var(--ink)">${esc(st.question)}</text>`; }).join("");
+    const labels = tp.stages.map((st, i) => `<text x="10" y="${ys[i]}" dominant-baseline="middle" font-size="14" fill="var(--muted)">${esc(st.name)}</text>`).join("");
     const down = (x) => tp.stages.slice(0, -1).map((_, i) => `<line x1="${x}" y1="${ys[i] + 17}" x2="${x}" y2="${ys[i + 1] - 19}" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#tt-a)"/>`).join("");
     const across = ys.map((y) => `<line x1="${310 + 87}" y1="${y}" x2="${535 - 87}" y2="${y}" stroke="var(--muted)" stroke-width="1.5" marker-start="url(#tt-a)" marker-end="url(#tt-a)"/>`).join("");
     return `<svg viewBox="0 0 ${W + 80} ${top + gap * tp.stages.length}" role="img" aria-label="Organizational alignment and team restructuring moving through four stages together" style="width:100%;max-width:640px;display:block">
