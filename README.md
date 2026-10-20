@@ -20,12 +20,16 @@ Two small web apps run on your own machine: a **Toolkit** for leading the team a
 
 | | |
 | --- | --- |
-| ![Toolkit: Today](docs/images/toolkit-today.png) | ![Toolkit: org chart](docs/images/toolkit-org-chart.png) |
-| **Today**: what needs you, across the whole toolkit | **People**: an org chart drawn from reporting lines |
-| ![Toolkit: sprint planning](docs/images/toolkit-sprint-planning.png) | ![Comms studio: deck builder](docs/images/comms-deck-builder.png) |
-| **Sprint planning**: capacity, availability and ready stories | **Comms studio**: the reveal.js deck builder |
+| ![Toolkit: PI planning](docs/images/toolkit-pi-planning.png) | ![Toolkit: weekly report](docs/images/toolkit-weekly-report.png) |
+| **PI planning**: the program board, with features by sprint, points and milestones | **Reports**: a weekly status drafted from what's logged, with a suggested overall status |
+| ![Toolkit: alliances](docs/images/toolkit-alliances.png) | ![Toolkit: 90-day cycles](docs/images/toolkit-cycles.png) |
+| **Alliances**: an influence diagram colored by stance, with the winning alliance | **90-day cycles**: a focus and goals for each cycle, lined up with the PI |
+| ![Toolkit: Agile reference](docs/images/toolkit-agile-reference.png) | ![Toolkit: timed link](docs/images/toolkit-timed-link.png) |
+| **Agile reference**: SAFe first, with how far each part is practiced | **Timed sharing**: a page shared through a link that expires and needs an access code |
+| ![Comms studio: deck builder](docs/images/comms-deck-builder.png) | |
+| **Comms studio**: the reveal.js deck builder | |
 
-All screenshots use the built-in placeholder data; every value in brackets is invented.
+All screenshots use placeholder data (`scripts/demo_data.py`, captured with `scripts/screenshots.py`); every value in brackets is invented.
 
 ## Who it's for
 
