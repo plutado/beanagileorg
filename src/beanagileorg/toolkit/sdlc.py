@@ -14,9 +14,9 @@ from .routes import require_write
 router = APIRouter()
 ENTITIES = ("sdlc_stage", "sdlc_environment", "sdlc_policy")
 
-# Generic Scrum practice for a Salesforce and MuleSoft team. Anything that depends on how the company works is a
-# [Placeholder] for the team to settle, and every policy starts as a draft.
-STARTER_STAGES = [
+# Generic Scrum practice. Anything that depends on how the company works is a [Placeholder] for the team to settle,
+# and every policy starts as a draft. The Salesforce and MuleSoft pack swaps in sandbox-based environments and wording.
+SALESFORCE_STAGES = [
     ("Intake", "Capture a need and decide whether it belongs on the backlog.",
      ["Someone can describe the problem and who has it"], ["Item is on the backlog with a clear title and a requester", "Product manager has set a rough priority"],
      "Write the problem, not the solution, as a Jira issue. Link the request, incident or idea it came from.", "Requester, product manager", "Jira issue on the backlog", ""),
@@ -50,7 +50,7 @@ STARTER_STAGES = [
 # Sandbox types follow Salesforce's org development model (Trailhead): Developer sandboxes for each developer, a
 # Developer Pro sandbox for integration, a Partial Copy sandbox for testing, and a Full sandbox for staging and training.
 # (platform, name, purpose, data, deploys_by, refresh, branch, deploy_method)
-STARTER_ENVIRONMENTS = [
+SALESFORCE_ENVIRONMENTS = [
     ("Salesforce", "Developer sandboxes", "One per developer (Developer sandbox type): build and unit test a story in isolation.", "No production data", "Each developer", "Can refresh daily",
      "[Placeholder: a branch per story, named with the Jira key]", "[Placeholder: how changes are retrieved from the sandbox into the branch]"),
     ("Salesforce", "Integration sandbox (Developer Pro)", "Where merged work lands: every developer's changes together, so they're tested side by side.", "Configuration and seeded test data, no production data",
@@ -62,9 +62,9 @@ STARTER_ENVIRONMENTS = [
     ("Salesforce", "Production", "Live.", "Production data", "[Placeholder: release owner]", "n/a", "[Placeholder: main branch]", "[Placeholder: deployed after the go/no-go]"),
     ("MuleSoft", "[Placeholder: to confirm whether MuleSoft is developed on or mainly used to connect third-party systems]", "[Placeholder]", "[Placeholder]", "[Placeholder]", "n/a", "", ""),
 ]
-STAGE_ENVIRONMENTS = {"Build": "Developer sandbox", "Code review": "Integration sandbox (Developer Pro), after merge", "Test": "QA sandbox (Partial Copy)",
+SALESFORCE_STAGE_ENVIRONMENTS = {"Build": "Developer sandbox", "Code review": "Integration sandbox (Developer Pro), after merge", "Test": "QA sandbox (Partial Copy)",
                       "User acceptance": "[Placeholder]", "Release": "Production"}
-STARTER_POLICIES = [
+SALESFORCE_POLICIES = [
     ("branching", "Branching and merging", "Branch and commit names start with the Jira key, so work in Bitbucket shows up on the Jira issue. [Placeholder: the branching model in Bitbucket, for example short-lived feature branches merged to a main branch.]"),
     ("code review", "Code review", "Every change is reviewed by at least one other developer before it merges. [Placeholder: who can approve, and what reviewers check.]"),
     ("testing", "Testing and the definition of done", "A story is done only when it meets the definition of done, including QA sign-off. See the definition of done under QA resources."),
@@ -80,21 +80,63 @@ STARTER_POLICIES = [
 ]
 
 
+_GENERIC_STAGE_TEXT = {
+    "Build": ("Build", "Write the change and its automated tests in your own development environment.",
+              ["Story is in the sprint", "Design agreed if one was needed"], ["Changes committed to the story's branch", "Unit tests written and passing", "Works in your development environment"],
+              "Work in a branch named for the Jira key, such as ABC-123-short-name, so source control and Jira link up. Keep configuration in source control too.", "Developers", "Branch, unit tests", ""),
+}
+
+
+def _generic_stage(stage: tuple) -> tuple:
+    if stage[0] in _GENERIC_STAGE_TEXT:
+        return _GENERIC_STAGE_TEXT[stage[0]]
+    swap = lambda v: [x.replace("the shared sandbox", "the shared integration environment").replace("the QA sandbox", "the QA environment") for x in v] if isinstance(v, list) else v
+    return tuple(swap(v) for v in stage)
+
+
+STARTER_STAGES = [_generic_stage(st) for st in SALESFORCE_STAGES]
+# (platform, name, purpose, data, deploys_by, refresh, branch, deploy_method)
+STARTER_ENVIRONMENTS = [
+    ("Application", "Local development", "Each developer builds and tests a story in isolation.", "No production data", "Each developer", "n/a",
+     "[Placeholder: a branch per story, named with the Jira key]", ""),
+    ("Application", "Integration", "Where merged work lands and automated checks run, so everyone's changes are tested together.", "Seeded test data, no production data",
+     "[Placeholder: the pipeline or release owner]", "[Placeholder]", "[Placeholder: main or integration branch]", "[Placeholder: deployed when a pull request merges]"),
+    ("Application", "QA", "QA testing, regression and user acceptance of what's going into the next release.", "[Placeholder: test data, masked if copied from production]",
+     "[Placeholder]", "[Placeholder]", "[Placeholder: release branch]", "[Placeholder]"),
+    ("Application", "Staging", "A production-like environment for final checks, performance testing and training.", "[Placeholder]", "[Placeholder]", "[Placeholder]", "", "[Placeholder]"),
+    ("Application", "Production", "Live.", "Production data", "[Placeholder: release owner]", "n/a", "[Placeholder: main branch]", "[Placeholder: deployed after the go/no-go]"),
+]
+STAGE_ENVIRONMENTS = {"Build": "Local development", "Code review": "Integration, after merge", "Test": "QA", "User acceptance": "[Placeholder]", "Release": "Production"}
+STARTER_POLICIES = [
+    (c, t, b.replace("work in Bitbucket", "work in source control").replace("the branching model in Bitbucket", "the branching model"))
+    for c, t, b in SALESFORCE_POLICIES if t != "Sandbox workflow"
+] + [("branching", "Environments and promotion", "Work moves through the environments in order: local development, integration, QA, staging, then production. [Placeholder: how a change is promoted, and who can deploy to each environment.]")]
+
+
+def starter_content(conn) -> tuple:
+    from .routes import platform
+
+    if platform(conn) == "salesforce":
+        return SALESFORCE_STAGES, SALESFORCE_ENVIRONMENTS, SALESFORCE_STAGE_ENVIRONMENTS, SALESFORCE_POLICIES
+    return STARTER_STAGES, STARTER_ENVIRONMENTS, STAGE_ENVIRONMENTS, STARTER_POLICIES
+
+
 @router.post("/api/sdlc/starter", status_code=201)
 def starter(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     if conn.execute("SELECT (SELECT COUNT(*) FROM sdlc_stages) + (SELECT COUNT(*) FROM sdlc_environments) + (SELECT COUNT(*) FROM sdlc_policies)").fetchone()[0]:
         raise HTTPException(409, "The SDLC already has content. Edit it instead.")
-    for pos, (name, purpose, entry, exit_, activities, roles, artifacts, links) in enumerate(STARTER_STAGES):
+    stages_, environments, stage_envs, policies = starter_content(conn)
+    for pos, (name, purpose, entry, exit_, activities, roles, artifacts, links) in enumerate(stages_):
         models.sdlc_stages.create(conn, {"name": name, "position": pos, "purpose": purpose, "entry_criteria": entry, "exit_criteria": exit_,
                                          "activities": activities, "roles": roles, "artifacts": artifacts, "links": links or None,
-                                         "environment": STAGE_ENVIRONMENTS.get(name)}, viewer.source)
-    for pos, (platform, name, purpose, data, deploys, refresh, branch, method) in enumerate(STARTER_ENVIRONMENTS):
+                                         "environment": stage_envs.get(name)}, viewer.source)
+    for pos, (platform, name, purpose, data, deploys, refresh, branch, method) in enumerate(environments):
         models.sdlc_environments.create(conn, {"platform": platform, "name": name, "position": pos, "purpose": purpose, "data": data, "deploys_by": deploys,
                                                "refresh": refresh, "branch": branch or None, "deploy_method": method or None}, viewer.source)
-    for category, title, body in STARTER_POLICIES:
+    for category, title, body in policies:
         models.sdlc_policies.create(conn, {"category": category, "title": title, "body": body}, viewer.source)
-    return {"stages": len(STARTER_STAGES), "environments": len(STARTER_ENVIRONMENTS), "policies": len(STARTER_POLICIES)}
+    return {"stages": len(stages_), "environments": len(environments), "policies": len(policies)}
 
 
 @router.post("/api/sdlc-stages/{stage_id}/move")

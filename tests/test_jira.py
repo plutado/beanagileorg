@@ -38,7 +38,8 @@ def test_jira_address_setting(client):
     s = client.put("/api/toolkit/settings", json={"jira_url": "https://placeholder.atlassian.net/"}).json()
     assert s["jira_url"] == "https://placeholder.atlassian.net"
     client.put("/api/toolkit/settings", json={"start_date": "2026-11-02"})
-    assert client.get("/api/toolkit/settings").json() == {"start_date": "2026-11-02", "jira_url": "https://placeholder.atlassian.net"}
+    got = client.get("/api/toolkit/settings").json()
+    assert (got["start_date"], got["jira_url"], got["platform"]) == ("2026-11-02", "https://placeholder.atlassian.net", "generic")
     assert client.put("/api/toolkit/settings", json={"jira_url": ""}).json()["jira_url"] is None
 
 

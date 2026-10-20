@@ -22,7 +22,7 @@ def _check_integration(conn, body: dict, current: dict | None = None) -> None:
     if merged.get("from_id") == merged.get("to_id"):
         raise HTTPException(400, "An integration needs two different systems.")
     if merged.get("via_id") and merged["via_id"] in (merged.get("from_id"), merged.get("to_id")):
-        raise HTTPException(400, "The middle system has to be a third system, such as MuleSoft.")
+        raise HTTPException(400, "The middle system has to be a third system, such as an integration platform.")
 
 
 @router.post("/api/integrations", status_code=201)

@@ -19,10 +19,11 @@ from .routes import require_write, today
 router = APIRouter()
 
 PATH_KEY = "releases.path"
-DEFAULT_PATH = ["Developer sandbox", "Integration sandbox", "QA sandbox", "Staging", "Production"]
+DEFAULT_PATH = ["Development", "Integration", "QA", "Staging", "Production"]
+SALESFORCE_PATH = ["Developer sandbox", "Integration sandbox", "QA sandbox", "Staging", "Production"]
 FAILED = ("hotfix", "rollback", "incident")
 METRIC_NAMES = {"deployment_frequency": "Deployment frequency", "change_failure_rate": "Change failure rate", "time_to_restore": "Time to restore"}
-CLASH_KINDS = ("Salesforce release", "peak-season freeze")
+CLASH_KINDS = ("platform release", "Salesforce release", "peak-season freeze")
 
 
 def _setting(conn, key, default=None):
@@ -35,12 +36,18 @@ def path_steps(conn) -> list[str]:
     if saved:
         return saved
     envs = [e["name"] for e in models.sdlc_environments.fetch_all(conn)]
-    return envs or DEFAULT_PATH
+    return envs or default_path(conn)
+
+
+def default_path(conn) -> list[str]:
+    from .routes import platform
+
+    return SALESFORCE_PATH if platform(conn) == "salesforce" else DEFAULT_PATH
 
 
 @router.get("/api/releases/settings")
 def get_settings(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    return {"path": path_steps(conn), "custom": bool(_setting(conn, PATH_KEY)), "default": DEFAULT_PATH,
+    return {"path": path_steps(conn), "custom": bool(_setting(conn, PATH_KEY)), "default": default_path(conn),
             "from_sdlc": [e["name"] for e in models.sdlc_environments.fetch_all(conn)]}
 
 

@@ -56,6 +56,7 @@ ALTERNATIVES = [
 ]
 RESPECT = "However this ends, treat the person with respect. The rest of the team will judge you by how fairly you handle it."
 DISPOSITION_HELP = "Place each person provisionally by about day 30, but only when you're at least 90% sure. If you're not, they stay in observe until you learn more."
+SALESFORCE_TEMPLATE_NAMES = ("Salesforce developer", "Integration (MuleSoft) developer")  # only with the Salesforce pack
 STARTER_TEMPLATES = [
     {"name": "Software developer",
      "measures": ["Cycle time on their stories", "Review turnaround, given and received", "Escaped defects traced to their changes", "Share of sprint commitments finished"],
@@ -201,7 +202,10 @@ def put_dynamics(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), c
 def starter_templates(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     have = {t["name"] for t in models.role_templates.fetch_all(conn)}
-    added = [models.role_templates.create(conn, t, viewer.source)["id"] for t in STARTER_TEMPLATES if t["name"] not in have]
+    from .routes import platform
+
+    pack = STARTER_TEMPLATES if platform(conn) == "salesforce" else [t for t in STARTER_TEMPLATES if t["name"] not in SALESFORCE_TEMPLATE_NAMES]
+    added = [models.role_templates.create(conn, t, viewer.source)["id"] for t in pack if t["name"] not in have]
     if not added:
         raise HTTPException(409, "You already have the starter templates.")
     return {"templates": len(added)}

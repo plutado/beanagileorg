@@ -189,8 +189,10 @@ def test_assessment_context_dispositions_and_templates(client):
     assert client.get("/api/team-assessment").json()["people"][0]["disposition"] == "keep and develop"
     assert client.put(f"/api/team-assessment/{p}", json={"criticality": 11}).status_code == 400
     assert client.put("/api/team-assessment/dynamics", json={"alliances": "[Placeholder]"}).json()["alliances"] == "[Placeholder]"
-    assert client.post("/api/role-templates/starter").json()["templates"] == 4
+    assert client.post("/api/role-templates/starter").json()["templates"] == 2  # generic: software developer, QA engineer
     assert client.post("/api/role-templates/starter").status_code == 409
+    client.put("/api/toolkit/settings", json={"platform": "salesforce"})
+    assert client.post("/api/role-templates/starter").json()["templates"] == 2  # the Salesforce and MuleSoft roles
     i = client.post("/api/interviews", json={"person_id": p, "status": "done", "how_we_work": "[Placeholder]", "ownership": "owns problems"}).json()
     assert i["ownership"] == "owns problems" and client.get("/api/rollup").json()["notes"]["how_we_work"][0]["text"] == "[Placeholder]"
 

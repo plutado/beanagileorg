@@ -5,7 +5,7 @@
   BA.roleDay = (n) => (n == null || n === "" ? "" : n < 1 ? "before day 1" : `Day ${n} · week ${Math.ceil(n / 7)}`);
   const presenting = () => BA.session.presentation;
   // Before sign-in finishes there's nothing on screen yet, so just remember the address; redraw only an open screen.
-  BA.api("/api/toolkit/settings").then((s) => { if (s && s.jira_url && s.jira_url !== BA.jiraUrl) { BA.jiraUrl = s.jira_url; if (BA.session) BA.rerender(); } }).catch(() => {});
+  BA.api("/api/toolkit/settings").then((s) => { if (s) BA.platform = s.platform; if (s && s.jira_url && s.jira_url !== BA.jiraUrl) { BA.jiraUrl = s.jira_url; if (BA.session) BA.rerender(); } }).catch(() => {});
 
   BA.command({ label: "Add a dev-sync item", hint: "Dev-sync log", icon: "plus", run: () => BA.go("/dev-sync") });
   BA.command({ label: "Plan a one-on-one", hint: "Listening tour", icon: "plus", run: () => BA.go("/listening") });
@@ -1253,6 +1253,9 @@
         <section class="card"><h2>Jira</h2>
           <form id="jira" class="row"><input name="jira_url" value="${esc(settings.jira_url || "")}" placeholder="https://[your-site].atlassian.net" style="max-width:360px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every Jira key in the toolkit into a link. Use <b>Find a Jira key</b> (⌘K) to see everywhere a key is mentioned.</span></form></section>
+        <section class="card"><h2>Starter content</h2>
+          <form id="platform" class="row"><select name="platform" style="max-width:280px">${Object.entries(settings.platforms || {}).map(([k, l]) => `<option value="${k}"${k === settings.platform ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>
+          <button class="btn" type="submit">Save</button><span class="quiet">Which version the starters load: the SDLC, onboarding checklist, role templates, release path and focus areas. Generic suits any stack; the Salesforce and MuleSoft pack adds sandbox environments and platform roles. It changes nothing you've already loaded.</span></form></section>
 
         <section class="card"><h2>Learning goals</h2>
           <p class="quiet">Goals marked "Report" are the ones your manager sees in status reports and presentation mode.</p>
@@ -1307,6 +1310,12 @@
         e.preventDefault();
         await BA.api("/api/toolkit/settings", { method: "PUT", body: { start_date: new FormData(e.target).get("start_date") || null } });
         BA.rerender();
+      });
+      main.querySelector("#platform").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const s = await BA.api("/api/toolkit/settings", { method: "PUT", body: { platform: new FormData(e.target).get("platform") } });
+        BA.platform = s.platform;
+        BA.toast(`Starters will load the ${s.platforms[s.platform]} version.`);
       });
       main.querySelector("#jira").onsubmit = BA.guard(async (e) => {
         e.preventDefault();
@@ -2615,7 +2624,7 @@
           ${ro ? "" : `<button class="btn" id="rec-metrics"${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "" : " disabled"}>Record as metric readings</button> <span class="quiet">${m.metric_ids.deployment_frequency || m.metric_ids.change_failure_rate ? "Adds today's values to Deployment frequency, Change failure rate and Time to restore (where you have that metric) under Metrics." : 'Load the starter metrics under <a href="#/metrics">Metrics</a> first.'}</span>`}</section>
         ${releaseCalendar(cal)}
         <details class="card"><summary><b>The path to production</b> <span class="quiet">· ${cfg.path.map(esc).join(" → ")}</span></summary>
-          <p class="quiet">${cfg.custom ? "Your own list." : cfg.from_sdlc.length ? "Taken from your SDLC environments." : "A generic sandbox path; set your own, or add environments under SDLC."} One step per line; the last is production.</p>
+          <p class="quiet">${cfg.custom ? "Your own list." : cfg.from_sdlc.length ? "Taken from your SDLC environments." : "A generic path; set your own, or add environments under SDLC."} One step per line; the last is production.</p>
           ${ro ? "" : `<form id="rel-path"><textarea name="path" rows="6">${esc(cfg.path.join("\n"))}</textarea><div class="actions">${cfg.custom ? '<button class="btn left" type="button" id="rel-path-reset">Use the SDLC environments</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
       if (ro) return;
       const n = (v) => (v ? Number(v) : null);
@@ -2635,7 +2644,7 @@
     const kinds = [...new Set(cal.windows.map((w) => w.kind))];
     const lanes = [...kinds, "Releases"], H = 30 + lanes.length * laneH + 10;
     const clashes = cal.releases.filter((r) => r.clashes.length);
-    if (!cal.windows.length && !cal.releases.length) return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases with a date, and regression plans with a window (Salesforce releases, peak-season freezes), appear here on one timeline so clashes show early.</p></section>`;
+    if (!cal.windows.length && !cal.releases.length) return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases with a date, and regression plans with a window (platform releases, peak-season freezes), appear here on one timeline so clashes show early.</p></section>`;
     const months = []; for (let dt = new Date(cal.from.slice(0, 7) + "-01T00:00:00"); dt.getTime() <= d1; dt.setMonth(dt.getMonth() + 1)) if (dt.getTime() >= d0) months.push(new Date(dt));
     const grid = months.map((mo) => `<line x1="${x(mo.toISOString().slice(0, 10))}" x2="${x(mo.toISOString().slice(0, 10))}" y1="20" y2="${H - 10}" stroke="var(--line)"/><text x="${x(mo.toISOString().slice(0, 10)) + 3}" y="14" font-size="14" fill="var(--muted)">${mo.toLocaleString(undefined, { month: "short" })}</text>`).join("");
     const laneY = (i) => 30 + i * laneH;
@@ -2646,7 +2655,7 @@
     const marks = cal.releases.map((r) => { const cx = x(r.date), cy = laneY(ri) + laneH / 2, bad = r.clashes.length;
       return `<a href="#/releases/${r.id}"><g><title>${esc(r.name)}: ${r.date}${bad ? " (clashes with " + r.clashes.join(", ") + ")" : ""}</title><path d="M${cx},${cy - 7} L${cx + 7},${cy} L${cx},${cy + 7} L${cx - 7},${cy} Z" fill="${bad ? "var(--bad)" : r.released ? "var(--good)" : "var(--accent)"}" stroke="var(--panel)" stroke-width="2"/></g></a>`; }).join("");
     const todayX = x(cal.today);
-    return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases beside the regression windows in your <a href="#/qa">QA plans</a>. A release planned inside a Salesforce release window or a peak-season freeze is marked red.</p>
+    return `<section class="card"><h2>Calendar</h2><p class="quiet">Releases beside the regression windows in your <a href="#/qa">QA plans</a>. A release planned inside a platform release window or a peak-season freeze is marked red.</p>
       <div class="tablewrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Release calendar" style="width:100%;min-width:560px;display:block">${grid}${labels}${bars}
         <line x1="${todayX}" x2="${todayX}" y1="20" y2="${H - 10}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${todayX + 3}" y="${H - 2}" font-size="14" fill="var(--ink)">today</text>${marks}</svg></div>
       ${clashes.length ? clashes.map((r) => `<p class="callout warn"><a href="#/releases/${r.id}">${esc(r.name)}</a> is planned for ${BA.fmtDate(r.date)}, inside ${r.clashes.map(esc).join(" and ")}.</p>`).join("") : ""}</section>`;
@@ -4343,7 +4352,7 @@
   const SUITE_KINDS = ["unit", "integration", "end-to-end", "Apex", "MUnit", "performance", "other"];
   const SUITE_RESULTS = ["unknown", "passing", "failing", "flaky"];
   const SUITE_TONES = { passing: "good", failing: "bad", flaky: "warn", unknown: "" };
-  const REG_KINDS = ["Salesforce release", "peak-season freeze", "major release", "other"];
+  const REG_KINDS = ["platform release", "peak-season freeze", "major release", "other", "Salesforce release"];
   const REG_STATUS = ["planned", "in progress", "signed off", "done"];
   const qaTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["library", "Test library"], ["runs", "Runs"], ["suites", "Automated tests"], ["regression", "Regression plans"], ["dod", "Definition of done"]]
     .map(([k, label]) => `<a href="#/qa${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
@@ -4453,7 +4462,7 @@
         <label>Or a regression plan's cases<select name="plan_id"><option value=""></option>${plans.map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join("")}</select></label>
         <label>Sprint<select name="sprint_id"><option value=""></option>${sprints.map((s) => `<option value="${s.id}"${current && s.id === current.id ? " selected" : ""}>Sprint ${s.number}</option>`).join("")}</select></label>
         <label>Tester<select name="tester_id">${personOptions(people)}</select></label>
-        <label>Environment<input name="environment" placeholder="Such as: production, full sandbox"></label><label>Release<input name="release"></label></div>
+        <label>Environment<input name="environment" placeholder="Such as: production, staging"></label><label>Release<input name="release"></label></div>
         <div class="actions"><button class="btn primary" type="submit">${BA.icon("play")} Start run</button></div></form></section>`}
       <div class="tablewrap"><table class="data"><thead><tr><th>Run</th><th>Date</th><th>Kind</th><th>For</th><th>Results</th><th>Status</th></tr></thead><tbody>${
         runs.map((r) => `<tr class="clickable" data-id="${r.id}"><td><b>${esc(r.name)}</b>${r.environment ? `<div class="quiet">${esc(r.environment)}</div>` : ""}</td><td>${BA.fmtDate(r.date)}</td><td>${esc(r.kind)}</td>
@@ -4541,7 +4550,7 @@
           <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del-suite="${s.id}">Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`;
     main.innerHTML = `${qaTabs("suites")}
-      <p class="quiet">Every automated suite: unit and integration tests, Apex tests, MuleSoft MUnit tests and end-to-end checks, where each lives, and how it did last time.</p>
+      <p class="quiet">Every automated suite: unit and integration tests, platform test frameworks and end-to-end checks, where each lives, and how it did last time.</p>
       <section class="card">${suites.map(suiteRow).join("") || '<p class="quiet">No suites recorded yet.</p>'}</section>
       ${ro ? "" : `<section class="card"><h2>Add a suite</h2><form id="add-suite" class="row"><input name="name" placeholder="Suite name" required style="max-width:280px">
         <select name="kind" style="max-width:150px">${opts(SUITE_KINDS, "unit")}</select><select name="system_id" style="max-width:200px">${sysOptions(systems, null, "System")}</select>
@@ -4593,10 +4602,10 @@
           <label>Private notes<textarea name="notes">${esc(p.notes || "")}</textarea></label>
           <div class="actions"><button class="btn danger left" type="button" data-del-reg>Delete</button><button class="btn primary" type="submit">Save</button></div></form></details>`}</section>`;
     main.innerHTML = `${qaTabs("regression")}
-      <p class="quiet">A plan for each Salesforce release and each peak-season freeze: what to test, who owns it, who backs them up, and who signs off.</p>
+      <p class="quiet">A plan for each platform release and each peak-season freeze: what to test, who owns it, who backs them up, and who signs off.</p>
       ${plans.map(planCard).join("") || '<p class="empty">No regression plans yet.</p>'}
-      ${ro ? "" : `<section class="card"><h2>New regression plan</h2><form id="add-reg" class="row"><input name="title" placeholder="Such as: [Salesforce release name] regression" required style="max-width:320px">
-        <select name="kind" style="max-width:190px">${opts(REG_KINDS, "Salesforce release")}</select><input type="date" name="start_date" style="max-width:170px">
+      ${ro ? "" : `<section class="card"><h2>New regression plan</h2><form id="add-reg" class="row"><input name="title" placeholder="Such as: [Release name] regression" required style="max-width:320px">
+        <select name="kind" style="max-width:190px">${opts(REG_KINDS, BA.platform === "salesforce" ? "Salesforce release" : "platform release")}</select><input type="date" name="start_date" style="max-width:170px">
         <select name="owner_id" style="max-width:200px">${personOptions(people).replace('<option value=""></option>', '<option value="">Owner</option>')}</select><button class="btn primary" type="submit">Add</button></form></section>`}`;
     if (ro) return;
     main.querySelector("#add-reg").onsubmit = BA.guard(async (e) => {
@@ -4846,7 +4855,7 @@
     const fields = (i = {}) => `<div class="grid2">
         <label>Name<input name="name" value="${esc(i.name || "")}" required placeholder="Such as: orders to fulfillment"></label><label>Pattern<select name="pattern">${opts(PATTERNS, i.pattern || "API")}</select></label>
         <label>From${sysSel("from_id", i.from_id)}</label><label>To${sysSel("to_id", i.to_id)}</label>
-        <label>Through <span class="quiet">(middleware, such as MuleSoft)</span>${sysSel("via_id", i.via_id, "Direct")}</label><label>Direction<select name="direction">${opts(["one way", "two way"], i.direction || "one way")}</select></label>
+        <label>Through <span class="quiet">(middleware, such as an integration platform)</span>${sysSel("via_id", i.via_id, "Direct")}</label><label>Direction<select name="direction">${opts(["one way", "two way"], i.direction || "one way")}</select></label>
         <label>Data it carries<input name="data" value="${esc(i.data || "")}"></label><label>How often<input name="frequency" value="${esc(i.frequency || "")}" placeholder="Such as: real time, nightly"></label>
         <label>Protocol<input name="protocol" value="${esc(i.protocol || "")}" placeholder="Such as: REST, SOAP, SFTP, platform events"></label><label>Owner<select name="owner_id">${personOptions(people, i.owner_id)}</select></label>
         <label>Criticality<select name="criticality"><option value=""></option>${opts(CRIT, i.criticality)}</select></label><label>Status<select name="status">${opts(INT_STATUS, i.status || "live")}</select></label></div>
@@ -4932,7 +4941,7 @@
     const ro = presenting();
     const sysName = Object.fromEntries(systems.map((s) => [s.id, s.name]));
     main.innerHTML = `${archTabs("guides")}
-      <p class="quiet">Plain-language explainers: how a system works, how a flow runs end to end, how to set up a sandbox, how a release goes out. Written in Markdown.</p>
+      <p class="quiet">Plain-language explainers: how a system works, how a flow runs end to end, how to set up a development environment, how a release goes out. Written in Markdown.</p>
       <div class="sys-grid">${guides.map((g) => `<a class="sys-card" href="#/architecture/g-${g.id}"><b>${esc(g.title)}</b>${g.summary ? `<p class="clamp">${esc(g.summary)}</p>` : ""}
           <div class="quiet">${[g.audience, g.updated ? "updated " + BA.fmtDate(g.updated) : ""].filter(Boolean).map(esc).join(" · ")}</div>
           ${g.system_ids.length ? `<div>${BA.chips(g.system_ids.map((x) => sysName[x]).filter(Boolean))}</div>` : ""}</a>`).join("") || '<p class="empty">No guides yet.</p>'}</div>
@@ -4982,7 +4991,9 @@
   const OB_CATEGORIES = ["accounts and access", "tools and setup", "people", "ways of working", "systems and architecture", "learning", "first work", "admin and compliance"];
   const OB_OWNERS = ["new member", "manager", "buddy", "IT or admin", "HR", "mentor"];
   const TRANSITION_TYPES = ["new hire", "contractor", "move between teams", "promotion", "lateral move"];
-  const OB_TRACKS = ["Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor"];
+  const OB_BASE_TRACKS = ["developer", "QA", "employee", "contractor"];
+  // The Salesforce and MuleSoft pack adds its developer tracks; generic installs use one developer track.
+  const obTracks = () => (BA.platform === "salesforce" ? ["Salesforce developer", "MuleSoft developer", ...OB_BASE_TRACKS] : OB_BASE_TRACKS);
   const OB_PHASES = [["Before day 1", null, 0], ["Week 1", 1, 7], ["Weeks 2 to 4", 8, 30], ["Days 31 to 90", 31, 90], ["After day 90", 91, null]];
   const OWNER_TONES = { manager: "warn", buddy: "good", "IT or admin": "", "new member": "accent", HR: "", mentor: "good" };
   const obPhase = (day) => (day == null ? "No date" : (OB_PHASES.find(([, lo, hi]) => (lo == null || day >= lo) && (hi == null || day <= hi)) || ["No date"])[0]);
@@ -5055,7 +5066,7 @@
     main.innerHTML = `${obTabs("seats")}
       <section class="card"><h2>Open seats</h2><p class="quiet">A role you're hiring for, before anyone's in it. Decide up front how much transition risk you can accept, look for it in interviews, carry what you find into their onboarding, and note at day 90 which risks were real.</p>
         ${seats.map((x) => `<div class="item"><span class="pill ${x.status === "open" ? "warn" : x.status === "interviewing" ? "accent" : ""}">${esc(x.status)}</span><a href="#/onboarding/seat-${x.id}"><b>${esc(x.title)}</b></a><span class="quiet">${esc(tname[x.team_id] || "")}${x.situation ? ` · ${esc(x.situation)}` : ""}${x.risk_tolerance ? ` · ${esc(x.risk_tolerance)} risk tolerance` : ""}</span></div>`).join("") || '<p class="quiet">No open seats.</p>'}
-        ${ro ? "" : `<form id="add-seat" class="grid2"><label>Role<input name="title" required placeholder="[Salesforce developer]"></label><label>Team<select name="team_id"><option value=""></option>${teams.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></label>
+        ${ro ? "" : `<form id="add-seat" class="grid2"><label>Role<input name="title" required placeholder="[Role title]"></label><label>Team<select name="team_id"><option value=""></option>${teams.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></label>
           <label>The situation they'd step into<select name="situation"><option value=""></option>${SITUATIONS.map((v) => `<option>${v}</option>`).join("")}</select></label><label>How much transition risk you can accept<select name="risk_tolerance"><option value=""></option><option>low</option><option>medium</option><option>high</option></select></label>
           <label style="grid-column:1/-1">Job spec<textarea name="job_spec" rows="2"></textarea></label><label style="grid-column:1/-1">What it takes to fit here <span class="quiet">(how things are done, what newcomers struggle with)</span><textarea name="culture_notes" rows="2"></textarea></label>
           <div class="actions"><button class="btn primary" type="submit">Add the seat</button></div></form>`}</section>`;
@@ -5133,7 +5144,7 @@
       const [obs, people, items] = await Promise.all([BA.api("/api/onboardings"), BA.api("/api/people"), BA.api("/api/onboarding-items")]);
       const ro = presenting();
       main.innerHTML = `${obTabs("")}
-        ${!items.length && !ro ? `<section class="card"><h2>Start with a checklist</h2><p class="quiet">The starter checklist covers access, setup, people, ways of working, systems, learning and first work, from the week before day 1 to day 90, with separate items for Salesforce developers, MuleSoft developers, QA, employees and contractors. Anything specific to your company is a [Placeholder] for you to fill in.</p>
+        ${!items.length && !ro ? `<section class="card"><h2>Start with a checklist</h2><p class="quiet">The starter checklist covers access, setup, people, ways of working, systems, learning and first work, from the week before day 1 to day 90, with separate items for ${BA.platform === "salesforce" ? "Salesforce developers, MuleSoft developers" : "developers"}, QA, employees and contractors. Anything specific to your company is a [Placeholder] for you to fill in.</p>
           <button class="btn primary" id="ob-starter">Load the starter checklist</button></section>` : ""}
         <div class="sys-grid">${obs.map((o) => `<a class="sys-card" href="#/onboarding/${o.id}"><div class="row"><b>${esc(o.person_name)}</b><span class="spacer"></span>${BA.statusPill(o.status)}</div>
             <div class="quiet">${esc(o.person_role || "")}${o.start_date ? ` · starts ${BA.fmtDate(o.start_date)}` : ""}${o.buddy_name ? ` · buddy ${esc(o.buddy_name)}` : ""}</div>
@@ -5143,7 +5154,7 @@
           <label>Start date<input type="date" name="start_date"></label>
           <label>Buddy<select name="buddy_id">${personOptions(people)}</select></label>
           <label>Type of transition<select name="transition_type">${TRANSITION_TYPES.map((t) => `<option>${t}</option>`).join("")}</select></label></div>
-          <label>Tracks <span class="quiet">(items for every track are always included)</span></label><div class="row">${OB_TRACKS.map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"> ${t}</label>`).join("")}</div>
+          <label>Tracks <span class="quiet">(items for every track are always included)</span></label><div class="row">${obTracks().map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"> ${t}</label>`).join("")}</div>
           <div class="actions"><button class="btn primary" type="submit">Build their checklist</button></div></form></section>`}`;
       const starter = main.querySelector("#ob-starter");
       if (starter) starter.onclick = BA.guard(async () => { await BA.api("/api/onboarding/starter", { method: "POST", body: {} }); BA.rerender(); });
@@ -5249,7 +5260,7 @@
     const fields = (i = {}) => `<div class="grid2"><label>Title<input name="title" value="${esc(i.title || "")}" required></label><label>Category<select name="category">${opts(OB_CATEGORIES, i.category || "ways of working")}</select></label>
         <label>Day <span class="quiet">(1 is the first day; -7 is a week before)</span><input type="number" name="due_day" value="${esc(i.due_day ?? "")}"></label><label>Who does it<select name="owner_role">${opts(OB_OWNERS, i.owner_role || "new member")}</select></label>
         <label>Link <span class="quiet">(a toolkit page such as #/sdlc, or a web address)</span><input name="link" value="${esc(i.link || "")}"></label><label>Minutes <span class="quiet">(for reading or courses)</span><input type="number" name="minutes" value="${esc(i.minutes ?? "")}"></label></div>
-        <label>Tracks <span class="quiet">(none ticked means everyone)</span></label><div class="row">${OB_TRACKS.map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"${(i.tracks || []).includes(t) ? " checked" : ""}> ${t}</label>`).join("")}</div>
+        <label>Tracks <span class="quiet">(none ticked means everyone)</span></label><div class="row">${obTracks().map((t) => `<label class="check"><input type="checkbox" name="tracks" value="${t}"${(i.tracks || []).includes(t) ? " checked" : ""}> ${t}</label>`).join("")}</div>
         <label>Details<textarea name="description">${esc(i.description || "")}</textarea></label>
         ${i.id ? `<label class="check"><input type="checkbox" name="active"${i.active ? " checked" : ""}> In use</label>` : ""}`;
     const read = (form) => {
@@ -5263,7 +5274,7 @@
         ${feedback.filter((f) => f.status === "new").map((f) => `<div class="item" data-fb="${f.id}"><span class="quiet">${BA.fmtDate(f.date)}</span><span>${[f.helped ? `Helped: ${esc(f.helped)}` : "", f.missing ? `Missing: ${esc(f.missing)}` : "", f.suggestion ? `<b>Change: ${esc(f.suggestion)}</b>` : ""].filter(Boolean).join(" · ")}</span><span class="spacer"></span>
           ${f.suggestion || f.missing ? '<button class="btn" type="button" data-fb-item>Add to the checklist</button>' : ""}<button class="btn" type="button" data-fb-aside>Set aside</button></div>`).join("")}</section>` : ""}
       <div class="row"><p class="quiet">The checklist every new member starts from. Changes here apply to the next person; checklists already started keep their own copy.</p><span class="spacer"></span>
-        <select id="ob-track" style="max-width:220px"><option value="">Every track</option>${OB_TRACKS.map((t) => `<option${t === filter ? " selected" : ""}>${t}</option>`).join("")}</select></div>
+        <select id="ob-track" style="max-width:220px"><option value="">Every track</option>${obTracks().map((t) => `<option${t === filter ? " selected" : ""}>${t}</option>`).join("")}</select></div>
       ${groups.map(([n, list]) => `<section class="card"><h2>${esc(n)} <span class="quiet">${list.length}</span></h2>${list.map((i) => `<details class="plan-item${i.active ? "" : " dropped"}" data-item="${i.id}"><summary><span>${esc(i.title)}</span><span class="spacer"></span>
           ${i.tracks.length ? BA.chips(i.tracks) : ""}<span class="quiet">${esc(i.category)}</span>${i.owner_role !== "new member" ? `<span class="pill ${OWNER_TONES[i.owner_role] || ""}">${esc(i.owner_role)}</span>` : ""}<span class="quiet">${dayLabel(i.due_day)}</span></summary>
           ${i.description ? BA.md(i.description) : ""}${ro ? "" : `<form class="edit-item">${fields(i)}<div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("") ||
@@ -5311,7 +5322,7 @@
       const d = await BA.api("/api/sdlc");
       const ro = presenting();
       const empty = !d.stages.length && !d.environments.length && !d.policies.length;
-      const starterCard = empty && !ro ? `<section class="card"><h2>Start from a draft</h2><p class="quiet">Nine stages from intake to support, each with when it starts, what happens and when it's done; Salesforce and MuleSoft environments; and draft policies for branching, review, testing, release, changes, hotfixes, freezes and test data. Anything specific to how your company works is a [Placeholder] for the team to settle.</p>
+      const starterCard = empty && !ro ? `<section class="card"><h2>Start from a draft</h2><p class="quiet">Nine stages from intake to support, each with when it starts, what happens and when it's done; ${BA.platform === "salesforce" ? "Salesforce and MuleSoft environments" : "a generic environment path (choose the Salesforce and MuleSoft pack in Settings for sandboxes)"}; and draft policies for branching, review, testing, release, changes, hotfixes, freezes and test data. Anything specific to how your company works is a [Placeholder] for the team to settle.</p>
         <button class="btn primary" id="sdlc-starter">Load the starter SDLC</button></section>` : "";
       const bindStarter = () => { const b = main.querySelector("#sdlc-starter"); if (b) b.onclick = BA.guard(async () => { await BA.api("/api/sdlc/starter", { method: "POST", body: {} }); BA.rerender(); }); };
       if (param === "environments") return renderEnvs(main, d, ro, starterCard, bindStarter);
@@ -5371,7 +5382,7 @@
 
   async function renderEnvs(main, d, ro, starterCard, bindStarter) {
     const systems = await BA.api("/api/systems");
-    const fields = (e = {}) => `<div class="grid2"><label>Name<input name="name" value="${esc(e.name || "")}" required></label><label>Platform<input name="platform" value="${esc(e.platform || "")}" placeholder="Such as: Salesforce, MuleSoft"></label>
+    const fields = (e = {}) => `<div class="grid2"><label>Name<input name="name" value="${esc(e.name || "")}" required></label><label>Platform<input name="platform" value="${esc(e.platform || "")}" placeholder="Such as: Application, Data platform"></label>
         <label>Order in the path<input type="number" name="position" value="${esc(e.position ?? "")}"></label><label>System<select name="system_id">${sysOptions(systems, e.system_id)}</select></label>
         <label>Purpose<input name="purpose" value="${esc(e.purpose || "")}"></label><label>Data it holds<input name="data" value="${esc(e.data || "")}"></label>
         <label>Who deploys<input name="deploys_by" value="${esc(e.deploys_by || "")}"></label><label>Refresh<input name="refresh" value="${esc(e.refresh || "")}" placeholder="Such as: after each platform release"></label>
@@ -5379,15 +5390,15 @@
         <label>Private notes<textarea name="notes">${esc(e.notes || "")}</textarea></label>`;
     const read = (form) => { const f = new FormData(form); return { name: f.get("name"), platform: f.get("platform") || null, position: numOrNull(f.get("position")) ?? 0, system_id: numOrNull(f.get("system_id")), purpose: f.get("purpose"), data: f.get("data"), deploys_by: f.get("deploys_by"), refresh: f.get("refresh"), branch: f.get("branch"), deploy_method: f.get("deploy_method"), notes: f.get("notes") }; };
     main.innerHTML = `${sdlcTabs("environments")}${starterCard}
-      <p class="quiet">Where changes go on their way to production, in order, what each environment is for, and the branch tied to it. Salesforce work moves through sandboxes rather than Git flow.</p>
-      <details class="card env-ref"><summary><b>Salesforce's reference model</b><span class="quiet">the org development model, from Trailhead</span></summary>
+      <p class="quiet">Where changes go on their way to production, in order, what each environment is for, and the branch tied to it.${BA.platform === "salesforce" ? " Salesforce work moves through sandboxes rather than Git flow." : ""}</p>
+      ${BA.platform === "salesforce" ? `<details class="card env-ref"><summary><b>Salesforce's reference model</b><span class="quiet">the org development model, from Trailhead</span></summary>
         <div class="tablewrap"><table class="data"><thead><tr><th>Stage</th><th>Sandbox type</th><th>Data</th><th>Refresh</th></tr></thead><tbody>
           <tr><td>Develop and test, one per developer</td><td>Developer</td><td>Configuration only</td><td>Daily</td></tr>
           <tr><td>Build the release: everyone's merged work together</td><td>Developer Pro</td><td>Configuration and seeded test data</td><td>Daily</td></tr>
           <tr><td>Test the release, including user acceptance</td><td>Partial Copy</td><td>A sample of production data, chosen by a template</td><td>Every 5 days</td></tr>
           <tr><td>Staging, performance testing and training</td><td>Full</td><td>A full copy of production</td><td>Every 29 days</td></tr>
           <tr><td>Release</td><td>Production</td><td>Live</td><td>n/a</td></tr></tbody></table></div>
-        <p class="quiet">Changes are kept in source control and deployed from there at each step. Sources: <a href="https://trailhead.salesforce.com/content/learn/modules/org-development-model" target="_blank" rel="noopener">Trailhead: Org Development Model</a> · <a href="https://developer.salesforce.com/docs/platform/sfvscode-extensions/guide/orgdev.html" target="_blank" rel="noopener">Salesforce docs</a></p></details>
+        <p class="quiet">Changes are kept in source control and deployed from there at each step. Sources: <a href="https://trailhead.salesforce.com/content/learn/modules/org-development-model" target="_blank" rel="noopener">Trailhead: Org Development Model</a> · <a href="https://developer.salesforce.com/docs/platform/sfvscode-extensions/guide/orgdev.html" target="_blank" rel="noopener">Salesforce docs</a></p></details>` : ""}
       ${d.environments.map((g) => `<section class="card"><h2>${esc(g.platform)}</h2><div class="env-path">${g.environments.map((e) => `<span class="env-box">${esc(e.name)}${e.branch ? `<small>${esc(e.branch)}</small>` : ""}</span>`).join('<span class="env-arrow">→</span>')}</div>
         ${g.environments.map((e) => `<details class="plan-item" data-env="${e.id}"><summary><b>${esc(e.name)}</b><span class="quiet">${esc(e.purpose || "")}</span><span class="spacer"></span>${e.data ? `<span class="quiet">${esc(e.data)}</span>` : ""}</summary>
           <p>${[e.branch ? `Branch: ${esc(e.branch)}` : "", e.deploy_method ? `Changes arrive: ${esc(e.deploy_method)}` : "", e.deploys_by ? `Deploys: ${esc(e.deploys_by)}` : "", e.refresh ? `Refresh: ${esc(e.refresh)}` : "", e.system_name ? `System: ${esc(e.system_name)}` : ""].filter(Boolean).join(" · ")}</p>

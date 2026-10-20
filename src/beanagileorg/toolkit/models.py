@@ -85,7 +85,7 @@ RUN_STATUS = ("planned", "in progress", "done")
 RESULTS = ("not run", "pass", "fail", "blocked", "skipped")
 SUITE_KINDS = ("unit", "integration", "end-to-end", "Apex", "MUnit", "performance", "other")
 SUITE_RESULTS = ("unknown", "passing", "failing", "flaky")
-REGRESSION_KINDS = ("Salesforce release", "peak-season freeze", "major release", "other")
+REGRESSION_KINDS = ("platform release", "peak-season freeze", "major release", "other", "Salesforce release")
 REGRESSION_STATUS = ("planned", "in progress", "signed off", "done")
 SYSTEM_KINDS = ("platform", "application", "integration", "data store", "external service", "tool")
 LIFECYCLE = ("planned", "active", "retiring", "retired")
@@ -100,7 +100,7 @@ TRANSITION_TYPES = ("new hire", "contractor", "move between teams", "promotion",
 INTENSITY = ("none", "low", "medium", "high")
 SEAT_STATUS = ("open", "interviewing", "filled", "closed")
 CAREER_FUNCTIONS = ("Engineering", "Product", "QA", "Operations", "Sales and marketing", "Finance", "HR", "Other")
-ONBOARDING_TRACKS = ("Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor")
+ONBOARDING_TRACKS = ("developer", "QA", "employee", "contractor", "Salesforce developer", "MuleSoft developer")
 ONBOARDING_STATUS = ("not started", "in progress", "done")
 POLICY_CATEGORIES = ("branching", "code review", "testing", "release", "change management", "hotfix", "security", "data", "documentation", "communication", "other")
 POLICY_STATUS = ("draft", "agreed", "retired")
@@ -3053,7 +3053,7 @@ regression_plans = Record(
     fields={
         "never_share": Field("bool", P),
         "title": Field("text", E, required=True),
-        "kind": Field("text", E, choices=REGRESSION_KINDS, default="Salesforce release"),
+        "kind": Field("text", E, choices=REGRESSION_KINDS, default="platform release"),
         "start_date": Field("date", E),
         "end_date": Field("date", E),
         "owner_id": Field("int", S),

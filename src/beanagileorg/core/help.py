@@ -332,7 +332,7 @@ TOOLKIT = {
         "steps": ["Add a release with its sprint, branch and planned date; its path comes from your SDLC environments or the list under The path to production.",
                   "Fill it from the sprint's stories, link the regression plan, and record QA sign-off.", "Mark each step on the path as it's done, then decide go or no-go against the readiness check; the decision is logged under Risks and decisions.",
                   "After release, record the outcome, and for a failure link its incident; the release log gives deployment frequency, change failure rate and time to restore for Metrics.",
-                  "Check the calendar for releases planned inside a Salesforce release window or a peak-season freeze; link accepted change requests to the release they landed in."],
+                  "Check the calendar for releases planned inside a platform release window or a peak-season freeze; link accepted change requests to the release they landed in."],
         "privacy": "Shareable, so release notes and status can go to stakeholders; notes are private.",
         "related": ["/sdlc", "/qa", "/metrics", "/coaching/quality-culture"],
     },

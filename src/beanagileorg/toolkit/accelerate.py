@@ -154,7 +154,8 @@ MANAGER_SUPPORT = {
     "sustaining success": ["Constant reality checks: is this really doing well, or quietly drifting?", "Support for playing good defense and avoiding damaging mistakes", "Help finding the next level"],
 }
 
-STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
+STARTER_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The platforms we build on", "Integrations", "Stakeholder relationships"]
+SALESFORCE_AREAS = ["The team", "Delivery and Agile practice", "Quality and releases", "The Salesforce platform", "MuleSoft and integrations", "Stakeholder relationships"]
 
 BOSS_TOPICS = [
     ("The situation", "Bring your read of the situation (what's working, what isn't, what kind of situation it is) and test it against theirs. Ask for the history only they know: what's been tried, who matters, where the sensitivities are."),
@@ -435,9 +436,12 @@ def situation_starter(viewer: Viewer = Depends(get_viewer), conn=Depends(get_con
     require_write(viewer)
     if conn.execute("SELECT COUNT(*) FROM situations").fetchone()[0]:
         raise HTTPException(409, "You've already started the diagnosis.")
-    for pos, area in enumerate(STARTER_AREAS):
+    from .routes import platform
+
+    areas = SALESFORCE_AREAS if platform(conn) == "salesforce" else STARTER_AREAS
+    for pos, area in enumerate(areas):
         models.situations.create(conn, {"area": area, "position": pos}, viewer.source)
-    return {"areas": len(STARTER_AREAS)}
+    return {"areas": len(areas)}
 
 
 # ---- conversations with your manager, and agreeing the plan ----

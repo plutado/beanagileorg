@@ -40,7 +40,7 @@ STARTER_WORKING = """## Working with me
 [Placeholder: a sentence or two about who you are and why you're here.]
 
 **What I've been asked to do**
-- [Placeholder: e.g. bring in Scrum and a clear QA process, make releases more predictable, bring the two Salesforce teams together]
+- [Placeholder: e.g. bring in Scrum and a clear QA process, make releases more predictable, bring two teams together after a reorganization or acquisition]
 
 **How I work**
 - I'd rather hear bad news early than good news late. You won't get in trouble for raising a problem.

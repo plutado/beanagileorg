@@ -444,6 +444,14 @@ def obligation_done(obligation_id: int, viewer: Viewer = Depends(get_viewer), co
 
 
 JIRA_URL_KEY = "toolkit.jira_url"
+PLATFORM_KEY = "toolkit.platform"
+# Starter content is generic unless a platform pack is chosen; existing data is never rewritten.
+PLATFORMS = {"generic": "Generic: any stack", "salesforce": "Salesforce and MuleSoft"}
+
+
+def platform(conn) -> str:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (PLATFORM_KEY,)).fetchone()
+    return row["value"] if row and row["value"] in PLATFORMS else "generic"
 
 
 def _setting(conn, key):
@@ -453,7 +461,7 @@ def _setting(conn, key):
 
 @router.get("/api/toolkit/settings")
 def get_settings(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    return {"start_date": _setting(conn, START_DATE_KEY), "jira_url": _setting(conn, JIRA_URL_KEY)}
+    return {"start_date": _setting(conn, START_DATE_KEY), "jira_url": _setting(conn, JIRA_URL_KEY), "platform": platform(conn), "platforms": PLATFORMS}
 
 
 @router.put("/api/toolkit/settings")
@@ -476,6 +484,10 @@ def put_settings(body: dict = Body(...), viewer: Viewer = Depends(require_full),
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (JIRA_URL_KEY, url))
         else:
             conn.execute("DELETE FROM settings WHERE key = ?", (JIRA_URL_KEY,))
+    if "platform" in body:
+        if body["platform"] not in PLATFORMS:
+            raise HTTPException(400, "Choose generic or salesforce.")
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (PLATFORM_KEY, body["platform"]))
     return get_settings(viewer, conn)
 
 

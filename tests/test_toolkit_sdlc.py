@@ -17,13 +17,30 @@ def client(tmp_path):
 
 def test_starter_loads_once_and_policies_start_as_drafts(client):
     out = client.post("/api/sdlc/starter").json()
-    assert out == {"stages": 9, "environments": 6, "policies": 12}
+    assert out == {"stages": 9, "environments": 5, "policies": 12}
     assert client.post("/api/sdlc/starter").status_code == 409
     d = client.get("/api/sdlc").json()
     assert [s["name"] for s in d["stages"]][:2] == ["Intake", "Refinement"] and d["stages"][-1]["name"] == "Support and learn"
     assert {p["status"] for p in d["policies"]} == {"draft"}
+    assert [g["platform"] for g in d["environments"]] == ["Application"]
+    assert [e["name"] for e in d["environments"][0]["environments"]] == ["Local development", "Integration", "QA", "Staging", "Production"]
+
+
+def test_salesforce_pack_brings_the_sandbox_path(client):
+    client.put("/api/toolkit/settings", json={"platform": "salesforce"})
+    assert client.post("/api/sdlc/starter").json() == {"stages": 9, "environments": 6, "policies": 12}
+    d = client.get("/api/sdlc").json()
     assert [g["platform"] for g in d["environments"]] == ["MuleSoft", "Salesforce"]
-    assert [e["name"] for e in d["environments"][1]["environments"]][-1] == "Production"
+    assert any(p["title"] == "Sandbox workflow" for p in d["policies"])
+
+
+def test_generic_starters_name_no_platform():
+    from beanagileorg.toolkit import accelerate, onboarding, releases
+
+    text = repr(sdlc.STARTER_STAGES) + repr(sdlc.STARTER_ENVIRONMENTS) + repr(sdlc.STARTER_POLICIES) + repr(onboarding.STARTER)
+    text += repr(releases.DEFAULT_PATH) + repr(accelerate.STARTER_AREAS)
+    for word in ("Salesforce", "MuleSoft", "sandbox", "Bitbucket", "Trailhead", "Anypoint"):
+        assert word not in text, word
 
 
 def test_starter_invents_nothing_specific():

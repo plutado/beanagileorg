@@ -14,9 +14,10 @@ from .routes import require_write
 router = APIRouter()
 PHASES = [("Before day 1", None, 0), ("Week 1", 1, 7), ("Weeks 2 to 4", 8, 30), ("Days 31 to 90", 31, 90), ("After day 90", 91, None)]
 
-SD, MD, QA, EMP, CON = "Salesforce developer", "MuleSoft developer", "QA", "employee", "contractor"
-# (day, owner, category, title, description, link, tracks). Generic practice only; anything company-specific is a [Placeholder].
-STARTER = [
+SD, MD, DEV, QA, EMP, CON = "Salesforce developer", "MuleSoft developer", "developer", "QA", "employee", "contractor"
+# (day, owner, category, title, description, link, tracks), the Salesforce and MuleSoft pack. Generic practice only;
+# anything company-specific is a [Placeholder]. STARTER below is the generic version every install starts from.
+SALESFORCE_STARTER = [
     (-7, "IT or admin", "accounts and access", "Request accounts: email, chat, Bitbucket and Jira", "Also [Placeholder: sign-in system and any other tools]. Ask early; access is the most common day-one blocker.", "", []),
     (-7, "manager", "accounts and access", "Request a Salesforce sandbox user with the right permission sets", "Which sandbox and permission sets: [Placeholder].", "", [SD, QA]),
     (-7, "manager", "accounts and access", "Request Anypoint Platform access for the right business groups and environments", "", "", [MD]),
@@ -54,6 +55,28 @@ STARTER = [
 ]
 
 
+_GENERIC_TITLES = {
+    "Request accounts: email, chat, Bitbucket and Jira": "Request accounts: email, chat, source control and the issue tracker",
+    "Clone the Salesforce project from Bitbucket and deploy it to your sandbox": "Clone the code, run it locally and deploy a change to a test environment",
+    "Salesforce learning: [Placeholder: Trailhead modules for the clouds we use]": "Platform learning: [Placeholder: courses for the languages and platforms we use]",
+}
+_PACK_ONLY = ("Request a Salesforce sandbox user with the right permission sets", "Request Anypoint Platform access for the right business groups and environments",
+              "Run a MuleSoft application locally and deploy it to a non-production environment", "MuleSoft learning: [Placeholder: courses]")
+
+
+def _generic(item: tuple) -> tuple:
+    day, owner, cat, title, desc, link, tracks = item
+    mapped = []
+    for t in tracks:
+        t = DEV if t in (SD, MD) else t
+        if t not in mapped:
+            mapped.append(t)
+    return day, owner, cat, _GENERIC_TITLES.get(title, title), desc, link, mapped
+
+
+STARTER = [_generic(i) for i in SALESFORCE_STARTER if i[3] not in _PACK_ONLY]
+
+
 def _day(start: str | None, n: int | None) -> str | None:
     if not start or n is None:
         return None
@@ -80,10 +103,13 @@ def load_starter(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     if conn.execute("SELECT COUNT(*) FROM onboarding_items").fetchone()[0]:
         raise HTTPException(409, "There's already a checklist. Edit it instead.")
-    for pos, (day, owner, cat, title, desc, link, tracks) in enumerate(STARTER):
+    from .routes import platform
+
+    items = SALESFORCE_STARTER if platform(conn) == "salesforce" else STARTER
+    for pos, (day, owner, cat, title, desc, link, tracks) in enumerate(items):
         models.onboarding_items.create(conn, {"title": title, "description": desc or None, "category": cat, "due_day": day, "owner_role": owner,
                                               "tracks": tracks, "link": link or None, "position": pos}, viewer.source)
-    return {"items": len(STARTER)}
+    return {"items": len(items)}
 
 
 @router.post("/api/onboardings", status_code=201)
