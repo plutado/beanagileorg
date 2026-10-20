@@ -2063,6 +2063,29 @@ MIGRATIONS = [
         ALTER TABLE team_changes ADD COLUMN policy_id INTEGER REFERENCES sdlc_policies (id) ON DELETE SET NULL;
         """,
     ),
+    (
+        70,
+        """
+        CREATE TABLE growth_levels (
+            id INTEGER PRIMARY KEY,
+            track TEXT NOT NULL,
+            level TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0,
+            expectations TEXT,
+            move_up TEXT
+        );
+        ALTER TABLE people ADD COLUMN growth_level_id INTEGER REFERENCES growth_levels (id) ON DELETE SET NULL;
+        CREATE TABLE onboarding_feedback (
+            id INTEGER PRIMARY KEY,
+            onboarding_id INTEGER REFERENCES onboardings (id) ON DELETE SET NULL,
+            date DATE NOT NULL,
+            helped TEXT,
+            missing TEXT,
+            suggestion TEXT,
+            status TEXT NOT NULL DEFAULT 'new'
+        );
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -2111,6 +2134,7 @@ people = Record(
         "advice": Field("list", P),
         "outside_org": Field("bool", P),
         "working_with_me": Field("text", P),
+        "growth_level_id": Field("int", P),
         "insight": Field("list", P),
         "change_style": Field("text", P, choices=CHANGE_STYLES),
         "change_agent": Field("bool", P, default=False),
@@ -4478,6 +4502,27 @@ sdlc_versions = Record(
 )
 
 
+# Growth paths: the levels in each track and what moves someone up, so reports can see where they are and what's next.
+growth_levels = Record(
+    entity="growth_level",
+    table="growth_levels",
+    path="/api/growth-levels",
+    order_by="track, position, id",
+    fields={"track": Field("text", S, required=True), "level": Field("text", S, required=True), "position": Field("int", S, default=0),
+            "expectations": Field("text", S), "move_up": Field("text", S)},
+)
+
+# What each new member says about their onboarding, feeding changes to the template.
+onboarding_feedback = Record(
+    entity="onboarding_feedback",
+    table="onboarding_feedback",
+    path="/api/onboarding-feedback",
+    order_by="status = 'new' DESC, date DESC, id DESC",
+    fields={"onboarding_id": Field("int", S), "date": Field("date", S, required=True), "helped": Field("text", S), "missing": Field("text", S),
+            "suggestion": Field("text", S), "status": Field("text", S, choices=("new", "used", "set aside"), default="new")},
+)
+
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -4498,5 +4543,5 @@ RECORDS = [
     interactions, commitments, manager_notes, growth_goals,
     standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, behavior_targets, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
     core_challenge_checks, syndrome_checks, disciplines, day_reviews, support_profiles, support_checkins,
-    transition_units, open_seats, seat_candidates, career_entries, mandate_versions, sdlc_versions,
+    transition_units, open_seats, seat_candidates, career_entries, mandate_versions, sdlc_versions, growth_levels, onboarding_feedback,
 ]

@@ -1,6 +1,7 @@
 """Retrospectives (the team's shared record) and PI planning boards."""
 
 from collections import defaultdict
+from datetime import date
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
@@ -41,7 +42,13 @@ def retro_board(retro_id: int, viewer: Viewer = Depends(get_viewer), conn=Depend
     names = {p["id"]: p["name"] for p in models.people.fetch_all(conn)}
     shown = models.retros.visible(retro, viewer)
     shown["attendees"] = [names[i] for i in retro["attendee_ids"] if i in names]
+    agreed = models.team_agreements.visible_all(models.team_agreements.fetch_all(
+        conn, "status = 'agreed' AND (team_id IS NULL OR team_id IS ?)", (retro.get("team_id"),)), viewer)
+    on = retro["date"] or date.today().isoformat()
+    for a in agreed:
+        a["due_review"] = bool(a.get("review_on") and a["review_on"] <= on)
     return {
+        "agreements": agreed,
         "retro": shown,
         "columns": list(grouped),
         "items": grouped,

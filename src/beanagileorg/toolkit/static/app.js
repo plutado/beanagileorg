@@ -3590,6 +3590,8 @@
           ${ro ? tonePill(c.status, COMMIT_TONES) : `<select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>
           <input name="outcome" placeholder="Outcome" value="${esc(c.outcome || "")}" style="max-width:220px">`}</div>`)
         .join("")}</section>` : ""}
+      ${(d.agreements || []).length ? `<section class="card"><div class="row"><h2>Our agreements</h2><span class="spacer"></span><a class="btn" href="#/culture/agreements">Team agreements</a></div><p class="quiet">What we agreed about how we work. Are we keeping them, and do any need changing?</p>
+        ${d.agreements.map((a) => `<div class="item"><span>${esc(a.text)}</span><span class="spacer"></span>${a.due_review ? '<span class="pill warn">due for review</span>' : ""}${a.review_on ? `<span class="quiet">review ${BA.fmtDate(a.review_on)}</span>` : ""}</div>`).join("")}</section>` : ""}
       <div class="retro-board" style="grid-template-columns: repeat(${d.columns.length}, minmax(220px, 1fr))">${d.columns
         .map((col) => `<section class="card retro-col"><h2>${esc(col)}</h2>${(d.items[col] || []).map(itemCard).join("") || '<p class="quiet">Nothing yet.</p>'}
           ${ro ? "" : `<form class="add-item" data-col="${esc(col)}"><input name="text" placeholder="Add a point" required><input name="topic" placeholder="Topic tag (optional)"><button class="btn" type="submit">Add</button></form>`}</section>`)
@@ -5099,6 +5101,10 @@
           ${ro ? "" : `<button class="btn" id="copy-ob">${BA.icon("copy")} Copy checklist to send</button>`}</div>
         ${o.tracks.length || o.transition_type ? `<p>${o.transition_type ? `<span class="pill accent">${esc(o.transition_type)}</span> ` : ""}${BA.chips(o.tracks)}</p>` : ""}</section>
       ${ro ? "" : riskCheckCard(rc)}
+      ${ro ? "" : `<section class="card" id="ob-own"><div class="row"><h2>Their own page</h2><span class="spacer"></span><button class="btn" type="button" id="ob-link">Make a link for them</button></div>
+        <p class="quiet">A read-only page of this checklist they can open themselves, as it stands each time they look. It lasts a week, needs a code you send another way, and opens nothing else.</p><div id="ob-link-made"></div><div id="ob-links"></div></section>
+      <section class="card"><h2>Their feedback</h2><p class="quiet">Ask at day 30 and day 90: what helped, what was missing, what to change. Suggestions can go straight into the checklist template for the next person.</p>
+        <form id="ob-fb" class="grid2"><label>What helped<input name="helped"></label><label>What was missing<input name="missing"></label><label style="grid-column:1/-1">What to change<input name="suggestion"></label><div class="actions"><button class="btn" type="submit">Save their feedback</button></div></form></section>`}
       ${d.phases.map((p) => `<section class="card"><h2>${esc(p.name)} <span class="quiet">${p.tasks.filter((t) => t.done).length} of ${p.tasks.length}</span></h2>${p.tasks.map(task).join("")}</section>`).join("") || '<p class="empty">No items. Add some below, or load the checklist template first.</p>'}
       ${ro ? "" : `<section class="card"><h2>Add an item just for ${esc(o.person_name)}</h2><form id="add-task" class="row"><input name="title" required placeholder="What needs doing" style="max-width:360px">
           <input type="number" name="due_day" placeholder="Day" style="max-width:90px"><select name="owner_role" style="max-width:160px">${opts(OB_OWNERS, "new member")}</select><button class="btn" type="submit">Add</button></form></section>
@@ -5115,6 +5121,20 @@
       if (del) del.onclick = BA.guard(async () => { if (!confirm("Remove this item from their checklist? The template keeps it.")) return; await BA.api(`/api/onboarding-tasks/${tid}`, { method: "DELETE" }); BA.rerender(); });
     });
     bindRiskCheck(main, id);
+    const loadObLinks = async () => {
+      const r = await BA.api(`/api/onboardings/${id}/links`);
+      main.querySelector("#ob-links").innerHTML = r.links.map((l) => `<div class="item"><span class="pill ${l.status === "active" ? "good" : ""}">${esc(l.status)}</span><span>${esc(l.recipient)}</span><span class="quiet">expires ${esc(l.expires_at.slice(0, 16))} UTC · opened ${l.views}</span><span class="spacer"></span>${l.status === "active" ? `<button class="btn danger" type="button" data-ob-revoke="${l.id}">Revoke</button>` : ""}</div>`).join("");
+      main.querySelectorAll("[data-ob-revoke]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/onboardings/${id}/links/${b.dataset.obRevoke}`, { method: "DELETE" }); loadObLinks(); })));
+    };
+    if (main.querySelector("#ob-links")) loadObLinks();
+    const obl = main.querySelector("#ob-link");
+    if (obl) obl.onclick = BA.guard(async () => {
+      const r = await BA.api(`/api/onboardings/${id}/links`, { method: "POST", body: {} });
+      main.querySelector("#ob-link-made").innerHTML = `<div class="callout"><p><b>Shown once.</b> Send the link and the code separately.</p><p>Link: <code>${esc(r.url)}</code></p><p>Code: <code>${esc(r.code)}</code></p>${r.local_only ? '<p class="quiet">This only opens on this computer until you set the address others use to reach it (on a report\'s Managing themselves tab, under Links for HR).</p>' : ""}</div>`;
+      loadObLinks();
+    });
+    const fbf = main.querySelector("#ob-fb");
+    if (fbf) fbf.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(fbf); await BA.api("/api/onboarding-feedback", { method: "POST", body: { onboarding_id: id, date: BA.today(), helped: fd.get("helped") || null, missing: fd.get("missing") || null, suggestion: fd.get("suggestion") || null } }); fbf.reset(); BA.toast("Saved. It shows on the checklist template for the next person."); });
     main.querySelector("#ob-status").onchange = BA.guard(async (e) => { await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { status: e.target.value } }); BA.toast("Saved."); });
     main.querySelector("#copy-ob").onclick = BA.guard(async () => {
       const out = await BA.api(`/api/onboardings/${id}/checklist/export`, { method: "POST", body: {} });
@@ -5143,7 +5163,7 @@
   }
 
   async function renderObTemplate(main) {
-    const items = await BA.api("/api/onboarding-items");
+    const [items, feedback] = await Promise.all([BA.api("/api/onboarding-items"), BA.api("/api/onboarding-feedback")]);
     const ro = presenting();
     const filter = sessionStorage.getItem("ba-ob-track") || "";
     const shown = items.filter((i) => !filter || !i.tracks.length || i.tracks.includes(filter));
@@ -5161,6 +5181,9 @@
       return body;
     };
     main.innerHTML = `${obTabs("template")}
+      ${feedback.filter((f) => f.status === "new").length && !ro ? `<section class="card"><h2>What new members said</h2><p class="quiet">Their feedback on onboarding. Turn a suggestion into a checklist item so the next person benefits, or set it aside.</p>
+        ${feedback.filter((f) => f.status === "new").map((f) => `<div class="item" data-fb="${f.id}"><span class="quiet">${BA.fmtDate(f.date)}</span><span>${[f.helped ? `Helped: ${esc(f.helped)}` : "", f.missing ? `Missing: ${esc(f.missing)}` : "", f.suggestion ? `<b>Change: ${esc(f.suggestion)}</b>` : ""].filter(Boolean).join(" · ")}</span><span class="spacer"></span>
+          ${f.suggestion || f.missing ? '<button class="btn" type="button" data-fb-item>Add to the checklist</button>' : ""}<button class="btn" type="button" data-fb-aside>Set aside</button></div>`).join("")}</section>` : ""}
       <div class="row"><p class="quiet">The checklist every new member starts from. Changes here apply to the next person; checklists already started keep their own copy.</p><span class="spacer"></span>
         <select id="ob-track" style="max-width:220px"><option value="">Every track</option>${OB_TRACKS.map((t) => `<option${t === filter ? " selected" : ""}>${t}</option>`).join("")}</select></div>
       ${groups.map(([n, list]) => `<section class="card"><h2>${esc(n)} <span class="quiet">${list.length}</span></h2>${list.map((i) => `<details class="plan-item${i.active ? "" : " dropped"}" data-item="${i.id}"><summary><span>${esc(i.title)}</span><span class="spacer"></span>
@@ -5170,6 +5193,11 @@
       ${ro ? "" : `<form id="add-item" class="card"><h2>Add an item</h2>${fields()}<div class="actions"><button class="btn primary" type="submit">Add</button></div></form>`}`;
     main.querySelector("#ob-track").onchange = (e) => { sessionStorage.setItem("ba-ob-track", e.target.value); BA.rerender(); };
     if (ro) return;
+    main.querySelectorAll("[data-fb]").forEach((row) => {
+      const fid = row.dataset.fb, it = row.querySelector("[data-fb-item]");
+      if (it) it.onclick = BA.guard(async () => { const day = prompt("Which day should it be due? (1 is the first day; -7 is a week before)", "7"); if (day === null) return; await BA.api(`/api/onboarding-feedback/${fid}/to-item`, { method: "POST", body: { due_day: day === "" ? null : Number(day) } }); BA.toast("Added to the checklist template."); BA.rerender(); });
+      row.querySelector("[data-fb-aside]").onclick = BA.guard(async () => { await BA.api(`/api/onboarding-feedback/${fid}`, { method: "PATCH", body: { status: "set aside" } }); BA.rerender(); });
+    });
     const add = main.querySelector("#add-item");
     add.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/onboarding-items", { method: "POST", body: read(add) }); BA.rerender(); });
     main.querySelectorAll("details[data-item]").forEach((det) => {
@@ -6150,14 +6178,42 @@
   const C_STATUS = ["open", "watching", "addressed"];
   const C_STATUS_TONES = { open: "warn", watching: "accent", addressed: "good" };
   const A_AREAS = ["working together", "disagreement", "meetings", "code review", "communication", "quality", "other"];
-  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["map", "Culture map"], ["glossary", "Glossary"], ["behaviors", "Behaviors to change"], ["upward", "Upward questions"], ["brief", "Role brief"]]
+  const cultureTabs = (active) => `<nav class="tabs">${[["", "Overview"], ["noticing", "Noticing"], ["pulse", "Trust pulse"], ["standards", "My standards"], ["agreements", "Team agreements"], ["growth", "Growth paths"], ["map", "Culture map"], ["glossary", "Glossary"], ["behaviors", "Behaviors to change"], ["upward", "Upward questions"], ["brief", "Role brief"]]
     .map(([k, l]) => `<a href="#/culture${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const bars = (vals, max = 5) => `<span class="mini-bars">${vals.map((v) => `<span title="${v ?? "–"}" style="height:${v ? Math.round((v / max) * 100) : 4}%"></span>`).join("")}</span>`;
+
+  // Growth paths: each track's levels and what moves someone up, with (privately) where each report sits.
+  async function renderGrowth(main) {
+    const g = await BA.api("/api/growth-paths");
+    const ro = presenting();
+    const levelOpts = (sel) => `<option value="">Not placed</option>${g.tracks.map((t) => `<optgroup label="${esc(t.track)}">${t.levels.map((l) => `<option value="${l.id}"${l.id === sel ? " selected" : ""}>${esc(l.level)}</option>`).join("")}</optgroup>`).join("")}`;
+    main.innerHTML = `${cultureTabs("growth")}
+      <p class="quiet">Levels and what moves someone up, so everyone can see where they are and what's next. Use the organization's real levels once you know them; until then the placeholders are just a shape. A growth path is a conversation starter for growth goals, not a ranking.</p>
+      ${g.tracks.map((t) => `<section class="card"><h2>${esc(t.track)}</h2>${t.levels.map((l) => `<details class="plan-item" data-level="${l.id}"><summary><b>${esc(l.level)}</b>${l.people && l.people.length ? `<span class="quiet">${l.people.map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ")}</span>` : ""}</summary>
+          ${ro ? `${l.expectations ? BA.md(l.expectations) : ""}${l.move_up ? `<p><b>To move up:</b> ${esc(l.move_up)}</p>` : ""}` : `<form><div class="grid2"><label>Track<input name="track" value="${esc(l.track)}"></label><label>Level<input name="level" value="${esc(l.level)}"></label></div>
+            <label>What's expected<textarea name="expectations" rows="3">${esc(l.expectations || "")}</textarea></label><label>What moves someone up<textarea name="move_up" rows="2">${esc(l.move_up || "")}</textarea></label>
+            <div class="actions"><button class="btn danger left" type="button" data-del>Delete</button><button class="btn primary" type="submit">Save</button></div></form>`}</details>`).join("")}</section>`).join("")}
+      ${ro ? "" : `<section class="card">${g.tracks.length ? "" : '<p class="quiet">No levels yet.</p><button class="btn" type="button" id="growth-starter">Start from a placeholder track</button>'}
+        <form id="add-level" class="row" style="margin-top:8px"><input name="track" placeholder="Track" required style="max-width:200px" value="${esc((g.tracks[0] || {}).track || "")}"><input name="level" placeholder="Level" required style="max-width:200px"><button class="btn" type="submit">Add a level</button></form></section>
+      ${(g.reports || []).length ? `<section class="card"><h2>My reports</h2><p class="quiet">Where each sits today. Private.</p>${g.reports.map((r) => `<div class="item"><a href="#/people/${r.id}">${esc(r.name)}</a><span class="spacer"></span><select data-place="${r.id}" style="max-width:240px">${levelOpts(r.growth_level_id)}</select></div>`).join("")}</section>` : ""}`}`;
+    if (ro) return;
+    const st = main.querySelector("#growth-starter");
+    if (st) st.onclick = BA.guard(async () => { await BA.api("/api/growth-paths/starter", { method: "POST" }); BA.rerender(); });
+    const al = main.querySelector("#add-level");
+    al.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/growth-levels", { method: "POST", body: { track: al.elements.track.value, level: al.elements.level.value, position: 99 } }); BA.rerender(); });
+    main.querySelectorAll("[data-level]").forEach((det) => {
+      const id = det.dataset.level, f = det.querySelector("form");
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/growth-levels/${id}`, { method: "PATCH", body: { track: fd.get("track"), level: fd.get("level"), expectations: fd.get("expectations") || null, move_up: fd.get("move_up") || null } }); BA.rerender(); });
+      det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this level?")) return; await BA.api(`/api/growth-levels/${id}`, { method: "DELETE" }); BA.rerender(); });
+    });
+    main.querySelectorAll("[data-place]").forEach((sel) => (sel.onchange = BA.guard(async () => { await BA.api(`/api/people/${sel.dataset.place}`, { method: "PATCH", body: { growth_level_id: numOrNull(sel.value) } }); BA.toast("Saved."); BA.rerender(); })));
+  }
+
 
   BA.view("/culture", {
     title: "Culture and trust",
     async render(main, param) {
-      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, map: renderCultureMap, glossary: renderGlossary, behaviors: renderBehaviors, upward: renderUpward, brief: renderBrief };
+      const views = { noticing: renderNoticing, pulse: renderPulse, standards: renderStandards, agreements: renderAgreements, growth: renderGrowth, map: renderCultureMap, glossary: renderGlossary, behaviors: renderBehaviors, upward: renderUpward, brief: renderBrief };
       if (views[param]) return views[param](main);
       const d = await BA.api("/api/culture/overview");
       if (!d.private) {
