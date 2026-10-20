@@ -100,7 +100,7 @@ TOOLKIT = {
                   "The Portfolio sorts your areas into the five situations with a share of effort for each (adding to 100%), checks your favorite situation isn't getting the most by default, and copies as Markdown.",
                   "Note your natural style (hero or steward) under Problem preferences and your team's on their pages; the portfolio flags a mismatch with your situations and shows your team's mix.",
                   "Near day 90, preview and copy the day-90 summary for your manager, drawn from all three tracks and the delivery scorecard.",
-                  "Under 90-day cycles, give each cycle a focus and goals, review it in its last two weeks, and copy its summary. Set the length to match your PIs."],
+                  "Under 90-day cycles, give each cycle a focus and goals, review it in its last two weeks, and copy its summary. When PIs have dates, each cycle follows one PI automatically."],
         "privacy": "Working with me and the team changes can be shown while presenting; milestones, check-in notes and your own track are private.",
         "related": ["/onboarding", "/plans", "/coaching/leading-change"],
     },

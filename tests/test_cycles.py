@@ -60,3 +60,19 @@ def test_review_snapshots_and_summary(c):
 def test_core_challenges_check_at_each_cycle_end(c):
     start_on_day(c, 181)
     assert c.get("/api/today").json()["self"]["challenge_check_due"] == 180
+
+
+def test_cycles_follow_dated_pis_then_fall_back_to_the_set_length(c):
+    start_on_day(c, 100)
+    start = date.today() - timedelta(days=99)
+    day = lambda n: (start + timedelta(days=n - 1)).isoformat()
+    c.post("/api/program-increments", json={"number": 1, "start_date": day(1), "end_date": day(40)})  # too short to be cycle 1
+    p2 = c.post("/api/program-increments", json={"number": 2, "start_date": day(41), "end_date": day(70)}).json()["id"]
+    p3 = c.post("/api/program-increments", json={"number": 3, "start_date": day(71), "end_date": day(140)}).json()["id"]
+    o = c.get("/api/cycles/overview").json()
+    spans = [(x["number"], x["start_day"], x["end_day"], x["pi"]["id"] if x["pi"] else None) for x in o["cycles"]]
+    assert spans[:2] == [(1, 1, 70, p2), (2, 71, 140, p3)] and o["current"] == 2 and o["day_in_cycle"] == 30
+    assert o["cycles"][1]["follows_pi"] and o["follow_pis"]
+    c.put("/api/cycles/settings", json={"follow_pis": False})
+    o = c.get("/api/cycles/overview").json()
+    assert (o["cycles"][0]["start_day"], o["cycles"][0]["end_day"]) == (1, 90) and o["current"] == 2 and not o["follow_pis"]

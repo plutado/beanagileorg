@@ -220,9 +220,9 @@ def self_due(conn) -> dict:
     out["week_review_due"] = t.weekday() >= 4 and not conn.execute("SELECT 1 FROM day_reviews WHERE date >= ? AND kind = 'week'", (week_start,)).fetchone()
     out["challenge_check_due"] = None
     if day:
-        from .cycles import length
-        size = length(conn)
-        for d in sorted(set(CHECK_DAYS) | {size * k for k in range(1, day // size + 2)}):  # day 30, 60, then every cycle end
+        from .cycles import spans
+        ends = {s["end_day"] for s in spans(conn, upto=day + 30)}
+        for d in sorted(set(CHECK_DAYS) | ends):  # day 30, 60, then every cycle end
             if d - 3 <= day <= d + 10:
                 start = (t - timedelta(days=day - (d - 3))).isoformat()
                 if not conn.execute("SELECT 1 FROM core_challenge_checks WHERE date >= ?", (start,)).fetchone():

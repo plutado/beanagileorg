@@ -6924,8 +6924,8 @@
     const o = await BA.api("/api/cycles/overview");
     const ro = presenting();
     const card = (c) => `<section class="card cycle-card${c.state === "current" ? " cycle-now" : ""}" data-cycle="${c.number}" data-cid="${c.id}"><div class="row"><h2>Cycle ${c.number}${c.number === 1 ? ": the first 90 days" : ""}</h2>
-        <span class="pill ${c.state === "current" ? "accent" : c.status === "reviewed" ? "good" : ""}">${c.state === "current" ? `now · day ${o.day_in_cycle} of ${o.length_days}` : c.status === "reviewed" ? "reviewed" : c.state}</span>
-        <span class="quiet">days ${c.start_day} to ${c.end_day}${c.start_date ? ` · ${BA.fmtDate(c.start_date)} to ${BA.fmtDate(c.end_date)}` : ""}</span>${c.pi ? `<span class="pill">PI ${c.pi.number}</span>` : ""}<span class="spacer"></span>
+        <span class="pill ${c.state === "current" ? "accent" : c.status === "reviewed" ? "good" : ""}">${c.state === "current" ? `now · day ${o.day_in_cycle} of ${c.length}` : c.status === "reviewed" ? "reviewed" : c.state}</span>
+        <span class="quiet">days ${c.start_day} to ${c.end_day}${c.start_date ? ` · ${BA.fmtDate(c.start_date)} to ${BA.fmtDate(c.end_date)}` : ""}</span>${c.pi ? `<span class="pill">${c.follows_pi ? "follows " : ""}PI ${c.pi.number}</span>` : ""}<span class="spacer"></span>
         ${c.total ? f90Progress(c.done, c.total) : ""}</div>
       ${ro ? `${c.focus ? `<p><b>Focus:</b> ${esc(c.focus)}</p>` : ""}${(c.goals || []).length ? `<ul>${c.goals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : ""}` : `<form class="cycle-form"><label>Focus <span class="quiet">(one sentence for the whole cycle)</span><input name="focus" value="${esc(c.focus || "")}"></label>
         <label>Goals <span class="quiet">(one per line, three at most)</span><textarea name="goals" rows="3">${esc((c.goals || []).join("\n"))}</textarea></label>
@@ -6938,12 +6938,14 @@
           <label>Focus for the next cycle<input name="next_focus"></label><label>Private notes<textarea name="review_notes" rows="2"></textarea></label>
           <div class="actions"><button class="btn primary" type="button" data-review-save>Close the cycle</button></div><p class="quiet">Keeps the delivery scorecard as it stands now and a snapshot of your mandate, so the next review can compare.</p></div><div data-sum-out></div>`}</section>`;
     main.innerHTML = `${f90Tabs("cycles")}
-      <p class="quiet">The first 90 days is the first cycle, not the last. After it, the work keeps running in cycles: a short read of where things stand, a focus and a few goals agreed with your manager, about six sprints of work, then a review that sets up the next cycle. Every second cycle can end at a contract or role review. Set the length to match your PIs, so each cycle is one PI. <a href="#/coaching/ninety-day-cycles">Working in 90-day cycles</a></p>
+      <p class="quiet">The first 90 days is the first cycle, not the last. After it, the work keeps running in cycles: a short read of where things stand, a focus and a few goals agreed with your manager, about six sprints of work, then a review that sets up the next cycle. Every second cycle can end at a contract or role review. When your PIs have dates, each cycle follows one PI automatically. <a href="#/coaching/ninety-day-cycles">Working in 90-day cycles</a></p>
       ${o.day ? "" : '<p class="callout">Set your start date under <a href="#/me">My development</a> to see which cycle you\'re in.</p>'}
       ${o.cycles.map(card).join("")}
-      ${ro ? "" : `<section class="card"><form id="cycle-len" class="row"><label class="check">Cycle length <input type="number" name="length_days" min="56" max="120" value="${o.length_days}" style="max-width:90px"> days</label><button class="btn" type="submit">Save</button><span class="quiet">90 by default; 70 for a five-sprint PI of two-week sprints, 84 for six.</span></form></section>`}`;
+      ${ro ? "" : `<section class="card"><form id="cycle-len" class="row"><label class="check"><input type="checkbox" name="follow_pis"${o.follow_pis ? " checked" : ""}> Follow the PI calendar when PIs have dates</label>
+        <label class="check">Otherwise, cycle length <input type="number" name="length_days" min="56" max="120" value="${o.length_days}" style="max-width:90px"> days</label><button class="btn" type="submit">Save</button>
+        <span class="quiet">With dated PIs, each cycle after the first is one PI. Without them, 90 days by default; 70 for a five-sprint PI of two-week sprints, 84 for six.</span></form></section>`}`;
     if (ro) return;
-    main.querySelector("#cycle-len").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/cycles/settings", { method: "PUT", body: { length_days: Number(e.target.elements.length_days.value) } }); BA.rerender(); });
+    main.querySelector("#cycle-len").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/cycles/settings", { method: "PUT", body: { length_days: Number(e.target.elements.length_days.value), follow_pis: e.target.elements.follow_pis.checked } }); BA.rerender(); });
     main.querySelectorAll("[data-cycle]").forEach((sec) => {
       const n = sec.dataset.cycle, id = sec.dataset.cid, f = sec.querySelector(".cycle-form");
       f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/cycles/${id}`, { method: "PATCH", body: { focus: fd.get("focus") || null, goals: (fd.get("goals") || "").split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5), ...(f.elements.pi_id ? { pi_id: numOrNull(fd.get("pi_id")) } : {}) } }); BA.toast("Saved."); BA.rerender(); });

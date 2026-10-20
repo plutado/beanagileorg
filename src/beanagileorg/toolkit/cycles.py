@@ -1,6 +1,7 @@
 """90-day cycles: the first 90 days, then the same rhythm of planning, execution and review, cycle after cycle.
 
-Each cycle covers a span of days in the role (90 by default, or matched to PIs). It has a focus and a
+Each cycle covers a span of days in the role: 90 by default, or, when PIs have dates, one PI each (the first cycle runs
+to the end of the first PI that ends at least eight weeks in). It has a focus and a
 few goals, takes in the plan items and early wins due in its days, can link a PI (Planning Interval), and ends with a
 review: the delivery scorecard kept as it stood, a mandate snapshot, what went well and what to change, and a
 one-page summary for your manager.
@@ -19,7 +20,9 @@ from .routes import require_write, today
 
 router = APIRouter()
 LENGTH_KEY = "cycles.length_days"
+FOLLOW_KEY = "cycles.follow_pis"
 DEFAULT_LENGTH = 90
+FIRST_MIN_DAYS = 56
 MANAGER = Viewer(floor=Level.PRESENTABLE, source="cycle")
 
 
@@ -28,8 +31,36 @@ def length(conn) -> int:
     return int(row["value"]) if row else DEFAULT_LENGTH
 
 
-def bounds(n: int, size: int) -> tuple[int, int]:
-    return (n - 1) * size + 1, n * size
+def follow_pis(conn) -> bool:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (FOLLOW_KEY,)).fetchone()
+    return row is None or row["value"] == "1"
+
+
+def spans(conn, upto: int = 0) -> list[dict]:
+    """Each cycle's first and last day in the role, and the PI it follows if any. With dated PIs (and following them
+    switched on), cycles take the PI calendar; past the last dated PI, and without PIs, they run at the set length."""
+    from .first90 import start_date
+
+    size, start, out, hi = length(conn), start_date(conn), [], 0
+    if start and follow_pis(conn):
+        pis = sorted((p for p in models.program_increments.fetch_all(conn) if p["start_date"] and p["end_date"]), key=lambda p: p["start_date"])
+        for p in pis:
+            end = (date.fromisoformat(p["end_date"]) - start).days + 1
+            if end <= hi or (not out and end < FIRST_MIN_DAYS):
+                continue
+            out.append({"number": len(out) + 1, "start_day": hi + 1, "end_day": end, "pi_id": p["id"]})
+            hi = end
+    while hi < upto or len(out) < 3:
+        out.append({"number": len(out) + 1, "start_day": hi + 1, "end_day": hi + size, "pi_id": None})
+        hi += size
+    return out
+
+
+def span(conn, n: int) -> dict:
+    found = [s for s in spans(conn) if s["number"] == n]
+    while not found:
+        found = [s for s in spans(conn, upto=n * DEFAULT_LENGTH * 2) if s["number"] == n]
+    return found[0]
 
 
 def current(conn) -> tuple[int | None, int | None]:
@@ -37,7 +68,7 @@ def current(conn) -> tuple[int | None, int | None]:
     day = day_number(start_date(conn))
     if not day or day < 1:
         return None, day
-    return (day - 1) // length(conn) + 1, day
+    return next(s["number"] for s in spans(conn, upto=day) if s["start_day"] <= day <= s["end_day"]), day
 
 
 def ensure(conn, upto: int, source: str = "me") -> None:
@@ -51,17 +82,19 @@ def _date(start: date | None, day: int) -> str | None:
     return (start + timedelta(days=day - 1)).isoformat() if start else None
 
 
-def describe(conn, c: dict, viewer: Viewer, size: int, now_n: int | None) -> dict:
+def describe(conn, c: dict, viewer: Viewer, now_n: int | None) -> dict:
     from .first90 import start_date
     start = start_date(conn)
-    lo, hi = bounds(c["number"], size)
+    sp = span(conn, c["number"])
+    lo, hi = sp["start_day"], sp["end_day"]
     items = models.plan_items.visible_all(models.plan_items.fetch_all(conn, "due_day BETWEEN ? AND ? AND status != 'dropped'", (lo, hi)), viewer)
-    pi = models.program_increments.fetch(conn, c["pi_id"]) if c.get("pi_id") else None
+    pi_id = c.get("pi_id") or sp["pi_id"]
+    pi = models.program_increments.fetch(conn, pi_id) if pi_id else None
     state = "current" if now_n == c["number"] else "past" if now_n and c["number"] < now_n else "upcoming"
     return {**models.cycles.visible(c, viewer), "start_day": lo, "end_day": hi, "start_date": _date(start, lo), "end_date": _date(start, hi), "state": state,
             "items": [{"id": i["id"], "title": i["title"], "status": i["status"], "due_day": i["due_day"], "early_win": bool(i.get("early_win"))} for i in items],
             "done": sum(1 for i in items if i["status"] == "done"), "total": len(items),
-            "pi": {"id": pi["id"], "number": pi["number"]} if pi else None}
+            "pi": {"id": pi["id"], "number": pi["number"]} if pi else None, "follows_pi": bool(sp["pi_id"]), "length": hi - lo + 1}
 
 
 @router.get("/api/cycles/overview")
@@ -71,8 +104,9 @@ def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor == Level.PRIVATE and not viewer.guarded:
         ensure(conn, max(2, (n or 1) + 1), viewer.source)
     rows = models.cycles.fetch_all(conn)
-    return {"length_days": size, "day": day, "current": n, "day_in_cycle": ((day - 1) % size) + 1 if n else None,
-            "cycles": [describe(conn, c, viewer, size, n) for c in rows],
+    return {"length_days": size, "follow_pis": follow_pis(conn), "day": day, "current": n,
+            "day_in_cycle": day - span(conn, n)["start_day"] + 1 if n else None,
+            "cycles": [describe(conn, c, viewer, n) for c in rows],
             "pis": [{"id": p["id"], "number": p["number"]} for p in models.program_increments.fetch_all(conn)]}
 
 
@@ -80,14 +114,17 @@ def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 def settings(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """Cycle length in days: 90 by default, or the length of your PIs (between 8 and 17 weeks)."""
     require_write(viewer)
-    try:
-        days = int(body.get("length_days"))
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(400, "Give the cycle length in days.") from exc
-    if not 56 <= days <= 120:
-        raise HTTPException(400, "A cycle is between 56 and 120 days (8 to 17 weeks).")
-    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (LENGTH_KEY, str(days)))
-    return {"length_days": days}
+    if "follow_pis" in body:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (FOLLOW_KEY, "1" if body["follow_pis"] else "0"))
+    if "length_days" in body:
+        try:
+            days = int(body.get("length_days"))
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(400, "Give the cycle length in days.") from exc
+        if not 56 <= days <= 120:
+            raise HTTPException(400, "A cycle is between 56 and 120 days (8 to 17 weeks).")
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (LENGTH_KEY, str(days)))
+    return {"length_days": length(conn), "follow_pis": follow_pis(conn)}
 
 
 def _cycle(conn, n: int) -> dict:
@@ -123,9 +160,8 @@ def summary(conn, n: int) -> dict:
     """One page for your manager: the cycle's focus and goals, plan items and wins, mandate outcomes, scorecard, and what's next."""
     from .scorecard import _scorecard_md, scorecard
 
-    size = length(conn)
     now_n, _ = current(conn)
-    c = describe(conn, _cycle(conn, n), MANAGER, size, now_n)
+    c = describe(conn, _cycle(conn, n), MANAGER, now_n)
     lines = [f"# Cycle {n} summary (days {c['start_day']} to {c['end_day']})", "",
              "[Placeholder: one paragraph on where things stand against what we agreed for this cycle.]", ""]
     if c.get("focus"):
@@ -168,10 +204,10 @@ def cycles_due(conn) -> dict | None:
     n, day = current(conn)
     if not n:
         return None
-    size = length(conn)
-    lo, hi = bounds(n, size)
+    sp = span(conn, n)
+    lo, hi = sp["start_day"], sp["end_day"]
     row = next(iter(models.cycles.fetch_all(conn, "number = ?", (n,))), None)
-    out = {"number": n, "day_in_cycle": day - lo + 1, "length": size}
+    out = {"number": n, "day_in_cycle": day - lo + 1, "length": hi - lo + 1}
     out["review_due"] = hi - day <= 13 and not (row and row["status"] == "reviewed")
     out["focus_needed"] = n > 1 and day - lo <= 13 and not (row and row.get("focus"))
     return out if out["review_due"] or out["focus_needed"] else None
