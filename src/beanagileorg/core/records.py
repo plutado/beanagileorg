@@ -15,6 +15,7 @@ from .app import get_conn, get_viewer
 from .changelog import record_changes
 from .db import transaction
 from .privacy import Level, Viewer, filter_record, register
+from .sensitivity import JUDGMENT_TABLES, PERSON_NEVER
 
 def _integrity(exc: sqlite3.IntegrityError) -> HTTPException:
     if "UNIQUE" in str(exc):
@@ -83,9 +84,13 @@ class Record:
         return [self._decode(r) for r in conn.execute(sql, params)]
 
     def visible(self, rec: dict, viewer: Viewer) -> dict | None:
+        if viewer.guarded and (self.table in JUDGMENT_TABLES or rec.get("never_share")):
+            return None
         shown = filter_record(self.entity, rec, viewer.floor)
         if shown is None:
             return None
+        if viewer.guarded and self.table == "people":
+            shown = {k: v for k, v in shown.items() if k not in PERSON_NEVER}
         if self.hide_when_empty and viewer.floor > Level.PRIVATE and set(shown) <= {"id"}:
             return None
         if viewer.floor == Level.PRIVATE:

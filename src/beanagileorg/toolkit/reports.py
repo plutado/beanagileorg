@@ -15,6 +15,7 @@ from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Level, Viewer
 from beanagileorg.core.records import REGISTRY
+from beanagileorg.core.sensitivity import JUDGMENT_TABLES
 
 from . import models, weeks
 from .reporting import _day_to_date, my_team_id
@@ -146,6 +147,8 @@ def get_activity(start: str | None = None, end: str | None = None, viewer: Viewe
     if e < s:
         raise HTTPException(400, "The end date is before the start date.")
     events = activity(conn, s, e)
+    if viewer.guarded:
+        events = [ev for ev in events if REGISTRY[ev["entity"]].table not in JUDGMENT_TABLES]
     log = models.work_log.fetch_all(conn, "date BETWEEN ? AND ?", (s.isoformat(), e.isoformat()))
     days = {}
     for ev in events:

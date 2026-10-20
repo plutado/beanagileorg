@@ -1881,7 +1881,25 @@ MIGRATIONS = [
         ALTER TABLE metrics ADD COLUMN origin TEXT;
         """,
     ),
+    (
+        64,
+        """
+        ALTER TABLE role_templates ADD COLUMN never_share INTEGER;
+        ALTER TABLE sdlc_policies ADD COLUMN never_share INTEGER;
+        ALTER TABLE regression_plans ADD COLUMN never_share INTEGER;
+        ALTER TABLE risks ADD COLUMN never_share INTEGER;
+        ALTER TABLE decisions_needed ADD COLUMN never_share INTEGER;
+        ALTER TABLE sos_items ADD COLUMN never_share INTEGER;
+        ALTER TABLE core_processes ADD COLUMN never_share INTEGER;
+        ALTER TABLE metrics ADD COLUMN never_share INTEGER;
+        ALTER TABLE action_items ADD COLUMN never_share INTEGER;
+        """,
+    ),
 ]
+
+# A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
+# API tokens and cloud models.
+NEVER_SHARE_CEILING = "CASE WHEN never_share THEN 0 ELSE 2 END"
 
 # Names and roles may show on a shared screen; everything personal stays private.
 people = Record(
@@ -2035,9 +2053,11 @@ obligations = Record(
 action_items = Record(
     entity="action_item",
     table="action_items",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/actions",
     order_by="status = 'done', due IS NULL, due, id",
     fields={
+        "never_share": Field("bool", P),
         "concern": Field("text", S, required=True),
         "raised_by_id": Field("int", S),
         "raised_on": Field("date", S),
@@ -2329,9 +2349,11 @@ raci_decisions = Record(
 risks = Record(
     entity="risk",
     table="risks",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/risks",
     order_by="status = 'closed', CASE level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, due IS NULL, due",
     fields={
+        "never_share": Field("bool", P),
         "title": Field("text", E, required=True),
         "impact": Field("text", E),
         "level": Field("text", E, choices=RISK_LEVELS, default="medium"),
@@ -2352,9 +2374,11 @@ risks = Record(
 decisions_needed = Record(
     entity="decision_needed",
     table="decisions_needed",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/decisions-needed",
     order_by="status = 'decided', needed_by IS NULL, needed_by",
     fields={
+        "never_share": Field("bool", P),
         "decision": Field("text", E, required=True),
         "from_id": Field("int", E),
         "needed_by": Field("date", E),
@@ -2374,9 +2398,11 @@ decisions_needed = Record(
 metrics = Record(
     entity="metric",
     table="metrics",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/metrics",
     order_by="name",
     fields={
+        "never_share": Field("bool", P),
         "name": Field("text", E, required=True),
         "unit": Field("text", E),
         "baseline": Field("number", E),
@@ -2745,9 +2771,11 @@ test_cases = Record(
 regression_plans = Record(
     entity="regression_plan",
     table="regression_plans",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/regression-plans",
     order_by="status IN ('signed off', 'done'), start_date IS NULL, start_date",
     fields={
+        "never_share": Field("bool", P),
         "title": Field("text", E, required=True),
         "kind": Field("text", E, choices=REGRESSION_KINDS, default="Salesforce release"),
         "start_date": Field("date", E),
@@ -3023,9 +3051,11 @@ sdlc_environments = Record(
 sdlc_policies = Record(
     entity="sdlc_policy",
     table="sdlc_policies",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/sdlc-policies",
     order_by="status = 'retired', category, title",
     fields={
+        "never_share": Field("bool", P),
         "title": Field("text", E, required=True),
         "category": Field("text", E, choices=POLICY_CATEGORIES, default="other"),
         "body": Field("text", E),
@@ -3285,9 +3315,11 @@ teams = Record(
 sos_items = Record(
     entity="sos_item",
     table="sos_items",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/sos-items",
     order_by="status = 'done', due IS NULL, due, id",
     fields={
+        "never_share": Field("bool", P),
         "question": Field("text", S, required=True),
         "kind": Field("text", S, choices=SOS_KINDS, default="issue"),
         "details": Field("text", S),
@@ -3525,9 +3557,11 @@ alignment_checks = Record(
 core_processes = Record(
     entity="core_process",
     table="core_processes",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/core-processes",
     order_by="focus DESC, CASE importance WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, position, id",
     fields={
+        "never_share": Field("bool", P),
         "name": Field("text", E, required=True),
         "area": Field("text", E),
         "team_id": Field("int", S),
@@ -3633,9 +3667,11 @@ team_assessments = Record(
 role_templates = Record(
     entity="role_template",
     table="role_templates",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/role-templates",
     order_by="name",
     fields={
+        "never_share": Field("bool", P),
         "name": Field("text", S, required=True),
         "measures": Field("list", S),
         "should_show": Field("text", S),

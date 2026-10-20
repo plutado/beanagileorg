@@ -25,7 +25,7 @@ from .routes import require_write, today
 router = APIRouter()
 
 FORMAT, VERSION = "beanagileorg.pack", 1
-PACK_COLUMNS = ("pack_uid", "origin")
+PACK_COLUMNS = ("pack_uid", "origin", "never_share")  # bookkeeping, never offered as a field
 ACTIONS = ("add", "skip", "update", "keep", "merge", "copy")
 
 
@@ -145,7 +145,9 @@ def kinds(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     out = []
     for k in KINDS.values():
         rows = k.record.fetch_all(conn)
-        out.append({"key": k.key, "label": k.label, "count": len(rows), "natural": k.natural, "shareable": k.shareable(), "private": k.private() if viewer.floor == Level.PRIVATE else [],
+        held = [r for r in rows if r.get("never_share")]
+        rows = [r for r in rows if not r.get("never_share")]
+        out.append({"key": k.key, "label": k.label, "count": len(rows), "never_shared": len(held), "natural": k.natural, "shareable": k.shareable(), "private": k.private() if viewer.floor == Level.PRIVATE else [],
                     "links": list(k.links), "never": list(k.never),
                     "records": [{"id": r["id"], "label": r[k.natural], "detail": [str(r[d]) for d in k.describe if d != k.natural and r.get(d)],
                                  "shared_before": bool(r.get("pack_uid")), "origin": r.get("origin") or None} for r in rows]})
@@ -174,6 +176,8 @@ def build_pack(conn, viewer: Viewer, selection: dict, from_name: str = "", about
             r = k.record.fetch(conn, rid)
             if r is None:
                 raise HTTPException(400, f"No such record in {k.label}.")
+            if r.get("never_share"):
+                raise HTTPException(400, f"\"{r.get(k.natural)}\" is marked never share, so it can't go in a pack.")
             uid = r.get("pack_uid")
             if not uid:
                 uid = secrets.token_hex(8)

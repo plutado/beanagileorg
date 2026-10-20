@@ -206,6 +206,18 @@ def onboarding_due(conn, t, week):
 
 @router.get("/api/today")
 def today_view(request: Request = None, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    out = _today(request, viewer, conn)
+    if viewer.guarded and not out.get("hidden"):  # an API token: leave out what's about people's conversations and judgments
+        for k in ("upcoming_interviews", "culture"):
+            out.pop(k, None)
+        if isinstance(out.get("people_due"), dict):
+            out["people_due"] = {k: v for k, v in out["people_due"].items() if k not in ("i_owe", "they_owe_late", "sideways", "neighbors")}
+        if isinstance(out.get("accelerate"), dict):
+            out["accelerate"] = {k: v for k, v in out["accelerate"].items() if k != "mentoring"}
+    return out
+
+
+def _today(request, viewer: Viewer, conn) -> dict:
     if viewer.floor > Level.PRIVATE:
         return {"hidden": True}
     t, week = today().isoformat(), (today() + timedelta(days=7)).isoformat()

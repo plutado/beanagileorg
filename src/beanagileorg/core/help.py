@@ -201,8 +201,8 @@ TOOLKIT = {
     "/risks": {
         "purpose": "Keep risks and pending decisions visible, with an owner, a next step and a date.",
         "steps": ["Log a risk with its level, owner and next step.", "For each decision, pick how it's decided and tick when you've told people; the guide below suggests a process.", "Run Look for predictable surprises: four areas with prompts. Anything you spot becomes a risk tagged with its area.", "Log decisions you need from others, with who decides and by when.", "Record the outcome when a decision is made."],
-        "privacy": "Risks and decisions are shareable; notes are private.",
-        "related": ["/status", "/coaching/your-manager", "/coaching/early-wins"],
+        "privacy": "Risks and decisions are shareable; notes are private. A risk or decision marked never share stays private: hidden while presenting, and left out of reports, packs, API tokens and cloud models.",
+        "related": ["/status", "/coaching/your-manager", "/coaching/early-wins", "/coaching/facts-not-judgments"],
     },
     "/metrics": {
         "purpose": "Track a few delivery measures over time, with a baseline and a target, to see whether changes are working.",
@@ -309,7 +309,7 @@ TOOLKIT = {
         "purpose": "Share a small, chosen part of what you hold with another manager through a pack file, without either of you getting into the other's copy.",
         "steps": ["Under Export, tick the kinds of record, then the records, then the fields; private fields need their own tick, and some never leave.", "Choose whether links to people go as a name or not at all, then review the pack. Wording that may judge a person is flagged: rewrite it, leave the record out, or confirm.",
                   "Under Import, open a pack to preview it: new, changed, conflicting and unchanged records, field by field.", "Decide for each record (add, update, keep mine, merge field by field, add as a copy, skip), then apply. The Log keeps every pack in and out."],
-        "privacy": "Hidden while presenting. Packs carry only what you choose; notes, assessments, influence maps and other judgments about people never leave.",
+        "privacy": "Hidden while presenting. Packs carry only what you choose; notes, assessments, influence maps and other judgments about people never leave, and nor do records marked never share.",
         "related": ["/people", "/sdlc", "/qa", "/coaching/facts-not-judgments"],
     },
     "/alignment": {

@@ -29,7 +29,7 @@ def _names(conn) -> dict[int, str]:
 def board_rows(conn) -> list[dict]:
     names = _names(conn)
     out = []
-    for r in models.action_items.fetch_all(conn, "on_board = 1"):
+    for r in models.action_items.fetch_all(conn, "on_board = 1 AND NOT COALESCE(never_share, 0)"):  # the board is shared
         out.append({"id": r["id"], "topic": r["concern"], "kind": r.get("kind") or "", "asked_by": r.get("raised_by_name") or "", "asked_on": r.get("raised_on"),
                     "experts": [names[i] for i in r.get("expert_ids") or [] if i in names], "decider": r.get("decider_name") or "",
                     "next_action": r.get("next_action") or "", "due": r.get("due"), "status": r["status"], "jira_keys": r.get("jira_keys") or [],

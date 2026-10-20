@@ -39,7 +39,13 @@ The scan looks at wording, not meaning: it will miss some things and flag harmle
 9. **Ask with a cloud model.** With private data allowed, judgments about people are still held back (search, lookups and summaries alike) unless a second box is ticked. A question that sounds like a judgment about someone asks before it's sent.
 10. **Your own words.** Settings → Words that need a second look adds terms (a trailing * matches any ending) to every check above. Your words always ask.
 
+## Tokens, the hub and records you mark
+
+11. **API tokens never carry judgments.** Whatever its scope, a token (how the hub, LLM clients and the other app read the data) never receives judgment records, the person fields that record judgment, or records marked never share. Record reads filter them out; the screens that are about people (a person's CRM page, agenda and timeline, culture overview, team assessment, mentoring overview, preferences, the reflect page, the learning-questions agenda) refuse tokens; Today and Activity leave those parts out. A token gets them only with the judgments:read scope, which asks for confirmation when you create it. A test plants a marker in every judgment record and field, calls every read and export endpoint with a full-access token, and fails if the marker comes back.
+12. **Never share, per record.** Risks, decisions, Scrum of Scrums items, core processes, metrics, SDLC policies, regression plans, role templates and dev-sync items carry a never share? toggle beside their name. A marked record is private whatever its fields say: hidden while presenting, left out of the weekly report, the status draft, the Scrum of Scrums summary, the dev-sync board and the SDLC document, never offered in a pack, and never read by a token or a cloud model. You still see it.
+
+One rule underneath: a reader marked "guarded" (a token, or a cloud model with private access) skips judgments about people and never-share records, wherever records are read.
+
 ## Next
 
-- A per-record "never share" mark, for a risk or decision you know is sensitive whatever its wording.
-- The scan on the Odysseus link and on scoped API tokens, when those carry text off the machine.
+- A never share toggle on more kinds (change requests, tech debt, team changes) if they turn out to need it.

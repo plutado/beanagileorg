@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.app import get_conn, get_viewer, no_judgments
 from beanagileorg.core.privacy import Level, Viewer
 
 from . import models
@@ -194,7 +194,7 @@ def surprise_scan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
             "silos": SILO_PROMPT}
 
 
-@router.get("/api/learning-questions/agenda")
+@router.get("/api/learning-questions/agenda", dependencies=[Depends(no_judgments)])
 def agenda(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}
@@ -508,7 +508,7 @@ def put_manager_focus(body: dict = Body(...), viewer: Viewer = Depends(get_viewe
 # ---- managers you mentor ----
 
 
-@router.get("/api/mentoring/overview")
+@router.get("/api/mentoring/overview", dependencies=[Depends(no_judgments)])
 def mentoring(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         practices = models.mentored_practices.visible_all(models.mentored_practices.fetch_all(conn, "status = 'adopted'"), viewer)
@@ -609,7 +609,7 @@ def preference_result(scores: dict) -> dict:
             "guides": _guides(low_cols + low_rows)}
 
 
-@router.get("/api/preferences")
+@router.get("/api/preferences", dependencies=[Depends(no_judgments)])
 def preferences(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}

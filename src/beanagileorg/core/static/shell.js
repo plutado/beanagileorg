@@ -427,6 +427,23 @@
     const edit = BA.session.presentation ? "" : ` <button type="button" class="link-btn" data-keys-edit="${BA.esc(path)}" data-keys-field="${field}" data-keys="${BA.esc(list.join(", "))}" title="${field === "ticket_key" ? "Jira key" : "Jira keys"}">${list.length ? "edit" : "+ Jira"}</button>`;
     return `<span class="issue-keys">${BA.issueKeys(list)}${edit}</span>`;
   };
+  // A record marked never share stays private whatever its fields say: hidden while presenting, and left out of
+  // exports, packs, API tokens and cloud models. The toggle sits beside the record's name.
+  BA.neverShare = (path, on) => (BA.session.presentation ? "" :
+    `<button type="button" class="link-btn${on ? " never-share-on" : ""}" data-never-share="${BA.esc(path)}" data-on="${on ? 1 : ""}" title="${on ? "Marked never share: hidden while presenting, and never exported, packed, read by a token or sent to a cloud model. Click to allow sharing again." : "Mark never share: keep this record off screens you present and out of anything that leaves the app."}">${on ? `${BA.icon("eye-off")} never share` : "never share?"}</button>`);
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest && e.target.closest("[data-never-share]");
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await BA.api(b.dataset.neverShare, { method: "PATCH", body: { never_share: !b.dataset.on } });
+      BA.toast(b.dataset.on ? "Can be shared again, by your choice." : "Marked never share.");
+      BA.rerender();
+    } catch (err) {
+      BA.toast(err.message);
+    }
+  }, true);
   // Capture phase, so the click doesn't also open a clickable row underneath.
   document.addEventListener("click", async (e) => {
     const b = e.target.closest && e.target.closest("[data-keys-edit]");
@@ -674,7 +691,7 @@
         </section>
         <section class="card">
           <h2>API tokens</h2>
-          <p class="quiet">For LLM clients and the other apps. A token only reads what its scope allows.</p>
+          <p class="quiet">For LLM clients, the hub and the other apps. A token only reads what its scope allows, and never judgments about people (assessments, one-on-ones, interviews, culture notes, stances, influence) or records marked never share, unless you also give it judgments:read.</p>
           <div id="new-token"></div>
           <div class="tablewrap"><table class="data"><thead><tr><th>Name</th><th>Scopes</th><th>Created</th><th>Last used</th><th></th></tr></thead>
           <tbody>${
@@ -689,7 +706,7 @@
           <form id="token-form">
             <label>Name<input name="name" placeholder="[Placeholder token name]" required></label>
             <div class="row">${scopes
-              .map((s) => `<label class="check"><input type="checkbox" name="scope" value="${BA.esc(s.scope)}"> ${BA.esc(s.scope)} <span class="quiet">(reads ${BA.esc(s.reads)})</span></label>`)
+              .map((s) => `<label class="check"><input type="checkbox" name="scope" value="${BA.esc(s.scope)}"> ${BA.esc(s.scope)} <span class="quiet">(${s.scope === "judgments:read" ? "adds judgments about people to what the other scopes read" : `reads ${BA.esc(s.reads)}`})</span></label>`)
               .join("")}</div>
             <button class="btn primary" type="submit">Create token</button>
           </form>
@@ -732,6 +749,7 @@
       main.querySelector("#token-form").onsubmit = async (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
+        if (f.getAll("scope").includes("judgments:read") && !confirm("This token will be able to read your judgments about people: assessments, one-on-one notes, interviews, culture notes, stances and influence. Anything holding it can copy them off this machine. Create it anyway?")) return;
         try {
           const res = await BA.api("/api/tokens", { method: "POST", body: { name: f.get("name"), scopes: f.getAll("scope") } });
           await route();

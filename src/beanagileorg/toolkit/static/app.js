@@ -1165,7 +1165,7 @@
       main.innerHTML = `<section class="card">${BA.readOnly(fields.map((f) => (f.name.endsWith("_id") ? { ...f, name: f.name.replace("_id", "_name") } : f)), rec)}</section><p><a href="#/dev-sync">Dev-sync log</a></p>`;
       return;
     }
-    main.innerHTML = `<p><a href="#/dev-sync">Dev-sync log</a></p><form id="item" class="card"><div class="grid2">${BA.form(fields, rec)}</div>
+    main.innerHTML = `<p><a href="#/dev-sync">Dev-sync log</a> ${BA.neverShare(`/api/actions/${id}`, rec.never_share)}</p><form id="item" class="card"><div class="grid2">${BA.form(fields, rec)}</div>
       <label>Subject matter experts</label><div class="case-picks">${people.filter((p) => p.active !== false).map((p) => `<label class="check"><input type="checkbox" name="expert_ids" value="${p.id}"${(rec.expert_ids || []).includes(p.id) ? " checked" : ""}> ${esc(p.name)}</label>`).join("")}</div>
       <div class="actions"><button class="btn danger left" type="button" id="del">Delete</button>${BA.historyButton("action_item", id)}<button class="btn" type="button" id="make-update">Make an update</button><button class="btn primary" type="submit">Save</button></div></form>
       <section class="card" id="update-box" hidden></section>`;
@@ -1877,7 +1877,7 @@
       const ratingPills = (p) => g.measures.map((m) => { const r = ((p.ratings || {})[m.key] || {}).rating; return r ? `<span class="pill ${RATING_TONE[r]}" title="${esc(m.name)}: ${esc(r)}">${esc(m.name[0])}</span>` : ""; }).join(" ");
       main.innerHTML = `<p class="quiet">The ways your team turns work into value. Decide which matter most to the strategy, judge each on productivity, timeliness, reliability and quality, and map the workflow with the people who run it to find bottlenecks and failing handoffs. Work on a few at a time.</p>
         ${g.focus_count > g.focus_limit ? `<p class="callout warn">${g.focus_count} processes are marked focus now. Pick ${g.focus_limit} at most: the team can only absorb so much change at once.</p>` : ""}
-        <section class="card"><h2>Processes</h2>${list.map((p) => `<div class="item"><a href="#/processes/${p.id}"><b>${esc(p.name)}</b></a>${originPill(p.origin)}${p.focus ? '<span class="pill accent">focus now</span>' : ""}${p.importance ? `<span class="quiet">${esc(p.importance)} importance</span>` : ""}${p.aim ? `<span class="quiet">· ${esc(p.aim)}</span>` : ""}
+        <section class="card"><h2>Processes</h2>${list.map((p) => `<div class="item"><a href="#/processes/${p.id}"><b>${esc(p.name)}</b></a>${originPill(p.origin)}${BA.neverShare(`/api/core-processes/${p.id}`, p.never_share)}${p.focus ? '<span class="pill accent">focus now</span>' : ""}${p.importance ? `<span class="quiet">${esc(p.importance)} importance</span>` : ""}${p.aim ? `<span class="quiet">· ${esc(p.aim)}</span>` : ""}
             <span class="spacer"></span>${ratingPills(p)}<span class="quiet">${((p.map || {}).steps || []).length} steps</span>${p.owner_name ? `<span class="quiet">${esc(p.owner_name)}</span>` : ""}</div>`).join("") || '<p class="quiet">None yet.</p>'}
           ${ro ? "" : `<form id="add-proc" class="row" style="margin-top:10px"><input name="name" placeholder="A process, such as release and deploy" required style="max-width:340px"><button class="btn primary" type="submit">Add</button>
             ${list.length ? "" : '<button class="btn" type="button" id="proc-starter">Start from a common list</button>'}</form>`}</section>
@@ -2425,7 +2425,7 @@
       const chosen = d.kinds.filter((k) => shareSel[k.key]);
       main.innerHTML = `${head}
         <section class="card"><h2>1. Kinds of record</h2><p class="quiet">Nothing is chosen to start with.</p>
-          ${d.kinds.map((k) => `<label class="check"><input type="checkbox" data-kind="${k.key}"${shareSel[k.key] ? " checked" : ""}${k.count ? "" : " disabled"}> <b>${esc(k.label)}</b> <span class="quiet">${k.count} here</span></label>`).join("")}</section>
+          ${d.kinds.map((k) => `<label class="check"><input type="checkbox" data-kind="${k.key}"${shareSel[k.key] ? " checked" : ""}${k.count ? "" : " disabled"}> <b>${esc(k.label)}</b> <span class="quiet">${k.count} here${k.never_shared ? ` · ${k.never_shared} marked never share, not listed` : ""}</span></label>`).join("")}</section>
         ${chosen.map((k) => { const s = shareSel[k.key]; return `<section class="card" data-sel="${k.key}"><h2>${esc(k.label)}</h2>
           <h3>2. Records</h3><div class="row" style="align-items:center"><input data-filter placeholder="Filter" style="max-width:240px" value="${esc(s.filter || "")}"><button class="btn" type="button" data-all>Select all shown</button><button class="btn" type="button" data-none>None</button><span class="quiet">${s.ids.size} of ${k.count} chosen</span></div>
           ${k.records.filter((r) => !s.filter || (r.label + " " + r.detail.join(" ")).toLowerCase().includes(s.filter.toLowerCase())).map((r) => `<label class="check" style="display:flex"><input type="checkbox" data-rec="${r.id}"${s.ids.has(r.id) ? " checked" : ""}> <span><b>${esc(r.label)}</b> <span class="quiet">${r.detail.map(esc).join(" · ")}${r.shared_before ? " · shared before" : ""}${r.origin ? ` · from ${esc(r.origin.from || "a pack")}` : ""}</span></span></label>`).join("")}
@@ -2735,7 +2735,7 @@
       const ro = presenting();
       main.innerHTML = `
         <section class="card"><h2>Risks and issues</h2><div class="tablewrap"><table class="data"><thead><tr><th>Level</th><th>Risk or issue</th><th>Impact</th><th>Owner</th><th>Next step</th><th>Due</th><th>Status</th></tr></thead><tbody>${
-          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b>${originPill(r.origin)}${r.surprise_area ? ` <span class="pill">${esc(areaName[r.surprise_area])}</span>` : ""} ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
+          risks.map((r) => `<tr data-risk="${r.id}"><td>${levelPill(r.level)}</td><td><b>${esc(r.title)}</b>${originPill(r.origin)}${BA.neverShare(`/api/risks/${r.id}`, r.never_share)}${r.surprise_area ? ` <span class="pill">${esc(areaName[r.surprise_area])}</span>` : ""} ${BA.keysEditor(`/api/risks/${r.id}`, r.jira_keys)}</td><td>${esc(r.impact || "")}</td><td>${esc(r.owner_name || "")}</td>
             <td>${esc(r.next_step || "")}</td><td>${BA.fmtDate(r.due)}</td>
             <td>${ro ? esc(r.status) : `<select name="status">${["open", "watching", "closed"].map((s) => `<option${s === r.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`).join("") ||
           '<tr><td colspan="7" class="empty">No risks logged.</td></tr>'
@@ -2754,7 +2754,7 @@
               <select name="level" style="max-width:120px"><option>high</option><option selected>medium</option><option>low</option></select><button class="btn" type="submit">Add as a risk</button></form>`}</div>`).join("")}
           <p><b>Silos.</b> ${esc(scan.silos)}</p></details></section>
         <section class="card"><h2>Decisions needed</h2><div class="tablewrap"><table class="data"><thead><tr><th>Decision</th><th>From whom</th><th>Needed by</th><th>How it's decided</th><th>Status</th><th>Outcome</th></tr></thead><tbody>${
-          decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b> ${BA.keysEditor(`/api/decisions-needed/${d.id}`, d.jira_keys)}</td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
+          decisions.map((d) => `<tr data-dec="${d.id}"><td><b>${esc(d.decision)}</b> ${BA.keysEditor(`/api/decisions-needed/${d.id}`, d.jira_keys)}${BA.neverShare(`/api/decisions-needed/${d.id}`, d.never_share)}</td><td>${esc(d.from_name || "")}</td><td>${BA.fmtDate(d.needed_by)}</td>
             <td>${ro ? esc(d.process || "") : `<select name="process" style="max-width:170px"><option value=""></option>${opts(pg.processes.map((x) => x.key), d.process)}</select><label class="check quiet" title="Told the people involved which process, and why"><input type="checkbox" name="process_told"${d.process_told ? " checked" : ""}> told them</label>`}</td>
             <td>${ro ? esc(d.status) : `<select name="status">${["open", "decided"].map((s) => `<option${s === d.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td>
             <td>${ro ? esc(d.outcome || "") : `<input name="outcome" value="${esc(d.outcome || "")}">`}</td></tr>`).join("") ||
@@ -2905,7 +2905,7 @@
       };
       main.innerHTML = `<p class="quiet">A few measures the team agrees to watch. Baselines come first; targets are the team's choice. An outside benchmark shows where the team stands without it being anyone's opinion.</p>
         <div class="tablewrap"><table class="data"><thead><tr><th>Metric</th><th>Baseline</th><th>Target</th><th>Benchmark</th><th>Latest</th><th></th>${presenting() ? "" : "<th>Add a reading</th>"}</tr></thead><tbody>${metrics
-          .map((m) => `<tr data-id="${m.id}"><td><b>${esc(m.name)}</b>${originPill(m.origin)}<div class="quiet">${esc(m.method || "")}</div></td>
+          .map((m) => `<tr data-id="${m.id}"><td><b>${esc(m.name)}</b>${originPill(m.origin)}${BA.neverShare(`/api/metrics/${m.id}`, m.never_share)}<div class="quiet">${esc(m.method || "")}</div></td>
             <td>${presenting() ? fmt(m.baseline, m.unit) : `<input type="number" step="any" name="baseline" value="${esc(m.baseline ?? "")}" style="max-width:110px">`}</td>
             <td>${presenting() ? fmt(m.target, m.unit) : `<input type="number" step="any" name="target" value="${esc(m.target ?? "")}" style="max-width:110px">`}</td>
             <td>${presenting() ? `${esc(m.benchmark || "")}<div class="quiet">${esc(m.benchmark_source || "")}</div>` : `<input name="benchmark" value="${esc(m.benchmark || "")}" placeholder="Outside reference" style="max-width:150px"><input name="benchmark_source" value="${esc(m.benchmark_source || "")}" placeholder="Source" style="max-width:150px;margin-top:4px">`}</td>
@@ -4133,7 +4133,7 @@
     const [plans, cases, people] = await Promise.all([BA.api("/api/regression-plans"), BA.api("/api/test-cases"), BA.api("/api/people")]);
     const ro = presenting();
     const pool = cases.filter((c) => c.active && c.kind !== "smoke");
-    const planCard = (p) => `<section class="card" data-plan="${p.id}"><div class="row"><h2>${esc(p.title)}</h2><span class="pill">${esc(p.kind)}</span>${originPill(p.origin)}<span class="spacer"></span>${BA.statusPill(p.status)}</div>
+    const planCard = (p) => `<section class="card" data-plan="${p.id}"><div class="row"><h2>${esc(p.title)}</h2><span class="pill">${esc(p.kind)}</span>${originPill(p.origin)}${BA.neverShare(`/api/regression-plans/${p.id}`, p.never_share)}<span class="spacer"></span>${BA.statusPill(p.status)}</div>
         <p class="quiet">${p.start_date ? `${BA.fmtDate(p.start_date)}${p.end_date ? " to " + BA.fmtDate(p.end_date) : ""} · ` : ""}Owner: ${esc(p.owner_name || "not named")} · Backup: ${esc(p.backup_owner_name || "not named")}
           ${p.signoff_date ? ` · Signed off ${BA.fmtDate(p.signoff_date)}${p.signoff_by_name ? " by " + esc(p.signoff_by_name) : ""}` : ""}</p>
         ${p.scope ? BA.md(p.scope) : ""}
@@ -4803,7 +4803,7 @@
     const read = (form) => { const f = new FormData(form); return { title: f.get("title"), category: f.get("category"), status: f.get("status"), agreed_on: f.get("agreed_on") || null, owner_id: numOrNull(f.get("owner_id")), body: f.get("body") }; };
     main.innerHTML = `${sdlcTabs("policies")}${starterCard}
       <p class="quiet">The rules the team has agreed. A policy stays a draft until the team agrees it; mark it agreed with the date so everyone knows it's in force.</p>
-      ${groups.map(([c, list]) => `<section class="card"><h2>${esc(c[0].toUpperCase() + c.slice(1))}</h2>${list.map((p) => `<details class="plan-item${p.status === "retired" ? " dropped" : ""}" data-policy="${p.id}"><summary><b>${esc(p.title)}</b>${originPill(p.origin)}<span class="spacer"></span>
+      ${groups.map(([c, list]) => `<section class="card"><h2>${esc(c[0].toUpperCase() + c.slice(1))}</h2>${list.map((p) => `<details class="plan-item${p.status === "retired" ? " dropped" : ""}" data-policy="${p.id}"><summary><b>${esc(p.title)}</b>${originPill(p.origin)}${BA.neverShare(`/api/sdlc-policies/${p.id}`, p.never_share)}<span class="spacer"></span>
           ${tonePill(p.status, POLICY_TONES)}${p.agreed_on ? `<span class="quiet">${BA.fmtDate(p.agreed_on)}</span>` : ""}${p.owner_name ? `<span class="quiet">${esc(p.owner_name)}</span>` : ""}</summary>
           ${p.body ? BA.md(p.body) : '<p class="quiet">Not written yet.</p>'}
           ${ro ? "" : `<form><div class="grid2"><label>Title<input name="title" value="${esc(p.title)}" required></label><label>Category<select name="category">${opts(POLICY_CATEGORIES, p.category)}</select></label>
@@ -5547,7 +5547,7 @@
         owner_id: numOrNull(fd.get("owner_id")), due: fd.get("due") || null, status: fd.get("status"), jira_keys: fd.get("jira_keys"), outcome: fd.get("outcome"), team_ids: fd.getAll("team_ids").map(Number),
         stakeholder_ids: fd.getAll("stakeholder_ids").map(Number), details: fd.get("details"), ...(form.elements.resolution ? { resolution: fd.get("resolution") } : {}), notes: fd.get("notes") }; };
       const pname = Object.fromEntries(people.map((p) => [p.id, p.name]));
-      const row = (i) => `<details class="plan-item${i.status === "done" ? " dropped" : ""}" data-sos="${i.id}"><summary>${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><b>${esc(i.question)}</b>${BA.issueKeys(i.jira_keys)}<span class="spacer"></span>
+      const row = (i) => `<details class="plan-item${i.status === "done" ? " dropped" : ""}" data-sos="${i.id}"><summary>${tonePill(i.status, SOS_TONES)}<span class="pill">${esc(i.kind)}</span><b>${esc(i.question)}</b>${BA.neverShare(`/api/sos-items/${i.id}`, i.never_share)}${BA.issueKeys(i.jira_keys)}<span class="spacer"></span>
           <span class="quiet">${esc(i.owner_name || i.owner_team_name || "no owner")}</span>${i.due ? `<span class="${d.overdue.includes(i.id) ? "pill bad" : "quiet"}">${BA.fmtDate(i.due)}</span>` : ""}</summary>
           ${i.outcome ? `<p><b>Outcome expected:</b> ${esc(i.outcome)}</p>` : ""}${i.details ? BA.md(i.details) : ""}
           <p class="quiet">${[(i.team_ids || []).length ? "Teams: " + i.team_ids.map((x) => esc(teamName[x] || "")).join(", ") : "", (i.stakeholder_ids || []).length ? "Stakeholders: " + i.stakeholder_ids.map((x) => esc(pname[x] || "")).join(", ") : "",
@@ -6184,7 +6184,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     if (!box) return;
     const list = await BA.api("/api/role-templates");
     const lines = (xs) => (xs || []).join("\n");
-    box.innerHTML = list.map((t) => `<details class="plan-item" data-rt="${t.id}"><summary><b>${esc(t.name)}</b>${originPill(t.origin)}</summary><form>
+    box.innerHTML = list.map((t) => `<details class="plan-item" data-rt="${t.id}"><summary><b>${esc(t.name)}</b>${originPill(t.origin)}${BA.neverShare(`/api/role-templates/${t.id}`, t.never_share)}</summary><form>
       <label>Measures to watch <span class="quiet">(one per line)</span><textarea name="measures" rows="3">${esc(lines(t.measures))}</textarea></label>
       <div class="grid2"><label>What they should show<textarea name="should_show" rows="2">${esc(t.should_show || "")}</textarea></label><label>What they shouldn't show<textarea name="should_not_show" rows="2">${esc(t.should_not_show || "")}</textarea></label></div>
       <label>Questions to ask <span class="quiet">(one per line)</span><textarea name="questions" rows="3">${esc(lines(t.questions))}</textarea></label>

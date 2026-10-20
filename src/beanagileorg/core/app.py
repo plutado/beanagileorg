@@ -59,6 +59,13 @@ def backup_status(request: Request, viewer: Viewer) -> dict | None:
     return backup.backup_warning(settings.app, backup.app_backup_dir(settings.data_dir))
 
 
+def no_judgments(viewer: Viewer = Depends(get_viewer)) -> Viewer:
+    """For screens that are judgments about people: never served to an API token without judgments:read."""
+    if viewer.guarded:
+        raise HTTPException(403, "Judgments about people aren't available to API tokens.")
+    return viewer
+
+
 def require_scope(scope: str):
     def dependency(viewer: Viewer = Depends(get_viewer)) -> Viewer:
         if not viewer.has_scope(scope):
@@ -176,6 +183,7 @@ def create_app(
                 floor=floor_for_scopes(found["scopes"]),
                 source=f"token:{found['name']}",
                 scopes=frozenset(found["scopes"]),
+                guarded="judgments:read" not in found["scopes"],
             )
         cookie = request.cookies.get(cookie_name)
         if cookie:

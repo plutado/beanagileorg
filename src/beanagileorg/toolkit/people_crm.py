@@ -10,7 +10,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.app import get_conn, get_viewer, no_judgments
 from beanagileorg.core.privacy import Level, Viewer
 from beanagileorg.core.sensitivity import PERSON_CAUTION, PERSON_NEVER, check_record, compile_terms, custom_terms
 
@@ -124,7 +124,7 @@ def reports(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     return {"me": me, "reports": out}
 
 
-@router.get("/api/people/{person_id}/agenda")
+@router.get("/api/people/{person_id}/agenda", dependencies=[Depends(no_judgments)])
 def agenda(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """A draft agenda for your next one-on-one: what's owed each way, their goals, feedback to share, and what's open."""
     if viewer.floor != Level.PRIVATE:
@@ -234,7 +234,7 @@ def _upcoming_dates(person: dict, within: int = 7) -> list[dict]:
     return out
 
 
-@router.get("/api/people/{person_id}/crm")
+@router.get("/api/people/{person_id}/crm", dependencies=[Depends(no_judgments)])
 def crm(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     p = models.people.fetch(conn, person_id)
     if p is None:
@@ -267,7 +267,7 @@ def crm(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_c
     return out
 
 
-@router.get("/api/people/{person_id}/timeline")
+@router.get("/api/people/{person_id}/timeline", dependencies=[Depends(no_judgments)])
 def timeline(person_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"events": []}

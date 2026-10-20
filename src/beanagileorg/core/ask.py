@@ -33,7 +33,7 @@ from .app import get_conn, get_viewer, require_full
 from .export import log_export
 from .privacy import Level, Viewer
 from .records import REGISTRY
-from .sensitivity import JUDGMENT_TABLES, PERSON_NEVER
+from .sensitivity import JUDGMENT_TABLES
 
 SETTINGS_KEY = "ask.settings"
 SECRET_FILE = "ask-secret.json"
@@ -96,12 +96,6 @@ def _held_back(record, guard: bool) -> bool:
     return guard and record.table in JUDGMENT_TABLES
 
 
-def _strip(record, rows: list[dict], guard: bool) -> list[dict]:
-    if not guard or record.table != "people":
-        return rows
-    return [{k: v for k, v in r.items() if k not in PERSON_NEVER} for r in rows]
-
-
 def effective_floor(viewer: Viewer, s: dict) -> Level:
     floor = viewer.floor
     cloud = s["provider"] == "anthropic" or not is_local(s["base_url"])
@@ -142,14 +136,14 @@ def build_index(conn, floor: Level, guard: bool = False) -> sqlite3.Connection:
     cached = _INDEX_CACHE.get((int(floor), guard))
     if cached and cached[0] == stamp and cached[2] == conn.execute("PRAGMA database_list").fetchone()["file"]:
         return cached[1]
-    viewer = Viewer(floor=floor, source="ask")
+    viewer = Viewer(floor=floor, source="ask", guarded=guard)
     idx = sqlite3.connect(":memory:", check_same_thread=False)
     idx.execute("CREATE VIRTUAL TABLE docs USING fts5(entity UNINDEXED, rid UNINDEXED, title, body, tokenize='porter unicode61')")
     for entity, record in REGISTRY.items():
         if _held_back(record, guard):
             continue
         try:
-            rows = _strip(record, record.visible_all(record.fetch_all(conn), viewer), guard)
+            rows = record.visible_all(record.fetch_all(conn), viewer)
         except sqlite3.Error:
             continue
         for r in rows:
@@ -197,7 +191,7 @@ def _clip(obj) -> str:
 
 
 def run_tool(app: AskApp, conn, floor: Level, name: str, args: dict, guard: bool = False) -> str:
-    viewer = Viewer(floor=floor, source="ask")
+    viewer = Viewer(floor=floor, source="ask", guarded=guard)
     try:
         if name == "search":
             return _clip(search(conn, floor, str(args.get("query", "")), int(args.get("limit") or 8), guard))
@@ -209,7 +203,6 @@ def run_tool(app: AskApp, conn, floor: Level, name: str, args: dict, guard: bool
                 return HELD_BACK
             r = rec.fetch(conn, int(args.get("id") or 0))
             shown = rec.visible(r, viewer) if r else None
-            shown = _strip(rec, [shown], guard)[0] if shown else None
             return _clip(shown) if shown else "Not found, or not visible here."
         if name == "list_records":
             rec = REGISTRY.get(str(args.get("entity")))
@@ -218,12 +211,12 @@ def run_tool(app: AskApp, conn, floor: Level, name: str, args: dict, guard: bool
             if _held_back(rec, guard):
                 return HELD_BACK
             rows = rec.fetch_all(conn, "status = ?", (args["status"],)) if args.get("status") and "status" in rec.fields else rec.fetch_all(conn)
-            return _clip(_strip(rec, rec.visible_all(rows, viewer), guard)[: max(1, min(int(args.get("limit") or 15), 40))])
+            return _clip(rec.visible_all(rows, viewer)[: max(1, min(int(args.get("limit") or 15), 40))])
         for t in app.extra_tools:
             if t["name"] == name:
                 # Summaries can't be filtered field by field, so a guarded cloud call gets them at the presentable level,
                 # where every judgment about people is already hidden.
-                return _clip(t["run"](conn, Viewer(floor=Level.PRESENTABLE, source="ask") if guard else viewer, args))
+                return _clip(t["run"](conn, Viewer(floor=Level.PRESENTABLE, source="ask", guarded=True) if guard else viewer, args))
         return "Unknown tool."
     except (ValueError, TypeError, sqlite3.Error, HTTPException) as e:
         return f"The tool failed: {e}"

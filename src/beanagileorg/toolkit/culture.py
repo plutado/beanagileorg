@@ -9,7 +9,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.app import get_conn, get_viewer, no_judgments
 from beanagileorg.core.privacy import Level, Viewer
 
 from . import models
@@ -184,7 +184,7 @@ def put_settings(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), c
     return {"pulse_days": days}
 
 
-@router.get("/api/culture/overview")
+@router.get("/api/culture/overview", dependencies=[Depends(no_judgments)])
 def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     agreements = models.team_agreements.visible_all(models.team_agreements.fetch_all(conn), viewer)
     out = {"dimensions": [{"key": k, "label": l} for k, l in PULSE_DIMENSIONS], "agreements": agreements}

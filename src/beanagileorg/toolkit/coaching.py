@@ -11,7 +11,7 @@ from datetime import date
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from beanagileorg.core import coaching as starter
-from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.app import get_conn, get_viewer, no_judgments
 from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Level, Viewer
 
@@ -136,7 +136,7 @@ def _day_of_role(conn) -> int | None:
     return (date.today() - date.fromisoformat(row["value"])).days + 1
 
 
-@router.get("/api/coaching/reflect")
+@router.get("/api/coaching/reflect", dependencies=[Depends(no_judgments)])
 def reflect(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}

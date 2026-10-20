@@ -55,6 +55,8 @@ SCOPE_FLOORS: dict[str, Level] = {
     "full": Level.PRIVATE,
     "present:read": Level.PRESENTABLE,
     "export:read": Level.EXPORTABLE,
+    # Lifts the guard on judgments about people for a token; it never widens what else the token reads.
+    "judgments:read": Level.EXPORTABLE,
 }
 
 
@@ -69,6 +71,9 @@ class Viewer:
     scopes: frozenset = field(default_factory=frozenset)
     session_hash: str | None = None
     presentation: bool = False
+    # Reading for something that may carry data off the machine (an API token, a cloud model): judgments about people
+    # and records marked never share are left out, whatever the floor.
+    guarded: bool = False
 
     @property
     def is_session(self) -> bool:

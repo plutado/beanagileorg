@@ -1463,7 +1463,8 @@ TIPS = {
                  ("Share facts about work, not judgments about people. If wording is flagged for a second look, rewrite it as something you saw, or leave the record out.", "facts-not-judgments", 50)],
     "/raci": [("Put each decision with the people who know the most about it, as long as their incentives point the right way.", "org-as-a-system", 36),
               ("When two stakeholders disagree on priority, the RACI tells you who decides. Point requests there.", "saying-no-to-scope")],
-    "/risks": [("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
+    "/risks": [("Some risks are sensitive whatever their wording, such as one about a reorganization or a key person. Click never share? beside it to keep it off screens you present and out of reports, packs, tokens and cloud models.", "facts-not-judgments", 51),
+               ("Say which process you'll use for each decision, and why: decide alone, consult and decide, build consensus or unanimous.", "building-the-team", 43),
                ("Raise risks early, with a plan. Surprises cost more trust than problems.", "your-manager"),
                ("Don't just bring your manager a problem; bring a plan for starting to address it, even if it's only finding out more.", "your-manager", 25),
                ("Run the predictable surprises scan, especially in the areas you know least. Most surprises were visible to someone in advance.", "early-wins", 33)],
@@ -1575,7 +1576,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 50  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 51  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

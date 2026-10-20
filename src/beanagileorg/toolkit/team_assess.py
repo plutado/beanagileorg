@@ -7,7 +7,7 @@ import json
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from beanagileorg.core.app import get_conn, get_viewer
+from beanagileorg.core.app import get_conn, get_viewer, no_judgments
 from beanagileorg.core.privacy import Level, Viewer
 
 from . import models
@@ -122,7 +122,7 @@ def save_criteria(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), 
                                                   "interdependence": body.get("interdependence") or None}, viewer.source)
 
 
-@router.get("/api/team-assessment")
+@router.get("/api/team-assessment", dependencies=[Depends(no_judgments)])
 def overview(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}
