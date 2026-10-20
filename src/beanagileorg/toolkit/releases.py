@@ -126,7 +126,7 @@ def notes(release_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(ge
     if when:
         lines += [f"**{'Released' if r.get('released_on') else 'Planned for'}:** {when}", ""]
     lines += ["## What's in it"] + ([f"- {s['title']}" + (f" ({s['jira_key']})" if s.get("jira_key") else "") for s in stories] or ["- [Placeholder: what this release changes]"])
-    crs = [c for c in models.change_requests.fetch_all(conn) if c["id"] in (r.get("change_request_ids") or [])]
+    crs = [c for c in models.change_requests.fetch_all(conn) if c["id"] in (r.get("change_request_ids") or []) and not c.get("never_share")]
     if crs:
         lines += ["", "## Added during the sprint"] + [f"- {c['title']}" for c in crs]
     lines += ["", "## What changes for you", "- [Placeholder]", "", "## Who to ask", "[Placeholder name or channel]"]

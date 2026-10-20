@@ -1176,6 +1176,7 @@
       BA.toast("Saved.");
     });
     main.querySelector("#make-update").onclick = BA.guard(async () => {
+      if (rec.never_share && !confirm("This item is marked never share. An update is meant to go out to people. Make one anyway?")) return;
       const s = await BA.api(`/api/actions/${id}/update-script`);
       const box = main.querySelector("#update-box");
       box.hidden = false;
@@ -5099,7 +5100,7 @@
         points: numOrNull(fd.get("points")), trigger_date: fd.get("trigger_date") || null, trigger_reason: fd.get("trigger_reason"), sprint_id: numOrNull(fd.get("sprint_id")), owner_id: numOrNull(fd.get("owner_id")),
         ticket_key: fd.get("ticket_key"), raised_by: fd.get("raised_by"), categories: fd.getAll("categories"), description: fd.get("description"), cost_of_delay: fd.get("cost_of_delay"), evidence: fd.get("evidence"),
         system_ids: fd.getAll("system_ids").map(Number), notes: fd.get("notes") }; };
-      const item = (i) => `<details class="plan-item${["done", "won't fix"].includes(i.status) ? " dropped" : ""}" data-debt="${i.id}"><summary><b>${esc(i.title)}</b><span class="spacer"></span>
+      const item = (i) => `<details class="plan-item${["done", "won't fix"].includes(i.status) ? " dropped" : ""}" data-debt="${i.id}"><summary><b>${esc(i.title)}</b>${BA.neverShare(`/api/tech-debt/${i.id}`, i.never_share)}<span class="spacer"></span>
           ${BA.issueKeys(i.ticket_key)}${BA.chips(i.categories)}${tonePill(i.quadrant, QUAD_TONES)}${i.value ? `<span class="quiet">value ${i.value} · ${esc(i.effort)}</span>` : ""}${i.trigger_date ? `<span class="pill warn">by ${BA.fmtDate(i.trigger_date)}</span>` : ""}${BA.statusPill(i.status)}</summary>
           ${i.description ? BA.md(i.description) : ""}${i.cost_of_delay ? `<p><b>Cost of leaving it:</b> ${esc(i.cost_of_delay)}</p>` : ""}
           <p class="quiet">${[i.systems.length ? `Systems: ${i.systems.map(esc).join(", ")}` : "", i.owner_name ? `Owner: ${esc(i.owner_name)}` : "", i.sprint_number ? `Sprint ${i.sprint_number}` : "", i.points ? `${i.points} points` : "",
@@ -5997,7 +5998,7 @@
     const swapPicker = imp && imp.candidates.length ? `<div class="swap-list">${imp.candidates.map((i) => `<label class="check swap-item"><input type="checkbox" name="swap" value="${i.id}" data-pts="${i.points || 0}"> <span>${esc(i.title)}</span>${i.jira_key ? `<span class="jira-key">${esc(i.jira_key)}</span>` : ""}<span class="spacer"></span><span class="quiet">${i.points ?? "?"} pts${i.owner_name ? ` · ${esc(i.owner_name)}` : ""}</span></label>`).join("")}</div>
       <p class="swap-balance quiet" id="balance"></p>` : '<p class="quiet">No unfinished stories in the sprint to swap out.</p>';
     main.innerHTML = `${changeTabs("")}
-      <section class="card"><div class="row"><h2>${esc(c.title)}</h2>${tonePill(c.status, CR_STATUS_TONES)}${c.decision ? `<span class="pill ${decisionTone(c.decision)}">${esc(c.decision)}</span>` : ""}<span class="spacer"></span>${BA.historyButton("change_request", c.id)}</div>
+      <section class="card"><div class="row"><h2>${esc(c.title)}</h2>${ro ? "" : BA.neverShare(`/api/change-requests/${id}`, c.never_share)}${tonePill(c.status, CR_STATUS_TONES)}${c.decision ? `<span class="pill ${decisionTone(c.decision)}">${esc(c.decision)}</span>` : ""}<span class="spacer"></span>${BA.historyButton("change_request", c.id)}</div>
         <p class="quiet">${[`From ${esc(c.source)}${c.requested_by_name ? ` (${esc(c.requested_by_name)})` : ""}`, `asked ${BA.fmtDate(c.requested_on)}`, esc(c.urgency), c.needed_by ? `needed by ${BA.fmtDate(c.needed_by)}` : "", c.points != null ? `${c.points} points` : "not sized", c.goal_impact ? esc(c.goal_impact) : ""].filter(Boolean).join(" · ")}</p>
         ${c.value ? `<p><b>Why it matters:</b> ${esc(c.value)}</p>` : ""}${c.description ? BA.md(c.description) : ""}
         ${c.status === "decided" || c.status === "closed" ? `<p><b>Decision:</b> ${esc(c.decision)}${c.decided_by_name ? ` by ${esc(c.decided_by_name)}` : ""} on ${BA.fmtDate(c.decided_on)}.${c.decision_reason ? ` ${esc(c.decision_reason)}` : ""}${c.points_out ? ` ${c.points_out} points swapped out.` : ""}</p>
@@ -6376,7 +6377,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       ${c.id ? `<label>What the team said<textarea name="team_feedback" rows="2">${esc(c.team_feedback || "")}</textarea></label><label>Outcome<input name="outcome" value="${esc(c.outcome || "")}"></label>` : ""}
       <label>Private notes<textarea name="notes" rows="2">${esc(c.notes || "")}</textarea></label>`;
     const read = (form) => { const f = new FormData(form); const o = {}; for (const k of ["title", "area", "why", "what_changes", "how_we_try", "team_feedback", "outcome", "notes"]) if (form.elements[k]) o[k] = f.get(k) || null; if (form.elements.wave) o.wave = f.get("wave") ? Number(f.get("wave")) : null; o.review_on = f.get("review_on") || null; return o; };
-    const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b><span class="quiet">${esc(c.area)}${c.wave ? ` · wave ${c.wave}` : ""}</span><span class="spacer"></span>
+    const card = (c) => `<details class="plan-item change-card" data-ch="${c.id}"><summary><span class="pill ${STAGE_TONES[c.status]}">${esc(c.status)}</span><b>${esc(c.title)}</b>${BA.neverShare(`/api/team-changes/${c.id}`, c.never_share)}<span class="quiet">${esc(c.area)}${c.wave ? ` · wave ${c.wave}` : ""}</span><span class="spacer"></span>
         <span class="quiet">${c.status === "trial" && c.review_on ? `review ${BA.fmtDate(c.review_on)}` : c.decided_on ? BA.fmtDate(c.decided_on) : c.trial_start ? `trial from ${BA.fmtDate(c.trial_start)}` : c.announced_on ? `announced ${BA.fmtDate(c.announced_on)}` : ""}</span></summary>
       ${readinessBlock(c, ro)}
       ${c.why ? `<p><b>Why:</b> ${esc(c.why)}</p>` : ""}${c.what_changes ? `<p><b>What changes:</b> ${esc(c.what_changes)}</p>` : ""}${c.how_we_try ? `<p><b>How we'll try it:</b> ${esc(c.how_we_try)}</p>` : ""}

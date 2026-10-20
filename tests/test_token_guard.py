@@ -92,3 +92,25 @@ def test_never_share_stays_in(tmp_path):
     c.post("/api/session/presentation", json={"on": False})
     c.cookies.clear()
     assert "[Sensitive risk]" not in c.get("/api/risks", headers={"Authorization": f"Bearer {token}"}).text
+
+
+def test_never_share_on_changes_debt_and_team_changes(tmp_path):
+    c = TestClient(build(Settings(app="toolkit", title="Toolkit", port=0, data_dir=tmp_path)), follow_redirects=False)
+    c.post("/setup", data={"password": PASSWORD, "confirm": PASSWORD})
+    made = {}
+    for path, body in [("/api/change-requests", {"title": "[Marked request]", "source": "stakeholder", "requested_on": "2026-10-19"}),
+                       ("/api/tech-debt", {"title": "[Marked debt]"}), ("/api/team-changes", {"title": "[Marked change]"})]:
+        rid = c.post(path, json=body).json()["id"]
+        assert c.patch(f"{path}/{rid}", json={"never_share": True}).json()["never_share"]
+        made[path] = rid
+    rel = c.post("/api/releases", json={"name": "[Release 1]", "change_request_ids": [made["/api/change-requests"]]}).json()["id"]
+    assert "[Marked request]" not in c.get(f"/api/releases/{rel}/notes").json()["markdown"]
+    assert "[Marked debt]" not in c.post("/api/debt/summary/export", json={}).text
+    token = c.post("/api/tokens", json={"name": "[Hub]", "scopes": ["full"]}).json()["token"]
+    c.post("/api/session/presentation", json={"on": True})
+    for path in made:
+        assert "[Marked" not in c.get(path).text, path
+    c.post("/api/session/presentation", json={"on": False})
+    c.cookies.clear()
+    for path in made:
+        assert "[Marked" not in c.get(path, headers={"Authorization": f"Bearer {token}"}).text, path

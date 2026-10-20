@@ -1895,6 +1895,14 @@ MIGRATIONS = [
         ALTER TABLE action_items ADD COLUMN never_share INTEGER;
         """,
     ),
+    (
+        65,
+        """
+        ALTER TABLE change_requests ADD COLUMN never_share INTEGER;
+        ALTER TABLE tech_debt ADD COLUMN never_share INTEGER;
+        ALTER TABLE team_changes ADD COLUMN never_share INTEGER;
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -3145,9 +3153,11 @@ reflections = Record(
 tech_debt = Record(
     entity="tech_debt",
     table="tech_debt",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/tech-debt",
     order_by="status IN ('done', 'won''t fix'), id DESC",
     fields={
+        "never_share": Field("bool", P),
         "title": Field("text", E, required=True),
         "description": Field("text", E),
         "categories": Field("list", E),
@@ -3937,9 +3947,11 @@ reports = Record(
 change_requests = Record(
     entity="change_request",
     table="change_requests",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/change-requests",
     order_by="status IN ('decided', 'closed'), requested_on DESC, id DESC",
     fields={
+        "never_share": Field("bool", P),
         "title": Field("text", E, required=True),
         "description": Field("text", S),
         "source": Field("text", E, choices=CR_SOURCES, default="stakeholder"),
@@ -3975,9 +3987,11 @@ change_requests = Record(
 team_changes = Record(
     entity="team_change",
     table="team_changes",
+    ceiling_sql=NEVER_SHARE_CEILING,
     path="/api/team-changes",
     order_by="status IN ('adopted', 'dropped'), position, id",
     fields={
+        "never_share": Field("bool", P),
         "title": Field("text", S, required=True),
         "area": Field("text", S, choices=CHANGE_AREAS, default="process"),
         "why": Field("text", S),
