@@ -237,7 +237,7 @@ Headline items from the [backlog](BACKLOG.md), which lists everything planned in
 - **Guided tours:** a first-run tour per app and per-screen tours from the command palette, built on Driver.js (MIT) and bundled locally.
 - **Accessibility pass:** a contrast check of every design token pair, screen reader labels, and focus order in dialogs.
 - **Packaging for other managers:** a lighter install, a setup script, and export and import of practice packs, so other managers can run their own install without forking.
-- **Timed sharing:** a read-only, presentable view shared on the same network or over Tailscale, with an access code, auto-timeout and a visit log.
+- **Timed sharing, wider:** the timed share link (built for HR summaries) extended to a read-only, presentable view of other screens, and to pulls between managers' installs.
 - **Smarter Ask:** semantic search with local embeddings beside full-text search, streamed answers, and suggested questions on Today.
 
 ## Shared base (`src/beanagileorg/core`)
@@ -250,6 +250,8 @@ Headline items from the [backlog](BACKLOG.md), which lists everything planned in
 | API tokens | Scoped tokens for LLM clients and the other app: `export:read`, `present:read`, `full`, plus app scopes such as `delivery:write` |
 | Change log | Every data change records the field, old and new value, and who made it |
 | Exports | One path that filters to exportable fields and logs what went out |
+| Timed share links | One read-only page for one named person: expires in an hour to seven days, optional view limit, an access code sent another way, locks after five wrong codes, revocable, rendered fresh each time, every view logged. Served under `/shared/` with no sign-in and nothing else reachable |
+| Judgments about people | One list of records and person fields that never leave; a guarded reader (API tokens, cloud models) skips them and records marked never share; wording checks before text leaves, with your own word list |
 | UI shell | Navigation, routing, presentation toggle and a Settings screen for sign-in, tokens and history |
 
 ## Design system
