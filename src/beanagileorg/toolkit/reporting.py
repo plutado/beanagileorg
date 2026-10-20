@@ -228,6 +228,10 @@ def build_status(conn) -> dict:
         overall, why = "Yellow", "something is at risk or a decision is overdue"
     else:
         overall, why = "Green", "on track"
+    suggested = overall
+    mine = _overall_override(conn, week_of.isoformat())
+    if mine.get("overall"):
+        overall = mine["overall"]
 
     def table(headers, rows):
         if not rows:
@@ -237,8 +241,9 @@ def build_status(conn) -> dict:
         return "\n".join(lines)
 
     rag = {"done": "Green", "in progress": "Green", "not started": "Green", "at risk": "Yellow"}
+    line = mine.get("line") or f"[Placeholder: one sentence on where things stand. Suggested reason: {why}.]"
     md = [
-        f"**Overall: {overall}** [Placeholder: one sentence on where things stand. Suggested reason: {why}.]",
+        f"**Overall: {overall}** {line}",
         "",
     ]
     if sprint:
@@ -263,6 +268,9 @@ def build_status(conn) -> dict:
         "week_of": week_of.isoformat(),
         "overall": overall,
         "reason": why,
+        "suggested": suggested,
+        "my_line": mine.get("line"),
+        "edited": bool(mine),
         "facts": {
             "sprint": models.sprints.visible(sprint, EXPORT) if sprint else None,
             "milestones": milestones, "risks": risks, "decisions": decisions, "shipped": shipped,
@@ -271,6 +279,58 @@ def build_status(conn) -> dict:
         "title": f"Weekly status: week of {week_of.isoformat()}",
         "markdown": "\n".join(md),
     }
+
+
+def _overall_key(week_of: str) -> str:
+    return f"status.overall.{week_of}"
+
+
+def _overall_override(conn, week_of: str) -> dict:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (_overall_key(week_of),)).fetchone()
+    return json.loads(row["value"]) if row else {}
+
+
+@router.put("/api/status/overall")
+def put_overall(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Your own overall rating and line for this week's status, in place of the suggestion. Empty both to go back to it."""
+    require_write(viewer)
+    try:
+        t = date.fromisoformat(body["week_of"]) if body.get("week_of") else today()
+    except ValueError as exc:
+        raise HTTPException(400, "week_of is a date like 2026-11-02.") from exc
+    week_of = (t - timedelta(days=t.weekday())).isoformat()
+    overall = body.get("overall") or None
+    if overall not in (None, "Green", "Yellow", "Red"):
+        raise HTTPException(400, "Overall is Green, Yellow or Red.")
+    line = (body.get("line") or "").strip()[:400] or None
+    if overall or line:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (_overall_key(week_of), json.dumps({"overall": overall, "line": line})))
+    else:
+        conn.execute("DELETE FROM settings WHERE key = ?", (_overall_key(week_of),))
+    return build_status(conn)
+
+
+@router.post("/api/status/sent", status_code=201)
+def mark_sent(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Keep this week's status as sent: the text as it stood, who it went to, and when."""
+    require_write(viewer)
+    draft = build_status(conn)
+    md = body.get("markdown") or draft["markdown"]
+    t = today()
+    end = (date.fromisoformat(draft["week_of"]) + timedelta(days=6)).isoformat()
+    row = conn.execute("SELECT id FROM reports WHERE kind = 'status' AND period_start = ?", (draft["week_of"],)).fetchone()
+    data = {"kind": "status", "audience": "leadership", "period_start": draft["week_of"], "period_end": end, "title": draft["title"], "markdown": md,
+            "status": "sent", "sent_on": t.isoformat(), "sent_to": body.get("sent_to") or None, "created_on": t.isoformat()}
+    log_export(conn, "status:sent", draft["title"], [{"markdown": md}], viewer.source)
+    if row:
+        return models.reports.update(conn, row["id"], data, viewer.source)
+    return models.reports.create(conn, data, viewer.source)
+
+
+@router.get("/api/status/history")
+def status_history(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    rows = sorted(models.reports.fetch_all(conn, "kind = 'status'"), key=lambda r: r["period_start"], reverse=True)
+    return models.reports.visible_all(rows, viewer)
 
 
 @router.get("/api/status/draft")

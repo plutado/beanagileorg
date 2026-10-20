@@ -270,7 +270,12 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
         context.append(info["sprint"]["label"])
     if audience == "my manager" and info["role_week"]:
         context.append(f"week {info['role_week']} in the role")
-    md = [f"**Overall: {overall}** [Placeholder: one sentence on where things stand. Suggested reason: {why}.]", "", " · ".join(context), ""]
+    from .reporting import _overall_override
+    suggested = overall
+    my_call = _overall_override(conn, (s - timedelta(days=s.weekday())).isoformat())
+    overall = my_call.get("overall") or overall
+    line = my_call.get("line") or f"[Placeholder: one sentence on where things stand. Suggested reason: {why}.]"
+    md = [f"**Overall: {overall}** {line}", "", " · ".join(context), ""]
     if info["sprint"]:
         sp = models.sprints.fetch(conn, info["sprint"]["id"])
         prog = _sprint_progress(conn, sp)
@@ -320,6 +325,7 @@ def build_weekly(conn, week_of: date, audience: str = "leadership") -> dict:
     title = f"Weekly report: {info['label'].replace('Week of ', 'week of ')}"
     return {"kind": "weekly", "audience": audience, "week": info, "period_start": info["start"], "period_end": info["end"],
             "sprint_id": info["sprint"]["id"] if info["sprint"] else None, "overall": overall, "reason": why, "title": title,
+            "suggested": suggested, "my_overall": my_call.get("overall"), "my_line": my_call.get("line"),
             "counts": {"scope_changes": len(scope), "highlights": len(highlights), "issues": len(issues), "stories": n_stories, "points": pts, "shipped": len(shipped)},
             "markdown": "\n".join(md)}
 
@@ -401,6 +407,59 @@ def sprint_report(sprint_id: int | None = None, audience: str = "leadership", vi
             raise HTTPException(404, "No sprints yet.")
         sprint_id = cur["id"]
     return build_sprint(conn, sprint_id, audience)
+
+
+def build_monthly(conn, month: str, audience: str = "leadership") -> dict:
+    """A month in one page, built from the weeks: what shipped, what was decided and closed, and each week's overall rating."""
+    try:
+        first = date.fromisoformat(f"{month}-01")
+    except ValueError as exc:
+        raise HTTPException(400, "Give the month as YYYY-MM.") from exc
+    if audience not in AUDIENCE_FLOOR:
+        raise HTTPException(400, "Audience is leadership or my manager.")
+    floor = AUDIENCE_FLOOR[audience]
+    viewer = Viewer(floor=floor, source="report")
+    last = (first.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    roadmap = {str(r["id"]): r for r in _roadmap(conn, floor)}
+    shipped = [roadmap[i]["title"] for i in _finished(conn, "roadmap_item", first, last) if i in roadmap and roadmap[i]["status"] == "done"]
+    n_stories, pts = _stories_done(conn, first, last)
+
+    def titles(entity, record):
+        ids = _finished(conn, entity, first, last)
+        rows = [record.fetch(conn, int(i)) for i in ids]
+        return [record.visible(r, viewer) for r in rows if r and record.visible(r, viewer)]
+
+    decided = titles("decision_needed", models.decisions_needed)
+    closed = titles("risk", models.risks)
+    weeks_rows = sorted(models.reports.fetch_all(conn, "kind IN ('weekly', 'status') AND period_start BETWEEN ? AND ?", (first.isoformat(), last.isoformat())),
+                        key=lambda r: r["period_start"])
+    seen, weekly_lines = set(), []
+    for r in weeks_rows:
+        if r["period_start"] in seen:
+            continue
+        seen.add(r["period_start"])
+        head = next((ln for ln in (r["markdown"] or "").splitlines() if ln.strip().startswith("**Overall")), "")
+        weekly_lines.append(f"- Week of {r['period_start']}: {head.replace('**', '').strip() or r['title']}")
+    label = first.strftime("%B %Y")
+    md = [f"# {label}: monthly roll-up", "", "[Placeholder: two or three sentences on the month, in plain words.]", ""]
+    md += ["## Shipped"] + ([f"- {t}" for t in shipped] or ["- Nothing on the roadmap finished this month."])
+    if n_stories:
+        md.append(f"- {n_stories} stories done ({pts:g} points)")
+    md += ["", "## Decided"] + ([f"- {d['decision']}" + (f": {d['outcome']}" if d.get("outcome") else "") for d in decided] or ["- No decisions closed."])
+    md += ["", "## Risks closed"] + ([f"- {r['title']}" for r in closed] or ["- None."])
+    md += ["", "## Week by week"] + (weekly_lines or ["- No weekly reports saved this month."])
+    from .scorecard import _scorecard_md, scorecard
+    md += [""] + _scorecard_md(scorecard(conn, viewer))
+    md += ["", "## Next month", "- [Placeholder: the focus for next month]"]
+    return {"kind": "monthly", "audience": audience, "period_start": first.isoformat(), "period_end": last.isoformat(),
+            "title": f"{label}: monthly roll-up", "markdown": "\n".join(md) + "\n"}
+
+
+@router.get("/api/reports/monthly")
+def monthly(month: str | None = None, audience: str = "leadership", viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor == Level.EXPORTABLE:
+        audience = "leadership"
+    return build_monthly(conn, month or today().strftime("%Y-%m"), audience)
 
 
 @router.post("/api/reports/exported")

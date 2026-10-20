@@ -3179,10 +3179,24 @@
 
   // ---------------------------------------------------------------- Metrics
 
+  // The six-month bar in numbers: sprint commitments kept, how releases went, and each metric against baseline and target.
+  const SC_TONES = { met: "good", improving: "good", flat: "warn", behind: "bad", tracking: "", "no reading": "" };
+  function scorecardCard(sc) {
+    if (!sc || (!sc.sprints.length && !sc.releases.count && !sc.metrics.length)) return "";
+    const r = sc.releases;
+    return `<section class="card"><div class="row"><h2>Delivery scorecard</h2><span class="spacer"></span><a class="btn" href="#/coaching/metrics-without-blame">Using metrics well</a></div>
+      <p class="quiet">The six-month bar in numbers. A team measure, never a score for any one person.</p>
+      <div class="stat-row">${sc.commitments_kept ? `<div><b>${esc(sc.commitments_kept)}</b><span>recent sprints kept their commitment (90% or more of points)</span></div>` : ""}
+        ${r.count ? `<div><b>${r.outcomes.clean} of ${r.count}</b><span>releases clean in 90 days${r.change_failure_pct != null ? ` · change failure ${r.change_failure_pct}%` : ""}</span></div>` : ""}</div>
+      ${sc.sprints.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Sprint</th><th>Committed</th><th>Completed</th><th>Kept</th></tr></thead><tbody>${sc.sprints.map((x) => `<tr><td>Sprint ${x.number ?? "?"}</td><td>${x.committed}</td><td>${x.completed}</td><td><span class="pill ${x.kept ? "good" : "warn"}">${x.kept_pct}%</span></td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${sc.metrics.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Measure</th><th>Baseline</th><th>Now</th><th>Target</th><th></th></tr></thead><tbody>${sc.metrics.map((m) => `<tr><td>${esc(m.name)}</td><td>${m.baseline ?? "–"}</td><td>${m.latest ?? "–"}</td><td>${m.target ?? "–"}</td><td><span class="pill ${SC_TONES[m.status] || ""}">${esc(m.status)}</span></td></tr>`).join("")}</tbody></table></div>` : ""}</section>`;
+  }
+
+
   BA.view("/metrics", {
     title: "Metrics",
     async render(main) {
-      const [metrics, readings, dirs] = await Promise.all([BA.api("/api/metrics"), BA.api("/api/metric-readings"), BA.api("/api/metrics/directions")]);
+      const [metrics, readings, dirs, sc] = await Promise.all([BA.api("/api/metrics"), BA.api("/api/metric-readings"), BA.api("/api/metrics/directions"), BA.api("/api/scorecard")]);
       metrics.forEach((m) => (m.direction = dirs[m.id] || null));
       if (!metrics.length) {
         main.innerHTML = starterButton("metrics");
@@ -3195,7 +3209,7 @@
         const good = m.higher_is_better ? m.latest >= m.target : m.latest <= m.target;
         return `<span class="pill ${good ? "good" : "warn"}">${good ? "on target" : "off target"}</span>`;
       };
-      main.innerHTML = `<p class="quiet">A few measures the team agrees to watch. Baselines come first; targets are the team's choice. An outside benchmark shows where the team stands without it being anyone's opinion.</p>
+      main.innerHTML = `${scorecardCard(sc)}<p class="quiet">A few measures the team agrees to watch. Baselines come first; targets are the team's choice. An outside benchmark shows where the team stands without it being anyone's opinion.</p>
         <div class="tablewrap"><table class="data"><thead><tr><th>Metric</th><th>Baseline</th><th>Target</th><th>Benchmark</th><th>Latest</th><th></th>${presenting() ? "" : "<th>Add a reading</th>"}</tr></thead><tbody>${metrics
           .map((m) => `<tr data-id="${m.id}"><td><b>${esc(m.name)}</b>${originPill(m.origin)}${BA.neverShare(`/api/metrics/${m.id}`, m.never_share)}<div class="quiet">${esc(m.method || "")}</div></td>
             <td>${presenting() ? fmt(m.baseline, m.unit) : `<input type="number" step="any" name="baseline" value="${esc(m.baseline ?? "")}" style="max-width:110px">`}</td>
@@ -3272,7 +3286,7 @@
   const LOG_LABELS = { win: "Win", progress: "Progress", blocker: "Blocker", risk: "Risk", decision: "Decision", ask: "Ask", next: "Next", note: "Note" };
   const LOG_TONES = { win: "good", progress: "accent", blocker: "bad", risk: "warn", decision: "", ask: "warn", next: "", note: "" };
   const LOG_AUDIENCES = ["leadership", "my manager", "just me"];
-  const reportTabs = (active) => `<nav class="tabs">${[["", "Weekly report"], ["sprint", "Sprint report"], ["log", "Work log"], ["activity", "Activity"], ["saved", "Saved"]]
+  const reportTabs = (active) => `<nav class="tabs">${[["", "Weekly report"], ["sprint", "Sprint report"], ["monthly", "Monthly roll-up"], ["log", "Work log"], ["activity", "Activity"], ["saved", "Saved"]]
     .map(([k, l]) => `<a href="#/status${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const weekChip = (st) => st ? `<span class="week-chip" title="Week starting ${esc(st.week_start)}">W${st.iso_week}${st.role_week ? ` · role wk ${st.role_week}` : ""}${st.sprint_number ? ` · S${st.sprint_number} wk ${st.sprint_week}/${st.sprint_weeks}` : ""}</span>` : "";
   const hashQuery = () => new URLSearchParams((location.hash.split("?")[1] || ""));
@@ -3287,7 +3301,7 @@
     const box = main.querySelector("#report-box");
     box.innerHTML = `<div class="row"><div class="seg" id="rep-mode"><button type="button" data-mode="preview" class="on">Preview</button><button type="button" data-mode="edit"${ro ? " disabled" : ""}>Edit</button></div>
         ${text !== rep.markdown ? '<span class="pill warn">edited</span><button class="btn" type="button" id="rep-reset">Start again from the data</button>' : ""}<span class="spacer"></span>
-        ${ro ? "" : '<button class="btn" id="rep-script" title="A short narrated script from this report, to record as a video update">Video script</button><button class="btn" id="rep-copy">Copy Markdown</button><button class="btn" id="rep-save">Save draft</button><button class="btn primary" id="rep-sent">Save as sent</button>'}</div>
+        ${ro ? "" : (kind === "monthly" ? "" : '<button class="btn" id="rep-script" title="A short narrated script from this report, to record as a video update">Video script</button>') + '<button class="btn" id="rep-copy">Copy Markdown</button><button class="btn" id="rep-save">Save draft</button><button class="btn primary" id="rep-sent">Save as sent</button>'}</div>
       <div id="rep-preview" class="msg-preview">${BA.md(text)}</div><textarea id="rep-text" rows="24" class="mono" hidden>${esc(text)}</textarea>`;
     const ta = box.querySelector("#rep-text"), pv = box.querySelector("#rep-preview");
     box.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => {
@@ -3301,7 +3315,7 @@
     if (reset) reset.onclick = () => { try { sessionStorage.removeItem(key); } catch {} BA.rerender(); };
     if (ro) return;
     const body = (extra = {}) => ({ kind, audience: rep.audience, period_start: rep.period_start, period_end: rep.period_end, sprint_id: rep.sprint_id || null, title: rep.title, markdown: ta.value, ...extra });
-    box.querySelector("#rep-script").onclick = BA.guard(async () => {
+    if (box.querySelector("#rep-script")) box.querySelector("#rep-script").onclick = BA.guard(async () => {
       const q = kind === "sprint" ? `kind=sprint&sprint_id=${rep.sprint_id}` : `kind=weekly&week=${rep.period_start}`;
       const s = await BA.api(`/api/reports/script?${q}&audience=${encodeURIComponent(rep.audience)}`);
       let sb = main.querySelector("#script-box");
@@ -3333,7 +3347,7 @@
   BA.view("/status", {
     title: "Reports",
     async render(main, param) {
-      const views = { sprint: renderSprintReport, log: renderWorkLog, activity: renderActivity, saved: renderSaved };
+      const views = { sprint: renderSprintReport, monthly: renderMonthly, log: renderWorkLog, activity: renderActivity, saved: renderSaved };
       if (views[param]) return views[param](main);
       const q = hashQuery(), aud = getAud();
       const wk = await BA.api(`/api/weeks${q.get("week") ? `?on=${q.get("week")}` : ""}`);
@@ -3341,7 +3355,9 @@
       const tone = { Green: "good", Yellow: "warn", Red: "bad" }[rep.overall];
       main.innerHTML = `${reportTabs("")}
         <section class="card"><div class="row"><select id="week-pick" style="max-width:340px">${wk.recent.map((w) => `<option value="${w.start}"${w.start === wk.start ? " selected" : ""}>${esc(w.label)}${w.sprint ? ` · ${esc(w.sprint.label)}` : ""}</option>`).join("")}</select>
-          ${audiencePick(aud)}<span class="pill ${tone}">${esc(rep.overall)}</span><span class="quiet">suggested because ${esc(rep.reason)}</span></div>
+          ${audiencePick(aud)}<span class="pill ${tone}">${esc(rep.overall)}</span><span class="quiet">${rep.my_overall ? `your call (suggested: ${esc(rep.suggested)}, because ${esc(rep.reason)})` : `suggested because ${esc(rep.reason)}`}</span></div>
+          ${presenting() ? "" : `<form id="overall-form" class="row" style="margin-top:8px"><select name="overall" style="max-width:150px"><option value="">Use the suggestion</option>${["Green", "Yellow", "Red"].map((o) => `<option${o === rep.my_overall ? " selected" : ""}>${o}</option>`).join("")}</select>
+            <input name="line" value="${esc(rep.my_line || "")}" placeholder="One sentence on where things stand" style="flex:1;min-width:240px"><button class="btn" type="submit">Set the overall line</button></form>`}
           <p class="quiet">${[wk.sprint ? esc(wk.sprint.label) : "", wk.role_week ? `Week ${wk.role_week} in the role` : "", `${rep.counts.highlights} ${rep.counts.highlights === 1 ? "highlight" : "highlights"} and ${rep.counts.issues} ${rep.counts.issues === 1 ? "blocker or risk" : "blockers or risks"} logged`, `${rep.counts.stories} ${rep.counts.stories === 1 ? "story" : "stories"} finished (${rep.counts.points} points)`].filter(Boolean).join(" · ")}.
             ${aud === "leadership" ? "Built only from exportable data and work log entries marked for leadership." : "Also includes work log entries marked for your manager. Nothing private."} <a href="#/status/activity?week=${wk.start}">See everything that happened this week</a>.</p></section>
         <section class="card" id="report-box"></section>
@@ -3350,6 +3366,14 @@
           <p class="quiet">Set your start date in Settings to count weeks in the role. Sprint weeks come from each sprint's start date: a two-week sprint has a week 1 and a week 2.</p></details>`}`;
       reportEditor(main, rep, "weekly");
       bindAud(main);
+      const of = main.querySelector("#overall-form");
+      if (of) of.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        await BA.api("/api/status/overall", { method: "PUT", body: { week_of: wk.start, overall: of.elements.overall.value || null, line: of.elements.line.value } });
+        try { sessionStorage.removeItem(`ba-report-weekly-${rep.audience}-${rep.period_start}`); } catch {}
+        BA.toast("Overall line set for this week's reports.");
+        BA.rerender();
+      });
       main.querySelector("#week-pick").onchange = (e) => BA.go(`/status?week=${e.target.value}`);
       const ws = main.querySelector("#ws");
       if (ws) {
@@ -3358,6 +3382,20 @@
       }
     },
   });
+
+  async function renderMonthly(main) {
+    const q = hashQuery(), aud = getAud();
+    const now = new Date(), months = [...Array(12)].map((_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
+    const month = q.get("month") || months[0];
+    const rep = await BA.api(`/api/reports/monthly?month=${month}&audience=${encodeURIComponent(aud)}`);
+    main.innerHTML = `${reportTabs("monthly")}
+      <section class="card"><div class="row"><select id="month-pick" style="max-width:220px">${months.map((m) => `<option value="${m}"${m === month ? " selected" : ""}>${new Date(m + "-15").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</option>`).join("")}</select>${audiencePick(aud)}</div>
+        <p class="quiet">The month in one page, built from the weeks: what shipped, what was decided and closed, each saved week's overall line, and the delivery scorecard. Edit it before sending.</p></section>
+      <section class="card" id="report-box"></section>`;
+    reportEditor(main, rep, "monthly");
+    bindAud(main);
+    main.querySelector("#month-pick").onchange = (e) => BA.go(`/status/monthly?month=${e.target.value}`);
+  }
 
   async function renderSprintReport(main) {
     const sprints = (await BA.api("/api/sprints")).filter((s) => s.start_date);
@@ -6564,7 +6602,14 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         ${d.private ? `<section class="card"><h2>Team check-ins</h2><div class="checkpoints">${d.checkpoints.map((c) => `<a class="checkpoint${c.done_on ? " done" : ""}" href="#/first90/team"><b>Day ${c.day}</b><span class="quiet">${c.due ? BA.fmtDate(c.due) : "–"}</span>
             <span>${c.done_on ? "held" : c.due && c.due < BA.today() ? "due" : "coming up"}</span><span class="quiet">${c.pulse_on ? `pulse ${BA.fmtDate(c.pulse_on)}` : "no pulse yet"}</span></a>`).join("")}</div></section>` : ""}
         <section class="card"><h2>Changes I'm bringing</h2><div class="stage-strip">${CHANGE_STAGES.map((s) => `<a href="#/first90/changes"><b>${ch[s]}</b><span>${s}</span></a>`).join("")}</div>
-          ${d.working_with_me ? "" : '<p class="quiet">You haven\'t written "Working with me" yet. <a href="#/first90/working">Write it</a> before your first team meeting.</p>'}</section>`;
+          ${d.working_with_me ? "" : '<p class="quiet">You haven\'t written "Working with me" yet. <a href="#/first90/working">Write it</a> before your first team meeting.</p>'}</section>
+        ${d.private ? `<section class="card" id="day90"><div class="row"><h2>Day-90 summary for your manager</h2><span class="spacer"></span><button class="btn" type="button" id="day90-show">Preview</button><button class="btn primary" type="button" id="day90-copy">Copy</button></div>
+          <p class="quiet">Drawn from all three tracks and the delivery scorecard, at the level your manager may see: the plan, early wins, mandate outcomes, the listening tour, the team, new people and the numbers. Add your own opening paragraph before sending.</p><div id="day90-out"></div></section>` : ""}`;
+      const d90 = main.querySelector("#day90-show");
+      if (d90) {
+        d90.onclick = BA.guard(async () => { const r = await BA.api("/api/first90/day90-summary"); main.querySelector("#day90-out").innerHTML = `<div class="msg-preview">${BA.md(r.markdown)}</div>`; });
+        main.querySelector("#day90-copy").onclick = BA.guard(async () => { const r = await BA.api("/api/first90/day90-summary/export", { method: "POST" }); await BA.shareText(r.markdown); BA.toast("Copied. Logged as an export."); });
+      }
     },
   });
 
