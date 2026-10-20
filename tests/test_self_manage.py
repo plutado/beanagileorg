@@ -100,3 +100,52 @@ def test_support_needs_consent_and_hr_gets_only_what_was_shared(c):
     h = {"Authorization": f"Bearer {token}"}
     assert c.get(f"/api/people/{pid}/support", headers=h).status_code == 403
     assert c.post(f"/api/people/{pid}/support/hr-summary", headers=h).status_code == 403
+
+
+def test_timed_hr_link(c):
+    pid = c.post("/api/people", json={"name": "[Engineer 2]", "active": True}).json()["id"]
+    c.put(f"/api/people/{pid}/support", json={"consent_manager_on": date.today().isoformat()})
+    c.post(f"/api/people/{pid}/support/checkins", json={"support_wanted": "[Shared line]"})
+    assert c.post(f"/api/people/{pid}/support/hr-links", json={"recipient": "[HR contact]"}).status_code == 409  # no HR consent
+    c.put(f"/api/people/{pid}/support", json={"consent_hr": True})
+    c.post(f"/api/people/{pid}/support/checkins", json={"support_wanted": "[Visible to HR]", "hard": "[Not for HR]", "share_hr": False})
+    c.post(f"/api/people/{pid}/support/checkins", json={"support_wanted": "[Visible to HR]", "share_hr": True})
+    assert c.post(f"/api/people/{pid}/support/hr-links", json={"recipient": " ", "hours": 24}).status_code == 400
+    assert c.post(f"/api/people/{pid}/support/hr-links", json={"recipient": "[HR contact]", "hours": 5}).status_code == 400
+    c.put("/api/share-base-url", json={"base_url": "http://127.0.0.1:8801"})
+    link = c.post(f"/api/people/{pid}/support/hr-links", json={"recipient": "[HR contact]", "hours": 24, "max_views": 2}).json()
+    assert link["local_only"] and link["url"].startswith("http://127.0.0.1:8801/shared/bsh_")
+    path = "/shared/" + link["url"].split("/shared/")[1]
+    c.cookies.clear()  # the recipient isn't signed in
+    form = c.get(path)
+    assert form.status_code == 200 and "access code" in form.text and "[Visible to HR]" not in form.text
+    assert form.headers["cache-control"] == "no-store" and "noindex" in form.headers["x-robots-tag"]
+    assert "match" in c.post(path, data={"code": "AAAA-AAAA"}).text
+    page = c.post(path, data={"code": link["code"].lower()})
+    assert page.status_code == 200 and "[Visible to HR]" in page.text and "[Not for HR]" not in page.text and "1 more time" in page.text
+    assert c.get("/api/people").status_code == 401  # the link opens nothing else
+    c.post(path, data={"code": link["code"]})
+    assert c.post(path, data={"code": link["code"]}).status_code == 410  # views used up
+    c.post("/login", data={"password": PASSWORD})
+    links = c.get(f"/api/people/{pid}/support/hr-links").json()["links"]
+    assert links[0]["status"] == "used up" and links[0]["views"] == 2
+    kinds = [e["kind"] for e in c.get("/api/exports").json()]
+    assert kinds.count("share:view") == 2 and "share:create" in kinds
+    # Withdrawing consent stops a live link at once; revoking does too; wrong codes lock it.
+    two = c.post(f"/api/people/{pid}/support/hr-links", json={"recipient": "[HR contact]", "hours": 1}).json()
+    p2 = "/shared/" + two["url"].split("/shared/")[1]
+    c.put(f"/api/people/{pid}/support", json={"consent_hr": False})
+    assert "no longer shared" in c.post(p2, data={"code": two["code"]}).text
+    c.put(f"/api/people/{pid}/support", json={"consent_hr": True})
+    assert c.delete(f"/api/people/{pid}/support/hr-links/{two['id']}").status_code == 204
+    assert c.post(p2, data={"code": two["code"]}).status_code == 410
+    three = c.post(f"/api/people/{pid}/support/hr-links", json={"recipient": "[HR contact]", "hours": 1}).json()
+    p3 = "/shared/" + three["url"].split("/shared/")[1]
+    for _ in range(5):
+        r = c.post(p3, data={"code": "WRONG"})
+    assert r.status_code == 410 and "locked" in r.text
+    assert c.post(p3, data={"code": three["code"]}).status_code == 410
+    assert c.get("/shared/bsh_nonsense").status_code == 410
+    c.put("/api/share-base-url", json={"base_url": "https://machine-name.example.net"})
+    assert not c.get(f"/api/people/{pid}/support/hr-links").json()["local_only"]
+    assert c.put("/api/share-base-url", json={"base_url": "https://[bad"}).status_code == 400

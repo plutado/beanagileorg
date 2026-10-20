@@ -426,9 +426,61 @@
     });
   }
 
+  // A timed, read-only link to the consented HR summary, for one named HR contact. The code goes another way.
+  const LINK_TONES = { active: "good", expired: "", "used up": "", revoked: "", locked: "bad" };
+  function hrLinksCard(hl) {
+    if (!hl || hl.hidden) return "";
+    const hrs = { 1: "1 hour", 24: "1 day", 72: "3 days", 168: "7 days" };
+    return `<section class="card"><h2>Links for HR</h2>
+      <p class="quiet">Instead of sending a file, give one HR contact a private page with the same summary: only the check-ins marked to share, built fresh each time it's opened. It expires, can be limited to a few views, needs an access code you send another way (a call or a message, not the same email), locks after five wrong codes, and stops working at once if consent is withdrawn or you revoke it. Each view is logged.</p>
+      ${hl.local_only ? `<p class="callout warn">Links point at <b>${esc(hl.base_url)}</b>, which only opens on this computer. For HR to open one, this computer must be reachable from theirs, for example over a private network; set that address below.</p>` : ""}
+      <form id="hr-link" class="row"><input name="recipient" placeholder="Who it's for, such as [HR contact]" required style="max-width:240px">
+        <select name="hours" style="max-width:120px">${hl.hours.map((h) => `<option value="${h}"${h === 24 ? " selected" : ""}>${hrs[h]}</option>`).join("")}</select>
+        <select name="max_views" style="max-width:140px"><option value="1">1 view</option><option value="3" selected>3 views</option><option value="10">10 views</option><option value="">until it expires</option></select>
+        <button class="btn primary" type="submit">Make a link</button></form>
+      <div id="hr-link-made"></div>
+      ${hl.links.map((l) => `<div class="item"><span class="pill ${LINK_TONES[l.status] || ""}">${esc(l.status)}</span><b>${esc(l.recipient)}</b><span class="quiet">made ${esc(l.created_at.slice(0, 16))} UTC · expires ${esc(l.expires_at.slice(0, 16))} UTC · opened ${l.views}${l.max_views ? ` of ${l.max_views}` : ""}${l.last_viewed_at ? `, last ${esc(l.last_viewed_at.slice(0, 16))}` : ""}</span><span class="spacer"></span>${l.status === "active" ? `<button class="btn danger" type="button" data-revoke-link="${l.id}">Revoke</button>` : ""}</div>`).join("")}
+      <details><summary class="quiet">Address HR uses to reach this computer</summary><form id="share-base" class="row"><input name="base_url" value="${hl.local_only ? "" : esc(hl.base_url)}" placeholder="https://[this-computer].[private-network-name]" style="max-width:360px"><button class="btn" type="submit">Save</button></form>
+        <p class="quiet">The app answers only addresses it's told to: add the same host name to BEANAGILEORG_ALLOWED_HOSTS when you start it.</p></details></section>`;
+  }
+  function bindHrLinks(box, id, p, refresh) {
+    const f = box.querySelector("#hr-link");
+    if (!f) return;
+    f.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(f);
+      if (!confirm(`Make a link for ${fd.get("recipient")} to ${p.name}'s consented support summary? It's logged, and works until it expires, is used up or you revoke it.`)) return;
+      const r = await BA.api(`/api/people/${id}/support/hr-links`, { method: "POST", body: { recipient: fd.get("recipient"), hours: Number(fd.get("hours")), max_views: fd.get("max_views") ? Number(fd.get("max_views")) : null } });
+      const out = box.querySelector("#hr-link-made");
+      out.innerHTML = `<div class="callout"><p><b>Shown once.</b> Send the link and the code by different routes.</p>
+        <p>Link: <code>${esc(r.url)}</code> <button class="btn" type="button" data-copy-link>Copy link</button></p>
+        <p>Access code: <code>${esc(r.code)}</code> <button class="btn" type="button" data-copy-code>Copy code</button></p>
+        <p class="quiet">Expires ${esc(r.expires_at)} UTC${r.max_views ? `, or after ${r.max_views} view${r.max_views === 1 ? "" : "s"}` : ""}.${r.local_only ? " It only opens on this computer until you set the address below." : ""}</p>
+        <button class="btn" type="button" data-done>Done</button></div>`;
+      out.querySelector("[data-copy-link]").onclick = BA.guard(async () => { await navigator.clipboard.writeText(r.url); BA.toast("Link copied."); });
+      out.querySelector("[data-copy-code]").onclick = BA.guard(async () => { await navigator.clipboard.writeText(r.code); BA.toast("Code copied. Send it another way."); });
+      out.querySelector("[data-done]").onclick = refresh;
+      f.reset();
+    });
+    box.querySelectorAll("[data-revoke-link]").forEach((b) => (b.onclick = BA.guard(async () => {
+      if (!confirm("Revoke this link? It stops working at once.")) return;
+      await BA.api(`/api/people/${id}/support/hr-links/${b.dataset.revokeLink}`, { method: "DELETE" });
+      BA.toast("Revoked.");
+      refresh();
+    })));
+    const sb = box.querySelector("#share-base");
+    sb.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      await BA.api("/api/share-base-url", { method: "PUT", body: { base_url: sb.elements.base_url.value } });
+      BA.toast("Saved.");
+      refresh();
+    });
+  }
+
+
   // What one of your people chooses to tell you about how they're managing, with their consent recorded.
   async function renderSupport(box, id, p, people) {
-    const d = await BA.api(`/api/people/${id}/support`);
+    const [d, hl] = await Promise.all([BA.api(`/api/people/${id}/support`), BA.api(`/api/people/${id}/support/hr-links`)]);
     if (d.hidden) { box.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
     const prof = d.profile || {}, consented = !!prof.consent_manager_on;
     const sy = Object.fromEntries(d.syndromes.map((x) => [x.key, x.name]));
@@ -454,7 +506,8 @@
       <section class="card"><div class="row"><h2>Check-ins</h2><span class="spacer"></span>${prof.consent_hr ? '<button class="btn" type="button" id="sup-hr">Summary for HR</button>' : ""}</div>
         ${d.checkins.map((c) => `<details class="plan-item"><summary><span class="quiet">${BA.fmtDate(c.date)}</span>${["energy", "load", "in_control"].filter((k) => c[k]).map((k) => `<span class="quiet">${k.replace("_", " ")} ${c[k]}</span>`).join("")}<span class="spacer"></span>${c.share_hr ? '<span class="pill">shared with HR</span>' : ""}</summary>
           ${c.going_well ? `<p><b>Going well:</b> ${esc(c.going_well)}</p>` : ""}${c.hard ? `<p><b>Hard:</b> ${esc(c.hard)}</p>` : ""}${c.support_wanted ? `<p><b>Would help:</b> ${esc(c.support_wanted)}</p>` : ""}
-          ${(c.syndromes || []).length ? `<p class="quiet">Patterns: ${c.syndromes.map((k) => esc(sy[k] || k)).join(", ")}</p>` : ""}${(c.disciplines || []).length ? `<p class="quiet">Working on: ${c.disciplines.map(esc).join(", ")}</p>` : ""}</details>`).join("") || '<p class="quiet">None yet.</p>'}</section>`;
+          ${(c.syndromes || []).length ? `<p class="quiet">Patterns: ${c.syndromes.map((k) => esc(sy[k] || k)).join(", ")}</p>` : ""}${(c.disciplines || []).length ? `<p class="quiet">Working on: ${c.disciplines.map(esc).join(", ")}</p>` : ""}</details>`).join("") || '<p class="quiet">None yet.</p>'}</section>
+      ${prof.consent_hr ? hrLinksCard(hl) : ""}`;
     box.querySelector("#sup-consent").onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const f = e.target, fd = new FormData(f);
@@ -471,6 +524,7 @@
       BA.toast("Saved.");
       renderSupport(box, id, p, people);
     });
+    bindHrLinks(box, id, p, () => renderSupport(box, id, p, people));
     const hr = box.querySelector("#sup-hr");
     if (hr) hr.onclick = BA.guard(async () => {
       if (!confirm(`This makes a summary for HR of only the check-ins ${p.name} marked to share, and records it in the export log. Make it?`)) return;

@@ -55,6 +55,26 @@ CORE_MIGRATIONS: list[tuple[int, str]] = [
         );
         """,
     ),
+    (
+        2,
+        """
+        CREATE TABLE share_links (
+            id INTEGER PRIMARY KEY,
+            token_hash TEXT NOT NULL UNIQUE,
+            kind TEXT NOT NULL,
+            ref_id INTEGER,
+            recipient TEXT NOT NULL,
+            code_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at TEXT NOT NULL,
+            max_views INTEGER,
+            views INTEGER NOT NULL DEFAULT 0,
+            failures INTEGER NOT NULL DEFAULT 0,
+            last_viewed_at TEXT,
+            revoked_at TEXT
+        );
+        """,
+    ),
 ]
 
 

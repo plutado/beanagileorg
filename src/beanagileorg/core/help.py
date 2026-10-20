@@ -30,7 +30,7 @@ TOOLKIT = {
                   "Log one-on-ones, meetings and calls on their Conversations tab, with notes, takeaways and follow-ups that can go to the dev-sync log.",
                   "Set a check-in cadence; anyone past it shows on Today. Check Before you meet on their Overview for your last notes and open follow-ups.",
                   "Track commitments both ways on anyone's Overview: what you owe them and what they owe you.",
-                  "For your reports, Managing themselves holds what they choose to share about how they're managing, with their consent, and a summary for HR of only what they agree to.",
+                  "For your reports, Managing themselves holds what they choose to share, with their consent. HR gets only what they agree to: a summary, or a timed link with a separate code.",
                   "Under Fields, import a roster file, or export one for another manager: shareable fields by default, private ones only if you choose.",
                   "Open your own page and press This is me; your direct reports get a Manager tab with growth goals, a feedback and wins log, and a drafted one-on-one agenda.",
                   "Choose which fields you use under Fields. Sensitive notes stay masked until you click Show.",

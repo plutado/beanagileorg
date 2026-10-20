@@ -118,7 +118,7 @@ In priority order:
 
 ## Shared base and platform
 
-- [ ] **Sharing between installs, next** (#24): links between shared records (beyond names), more kinds (Agile practices, team status packs), the roster and coaching pack folded in as kinds, and timed pulls. Built so far: risks, decisions, Scrum of Scrums items, core processes and metrics with readings as kinds, team links by name, passphrase signing. Managers share chosen records and fields between their own copies through packs, never direct access. Pick kinds, then records, then fields (nothing selected to start); preview on import and decide record by record (add, update, keep mine, merge fields, add as a copy); repeatable merges through pack identities; an import log and the origin on each record. Plan: docs/specs/sharing-between-installs.md
+- [ ] **Sharing between installs, next** (#24): links between shared records (beyond names), more kinds (Agile practices, team status packs), the roster and coaching pack folded in as kinds, and timed pulls (the timed share link in core/shares.py is the base to build on). Built so far: risks, decisions, Scrum of Scrums items, core processes and metrics with readings as kinds, team links by name, passphrase signing. Managers share chosen records and fields between their own copies through packs, never direct access. Pick kinds, then records, then fields (nothing selected to start); preview on import and decide record by record (add, update, keep mine, merge fields, add as a copy); repeatable merges through pack identities; an import log and the origin on each record. Plan: docs/specs/sharing-between-installs.md
 - [ ] Backups: optional encryption of backup archives with a passphrase (age or similar); copy each night's backup to a second location
 - [ ] Timed sharing (Share control): same-network and Tailscale modes, read-only presentable view, access code, auto-timeout, banner, visit log
 - [ ] Optional Odysseus integration: documents, calendar, local models, scheduled jobs
@@ -128,13 +128,13 @@ In priority order:
 - [ ] Packaging for other managers: lighter install, setup script, practice packs export and import
 - [ ] Docker setup for installs on managed machines
 
-- [ ] **HR view of consented support records** (#28): a timed, read-only share of a report's consented support summary for a named HR contact, instead of an exported file. Never the rest of the install.
 ## Housekeeping
 
 - [x] 2026-10-18: LICENSE copyright holder filled in
 
 ## Done
 
+- [x] 2026-10-20: Timed HR links for consented support summaries (#28): the first timed share link (core/shares.py, core migration 2): one page for one named person, expiring in 1 hour to 7 days, optional view limit, an access code sent another way, locked after five wrong codes, revocable, rendered fresh so withdrawn consent stops it, every creation and view logged; a share address setting for reaching this computer over a private network; 323 tests
 - [x] 2026-10-19: Managing yourself, chapter 9 (#27): core challenges check, transition self-check, personal disciplines and end-of-day review, asks I'm considering, advice network grid with cultural interpreters and inside/outside, reflection with in control, load and the expected dip, working-base checklist, and a Managing themselves tab for reports with consent and a summary for HR (migration 66); five coaching guides; 322 tests
 - [x] 2026-10-19: Never share on change requests, tech debt and team changes (#26): the toggle on each (migration 65); release notes leave marked requests out; making an update from a marked dev-sync item asks first; 316 tests
 - [x] 2026-10-19: Judgments about people: tokens and never share (#26): one guarded-reader rule in the records layer; API tokens (and so the hub) never receive judgment records, judgment fields or never-share records unless granted judgments:read (confirmed on creation); people-focused screens refuse tokens, Today and Activity filter; a leak test sweeps every read and export endpoint with a full token; a never share toggle on risks, decisions, Scrum of Scrums items, processes, metrics, policies, regression plans, role templates and dev-sync items (migration 64) keeps a record off presented screens, reports, packs, tokens and cloud models; 315 tests

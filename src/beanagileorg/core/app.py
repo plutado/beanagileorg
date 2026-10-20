@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from . import auth, backup, tokens
 from . import help as help_text
-from . import history, sensitivity
+from . import history, sensitivity, shares
 from .changelog import recent_changes
 from .config import Settings
 from .db import CORE_MIGRATIONS, Database, migrate
@@ -22,7 +22,8 @@ from .privacy import SCOPE_FLOORS, Level, Viewer, floor_for_scopes, register_sco
 CORE_STATIC = Path(__file__).parent / "static"
 SESSION_COOKIE = "ba_session"
 PUBLIC_PATHS = {"/login", "/setup", "/api/health"}
-PUBLIC_PREFIXES = ("/static/", "/core-static/")
+STATIC_PREFIXES = ("/static/", "/core-static/")
+PUBLIC_PREFIXES = (*STATIC_PREFIXES, "/shared/")  # /shared/ serves only timed share links, each behind its own code
 
 
 def _now() -> str:
@@ -217,7 +218,7 @@ def create_app(
                 return JSONResponse({"detail": "Not signed in."}, status_code=401)
             return RedirectResponse("/login" if has_user else "/setup", status_code=303)
         response = await call_next(request)
-        if path.startswith(PUBLIC_PREFIXES):
+        if path.startswith(STATIC_PREFIXES):
             # Revalidate every load (a cheap 304 locally), so an update never leaves old screens in the browser.
             response.headers["Cache-Control"] = "no-cache"
         return response
@@ -410,6 +411,7 @@ def create_app(
     app.include_router(help_text.router_for(settings.app))
     app.include_router(history.build_router())
     app.include_router(sensitivity.build_router())
+    app.include_router(shares.build_router(lambda: db))
 
     shell = (CORE_STATIC / "shell.html").read_text()
 

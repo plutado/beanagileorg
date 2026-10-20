@@ -9,11 +9,14 @@ model.
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from beanagileorg.core.app import get_conn, get_viewer, no_judgments
 from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Level, Viewer
+from beanagileorg.core import shares
 
 from . import models
 from .routes import require_write, today
@@ -333,3 +336,88 @@ def export_hr_summary(person_id: int, viewer: Viewer = Depends(get_viewer), conn
     out = hr_summary(conn, person_id)
     log_export(conn, "support:hr", out["title"], [{"markdown": out["markdown"]}], viewer.source)
     return out
+
+
+# ---- a timed, read-only link to that summary for a named HR contact ----
+
+SHARE_KIND = "support:hr"
+SHARE_BASE_KEY = "share.base_url"
+
+
+def _render_for_hr(conn, person_id: int) -> dict:
+    """What an HR link shows, built fresh each time it's opened: withdraw consent and the link stops working."""
+    try:
+        out = hr_summary(conn, person_id)
+    except HTTPException as exc:
+        raise shares.ShareGone("This summary is no longer shared. Ask the person who sent the link.") from exc
+    return {"title": out["title"], "markdown": out["markdown"]}
+
+
+shares.register(SHARE_KIND, _render_for_hr)
+
+
+def _share_base(conn, request: Request) -> str:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (SHARE_BASE_KEY,)).fetchone()
+    return (row["value"] if row else str(request.base_url)).rstrip("/")
+
+
+def _local(url: str) -> bool:
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return True
+    return host in ("127.0.0.1", "localhost", "::1") or host.endswith(".localhost")
+
+
+@router.get("/api/people/{person_id}/support/hr-links", dependencies=[Depends(no_judgments)])
+def hr_links(person_id: int, request: Request, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    _person(conn, person_id)
+    base = _share_base(conn, request)
+    return {"links": shares.list_links(conn, SHARE_KIND, person_id), "base_url": base, "local_only": _local(base),
+            "hours": list(shares.HOURS_CHOICES)}
+
+
+@router.post("/api/people/{person_id}/support/hr-links", status_code=201, dependencies=[Depends(no_judgments)])
+def make_hr_link(person_id: int, request: Request, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """A link for one named HR contact. The URL and code are shown once; send the code another way."""
+    require_write(viewer)
+    if viewer.floor != Level.PRIVATE:
+        raise HTTPException(403, "Not available while presenting.")
+    hr_summary(conn, person_id)  # refuses unless they've agreed to share with HR
+    try:
+        made = shares.create_link(conn, SHARE_KIND, person_id, body.get("recipient") or "", int(body.get("hours") or 24),
+                                  None if body.get("max_views") in (None, "", 0) else int(body["max_views"]), viewer.source)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    base = _share_base(conn, request)
+    return {**{k: made[k] for k in ("id", "code", "expires_at", "recipient", "max_views")}, "url": f"{base}/shared/{made['token']}", "local_only": _local(base)}
+
+
+@router.delete("/api/people/{person_id}/support/hr-links/{link_id}", status_code=204, dependencies=[Depends(no_judgments)])
+def revoke_hr_link(person_id: int, link_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    if not shares.revoke(conn, link_id, SHARE_KIND, person_id):
+        raise HTTPException(404, "No active link with that id.")
+
+
+@router.put("/api/share-base-url")
+def set_share_base(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """The address a recipient uses to reach this machine, such as its name on a private network."""
+    require_write(viewer)
+    if viewer.floor != Level.PRIVATE or viewer.guarded:
+        raise HTTPException(403, "Not available here.")
+    url = (body.get("base_url") or "").strip().rstrip("/")
+    if url and not url.startswith(("https://", "http://")):
+        raise HTTPException(400, "The address starts with https:// or http://.")
+    try:
+        if url and not urlparse(url).hostname:
+            raise ValueError
+    except ValueError as exc:
+        raise HTTPException(400, "That isn't a web address this machine can be reached at.") from exc
+    if url:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (SHARE_BASE_KEY, url))
+    else:
+        conn.execute("DELETE FROM settings WHERE key = ?", (SHARE_BASE_KEY,))
+    return {"base_url": url or None}

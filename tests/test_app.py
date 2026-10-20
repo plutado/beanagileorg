@@ -127,7 +127,7 @@ def test_password_change(client):
 def test_migrations_are_idempotent(tmp_path):
     db = Database(tmp_path / "m.db")
     with db.session() as conn:
-        assert migrate(conn, "core", CORE_MIGRATIONS) == [1]
+        assert migrate(conn, "core", CORE_MIGRATIONS) == [v for v, _ in CORE_MIGRATIONS]
         assert migrate(conn, "core", CORE_MIGRATIONS) == []
 
 

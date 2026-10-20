@@ -45,3 +45,8 @@ The scan looks at wording, not meaning: it will miss some things and flag harmle
 12. **Never share, per record.** Risks, decisions, Scrum of Scrums items, core processes, metrics, SDLC policies, regression plans, role templates, dev-sync items, change requests, tech debt and team changes carry a never share? toggle beside their name. A marked record is private whatever its fields say: hidden while presenting, left out of the weekly report, the status draft, the Scrum of Scrums summary, the dev-sync board, release notes, the tech debt summary and the SDLC document, never offered in a pack, and never read by a token or a cloud model. You still see it.
 
 One rule underneath: a reader marked "guarded" (a token, or a cloud model with private access) skips judgments about people and never-share records, wherever records are read.
+
+## Support for your people, and HR
+
+13. **Consent first.** A report's Managing themselves tab takes check-ins only after you record that they agreed to share with you. Consent to share with HR is recorded separately, and only check-ins they mark to share can reach HR.
+14. **Two ways to HR, both logged.** A summary you copy and send, or a timed, read-only link for one named HR contact: it expires, can be limited to a few views, needs an access code sent another way, locks after five wrong codes, and is rendered fresh each time, so withdrawn consent or a revoke stops it at once. The link page is served under /shared/ with no sign-in, no app shell and nothing else reachable; responses are never cached or indexed.
