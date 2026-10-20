@@ -1601,11 +1601,39 @@ GUIDES = [
         ],
         "related": ['/people', '/coaching/mentoring-managers', '/coaching/supporting-a-new-hire'], "reading": [F90],
     },
+    {
+        "slug": 'ninety-day-cycles', "theme": "leaders", "minutes": 4, "since": 55,
+        "title": 'Working in 90-day cycles',
+        "summary": "The first 90 days isn't a one-off. Keep the same rhythm afterwards: plan a cycle, run it, review it, and let the review set up the next.",
+        "why": "A 90-day horizon is long enough to change something real and short enough to stay focused and honest about progress. Without a rhythm, the energy of the first months fades into reacting to whatever arrives. Cycles keep strategy and execution in step, give your manager regular points to agree direction, and line up naturally with sprints, quarters and Program Increments.",
+        "practices": [
+            "Start each cycle with a short read of where things stand, then agree one focus and no more than three goals with your manager.",
+            "Put the plan items and wins in the cycle's days, so progress shows as you go.",
+            "Let the existing rhythm carry the work: sprints, the weekly status, the Scrum of Scrums. A cycle adds no meetings.",
+            "In the last two weeks, review: the scorecard against baselines and targets, what you said against what happened, and what to change.",
+            "Set the next cycle's focus in the same review, so there's never a gap between plans.",
+            "If you run SAFe, match the cycle to your Program Increments and use PI planning as the planning step.",
+        ],
+        "pitfalls": [
+            "Treating day 90 as the finish line.",
+            "Carrying every unfinished item forward instead of choosing again.",
+            "A focus so broad it rules nothing out.",
+        ],
+        "questions": [
+            "What is the one thing this cycle has to achieve?",
+            "What did the last cycle teach us that should change how we run this one?",
+        ],
+        "try": [
+            "Open 90-day cycles under First 90 days, write the current cycle's focus in one sentence, and pick its three goals.",
+        ],
+        "related": ['/first90', '/plans', '/coaching/early-wins'], "reading": [F90],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
 TIPS = {
-    "/first90": [("Your transition is one of many. Map where others are joining or moving in the heat map under Onboarding.", "accelerating-everyone", 53),
+    "/first90": [("Day 90 isn't the finish line. Plan the next cycle in the same review: one focus, three goals, then run it.", "ninety-day-cycles", 55),
+        ("Your transition is one of many. Map where others are joining or moving in the heat map under Onboarding.", "accelerating-everyone", 53),
         ("Assess people on evidence from the work itself, not just conversations. Keep first impressions, then step back.", "building-the-team", 40),
                  ("Agree your mandate early: what success looks like, and decision by decision, what you can do on your own.", "your-mandate", 9),
                  ("These are the team's first 90 days with you too. Give each person a first one-on-one in week one.", "leading-change", 8),
@@ -1836,7 +1864,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 54  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 55  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

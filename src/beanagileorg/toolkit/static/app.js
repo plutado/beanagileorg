@@ -90,13 +90,15 @@
   // ---------------------------------------------------------------- Today
 
   // Today: the end-of-day (or Friday, end-of-week) review, checks that are due, asks to answer, the working base.
-  function selfToday(x, seats = []) {
+  function selfToday(x, seats = [], cycle = null) {
     if (!x) return "";
     const r = x.review || {}, week = x.week_review_due;
     const items = [
       x.challenge_check_due ? `<div class="item"><span class="pill warn">check</span><a href="#/me/challenges">Day ${x.challenge_check_due}: take the core challenges check</a></div>` : "",
       x.self_check_due ? `<div class="item"><span class="pill">self-check</span><a href="#/me/self-check">Monthly transition self-check: boundaries, brittleness, isolation, avoidance</a></div>` : "",
       ...x.asks.map((a) => `<div class="item"><span class="pill ${a.late ? "bad" : "warn"}">answer</span><a href="#/me">${esc(a.title)}${a.requested_by ? ` (${esc(a.requested_by)})` : ""}</a><span class="spacer"></span><span class="quiet">by ${BA.fmtDate(a.answer_by)}</span></div>`),
+      ...(cycle ? [cycle.review_due ? `<div class="item"><span class="pill warn">cycle</span><a href="#/first90/cycles">Cycle ${cycle.number} ends soon (day ${cycle.day_in_cycle} of ${cycle.length}): review it and set the next focus</a></div>` : "",
+        cycle.focus_needed ? `<div class="item"><span class="pill accent">cycle</span><a href="#/first90/cycles">Cycle ${cycle.number} has started: set its focus and goals</a></div>` : ""] : []),
       ...seats.map((s) => `<div class="item"><span class="pill">hiring</span><a href="#/onboarding/seat-${s.id}">${esc(s.title)}: day 90 passed. Which risks turned out real?</a></div>`),
       x.working_base_left ? `<div class="item"><span class="pill">setup</span><a href="#/me">${x.working_base_left} working-base item${x.working_base_left === 1 ? "" : "s"} still to set up</a></div>` : "",
     ].join("");
@@ -156,7 +158,7 @@
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
         ${BA.backupWarning(d.backup)}
-        ${selfToday(d.self, d.seats_due)}
+        ${selfToday(d.self, d.seats_due, d.cycle)}
         ${d.accelerate && (d.accelerate.learning_late_count || d.accelerate.boss_unheld.length || d.accelerate.mentoring.length) ? `<section class="card"><h2>Getting up to speed</h2>
           ${d.accelerate.boss_unheld.length ? `<div class="item"><span class="pill warn">manager</span><a href="#/first90/mandates">Not yet discussed with your manager: ${esc(d.accelerate.boss_unheld.join(", ").toLowerCase())}</a></div>` : ""}
           ${d.accelerate.learning_late.map((q) => `<div class="item"><span class="pill">learn</span><a href="#/first90/learning">${esc(q.question)}</a></div>`).join("")}${d.accelerate.learning_late_count > d.accelerate.learning_late.length ? `<p class="quiet">and ${d.accelerate.learning_late_count - d.accelerate.learning_late.length} more open questions past the day you planned to answer them</p>` : ""}
@@ -6683,21 +6685,63 @@
   const STAGE_TONES = { idea: "", announced: "accent", trial: "warn", review: "warn", adopted: "good", dropped: "" };
   const NEXT_STAGE = { idea: ["announced", "Announce it"], announced: ["trial", "Start the trial"], trial: ["review", "Review with the team"] };
   const AUTO_LABELS = { one_on_one: "a one-on-one logged under People", interview: "a listening tour conversation marked done", growth_goal: "a growth goal on their Manager tab", feedback: "feedback marked shared on their Manager tab", mandate: "their mandate marked agreed" };
-  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["mandates", "Mandates"], ["situation", "Situation"], ["learning", "Learning agenda"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["mentoring", "Mentoring"], ["working", "Working with me"]]
+  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["cycles", "90-day cycles"], ["mandates", "Mandates"], ["situation", "Situation"], ["learning", "Learning agenda"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["mentoring", "Mentoring"], ["working", "Working with me"]]
     .map(([k, l]) => `<a href="#/first90${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const f90Progress = (done, total) => `<span class="progress"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></span><span class="quiet">${done ?? 0} of ${total ?? 0}</span>`;
   const f90_dayLabel = (n) => n == null ? "not started" : n < 1 ? `starts in ${1 - n} day${1 - n === 1 ? "" : "s"}` : n > 90 ? `day ${n}, past 90` : `day ${n}`;
 
+  // 90-day cycles: the first 90 days, then the same rhythm of plan, run and review, cycle after cycle.
+  async function renderCycles(main) {
+    const o = await BA.api("/api/cycles/overview");
+    const ro = presenting();
+    const card = (c) => `<section class="card cycle-card${c.state === "current" ? " cycle-now" : ""}" data-cycle="${c.number}" data-cid="${c.id}"><div class="row"><h2>Cycle ${c.number}${c.number === 1 ? ": the first 90 days" : ""}</h2>
+        <span class="pill ${c.state === "current" ? "accent" : c.status === "reviewed" ? "good" : ""}">${c.state === "current" ? `now · day ${o.day_in_cycle} of ${o.length_days}` : c.status === "reviewed" ? "reviewed" : c.state}</span>
+        <span class="quiet">days ${c.start_day} to ${c.end_day}${c.start_date ? ` · ${BA.fmtDate(c.start_date)} to ${BA.fmtDate(c.end_date)}` : ""}</span>${c.pi ? `<span class="pill">PI ${c.pi.number}</span>` : ""}<span class="spacer"></span>
+        ${c.total ? f90Progress(c.done, c.total) : ""}</div>
+      ${ro ? `${c.focus ? `<p><b>Focus:</b> ${esc(c.focus)}</p>` : ""}${(c.goals || []).length ? `<ul>${c.goals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>` : ""}` : `<form class="cycle-form"><label>Focus <span class="quiet">(one sentence for the whole cycle)</span><input name="focus" value="${esc(c.focus || "")}"></label>
+        <label>Goals <span class="quiet">(one per line, three at most)</span><textarea name="goals" rows="3">${esc((c.goals || []).join("\n"))}</textarea></label>
+        ${o.pis.length ? `<label>Program Increment<select name="pi_id"><option value=""></option>${o.pis.map((p) => `<option value="${p.id}"${c.pi && c.pi.id === p.id ? " selected" : ""}>PI ${p.number}</option>`).join("")}</select></label>` : ""}
+        <div class="actions"><button class="btn" type="submit">Save</button></div></form>`}
+      ${c.items.length ? `<h3>Plan items due in this cycle</h3>${c.items.map((i) => `<div class="item"><span class="quiet" style="min-width:64px">day ${i.due_day}</span><a href="#/plans">${esc(i.title)}</a>${i.early_win ? '<span class="pill accent">early win</span>' : ""}<span class="spacer"></span>${BA.statusPill(i.status === "planned" ? "not started" : i.status)}</div>`).join("")}` : '<p class="quiet">No plan items due in these days yet. Add them in the 30/60/90 plans with a due day.</p>'}
+      ${c.status === "reviewed" ? `<p><b>Reviewed ${BA.fmtDate(c.reviewed_on)}.</b>${c.went_well ? ` Went well: ${esc(c.went_well)}.` : ""}${c.to_change ? ` To change: ${esc(c.to_change)}.` : ""}</p>` : ""}
+      ${ro ? "" : `<div class="actions">${c.status !== "reviewed" && c.state !== "upcoming" ? '<button class="btn" type="button" data-review>Review this cycle</button>' : ""}<button class="btn" type="button" data-sum>Summary</button><button class="btn primary" type="button" data-copy>Copy summary</button></div>
+        <div data-review-box hidden><div class="grid2"><label>What went well<textarea name="went_well" rows="2"></textarea></label><label>What to change<textarea name="to_change" rows="2"></textarea></label></div>
+          <label>Focus for the next cycle<input name="next_focus"></label><label>Private notes<textarea name="review_notes" rows="2"></textarea></label>
+          <div class="actions"><button class="btn primary" type="button" data-review-save>Close the cycle</button></div><p class="quiet">Keeps the delivery scorecard as it stands now and a snapshot of your mandate, so the next review can compare.</p></div><div data-sum-out></div>`}</section>`;
+    main.innerHTML = `${f90Tabs("cycles")}
+      <p class="quiet">The first 90 days is the first cycle, not the last. After it, the work keeps running in cycles: a short read of where things stand, a focus and a few goals agreed with your manager, about six sprints of work, then a review that sets up the next cycle. Every second cycle can end at a contract or role review. If you run SAFe, set the length to match your Program Increments. <a href="#/coaching/ninety-day-cycles">Working in 90-day cycles</a></p>
+      ${o.day ? "" : '<p class="callout">Set your start date under <a href="#/me">My development</a> to see which cycle you\'re in.</p>'}
+      ${o.cycles.map(card).join("")}
+      ${ro ? "" : `<section class="card"><form id="cycle-len" class="row"><label class="check">Cycle length <input type="number" name="length_days" min="56" max="120" value="${o.length_days}" style="max-width:90px"> days</label><button class="btn" type="submit">Save</button><span class="quiet">90 by default; 70 for a five-sprint PI of two-week sprints, 84 for six.</span></form></section>`}`;
+    if (ro) return;
+    main.querySelector("#cycle-len").onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/cycles/settings", { method: "PUT", body: { length_days: Number(e.target.elements.length_days.value) } }); BA.rerender(); });
+    main.querySelectorAll("[data-cycle]").forEach((sec) => {
+      const n = sec.dataset.cycle, id = sec.dataset.cid, f = sec.querySelector(".cycle-form");
+      f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/cycles/${id}`, { method: "PATCH", body: { focus: fd.get("focus") || null, goals: (fd.get("goals") || "").split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 5), ...(f.elements.pi_id ? { pi_id: numOrNull(fd.get("pi_id")) } : {}) } }); BA.toast("Saved."); BA.rerender(); });
+      const rb = sec.querySelector("[data-review]"), box = sec.querySelector("[data-review-box]");
+      if (rb) rb.onclick = () => { box.hidden = !box.hidden; };
+      sec.querySelector("[data-review-save]").onclick = BA.guard(async () => {
+        const v = (k) => box.querySelector(`[name=${k}]`).value || null;
+        await BA.api(`/api/cycles/${n}/review`, { method: "POST", body: { went_well: v("went_well"), to_change: v("to_change"), next_focus: v("next_focus"), review_notes: v("review_notes") } });
+        BA.toast(`Cycle ${n} closed. The next cycle is ready to plan.`);
+        BA.rerender();
+      });
+      sec.querySelector("[data-sum]").onclick = BA.guard(async () => { const r = await BA.api(`/api/cycles/${n}/summary`); sec.querySelector("[data-sum-out]").innerHTML = `<div class="msg-preview">${BA.md(r.markdown)}</div>`; });
+      sec.querySelector("[data-copy]").onclick = BA.guard(async () => { const r = await BA.api(`/api/cycles/${n}/summary/export`, { method: "POST" }); await BA.shareText(r.markdown); BA.toast("Copied. Logged as an export."); });
+    });
+  }
+
+
   BA.view("/first90", {
     title: "First 90 days",
     async render(main, param) {
-      const views = { team: renderF90Team, changes: renderF90Changes, working: renderWorking, mandates: renderMandates, situation: renderSituation, learning: renderLearning, mentoring: renderMentoring };
+      const views = { cycles: renderCycles, team: renderF90Team, changes: renderF90Changes, working: renderWorking, mandates: renderMandates, situation: renderSituation, learning: renderLearning, mentoring: renderMentoring };
       if (views[param]) return views[param](main);
       if (param && param.startsWith("mandate/")) return renderMandate(main, Number(param.split("/")[1]));
       const d = await BA.api("/api/first90/overview");
       const ch = d.changes;
       main.innerHTML = `${f90Tabs("")}
-        <section class="card f90-head"><div class="row"><h2>${d.day ? `Day ${d.day} of 90` : "Set your start date"}</h2><span class="spacer"></span>${d.start_date ? `<span class="quiet">started ${BA.fmtDate(d.start_date)}</span>` : '<a class="btn" href="#/settings">Set start date</a>'}</div>
+        <section class="card f90-head"><div class="row"><h2>${d.day ? (d.day > 90 ? `Day ${d.day} · past the first 90` : `Day ${d.day} of 90`) : "Set your start date"}</h2>${d.day > 90 ? '<a class="btn" href="#/first90/cycles">90-day cycles</a>' : ""}<span class="spacer"></span>${d.start_date ? `<span class="quiet">started ${BA.fmtDate(d.start_date)}</span>` : '<a class="btn" href="#/settings">Set start date</a>'}</div>
           ${d.day ? `<div class="f90-bar"><span style="width:${Math.min(100, Math.max(0, Math.round((d.day / 90) * 100)))}%"></span>${[30, 60, 90].map((n) => `<i style="left:${(n / 90) * 100}%">${n}</i>`).join("")}</div>` : ""}
           <p class="quiet">Three tracks that start together: yours, each new hire's, and the team you inherit, for whom this is the first 90 days with you.</p></section>
         ${d.momentum ? `<section class="card"><h2>Momentum</h2><p class="quiet">Signs that good things are happening, which is what builds credibility and trust.</p>

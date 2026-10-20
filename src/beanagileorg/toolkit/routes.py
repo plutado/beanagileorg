@@ -120,6 +120,11 @@ def skills(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 # ---- Today ----
 
 
+def _cycles_due(conn):
+    from .cycles import cycles_due
+    return cycles_due(conn)
+
+
 def _seats_due(conn):
     from .transitions import seats_due
     return seats_due(conn)
@@ -262,6 +267,7 @@ def _today(request, viewer: Viewer, conn) -> dict:
         "accelerate": _accelerate_due(conn),
         "self": _self_due(conn),
         "seats_due": _seats_due(conn),
+        "cycle": _cycles_due(conn),
         "backup": backup_status(request, viewer) if request else None,
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }

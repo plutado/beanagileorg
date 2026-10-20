@@ -2092,6 +2092,24 @@ MIGRATIONS = [
         ALTER TABLE reflections ADD COLUMN guide_slug TEXT;
         """,
     ),
+    (
+        72,
+        """
+        CREATE TABLE cycles (
+            id INTEGER PRIMARY KEY,
+            number INTEGER NOT NULL UNIQUE,
+            focus TEXT,
+            goals TEXT,
+            pi_id INTEGER REFERENCES program_increments (id) ON DELETE SET NULL,
+            status TEXT NOT NULL DEFAULT 'planned',
+            reviewed_on DATE,
+            review_notes TEXT,
+            went_well TEXT,
+            to_change TEXT,
+            scorecard TEXT
+        );
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -4530,6 +4548,18 @@ onboarding_feedback = Record(
 )
 
 
+# 90-day cycles: after the first 90 days the work keeps running in cycles of planning, execution and review.
+cycles = Record(
+    entity="cycle",
+    table="cycles",
+    path="/api/cycles",
+    order_by="number",
+    fields={"number": Field("int", S, required=True), "focus": Field("text", S), "goals": Field("list", S), "pi_id": Field("int", S),
+            "status": Field("text", S, choices=("planned", "reviewed"), default="planned"), "reviewed_on": Field("date", S),
+            "went_well": Field("text", S), "to_change": Field("text", S), "review_notes": Field("text", P), "scorecard": Field("json", S)},
+)
+
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -4550,5 +4580,5 @@ RECORDS = [
     interactions, commitments, manager_notes, growth_goals,
     standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, behavior_targets, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
     core_challenge_checks, syndrome_checks, disciplines, day_reviews, support_profiles, support_checkins,
-    transition_units, open_seats, seat_candidates, career_entries, mandate_versions, sdlc_versions, growth_levels, onboarding_feedback,
+    transition_units, open_seats, seat_candidates, career_entries, mandate_versions, sdlc_versions, growth_levels, onboarding_feedback, cycles,
 ]

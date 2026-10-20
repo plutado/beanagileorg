@@ -16,6 +16,8 @@ In priority order:
 
 ## Toolkit, later versions
 
+- [ ] First 90 days, naming (not chosen 2026-10-20): rename the section to something like "Cycles" once most of the time is spent past day 90; kept as "First 90 days" with a 90-day cycles tab for now
+
 - [ ] Ask, next steps: semantic search with the local nomic-embed-text embeddings beside full-text search; streamed answers; Ask in the Comms studio (drafting from toolkit facts); suggested questions on Today; an MCP server exposing the same tools so Claude Desktop or Odysseus can query the toolkit directly
 - [ ] Async asks: track who each video pitch went to, who responded and what was decided, with follow-ups on Today (needs the share site's view log)
 - [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
@@ -124,6 +126,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-20: 90-day cycles after the first 90 days (#31): cycles with focus, goals, plan items by day, optional PI link, review with scorecard and mandate snapshot, summary, configurable length, Today prompts, core challenges check at each cycle end (migration 72); guide Working in 90-day cycles; 347 tests
 - [x] 2026-10-20: Closing the 90-day plan backlog (#30): day-90 summary from all three tracks; delivery scorecard; one overall line for the weekly report and status draft, with sent history; monthly roll-up; roadmap items serving mandate outcomes, mandate snapshots and comparison, mandate decision rights on the RACI, SDLC stages linked to RACI decisions, SDLC versions when a policy is agreed, a decision log across every source; learning answers into the business landscape, questions suggested from listening-tour themes, mentoring summary in the report for your manager, Working with me per person, team changes linked to agreements and policies, a shareable change list, a stakeholder map, peers' commitments and Scrum of Scrums items on the balance view, agenda links for one-on-ones; agreements in the retro view, growth paths, the new member's own onboarding page, onboarding feedback into the template; coaching suggested from what's happening, a weekly digest, reflections linked to guides, tips on detail pages (migrations 68 to 71); 344 tests
 - [x] 2026-10-20: Accelerating everyone, chapter 10 (#29): transition heat map with evidence and existing support, set-up-to-fail check, transition types with set check-ins and a support team, open seats with interview risk into onboarding and day-90 lessons (also covers "open seats as their own placeholder"), development grid, common core kit (migration 67); four coaching guides; 327 tests
 - [x] 2026-10-20: Timed HR links for consented support summaries (#28): the first timed share link (core/shares.py, core migration 2): one page for one named person, expiring in 1 hour to 7 days, optional view limit, an access code sent another way, locked after five wrong codes, revocable, rendered fresh so withdrawn consent stops it, every creation and view logged; a share address setting for reaching this computer over a private network; 323 tests
