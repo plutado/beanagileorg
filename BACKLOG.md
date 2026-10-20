@@ -18,37 +18,28 @@ In priority order:
 
 - [ ] Ask, next steps: semantic search with the local nomic-embed-text embeddings beside full-text search; streamed answers; Ask in the Comms studio (drafting from toolkit facts); suggested questions on Today; an MCP server exposing the same tools so Claude Desktop or Odysseus can query the toolkit directly
 - [ ] Async asks: track who each video pitch went to, who responded and what was decided, with follow-ups on Today (needs the share site's view log)
-- [ ] First 90 days: turn learning agenda answers into Business landscape assessments; suggest learning questions from listening tour themes; a mentoring summary for my manager's weekly report
-- [ ] Peers: a stakeholder map drawn from influence and stance, with the exchange fields beside it; a peer's commitments and Scrum of Scrums items on the Balance view
 - [ ] Break-even point (decided against for now, 2026-10-17): a dedicated tracker for when the role starts paying off. Kept instead as mandate outcomes due on day 180 and the six-month plan. Revisit only if a month-six review needs more than that
-- [ ] Mandates: link plan items and roadmap items to the mandate outcome they serve; show mandate decision rights on the RACI; a version history view comparing what was agreed at day 30 and day 90
-- [ ] First 90 days: a "Working with me" for each team member to write about themselves; link a team change to the team agreement or SDLC policy it produces; a shareable one-page view of the change list for the team; a day-90 summary for my manager drawn from all three tracks
-- [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a monthly or PI roll-up built from the weekly reports; schedule a reminder on the report day
+- [ ] Reports: pull the weekly report into the Comms studio as a message or a short deck; a PI roll-up built from the weekly reports (monthly roll-up and the report-day reminder are done)
 - [ ] Change requests: import interruptions flagged in Jira (who asks most and the stakeholder summary are done)
 - [ ] Culture: import outside culture signals (themes from public reviews) as organization-level notes with a source and date, so they sit beside what you see yourself
-- [ ] Culture: show agreed team agreements inside the retro view, and a growth-path page for direct reports (levels and what moves someone up)
-- [ ] People: a stakeholder map (influence against stance) drawn from the CRM fields; import contacts from a CSV; reminders before a one-on-one with an agenda drafted from open follow-ups
+- [ ] People: import contacts from a CSV (the stakeholder map and one-on-one agenda links are done)
 - [ ] Teams: per-team PI objectives and an ART view across teams; a dependency map between teams drawn from Scrum of Scrums items; each team's metrics side by side; export a team's status pack for its own manager
 - [ ] Code: a proper code editor for code-heavy fields (indent with Tab, line numbers), and a dedicated Apex highlighter instead of borrowing Java's
 - [ ] Sprint planning: import the backlog and sprints from Jira through its API instead of pasting; burndown during the sprint; planning poker on a phone for the team
 - [ ] Jira: read issue status and summary through the Jira API (a read-only token) so keys show live status; create a Jira issue from a dev-sync item or a failed test; import sprint and story data from Jira into PI planning instead of typing it
 - [ ] Tech debt: placeholder seed data; link debt items to PI planning stories and epics; trend of debt opened and paid down per sprint; pull incident counts per system as evidence; custom categories
-- [ ] **Coaching where the work happens:** guidance inside detail pages and forms, not only at the top of landing pages: the retro board, a one-on-one record, sprint planning, the status draft, a risk, a vendor conversation, a new onboarding, each with a tip or a link to the relevant guide at the moment it helps. Every new section ships with its own tips. (Principle from David, 2026-10-16.)
-- [ ] Coaching: suggest a guide from what's happening (an overdue retro commitment, a red status, low energy three weeks running); a weekly coaching digest on Today; link reflection entries to guides; coaching tips inside detail pages, not only landing pages; Odysseus model help turning reading notes into a draft guide
-- [ ] Onboarding: a read-only page or export the new member can open themselves; feedback from each new member feeding template changes. SDLC: link stages to the RACI rows that govern them; a per-story view of which stage it's in, from PI planning stories; version the SDLC document when policies are agreed
+- [ ] Coaching: Odysseus model help turning reading notes into a draft guide; contextual tips inside forms as well as detail pages (suggested guides, the weekly digest, reflections linked to guides and detail-page tips are done)
+- [ ] SDLC: a per-story view of which stage it's in, from PI planning stories (the new member's own onboarding page, feedback into the template, stages linked to the RACI and SDLC versions are done)
 - [ ] Architecture: placeholder seed data; diagrams inside guides (Mermaid, vendored); export the system map as SVG or PNG for decks; data entities and which system is the source of truth for each; environment and deployment pipeline view per system; link incidents and test failures to integrations
 - [ ] QA: placeholder seed data; pull automated suite results from Bitbucket Pipelines or another CI instead of typing them; a test-run section in the weekly status draft; per-story QA sign-off tied to PI planning stories; flaky-test tracking over time
 - [ ] Business landscape: placeholder seed data; link assessments to listening-tour themes, incidents and metrics as evidence; a shareable summary of selected points for leadership; an org chart drawing; capabilities each system supports (a capability map)
 - [ ] Metrics: automatic readings from Bitbucket (trend charts and readings from the release log are done)
-- [ ] Weekly status: let me edit the overall line and keep a history of sent drafts in the toolkit
 
 - [ ] Vendors: attach documents (contracts, statements of work) from the docs library, and a vendor scorecard reviewed at renewal
 - [ ] Themes as their own records (version 1 stores them as tags on each one-on-one)
 - [ ] Escalation playbook: reorder steps by dragging, and link incidents to sprints
 - [ ] Documentation library: links to Odysseus documents with owner and last-reviewed date
-- [ ] Decision log
 - [ ] Meeting decks: saved sequences of live views, presented like slides
-- [ ] Delivery dashboard
 - [ ] Scrum of Scrums board from imported team status packs
 
 ## Design follow-ups
@@ -133,6 +124,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-20: Closing the 90-day plan backlog (#30): day-90 summary from all three tracks; delivery scorecard; one overall line for the weekly report and status draft, with sent history; monthly roll-up; roadmap items serving mandate outcomes, mandate snapshots and comparison, mandate decision rights on the RACI, SDLC stages linked to RACI decisions, SDLC versions when a policy is agreed, a decision log across every source; learning answers into the business landscape, questions suggested from listening-tour themes, mentoring summary in the report for your manager, Working with me per person, team changes linked to agreements and policies, a shareable change list, a stakeholder map, peers' commitments and Scrum of Scrums items on the balance view, agenda links for one-on-ones; agreements in the retro view, growth paths, the new member's own onboarding page, onboarding feedback into the template; coaching suggested from what's happening, a weekly digest, reflections linked to guides, tips on detail pages (migrations 68 to 71); 344 tests
 - [x] 2026-10-20: Accelerating everyone, chapter 10 (#29): transition heat map with evidence and existing support, set-up-to-fail check, transition types with set check-ins and a support team, open seats with interview risk into onboarding and day-90 lessons (also covers "open seats as their own placeholder"), development grid, common core kit (migration 67); four coaching guides; 327 tests
 - [x] 2026-10-20: Timed HR links for consented support summaries (#28): the first timed share link (core/shares.py, core migration 2): one page for one named person, expiring in 1 hour to 7 days, optional view limit, an access code sent another way, locked after five wrong codes, revocable, rendered fresh so withdrawn consent stops it, every creation and view logged; a share address setting for reaching this computer over a private network; 323 tests
 - [x] 2026-10-19: Managing yourself, chapter 9 (#27): core challenges check, transition self-check, personal disciplines and end-of-day review, asks I'm considering, advice network grid with cultural interpreters and inside/outside, reflection with in control, load and the expected dip, working-base checklist, and a Managing themselves tab for reports with consent and a summary for HR (migration 66); five coaching guides; 322 tests
