@@ -18,9 +18,9 @@ In a typical week it helps you:
 
 Two small web apps run on your own machine: a **Toolkit** for leading the team and its delivery (sprints, retros, the backlog, PI planning, the ART sync, people, plans and reports), and a **Comms studio** for the updates and decks that make progress visible. Everything is stored in a SQLite file on your disk, the apps listen on localhost only, and every field carries a privacy level, so you can share your screen in a meeting without exposing private notes. No account, no cloud service and no telemetry.
 
+**A two-minute walkthrough** (narrated, placeholder data):
 
 https://github.com/user-attachments/assets/f906cc07-34af-40fc-9b03-c959b42b93e9
-
 
 | | |
 | --- | --- |
