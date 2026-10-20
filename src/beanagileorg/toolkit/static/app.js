@@ -89,6 +89,41 @@
 
   // ---------------------------------------------------------------- Today
 
+  // Today: the end-of-day (or Friday, end-of-week) review, checks that are due, asks to answer, the working base.
+  function selfToday(x) {
+    if (!x) return "";
+    const r = x.review || {}, week = x.week_review_due;
+    const items = [
+      x.challenge_check_due ? `<div class="item"><span class="pill warn">check</span><a href="#/me/challenges">Day ${x.challenge_check_due}: take the core challenges check</a></div>` : "",
+      x.self_check_due ? `<div class="item"><span class="pill">self-check</span><a href="#/me/self-check">Monthly transition self-check: boundaries, brittleness, isolation, avoidance</a></div>` : "",
+      ...x.asks.map((a) => `<div class="item"><span class="pill ${a.late ? "bad" : "warn"}">answer</span><a href="#/me">${esc(a.title)}${a.requested_by ? ` (${esc(a.requested_by)})` : ""}</a><span class="spacer"></span><span class="quiet">by ${BA.fmtDate(a.answer_by)}</span></div>`),
+      x.working_base_left ? `<div class="item"><span class="pill">setup</span><a href="#/me">${x.working_base_left} working-base item${x.working_base_left === 1 ? "" : "s"} still to set up</a></div>` : "",
+    ].join("");
+    return `<section class="card" id="eod"><div class="row"><h2>${week ? "End of the week" : "End of the day"}</h2><span class="quiet">ten minutes</span><span class="spacer"></span>${x.review_done ? '<span class="pill good">reviewed</span>' : ""}<a class="btn" href="#/coaching/personal-disciplines">Why</a></div>
+      ${items}
+      <details${x.review_done ? "" : " open"}><summary class="quiet">${x.review_done ? "Edit today's review" : `What I planned, what got done, and what matters ${week ? "next week" : "tomorrow"}`}</summary>
+      <form id="eod-form" data-kind="${week ? "week" : "day"}" class="grid2">
+        <label>What I meant to do<textarea name="planned" rows="2">${esc(r.planned || "")}</textarea></label>
+        <label>What got done<textarea name="done" rows="2">${esc(r.done || "")}</textarea></label>
+        <label style="grid-column:1/-1">The few things that matter ${week ? "next week" : "tomorrow"}${[0, 1, 2].map((i) => `<input name="tomorrow" value="${esc((r.tomorrow || [])[i] || "")}" placeholder="${i + 1}.">`).join("")}</label>
+        ${x.disciplines.length ? `<div style="grid-column:1/-1"><span class="quiet">Disciplines I kept</span> ${x.disciplines.map((dd) => `<label class="check"><input type="checkbox" name="kept" value="${dd.id}"${(r.kept_ids || []).includes(dd.id) ? " checked" : ""}> ${esc(dd.name)}</label>`).join("")}</div>` : '<p class="quiet" style="grid-column:1/-1">Pick your disciplines under <a href="#/me">My development</a> to tick them off here.</p>'}
+        <div class="actions" style="grid-column:1/-1"><button class="btn primary" type="submit">Save</button></div></form></details></section>`;
+  }
+  function bindSelfToday(main) {
+    const f = main.querySelector("#eod-form");
+    if (!f) return;
+    f.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(f);
+      const body = { kind: "day", planned: fd.get("planned") || null, done: fd.get("done") || null, tomorrow: fd.getAll("tomorrow"), kept_ids: fd.getAll("kept").map(Number) };
+      await BA.api("/api/self/review", { method: "PUT", body });
+      if (f.dataset.kind === "week") await BA.api("/api/self/review", { method: "PUT", body: { ...body, kind: "week" } });
+      BA.toast("Saved. Stop when you're at the point of diminishing returns.");
+      BA.rerender();
+    });
+  }
+
+
   BA.view("/today", {
     title: "Today",
     async render(main) {
@@ -120,6 +155,7 @@
           ${rep.weekly ? `<div class="item"><span class="pill warn">report</span><a href="#/status?week=${rep.weekly.start}">Weekly report for ${esc(rep.weekly.label.replace("Week of ", "the week of "))}</a></div>` : ""}
           ${rep.sprint ? `<div class="item"><span class="pill warn">report</span><a href="#/status/sprint?sprint=${rep.sprint.id}">Sprint ${rep.sprint.number} has ended: write its report</a></div>` : ""}</section>
         ${BA.backupWarning(d.backup)}
+        ${selfToday(d.self)}
         ${d.accelerate && (d.accelerate.learning_late_count || d.accelerate.boss_unheld.length || d.accelerate.mentoring.length) ? `<section class="card"><h2>Getting up to speed</h2>
           ${d.accelerate.boss_unheld.length ? `<div class="item"><span class="pill warn">manager</span><a href="#/first90/mandates">Not yet discussed with your manager: ${esc(d.accelerate.boss_unheld.join(", ").toLowerCase())}</a></div>` : ""}
           ${d.accelerate.learning_late.map((q) => `<div class="item"><span class="pill">learn</span><a href="#/first90/learning">${esc(q.question)}</a></div>`).join("")}${d.accelerate.learning_late_count > d.accelerate.learning_late.length ? `<p class="quiet">and ${d.accelerate.learning_late_count - d.accelerate.learning_late.length} more open questions past the day you planned to answer them</p>` : ""}
@@ -189,6 +225,7 @@
         <section class="card"><h2>Learning goals at risk</h2>${
           d.goals_at_risk.map((g) => `<div class="item"><a href="#/me">${esc(g.goal)}</a></div>`).join("") || empty("None at risk.")
         }</section></div>`;
+      bindSelfToday(main);
       BA.askBox(main.querySelector("#ask-host"), { placeholder: "Ask the toolkit, such as: what's overdue, who haven't I talked to, what decisions are open?" });
       const ql = main.querySelector("#quick-log");
       ql.onsubmit = BA.guard(async (e) => {
@@ -389,6 +426,61 @@
     });
   }
 
+  // What one of your people chooses to tell you about how they're managing, with their consent recorded.
+  async function renderSupport(box, id, p, people) {
+    const d = await BA.api(`/api/people/${id}/support`);
+    if (d.hidden) { box.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    const prof = d.profile || {}, consented = !!prof.consent_manager_on;
+    const sy = Object.fromEntries(d.syndromes.map((x) => [x.key, x.name]));
+    const W = 320, H = 70, pts = d.trend;
+    const line = (key) => pts.map((x, i) => (x[key] ? `${(i * W) / Math.max(1, pts.length - 1)},${H - ((x[key] - 1) / 4) * (H - 10) - 5}` : null)).filter(Boolean).join(" ");
+    box.innerHTML = `<section class="card"><div class="row"><h2>Managing themselves</h2><span class="spacer"></span><a class="btn" href="#/coaching/helping-people-manage-themselves">How to help</a></div>
+        <p class="quiet">What ${esc(p.name)} chooses to tell you about how they're managing: energy, load, what's hard and what would help. Private to you: never presented, packed, read by a token or sent to a cloud model. Ask what support helps, not why; if they mention a health condition or need an adjustment, point them to HR and don't record the details here.</p>
+        <form id="sup-consent" class="grid2">
+          <label>They agreed to share this with me on <input type="date" name="consent_manager_on" value="${esc(prof.consent_manager_on || "")}"></label>
+          <label class="check"><input type="checkbox" name="consent_hr"${prof.consent_hr ? " checked" : ""}> They're happy for HR to see what they mark to share${prof.consent_hr_on ? ` <span class="quiet">(since ${BA.fmtDate(prof.consent_hr_on)})</span>` : ""}</label>
+          <label style="grid-column:1/-1">How they'd like to be supported<textarea name="how_to_support" rows="2">${esc(prof.how_to_support || "")}</textarea></label>
+          <label style="grid-column:1/-1">Who supports them <span class="quiet">(a buddy, a mentor, someone outside the team)</span><div class="case-picks">${people.filter((x) => x.id !== p.id && x.active !== false).map((x) => `<label class="check"><input type="checkbox" name="supporter_ids" value="${x.id}"${(prof.supporter_ids || []).includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("")}</div></label>
+          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></section>
+      ${consented ? `<section class="card"><h2>Check-in</h2><p class="quiet">From your one-on-one, in their words.</p>
+        <form id="sup-check"><div class="row"><label class="check">Energy ${SCALE5("energy")}</label><label class="check">Load ${SCALE5("load", "", "light", "heavy")}</label><label class="check">In control ${SCALE5("in_control")}</label><input type="date" name="date" value="${BA.today()}" style="max-width:170px"></div>
+          <label>Going well<input name="going_well"></label><label>Hard right now<input name="hard"></label><label>Support that would help<input name="support_wanted"></label>
+          <label>Patterns they recognize in themselves</label><div class="case-picks">${d.syndromes.map((x) => `<label class="check" title="${esc(x.signs)}"><input type="checkbox" name="syndromes" value="${x.key}"> ${esc(x.name)}</label>`).join("")}</div>
+          <label>Disciplines they're working on</label><div class="case-picks">${d.disciplines.map((x) => `<label class="check"><input type="checkbox" name="disciplines" value="${esc(x)}"> ${esc(x)}</label>`).join("")}</div>
+          <div class="row">${prof.consent_hr ? '<label class="check"><input type="checkbox" name="share_hr"> They want this one shared with HR</label>' : '<span class="quiet">Nothing can be marked for HR until they agree to it above.</span>'}<span class="spacer"></span><button class="btn primary" type="submit">Save check-in</button></div></form></section>`
+      : '<p class="callout">Record when they agreed to share this with you before adding check-ins. It\'s their information.</p>'}
+      ${pts.length > 1 ? `<section class="card"><h2>Over time</h2><svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Energy and load over recent check-ins"><polyline points="${line("energy")}" class="t-energy"></polyline><polyline points="${line("load")}" class="t-load"></polyline></svg>
+        <p class="quiet legend"><span class="key solid"></span> energy <span class="key load"></span> load, 1 to 5. Load climbing while energy falls is the time to take something off their plate.</p></section>` : ""}
+      <section class="card"><div class="row"><h2>Check-ins</h2><span class="spacer"></span>${prof.consent_hr ? '<button class="btn" type="button" id="sup-hr">Summary for HR</button>' : ""}</div>
+        ${d.checkins.map((c) => `<details class="plan-item"><summary><span class="quiet">${BA.fmtDate(c.date)}</span>${["energy", "load", "in_control"].filter((k) => c[k]).map((k) => `<span class="quiet">${k.replace("_", " ")} ${c[k]}</span>`).join("")}<span class="spacer"></span>${c.share_hr ? '<span class="pill">shared with HR</span>' : ""}</summary>
+          ${c.going_well ? `<p><b>Going well:</b> ${esc(c.going_well)}</p>` : ""}${c.hard ? `<p><b>Hard:</b> ${esc(c.hard)}</p>` : ""}${c.support_wanted ? `<p><b>Would help:</b> ${esc(c.support_wanted)}</p>` : ""}
+          ${(c.syndromes || []).length ? `<p class="quiet">Patterns: ${c.syndromes.map((k) => esc(sy[k] || k)).join(", ")}</p>` : ""}${(c.disciplines || []).length ? `<p class="quiet">Working on: ${c.disciplines.map(esc).join(", ")}</p>` : ""}</details>`).join("") || '<p class="quiet">None yet.</p>'}</section>`;
+    box.querySelector("#sup-consent").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const f = e.target, fd = new FormData(f);
+      if (prof.consent_hr && !f.elements.consent_hr.checked && !confirm("Record that they've withdrawn consent for HR? Check-ins already marked stay marked, but no summary can be made.")) return;
+      await BA.api(`/api/people/${id}/support`, { method: "PUT", body: { consent_manager_on: fd.get("consent_manager_on") || null, consent_hr: f.elements.consent_hr.checked, how_to_support: fd.get("how_to_support") || null, supporter_ids: fd.getAll("supporter_ids").map(Number) } });
+      BA.toast("Saved.");
+      renderSupport(box, id, p, people);
+    });
+    const ck = box.querySelector("#sup-check");
+    if (ck) ck.onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(ck);
+      await BA.api(`/api/people/${id}/support/checkins`, { method: "POST", body: { date: fd.get("date"), energy: fd.get("energy"), load: fd.get("load"), in_control: fd.get("in_control"), going_well: fd.get("going_well"), hard: fd.get("hard"), support_wanted: fd.get("support_wanted"), syndromes: fd.getAll("syndromes"), disciplines: fd.getAll("disciplines"), share_hr: !!(ck.elements.share_hr && ck.elements.share_hr.checked) } });
+      BA.toast("Saved.");
+      renderSupport(box, id, p, people);
+    });
+    const hr = box.querySelector("#sup-hr");
+    if (hr) hr.onclick = BA.guard(async () => {
+      if (!confirm(`This makes a summary for HR of only the check-ins ${p.name} marked to share, and records it in the export log. Make it?`)) return;
+      const r = await BA.api(`/api/people/${id}/support/hr-summary`, { method: "POST" });
+      await navigator.clipboard.writeText(r.markdown);
+      BA.toast(`Copied a summary of ${r.checkins} check-in${r.checkins === 1 ? "" : "s"}. Send it to HR through your usual channel.`);
+    });
+  }
+
+
   async function renderPerson(main, id, tab) {
     const [d, layout, people] = await Promise.all([BA.api(`/api/people/${id}/crm`), BA.api("/api/people/layout"), BA.api("/api/people")]);
     const p = d.person;
@@ -397,8 +489,8 @@
     const show = (f) => !layout.hidden.includes(f);
     const sens = (f) => layout.sensitive.includes(f);
     let current = tab || sessionStorage.getItem("ba-person-tab") || "overview";
-    if (current === "manager" && !d.is_report) current = "overview";
-    const tabs = `<nav class="tabs">${[["overview", "Overview"], ["conversations", "Conversations"], ...(d.is_report ? [["manager", "Manager"]] : []), ["timeline", "Timeline"], ["details", "Details"]].filter(([k]) => !ro || k === "overview")
+    if ((current === "manager" || current === "support") && !d.is_report) current = "overview";
+    const tabs = `<nav class="tabs">${[["overview", "Overview"], ["conversations", "Conversations"], ...(d.is_report ? [["manager", "Manager"], ["support", "Managing themselves"]] : []), ["timeline", "Timeline"], ["details", "Details"]].filter(([k]) => !ro || k === "overview")
       .map(([k, l]) => `<a href="#/people/${id}" data-ptab="${k}" class="${k === current ? "active" : ""}">${l}</a>`).join("")}</nav>`;
     const fact = (f, label, val) => (show(f) && val ? `<div><span class="quiet">${esc(label)}</span> ${val}</div>` : "");
     const header = `<section class="card"><div class="row"><h2>${esc(p.name)}</h2>${p.active === false ? '<span class="pill">inactive</span>' : ""}${p.placeholder ? '<span class="pill warn" title="A stand-in until you know who this is. Give it the real name on Details.">placeholder</span>' : ""}<span class="spacer"></span>
@@ -424,6 +516,7 @@
       box.querySelectorAll("[data-reveal]").forEach((x) => (x.textContent = on ? "Hide" : "Show"));
     }));
 
+    if (current === "support") return renderSupport(box, id, p, people);
     if (current === "overview") {
       const h = d.health;
       const md = (f) => (p[f] ? BA.md(p[f]) : "");
@@ -554,7 +647,8 @@
         ${extra("communication", `<label>How they like to communicate<textarea name="communication" rows="2">${esc(p.communication || "")}</textarea></label>`)}
         ${extra("offer_them", `<label>What I can offer them <span class="quiet">(help, information, support for what they care about)</span><textarea name="offer_them" rows="2">${esc(p.offer_them || "")}</textarea></label>`)}
         ${extra("need_from_them", `<label>What I need from them <span class="quiet">(support, information, decisions, introductions)</span><textarea name="need_from_them" rows="2">${esc(p.need_from_them || "")}</textarea></label>`)}
-        ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
+        ${extra("advice", `<label>Advice I go to them for <span class="quiet">(your advice network)</span></label><div class="case-picks">${[["technical", "Technical: expertise to get the work done"], ["cultural", "Cultural: how things are done here, and the language"], ["political", "Political: how the organization really works"], ["personal", "Personal: perspective and balance"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="advice" value="${k}"${(p.advice || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>
+          <label class="check"><input type="checkbox" name="outside_org"${p.outside_org ? " checked" : ""}> Outside the organization <span class="quiet">(for your advice network)</span></label>`)}
         ${extra("insight", `<label>Insight they bring <span class="quiet">(where their view of the organization comes from)</span></label><div class="case-picks">${[["customer", "Customer or business user"], ["vendor", "Vendor or supplier"], ["frontline", "Frontline"], ["sales", "Sales or service"], ["staff", "Finance, legal or HR"], ["integrator", "Integrator"], ["historian", "Natural historian"]].map(([k, l]) => `<label class="check"><input type="checkbox" name="insight" value="${k}"${(p.insight || []).includes(k) ? " checked" : ""}> ${l}</label>`).join("")}</div>`)}
         ${extra("change_agent", `<label class="check"><input type="checkbox" name="change_agent"${p.change_agent ? " checked" : ""}> Change agent <span class="quiet">(has the drive to help lead change; private)</span></label>`)}
         ${extra("opinion_leader", `<label class="check"><input type="checkbox" name="opinion_leader"${p.opinion_leader ? " checked" : ""}> Opinion leader <span class="quiet">(others defer to them, formally or not; private)</span></label>`)}
@@ -580,6 +674,7 @@
       for (const f of ["influence", "stance"]) if (form.elements[f]) body[f] = fd.get(f) || null;
       for (const f of ["communication", "motivations", "support_notes", "personal_context", "offer_them", "need_from_them", "expects_from_me"]) if (form.elements[f]) body[f] = fd.get(f);
       if (form.querySelector('input[name="advice"]')) body.advice = fd.getAll("advice");
+      if (form.querySelector('input[name="outside_org"]')) body.outside_org = form.querySelector('input[name="outside_org"]').checked;
       if (form.querySelector('input[name="insight"]')) body.insight = fd.getAll("insight");
       if (form.elements.change_style) body.change_style = fd.get("change_style") || null;
       if (form.elements.change_agent) body.change_agent = form.elements.change_agent.checked;
@@ -896,18 +991,148 @@
     });
   }
 
+  // ---- Managing myself (chapter 9): core challenges, the transition self-check, disciplines, working base ----
+  const SCALE5 = (name, value, low = "low", high = "high") => `<select name="${name}" style="max-width:110px"><option value=""></option>${[1, 2, 3, 4, 5].map((n) => `<option value="${n}"${Number(value) === n ? " selected" : ""}>${n}${n === 1 ? ` · ${low}` : n === 5 ? ` · ${high}` : ""}</option>`).join("")}</select>`;
+  function selfCard(me) {
+    if (!me || me.hidden) return "";
+    const last = me.checks[0], lastS = me.syndrome_checks[0], chName = Object.fromEntries(me.challenges.map((c) => [c.key, c.chapter])), syName = Object.fromEntries(me.syndromes.map((x) => [x.key, x.name]));
+    const high = lastS ? Object.entries(lastS.ratings || {}).filter(([, v]) => v >= 4).map(([k]) => syName[k]) : [];
+    const baseLeft = me.working_base.filter((b) => !b.done_on);
+    return `<section class="card" id="self-card"><div class="row"><h2>Managing myself</h2><span class="spacer"></span><a class="btn" href="#/coaching/transition-traps">Transition traps</a></div>
+      ${me.insight.in_dip ? '<p class="callout">You\'re in the stretch where a dip is common, three to six months in. Keep working the plan; it passes.</p>' : ""}
+      <div class="cards">
+        <div><h3>Core challenges</h3><p class="quiet">One question for each stage of the transition. Take it around day 30, 60 and 90.</p>
+          ${last ? `<p>Last ${BA.fmtDate(last.date)}${last.average ? ` · average ${last.average} of 5` : ""}${last.weakest.length ? ` · go back to <b>${last.weakest.map((k) => esc(chName[k])).join(", ")}</b>` : ""}</p>` : '<p class="quiet">Not taken yet.</p>'}
+          <a class="btn" href="#/me/challenges">${last ? "Check again" : "Take the check"}</a></div>
+        <div><h3>Transition self-check</h3><p class="quiet">Four patterns a transition tends to bring out. Monthly, and ask someone honest too.</p>
+          ${lastS ? `<p>Last ${BA.fmtDate(lastS.date)}${high.length ? ` · watch <b>${high.map(esc).join(", ")}</b>` : " · nothing high"}</p>` : '<p class="quiet">Not taken yet.</p>'}
+          <a class="btn" href="#/me/self-check">${lastS ? "Check again" : "Take the self-check"}</a></div>
+      </div>
+      <h3>My disciplines</h3><p class="quiet">Routines you hold yourself to. Tick off the ones you kept in the end-of-day review on Today. <a href="#/coaching/personal-disciplines">Personal disciplines</a></p>
+      ${me.disciplines.map((d) => `<div class="item"><label class="check" style="min-width:210px;flex-shrink:0"><input type="checkbox" data-disc-active="${d.id}"${d.active ? " checked" : ""}> <b${d.active ? "" : ' class="quiet"'}>${esc(d.name)}</b></label><span class="quiet">${esc(d.success || "")}</span><span class="spacer"></span><button class="link-btn" type="button" data-disc-del="${d.id}">remove</button></div>`).join("") || '<p class="quiet">None yet.</p>'}
+      <form id="add-disc" class="row">${me.disciplines.filter((d) => d.builtin).length < me.builtin_disciplines.length ? '<button class="btn" type="button" id="disc-starter">Add the six suggested</button>' : ""}
+        <input name="name" placeholder="A discipline of my own" style="max-width:240px" required><input name="success" placeholder="What success looks like" style="max-width:320px"><button class="btn" type="submit">Add</button></form>
+      ${baseLeft.length ? `<h3>Working base</h3><p class="quiet">Get the basics in place in the first week or two, so they don't drain attention from the work.</p>
+        ${me.working_base.map((b) => `<label class="check" style="display:flex"><input type="checkbox" data-base="${b.key}"${b.done_on ? " checked" : ""}> ${esc(b.label)}${b.done_on ? ` <span class="quiet">· ${BA.fmtDate(b.done_on)}</span>` : ""}</label>`).join("")}` : `<p class="quiet">Working base in place. ✓</p>`}
+    </section>`;
+  }
+  function bindSelf(main, me) {
+    if (!me || me.hidden) return;
+    main.querySelectorAll("[data-disc-active]").forEach((cb) => (cb.onchange = BA.guard(async () => { await BA.api(`/api/disciplines/${cb.dataset.discActive}`, { method: "PATCH", body: { active: cb.checked } }); BA.rerender(); })));
+    main.querySelectorAll("[data-disc-del]").forEach((b) => (b.onclick = BA.guard(async () => { if (!confirm("Remove this discipline?")) return; await BA.api(`/api/disciplines/${b.dataset.discDel}`, { method: "DELETE" }); BA.rerender(); })));
+    const st = main.querySelector("#disc-starter");
+    if (st) st.onclick = BA.guard(async () => { const r = await BA.api("/api/self/disciplines/starter", { method: "POST" }); BA.toast(`Added ${r.added}. Untick the ones you don't need.`); BA.rerender(); });
+    const f = main.querySelector("#add-disc");
+    f.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/disciplines", { method: "POST", body: { name: f.elements.name.value, success: f.elements.success.value || null, position: me.disciplines.length + 10 } }); BA.rerender(); });
+    main.querySelectorAll("[data-base]").forEach((cb) => (cb.onchange = BA.guard(async () => { await BA.api("/api/self/working-base", { method: "PUT", body: { [cb.dataset.base]: cb.checked } }); BA.rerender(); })));
+  }
+
+  const ADVICE_LABELS = [["technical", "Technical advisers"], ["cultural", "Cultural interpreters"], ["political", "Political counselors"], ["personal", "Personal support"]];
+  function adviceCard(advice) {
+    if (!advice || advice.hidden) return "";
+    const cell = (list) => list.map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ") || '<span class="quiet">empty</span>';
+    return `<section class="card"><div class="row"><h2>My advice and counsel network</h2><span class="spacer"></span><a class="btn" href="#/coaching/advice-network">Why it matters</a></div>
+      <p class="quiet">Who helps you, by kind of advice and by whether they're inside or outside the organization. Empty squares are the ones to fill; political counsel matters more the higher you go.</p>
+      <div class="tablewrap"><table class="data"><thead><tr><th></th>${ADVICE_LABELS.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody>
+        ${[["inside", "Inside the organization"], ["outside", "Outside it"]].map(([place, l]) => `<tr><th scope="row">${l}</th>${ADVICE_LABELS.map(([k]) => `<td class="${advice.grid[place][k].length || k === "personal" ? "" : "gap-cell"}">${cell(advice.grid[place][k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <h3>A good network has</h3>
+      ${advice.qualities.map((q) => `<label class="check" style="display:flex"><input type="checkbox" data-quality="${q.key}"${q.met ? " checked" : ""}${q.auto ? " disabled" : ""}> ${esc(q.label)}${q.auto ? ' <span class="quiet">· from your network</span>' : ""}</label>`).join("")}
+      <p class="quiet">To add someone, open their page, go to Details, and tick the advice you go to them for and whether they're outside the organization. Private, never shared.</p></section>`;
+  }
+  function bindAdvice(main) {
+    main.querySelectorAll("[data-quality]:not([disabled])").forEach((cb) => (cb.onchange = BA.guard(async () => {
+      const body = Object.fromEntries([...main.querySelectorAll("[data-quality]:not([disabled])")].map((x) => [x.dataset.quality, x.checked]));
+      await BA.api("/api/people/advice-network/qualities", { method: "PUT", body });
+      BA.toast("Saved.");
+    })));
+  }
+
+  const NO_REPLY = "Thanks for thinking of me. I've looked at what's already committed, and I can't take this on right now without letting something else slip. [Placeholder: an alternative, or when I could]";
+  function asksCard(tasks) {
+    const asks = tasks.filter((t) => t.status === "considering");
+    return `<section class="card"><div class="row"><h2>Asks I'm considering</h2><span class="spacer"></span><a class="btn" href="#/coaching/personal-disciplines">Defer commitment</a></div>
+      <p class="quiet">No yes on the spot: log the ask, say when you'll answer, and decide with your plan in front of you. The reply starts from no; it's easy to say yes later.</p>
+      ${asks.map((t) => `<details class="plan-item" data-ask="${t.id}"><summary><b>${esc(t.title)}</b><span class="quiet">${esc(t.requested_by || "")}</span><span class="spacer"></span>${t.answer_by ? `<span class="pill ${t.answer_by < BA.today() ? "bad" : "warn"}">answer by ${BA.fmtDate(t.answer_by)}</span>` : ""}</summary>
+        <label>My reply<textarea name="reply" rows="3">${esc(t.reply || NO_REPLY)}</textarea></label>
+        <div class="actions"><button class="btn" type="button" data-ask-copy>Copy reply</button><button class="btn" type="button" data-ask-no>Said no</button><button class="btn primary" type="button" data-ask-yes>Said yes: make it a task</button></div></details>`).join("") || '<p class="quiet">Nothing waiting for an answer.</p>'}
+      <form id="add-ask" class="row"><input name="title" placeholder="What I've been asked" required style="max-width:280px"><input name="requested_by" placeholder="By whom" style="max-width:160px">
+        <label class="check">answer by <input type="date" name="answer_by" style="max-width:170px" required></label><button class="btn" type="submit">Log the ask</button></form></section>`;
+  }
+  function bindAsks(main) {
+    main.querySelectorAll("[data-ask]").forEach((det) => {
+      const id = det.dataset.ask, reply = () => det.querySelector("[name=reply]").value;
+      det.querySelector("[name=reply]").onchange = BA.guard(() => BA.api(`/api/tasks/${id}`, { method: "PATCH", body: { reply: reply() } }));
+      det.querySelector("[data-ask-copy]").onclick = BA.guard(async () => { await BA.shareText(reply()); BA.toast("Reply copied."); });
+      det.querySelector("[data-ask-no]").onclick = BA.guard(async () => { await BA.api(`/api/tasks/${id}`, { method: "PATCH", body: { status: "declined", reply: reply() } }); BA.rerender(); });
+      det.querySelector("[data-ask-yes]").onclick = BA.guard(async () => { await BA.api(`/api/tasks/${id}`, { method: "PATCH", body: { status: "open", reply: reply() } }); BA.toast("Now a task."); BA.rerender(); });
+    });
+    const f = main.querySelector("#add-ask");
+    if (f) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api("/api/tasks", { method: "POST", body: { title: fd.get("title"), requested_by: fd.get("requested_by") || null, answer_by: fd.get("answer_by"), status: "considering", reply: NO_REPLY } }); BA.rerender(); });
+  }
+
+  async function renderChallenges(main) {
+    const me = await BA.api("/api/self");
+    document.getElementById("view-title").textContent = "Core challenges";
+    if (me.hidden) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    const last = me.checks[0] || { scores: {}, notes: {} };
+    const hist = me.checks.slice(0, 6).reverse();
+    main.innerHTML = `<p><a href="#/me">My development</a></p>
+      <section class="card"><h2>How am I doing on each core challenge?</h2><p class="quiet">${me.day ? `Day ${me.day}. ` : ""}Rate each from 1 (not well) to 5 (well). The lowest is the chapter to go back to: its page and guide are linked. Take it around day 30, 60 and 90. Private, never shared.</p>
+        <form id="cc">${me.challenges.map((c) => `<div class="plan-item" style="padding:10px 0;border-top:1px solid var(--line)"><div class="row" style="align-items:center"><b style="min-width:210px">${esc(c.chapter)}</b><span>${esc(c.question)}</span><span class="spacer"></span>${SCALE5(c.key, "", "not well", "well")}</div>
+          <div class="row"><input name="note-${c.key}" placeholder="Why, in a line" value="" style="max-width:520px"><a class="quiet" href="#${c.path}">Open the page</a> · <a class="quiet" href="#/coaching/${c.guide}">Guide</a></div></div>`).join("")}
+          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></section>
+      ${hist.length ? `<section class="card"><h2>Over time</h2><div class="tablewrap"><table class="data"><thead><tr><th>Challenge</th>${hist.map((h) => `<th>${BA.fmtDate(h.date)}</th>`).join("")}</tr></thead><tbody>
+        ${me.challenges.map((c) => `<tr><td>${esc(c.chapter)}</td>${hist.map((h) => { const v = (h.scores || {})[c.key]; return `<td>${v ? `<span class="pill ${v <= 2 ? "bad" : v === 3 ? "warn" : "good"}">${v}</span>` : "–"}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div></section>` : ""}`;
+    main.querySelector("#cc").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target), scores = {}, notes = {};
+      me.challenges.forEach((c) => { if (fd.get(c.key)) scores[c.key] = Number(fd.get(c.key)); if (fd.get(`note-${c.key}`)) notes[c.key] = fd.get(`note-${c.key}`); });
+      const r = await BA.api("/api/self/challenges", { method: "POST", body: { scores, notes } });
+      BA.toast(r.weakest.length ? `Saved. Go back to: ${r.weakest.map((k) => me.challenges.find((c) => c.key === k).chapter).join(", ")}.` : "Saved.");
+      BA.rerender();
+    });
+  }
+
+  async function renderSelfCheck(main) {
+    const me = await BA.api("/api/self");
+    document.getElementById("view-title").textContent = "Transition self-check";
+    if (me.hidden) { main.innerHTML = '<p class="empty">Private, so hidden while presenting.</p>'; return; }
+    const hist = me.syndrome_checks.slice(0, 6).reverse();
+    main.innerHTML = `<p><a href="#/me">My development</a></p>
+      <section class="card"><h2>Which patterns am I showing?</h2><p class="quiet">Transitions magnify whatever weaknesses you already have. Rate how much each shows, from 1 (not at all) to 5 (a lot), with the evidence. Then ask someone who knows you well and will be honest. Private, never shared. <a href="#/coaching/transition-traps">Transition traps</a></p>
+        <form id="sc">${me.syndromes.map((x) => `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="row" style="align-items:center"><b style="min-width:190px">${esc(x.name)}</b><span class="quiet">${esc(x.signs)}</span><span class="spacer"></span>${SCALE5(x.key, "", "not at all", "a lot")}</div>
+          <input name="ev-${x.key}" placeholder="Evidence: what I did or saw" style="max-width:640px"><p class="quiet">What helps: ${esc(x.counter)}</p></div>`).join("")}
+          <label>Who I asked <span class="quiet">(optional)</span><input name="asked" placeholder="[Someone who'll be honest]" style="max-width:320px"></label>
+          <label>What I'll do about it<textarea name="notes" rows="2"></textarea></label>
+          <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></section>
+      ${hist.length ? `<section class="card"><h2>Over time</h2><div class="tablewrap"><table class="data"><thead><tr><th>Pattern</th>${hist.map((h) => `<th>${BA.fmtDate(h.date)}</th>`).join("")}</tr></thead><tbody>
+        ${me.syndromes.map((x) => `<tr><td>${esc(x.name)}</td>${hist.map((h) => { const v = (h.ratings || {})[x.key]; return `<td>${v ? `<span class="pill ${v >= 4 ? "bad" : v === 3 ? "warn" : "good"}">${v}</span>` : "–"}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div></section>` : ""}`;
+    main.querySelector("#sc").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target), ratings = {}, evidence = {};
+      me.syndromes.forEach((x) => { if (fd.get(x.key)) ratings[x.key] = Number(fd.get(x.key)); if (fd.get(`ev-${x.key}`)) evidence[x.key] = fd.get(`ev-${x.key}`); });
+      await BA.api("/api/self/syndromes", { method: "POST", body: { ratings, evidence, asked: fd.get("asked") || null, notes: fd.get("notes") || null } });
+      BA.toast("Saved.");
+      BA.rerender();
+    });
+  }
+
+
   BA.view("/me", {
     title: "My development",
     async render(main, param) {
       if (param === "preferences") return renderPreferences(main);
       if (param === "criteria") return renderCriteria(main);
-      const [settings, goals, log, tasks, obligations, advice] = await Promise.all([
+      if (param === "challenges") return renderChallenges(main);
+      if (param === "self-check") return renderSelfCheck(main);
+      const [settings, goals, log, tasks, obligations, advice, me] = await Promise.all([
         BA.api("/api/toolkit/settings"),
         BA.api("/api/learning-goals"),
         BA.api("/api/learning-log"),
         BA.api("/api/tasks"),
         BA.api("/api/obligations"),
         BA.api("/api/people/advice-network"),
+        BA.api("/api/self"),
       ]);
       const start = settings.start_date;
       const dayDate = (n) => {
@@ -939,9 +1164,8 @@
         <section class="card"><div class="row"><h2>How I judge people</h2><span class="spacer"></span><a class="btn" href="#/me/criteria">My evaluation criteria</a></div><p class="quiet">Divide 100 points among six criteria and pick the one where nothing else matters. Do it before you assess anyone on your team.</p></section>
         <section class="card"><div class="row"><h2>Problem preferences</h2><span class="spacer"></span><a class="btn" href="#/me/preferences">Take the assessment</a></div>
           <p class="quiet">Which kinds of problems you're drawn to, and which you tend to avoid. Low scores point to likely blind spots, each with guides to strengthen it.</p></section>
-        <section class="card"><h2>My advice network</h2>${[["technical", "Technical"], ["political", "Political"], ["personal", "Personal"]].map(([k, l]) => `<div class="item"><b style="min-width:90px">${l}</b>${advice.kinds[k].map((p) => `<a href="#/people/${p.id}">${esc(p.name)}</a>`).join(", ") || '<span class="quiet">No one yet</span>'}</div>`).join("")}
-          ${advice.missing.length ? `<p class="callout warn">No ${advice.missing.join(" or ")} advisor yet. The higher you go, the more you need counsel on how the organization works and someone to keep you steady.</p>` : ""}
-          <p class="quiet">To mark someone as an advisor, open their page and go to Details. <a href="#/coaching/new-role-mindset">Why it matters</a></p></section>
+        ${selfCard(me)}
+        ${adviceCard(advice)}
         <section class="card"><h2>Start date</h2><p class="quiet">Leave it blank until your start date is confirmed. Until then everything stays as "Day N · week N", and nothing is marked late or counted down.</p>
           <form id="start" class="row"><input type="date" name="start_date" value="${esc(start || "")}" style="max-width:200px">
           <button class="btn" type="submit">Save</button><span class="quiet">Turns every "Day N" into a real date.</span></form></section>
@@ -974,7 +1198,8 @@
             <div class="actions"><button class="btn primary" type="submit">Add goal</button></div></form></section>
 
         <div class="cards">
-          <section class="card"><h2>Tasks</h2>${tasks
+          ${asksCard(tasks)}
+          <section class="card"><h2>Tasks</h2>${tasks.filter((t) => t.status === "open" || t.status === "done")
             .map((t) => `<div class="item"><input type="checkbox" data-task="${t.id}"${t.status === "done" ? " checked" : ""}>
               <span${t.status === "done" ? ' class="quiet"' : ""}>${esc(t.title)}</span><span class="spacer"></span>
               <span class="quiet">${esc(t.requested_by || "")} ${BA.fmtDate(t.due)}</span></div>`)
@@ -1046,6 +1271,9 @@
         await BA.api("/api/tasks", { method: "POST", body: BA.readForm(e.target, [{ name: "title" }, { name: "requested_by" }, { name: "due" }]) });
         BA.rerender();
       });
+      bindSelf(main, me);
+      bindAdvice(main);
+      bindAsks(main);
       on("[data-ob-done]", (el) =>
         (el.onclick = BA.guard(async () => {
           await BA.api(`/api/obligations/${el.dataset.obDone}/done`, { method: "POST" });
@@ -4960,35 +5188,64 @@
     });
   }
 
+  // Energy, confidence, in control and load over the role, with the common dip (days 90 to 180) shaded.
+  function reflectChart(pts, insight) {
+    if (pts.length < 2) return "";
+    const W = 360, H = 120, L = 22, B = 16, T = 6, byDay = pts.every((x) => x.day);
+    const xs = pts.map((x, i) => (byDay ? x.day : i)), lo = Math.min(...xs), hi = Math.max(...xs), span = Math.max(1, hi - lo);
+    const X = (v) => L + ((v - lo) / span) * (W - L - 6), Y = (v) => T + (H - T - B) * (1 - (v - 1) / 4);
+    const SERIES = [["energy", "t-energy", "energy", "solid"], ["confidence", "t-confidence", "confidence", "dashed"], ["in_control", "t-incontrol", "in control", "dotted"], ["load", "t-load", "load", "load"]];
+    const used = SERIES.filter(([k]) => pts.some((x) => x[k]));
+    let dip = "";
+    if (byDay && hi >= 90 && lo <= 180) {
+      const a = X(Math.max(lo, 90)), b = X(Math.min(hi, 180));
+      dip = `<rect class="dip" x="${a}" y="${T}" width="${Math.max(2, b - a)}" height="${H - T - B}"></rect><text class="dip-label" x="${a + 3}" y="${T + 10}">common dip</text>`;
+    }
+    const grid = [1, 3, 5].map((v) => `<text class="axis" x="2" y="${Y(v) + 3}">${v}</text>`).join("");
+    const xlab = `<text class="axis" x="${L}" y="${H - 3}">${byDay ? `day ${lo}` : "older"}</text><text class="axis" x="${W - 6}" y="${H - 3}" text-anchor="end">${byDay ? `day ${hi}` : "latest"}</text>`;
+    const lines = used.map(([k, cls]) => { const p = pts.map((x, i) => (x[k] ? [X(xs[i]), Y(x[k]), x] : null)).filter(Boolean);
+      return `<polyline class="${cls}" points="${p.map(([a, b]) => `${a},${b}`).join(" ")}"></polyline>${p.map(([a, b, x]) => `<circle cx="${a}" cy="${b}" r="3" class="${cls}"><title>${BA.fmtDate(x.date)}${x.day ? ` · day ${x.day}` : ""}: ${k.replace("_", " ")} ${x[k]}</title></circle>`).join("")}`; }).join("");
+    return `<svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="${used.map(([, , l]) => l).join(", ")} over recent reflections">${dip}${grid}${xlab}${lines}</svg>
+      <p class="quiet legend">${used.map(([, , l, key]) => `<span class="key ${key}"></span> ${l}`).join(" ")} · 1 to 5, last ${pts.length} entries. Hover a point for its date.</p>`;
+  }
+  // Figure 9-1 in spirit: pressure helps up to a point that differs for everyone, then each extra demand lowers performance.
+  const STRESS_CURVE = `<details><summary class="quiet">Why load matters</summary><svg class="stress-curve" viewBox="0 0 320 130" role="img" aria-label="Performance rises with pressure to a peak, then falls toward burnout">
+      <line x1="30" y1="110" x2="310" y2="110"></line><line x1="30" y1="110" x2="30" y2="10"></line>
+      <path d="M30,100 C90,60 130,28 175,26 C215,26 250,55 300,104"></path>
+      <text x="150" y="20">peak</text><text x="230" y="44">over the top</text><text x="262" y="100">burnout</text>
+      <text x="150" y="124">pressure</text><text x="2" y="60" transform="rotate(-90 10 60)">performance</text></svg>
+    <p class="quiet">Some pressure sharpens you. Past your own peak, more demands lower performance, which adds pressure. Burnout is rare; working harder and achieving less is common. Watch for load rising while energy falls. <a href="#/coaching/transition-traps">Transition traps</a></p></details>`;
+
+
   async function renderReflect(main) {
     const d = await BA.api("/api/coaching/reflect");
     if (d.hidden) { main.innerHTML = `${coachTabs("reflect")}<p class="empty">Reflections are private, so they're hidden while presenting.</p>`; return; }
     const pre = sessionStorage.getItem("ba-reflect-prompt") || "";
     sessionStorage.removeItem("ba-reflect-prompt");
     const scale = (name) => `<select name="${name}" style="max-width:90px"><option value=""></option>${[1, 2, 3, 4, 5].map((n) => `<option>${n}</option>`).join("")}</select>`;
-    const W = 320, H = 70, pts = d.trend.filter((x) => x.energy || x.confidence);
-    const line = (key) => pts.map((x, i) => (x[key] ? `${(i * W) / Math.max(1, pts.length - 1)},${H - ((x[key] - 1) / 4) * (H - 10) - 5}` : null)).filter(Boolean).join(" ");
-    const chart = pts.length > 1 ? `<svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Energy and confidence over recent reflections"><polyline points="${line("energy")}" class="t-energy"></polyline><polyline points="${line("confidence")}" class="t-confidence"></polyline></svg>
-      <p class="quiet legend"><span class="key solid"></span> energy <span class="key dashed"></span> confidence, from 1 to 5, last ${pts.length} entries</p>` : "";
+    const pts = d.trend.filter((x) => x.energy || x.confidence || x.in_control || x.load);
+    const chart = reflectChart(pts, d.insight);
     main.innerHTML = `${coachTabs("reflect")}
       <section class="card"><h2>${d.day ? `Day ${d.day}` : "Reflect"} <span class="quiet">${esc(d.phase)}</span></h2>
         <p class="quiet">A few minutes a week on how it's going: what you're learning, where you were assertive, what's draining you. Private, never exported.${d.day ? "" : ' Set your start date in <a href="#/me">My development</a> to get prompts for each stage of the role.'}</p>
         <div class="prompt-chips">${[...d.prompts, ...d.anytime].map((p) => `<button type="button" class="chip-btn" data-prompt="${esc(p.text)}">${esc(p.text)}</button>`).join("")}</div>
+        ${(d.take_stock || []).length ? `<details><summary><b>Take stock</b> <span class="quiet">· a structured look at how the transition is going</span></summary><div class="prompt-chips">${d.take_stock.map((p) => `<button type="button" class="chip-btn" data-prompt="${esc(p.text)}">${esc(p.text)}</button>`).join("")}</div></details>` : ""}
         <form id="add-reflection"><label>Prompt<input name="prompt" value="${esc(pre)}" placeholder="Pick one above or write your own"></label>
           <label>Reflection<textarea name="entry" rows="6" required></textarea></label>
-          <div class="row"><label class="check">Energy ${scale("energy")}</label><label class="check">Confidence ${scale("confidence")}</label>
+          <div class="row"><label class="check" title="How energized and excited you feel">Energy ${scale("energy")}</label><label class="check">Confidence ${scale("confidence")}</label><label class="check" title="How much your success feels in your hands">In control ${scale("in_control")}</label><label class="check" title="How heavy things feel: demands and emotional weight">Load ${scale("load")}</label>
             <input type="date" name="date" value="${BA.today()}" style="max-width:170px"><input name="tags" placeholder="Tags, comma separated" style="max-width:220px"><span class="spacer"></span><button class="btn primary" type="submit">Save</button></div></form></section>
-      <div class="cards">${chart ? `<section class="card"><h2>How I've been</h2>${chart}</section>` : ""}
+      ${d.insight && d.insight.over_the_top ? `<p class="callout warn">${esc(d.insight.over_the_top)} <a href="#/coaching/transition-traps">Transition traps</a></p>` : ""}
+      <div class="cards">${chart ? `<section class="card"><h2>How I've been</h2>${chart}${STRESS_CURVE}</section>` : `<section class="card"><h2>Pressure and performance</h2>${STRESS_CURVE}</section>`}
         ${d.focus.length ? `<section class="card"><h2>Guides I'm working on</h2>${d.focus.map((x) => `<div class="item"><a href="#/coaching/${esc(x.slug)}">${esc(x.title)}</a><span class="spacer"></span>${tonePill(x.focus, FOCUS_TONES)}</div>`).join("")}</section>` : ""}</div>
       <section class="card"><h2>Past reflections</h2>${d.entries.map((e) => `<details class="plan-item" data-r="${e.id}"><summary><span class="quiet">${BA.fmtDate(e.date)}</span><span>${esc(e.prompt || (e.entry || "").slice(0, 80))}</span><span class="spacer"></span>
-          ${e.energy ? `<span class="quiet">energy ${e.energy}</span>` : ""}${e.confidence ? `<span class="quiet">confidence ${e.confidence}</span>` : ""}${(e.tags || []).length ? BA.chips(e.tags) : ""}</summary>${BA.md(e.entry || "")}
+          ${["energy", "confidence", "in_control", "load"].filter((k) => e[k]).map((k) => `<span class="quiet">${k.replace("_", " ")} ${e[k]}</span>`).join("")}${(e.tags || []).length ? BA.chips(e.tags) : ""}</summary>${BA.md(e.entry || "")}
           <div class="actions"><button class="btn danger" type="button" data-del>Delete</button></div></details>`).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
     const form = main.querySelector("#add-reflection");
     main.querySelectorAll("[data-prompt]").forEach((b) => (b.onclick = () => { form.elements.prompt.value = b.dataset.prompt; form.elements.entry.focus(); }));
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      await BA.api("/api/reflections", { method: "POST", body: { date: fd.get("date"), prompt: fd.get("prompt") || null, entry: fd.get("entry"), energy: numOrNull(fd.get("energy")), confidence: numOrNull(fd.get("confidence")), tags: asLines((fd.get("tags") || "").replace(/,/g, "\n")) } });
+      await BA.api("/api/reflections", { method: "POST", body: { date: fd.get("date"), prompt: fd.get("prompt") || null, entry: fd.get("entry"), energy: numOrNull(fd.get("energy")), confidence: numOrNull(fd.get("confidence")), in_control: numOrNull(fd.get("in_control")), load: numOrNull(fd.get("load")), tags: asLines((fd.get("tags") || "").replace(/,/g, "\n")) } });
       BA.toast("Saved.");
       BA.rerender();
     });

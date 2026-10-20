@@ -128,12 +128,14 @@ In priority order:
 - [ ] Packaging for other managers: lighter install, setup script, practice packs export and import
 - [ ] Docker setup for installs on managed machines
 
+- [ ] **HR view of consented support records** (#28): a timed, read-only share of a report's consented support summary for a named HR contact, instead of an exported file. Never the rest of the install.
 ## Housekeeping
 
 - [x] 2026-10-18: LICENSE copyright holder filled in
 
 ## Done
 
+- [x] 2026-10-19: Managing yourself, chapter 9 (#27): core challenges check, transition self-check, personal disciplines and end-of-day review, asks I'm considering, advice network grid with cultural interpreters and inside/outside, reflection with in control, load and the expected dip, working-base checklist, and a Managing themselves tab for reports with consent and a summary for HR (migration 66); five coaching guides; 322 tests
 - [x] 2026-10-19: Never share on change requests, tech debt and team changes (#26): the toggle on each (migration 65); release notes leave marked requests out; making an update from a marked dev-sync item asks first; 316 tests
 - [x] 2026-10-19: Judgments about people: tokens and never share (#26): one guarded-reader rule in the records layer; API tokens (and so the hub) never receive judgment records, judgment fields or never-share records unless granted judgments:read (confirmed on creation); people-focused screens refuse tokens, Today and Activity filter; a leak test sweeps every read and export endpoint with a full token; a never share toggle on risks, decisions, Scrum of Scrums items, processes, metrics, policies, regression plans, role templates and dev-sync items (migration 64) keeps a record off presented screens, reports, packs, tokens and cloud models; 315 tests
 - [x] 2026-10-19: Judgments about people, wider coverage (#25): the second-look scan on every text Copy (reports, plans, mandates, summaries, agendas, release notes) and on Comms studio copy, download and print, a paragraph at a time; an About people writing check in Comms; incoming rosters list impressions and labels to bring in or leave out, and never take support notes or stances; Ask with a cloud model holds back judgments about people unless allowed separately, and checks the question; your own word list under Settings; 312 tests

@@ -135,6 +135,7 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .chip-btn { border: 1px solid var(--line-strong); background: var(--panel-2); color: var(--ink); border-radius: 99px; padding: 5px 12px; font: inherit; font-size: .85rem; cursor: pointer; text-align: left; }
 .chip-btn:hover { border-color: var(--accent); }
 .trend { width: 100%; max-width: 420px; height: 80px; }
+.trend[viewBox$=" 120"] { max-width: 560px; height: 160px; }
 .trend polyline { fill: none; stroke-width: 2; }
 .trend .t-energy { stroke: var(--accent); }
 .trend .t-confidence { stroke: var(--good); stroke-dasharray: 5 4; }
@@ -231,8 +232,8 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .churn-col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 52px; }
 .churn-bars { display: flex; gap: 3px; align-items: flex-end; height: 90px; }
 .churn-bars span { width: 14px; border-radius: 3px 3px 0 0; min-height: 2px; }
-.churn-bars .in, .legend.in { background: var(--warn); } .churn-bars .out, .legend.out { background: var(--accent); }
-.legend { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: middle; }
+.churn-bars .in, span.legend.in { background: var(--warn); } .churn-bars .out, span.legend.out { background: var(--accent); }
+span.legend { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: middle; }
 
 .progress { display: inline-block; width: 70px; height: 6px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; vertical-align: middle; margin-right: 6px; }
 .progress span { display: block; height: 100%; background: var(--accent); }
@@ -276,3 +277,13 @@ textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; fon
 .ask-thinking { margin-top: 10px; }
 .link-btn.never-share-on { color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 0 6px; display: inline-flex; align-items: center; gap: 3px; }
 .link-btn.never-share-on .icon { width: 12px; height: 12px; }
+td.gap-cell { background: var(--warn-soft); }
+.trend .t-incontrol { stroke: var(--muted); stroke-dasharray: 2 3; }
+.trend .t-load { stroke: var(--bad); }
+.legend .key.load { border-top-color: var(--bad); } .legend .key.dotted { border-top-style: dotted; border-top-color: var(--muted); }
+.trend .dip { fill: var(--warn-soft); } .trend .dip-label, .trend .axis { fill: var(--muted); font-size: 9px; }
+.trend circle { stroke: var(--surface, #fff); stroke-width: 2; }
+.stress-curve path { fill: none; stroke: var(--accent); stroke-width: 2; } .stress-curve text { fill: var(--muted); font-size: 10px; } .stress-curve line { stroke: var(--line); }
+.trend circle.t-energy { fill: var(--accent); } .trend circle.t-confidence { fill: var(--good); stroke-dasharray: none; }
+.trend circle.t-incontrol { fill: var(--muted); stroke-dasharray: none; } .trend circle.t-load { fill: var(--bad); }
+.stress-curve { width: 100%; max-width: 360px; display: block; }

@@ -81,10 +81,10 @@ def test_hammer_and_compensation_plan(client):
 
 
 def test_advice_network(client):
-    assert client.get("/api/people/advice-network").json()["missing"] == ["political", "personal"]
+    assert client.get("/api/people/advice-network").json()["missing"] == ["cultural", "political", "personal"]
     a = client.post("/api/people", json={"name": "[Placeholder name 1]", "advice": ["technical", "political"]}).json()["id"]
     n = client.get("/api/people/advice-network").json()
-    assert [x["id"] for x in n["kinds"]["political"]] == [a] and n["missing"] == ["personal"]
+    assert [x["id"] for x in n["kinds"]["political"]] == [a] and n["missing"] == ["cultural", "personal"]
 
 
 def test_predictable_surprises_scan(client):

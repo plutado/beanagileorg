@@ -29,13 +29,14 @@ JUDGMENT_TABLES = frozenset({
     "culture_observations", "culture_reads", "trust_pulses", "influence_links", "power_coalitions", "alliance_plans",
     "mentoring_sessions", "first90_milestones", "reflections", "preference_assessments", "behavior_targets",
     "criteria_profiles", "boss_conversations", "alignment_checks", "learning_questions",
+    "core_challenge_checks", "syndrome_checks", "disciplines", "day_reviews", "support_profiles", "support_checkins",
 })
 
 # Fields on a person that record judgment, influence or personal context. Never exported.
 PERSON_NEVER = frozenset({
     "influence", "stance", "motivations", "personal_context", "things_to_remember", "key_dates", "opinion_leader",
     "power_sources", "change_style", "change_agent", "key_person", "offer_them", "need_from_them", "expects_from_me",
-    "advice", "insight", "support_notes", "communication", "goals", "contact",
+    "advice", "insight", "support_notes", "communication", "goals", "contact", "outside_org",
 })
 
 # Fields on a person that may carry judgment. They can leave only after a warning is acknowledged.

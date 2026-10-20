@@ -8,7 +8,7 @@ P, S, E = Level.PRIVATE, Level.PRESENTABLE, Level.EXPORTABLE
 RELATIONSHIPS = ("employee", "contractor", "peer", "stakeholder", "manager", "vendor")
 INTERVIEW_STATUS = ("planned", "done")
 GOAL_STATUS = ("not started", "in progress", "done", "at risk")
-TASK_STATUS = ("open", "done")
+TASK_STATUS = ("open", "considering", "done", "declined")
 CADENCES = ("weekly", "every two weeks", "monthly", "quarterly", "once")
 ACTION_STATUS = ("open", "in progress", "waiting", "done")
 ACTION_ORIGINS = ("dev sync", "retro", "incident", "one-on-one", "vendor", "testing", "other")
@@ -1903,6 +1903,73 @@ MIGRATIONS = [
         ALTER TABLE team_changes ADD COLUMN never_share INTEGER;
         """,
     ),
+    (
+        66,
+        """
+        ALTER TABLE reflections ADD COLUMN in_control INTEGER;
+        ALTER TABLE reflections ADD COLUMN load INTEGER;
+        ALTER TABLE tasks ADD COLUMN answer_by DATE;
+        ALTER TABLE tasks ADD COLUMN reply TEXT;
+        ALTER TABLE people ADD COLUMN outside_org INTEGER;
+        CREATE TABLE core_challenge_checks (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            scores TEXT,
+            notes TEXT
+        );
+        CREATE TABLE syndrome_checks (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            ratings TEXT,
+            evidence TEXT,
+            asked TEXT,
+            notes TEXT
+        );
+        CREATE TABLE disciplines (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            success TEXT,
+            builtin TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE day_reviews (
+            id INTEGER PRIMARY KEY,
+            date DATE NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'day',
+            planned TEXT,
+            done TEXT,
+            tomorrow TEXT,
+            kept_ids TEXT,
+            notes TEXT,
+            UNIQUE (date, kind)
+        );
+        CREATE TABLE support_profiles (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL UNIQUE REFERENCES people (id) ON DELETE CASCADE,
+            consent_manager_on DATE,
+            consent_hr INTEGER,
+            consent_hr_on DATE,
+            how_to_support TEXT,
+            supporter_ids TEXT,
+            notes TEXT
+        );
+        CREATE TABLE support_checkins (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            energy INTEGER,
+            load INTEGER,
+            in_control INTEGER,
+            going_well TEXT,
+            hard TEXT,
+            support_wanted TEXT,
+            syndromes TEXT,
+            disciplines TEXT,
+            share_hr INTEGER
+        );
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -1949,6 +2016,7 @@ people = Record(
         "need_from_them": Field("text", P),
         "expects_from_me": Field("text", P),
         "advice": Field("list", P),
+        "outside_org": Field("bool", P),
         "insight": Field("list", P),
         "change_style": Field("text", P, choices=CHANGE_STYLES),
         "change_agent": Field("bool", P, default=False),
@@ -2038,6 +2106,8 @@ tasks = Record(
         "requested_by": Field("text", P),
         "due": Field("date", P),
         "status": Field("text", P, choices=TASK_STATUS, default="open"),
+        "answer_by": Field("date", P),
+        "reply": Field("text", P),
     },
 )
 
@@ -3143,6 +3213,8 @@ reflections = Record(
         "entry": Field("text", P),
         "energy": Field("int", P),
         "confidence": Field("int", P),
+        "in_control": Field("int", P),
+        "load": Field("int", P),
         "tags": Field("list", P),
     },
     hide_when_empty=True,
@@ -4172,6 +4244,71 @@ mentored_practices = Record(
     computed={"person_name": ("(SELECT name FROM people p WHERE p.id = mentored_practices.person_id)", S)},
 )
 
+# Managing yourself (chapter 9): a check against each core challenge, the four transition syndromes, personal
+# disciplines and the end-of-day and end-of-week review. All private reflection; none of it ever leaves.
+core_challenge_checks = Record(
+    entity="core_challenge_check",
+    table="core_challenge_checks",
+    path="/api/core-challenge-checks",
+    order_by="date DESC, id DESC",
+    fields={"date": Field("date", P, required=True), "scores": Field("json", P), "notes": Field("json", P)},
+    hide_when_empty=True,
+)
+
+syndrome_checks = Record(
+    entity="syndrome_check",
+    table="syndrome_checks",
+    path="/api/syndrome-checks",
+    order_by="date DESC, id DESC",
+    fields={"date": Field("date", P, required=True), "ratings": Field("json", P), "evidence": Field("json", P),
+            "asked": Field("text", P), "notes": Field("text", P)},
+    hide_when_empty=True,
+)
+
+disciplines = Record(
+    entity="discipline",
+    table="disciplines",
+    path="/api/disciplines",
+    order_by="active DESC, position, id",
+    fields={"name": Field("text", P, required=True), "success": Field("text", P), "builtin": Field("text", P),
+            "active": Field("bool", P, default=True), "position": Field("int", P, default=0)},
+    hide_when_empty=True,
+)
+
+day_reviews = Record(
+    entity="day_review",
+    table="day_reviews",
+    path="/api/day-reviews",
+    order_by="date DESC, kind",
+    fields={"date": Field("date", P, required=True), "kind": Field("text", P, choices=("day", "week"), default="day"),
+            "planned": Field("text", P), "done": Field("text", P), "tomorrow": Field("list", P), "kept_ids": Field("ids", P),
+            "notes": Field("text", P)},
+    hide_when_empty=True,
+)
+
+# Helping your people manage themselves: what each person chooses to tell you, with their consent recorded.
+# Private to you; shared with HR only as a summary of what they agreed to, and only when you export it.
+support_profiles = Record(
+    entity="support_profile",
+    table="support_profiles",
+    path="/api/support-profiles",
+    fields={"person_id": Field("int", P, required=True), "consent_manager_on": Field("date", P), "consent_hr": Field("bool", P),
+            "consent_hr_on": Field("date", P), "how_to_support": Field("text", P), "supporter_ids": Field("ids", P), "notes": Field("text", P)},
+    hide_when_empty=True,
+)
+
+support_checkins = Record(
+    entity="support_checkin",
+    table="support_checkins",
+    path="/api/support-checkins",
+    order_by="date DESC, id DESC",
+    fields={"person_id": Field("int", P, required=True), "date": Field("date", P, required=True), "energy": Field("int", P),
+            "load": Field("int", P), "in_control": Field("int", P), "going_well": Field("text", P), "hard": Field("text", P),
+            "support_wanted": Field("text", P), "syndromes": Field("list", P), "disciplines": Field("list", P), "share_hr": Field("bool", P)},
+    hide_when_empty=True,
+)
+
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -4191,4 +4328,5 @@ RECORDS = [
     teams, sos_items, sos_meetings,
     interactions, commitments, manager_notes, growth_goals,
     standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, behavior_targets, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
+    core_challenge_checks, syndrome_checks, disciplines, day_reviews, support_profiles, support_checkins,
 ]

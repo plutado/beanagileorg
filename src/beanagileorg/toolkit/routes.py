@@ -120,6 +120,11 @@ def skills(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
 # ---- Today ----
 
 
+def _self_due(conn):
+    from .self_manage import self_due
+    return self_due(conn)
+
+
 def _accelerate_due(conn):
     from .accelerate import accelerate_due
 
@@ -208,7 +213,7 @@ def onboarding_due(conn, t, week):
 def today_view(request: Request = None, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     out = _today(request, viewer, conn)
     if viewer.guarded and not out.get("hidden"):  # an API token: leave out what's about people's conversations and judgments
-        for k in ("upcoming_interviews", "culture"):
+        for k in ("upcoming_interviews", "culture", "self"):
             out.pop(k, None)
         if isinstance(out.get("people_due"), dict):
             out["people_due"] = {k: v for k, v in out["people_due"].items() if k not in ("i_owe", "they_owe_late", "sideways", "neighbors")}
@@ -250,6 +255,7 @@ def _today(request, viewer: Viewer, conn) -> dict:
         "plan_checkins": _plan_checkins_due(conn),
         "mandates": _mandate_due(conn),
         "accelerate": _accelerate_due(conn),
+        "self": _self_due(conn),
         "backup": backup_status(request, viewer) if request else None,
         "people_count": conn.execute("SELECT COUNT(*) FROM people").fetchone()[0],
     }

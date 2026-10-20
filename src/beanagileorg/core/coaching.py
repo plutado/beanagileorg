@@ -1370,6 +1370,138 @@ GUIDES = [
         ],
         "related": ['/sharing', '/people', '/coaching/culture-of-trust'], "reading": [],
     },
+    {
+        "slug": 'transition-traps', "theme": "transition", "minutes": 5, "since": 52,
+        "title": 'Transition traps: stress, the dip and four patterns',
+        "summary": "Some pressure sharpens you; past your own limit it makes you work harder and achieve less. Know the signs, expect the dip, and watch for the patterns a transition brings out.",
+        "why": "A new role strips away your network and your routines just when you're expected to move fast. Pressure helps up to a point that differs for everyone. Beyond it, each extra demand lowers your performance, which adds more pressure. Outright burnout is rare; quietly underperforming for months is common. Transitions also magnify whatever weaknesses you already have.",
+        "practices": [
+            "Track your load as well as your energy. Load rising while energy falls means you're past your peak: drop or defer something.",
+            "Expect a dip three to six months in, once the newness wears off. Keep working the plan; people come out the other side.",
+            "Check yourself for four patterns: undefended boundaries, brittleness, isolation and work avoidance. Ask someone honest too.",
+            "When something goes wrong, ask whether it's the situation or you. Leaders reach for the situation too quickly.",
+            "Write down what you will and won't take on, and hold to it.",
+        ],
+        "pitfalls": [
+            "Reading a dip as proof you chose wrongly.",
+            "Defending an early call because changing it feels like losing face.",
+            "Hearing only from a few people, or only from official reports.",
+            "Staying busy so a hard decision can wait.",
+        ],
+        "questions": [
+            "How excited, confident and in control do I feel, and why?",
+            "Which of the four patterns would the people around me say I show?",
+            "What's the hard call I keep finding reasons to put off?",
+        ],
+        "try": [
+            "Take the transition self-check under My development, then ask one person you trust whether they see it the same way.",
+        ],
+        "related": ['/me', '/coaching/managing-yourself', '/coaching/personal-disciplines'], "reading": [F90],
+    },
+    {
+        "slug": 'personal-disciplines', "theme": "transition", "minutes": 4, "since": 52,
+        "title": 'Personal disciplines',
+        "summary": "Knowing what to do isn't doing it. A few routines you hold yourself to decide most of how a transition goes.",
+        "why": "Success builds from many small daily choices. Pick the routines that cover your own weak spots, with help from people who know you, and keep them even when the week gets busy.",
+        "practices": [
+            "Plan to plan: ten minutes at the end of each day and week to compare plan and result and set what matters next.",
+            "Protect a block most days for the important work, with notifications off.",
+            "Defer commitment: say \"let me think about it and get back to you\", and begin from no. Requests far ahead look easy and aren't.",
+            "Go to the balcony: in a heated moment, step back, take the wide view, then act.",
+            "Check in with yourself on a regular rhythm, and turn what you notice into one action.",
+            "Know when to stop. A transition is a long run; rest is part of the plan.",
+        ],
+        "pitfalls": [
+            "Choosing disciplines you're already good at.",
+            "Saying yes on the spot to keep someone happy, then breaking the promise later.",
+            "Dropping the end-of-day review in exactly the weeks you need it.",
+        ],
+        "questions": [
+            "Which two disciplines would make the biggest difference for me right now?",
+            "What would success look like for each in a month?",
+        ],
+        "try": [
+            "Add the six disciplines under My development, untick the ones you don't need, and do the end-of-day review on Today for a week.",
+        ],
+        "related": ['/me', '/today', '/coaching/transition-traps'], "reading": [F90],
+    },
+    {
+        "slug": 'advice-network', "theme": "transition", "minutes": 4, "since": 52,
+        "title": 'Your advice and counsel network',
+        "summary": "No leader does it alone. You need people for technical advice, people who interpret the culture, and people who help with the politics, inside and outside the organization.",
+        "why": "A network keeps you from becoming isolated and losing perspective. Insiders know the culture and the history but have their own stakes. Outsiders give a dispassionate view and are loyal to you, not the organization. The higher you go, the more you need political counsel, and the people who helped in your last role may not fit this one.",
+        "practices": [
+            "Map who helps you by type (technical, cultural, political, personal) and by inside or outside. Look for the empty squares.",
+            "Find someone well connected inside whom you can trust to tell you what's really going on.",
+            "Keep a couple of long-standing outside advisers who listen well and have your interests at heart.",
+            "Hear from people who represent the groups that matter, so you don't rely on one or two views.",
+            "Think ahead: what will your next role need from your network?",
+        ],
+        "pitfalls": [
+            "Assuming past advisers will still be the right ones.",
+            "Treating your manager as a disinterested adviser.",
+            "Leaving political counsel empty because it feels uncomfortable to ask for.",
+        ],
+        "questions": [
+            "Which kind of advice am I missing most?",
+            "Who would tell me what I'm not hearing?",
+        ],
+        "try": [
+            "Open the advice network grid under My development and fill one empty square this month.",
+        ],
+        "related": ['/me', '/people', '/coaching/building-alliances'], "reading": [F90],
+    },
+    {
+        "slug": 'steady-at-home', "theme": "transition", "minutes": 4, "since": 52,
+        "title": 'Staying steady at home during a move',
+        "summary": "If a new role means moving, your family is in transition too. You can't create value at work while losing it at home.",
+        "why": "A move disrupts a partner's work, children's schools and the whole web of services a family relies on, just when you need support most. Their difficulties add to your load and slow your own transition.",
+        "practices": [
+            "Acknowledge that your family may be unhappy about the move, and talk through what everyone is losing.",
+            "List the services you rely on (doctors, dentists, childcare, tutors, coaches) and replace them early.",
+            "Help a partner restart their own work quickly; ask whether your employer offers support with it.",
+            "Time the move with the school year in mind. If you live apart for a while, arrange extra help at home.",
+            "Keep familiar family routines going, and use relocation and cross-cultural help where it's offered.",
+        ],
+        "pitfalls": [
+            "Assuming a move between similar places will be easy.",
+            "Forcing a decision at home to fix a problem at work.",
+        ],
+        "questions": [
+            "What does my family need from me in the next month?",
+            "Which support at home needs replacing first?",
+        ],
+        "try": [
+            "Ask each person at home what would make the next month easier, and do one of those things this week.",
+        ],
+        "related": ['/coaching/managing-yourself', '/coaching/transition-traps'], "reading": [F90],
+    },
+    {
+        "slug": 'helping-people-manage-themselves', "theme": "team", "minutes": 5, "since": 52,
+        "title": 'Helping your people manage themselves',
+        "summary": "The same pressures you face in a new role hit your people too. Offer them the same tools, on their terms, and keep what they share in confidence.",
+        "why": "People new to a role, or carrying a heavy load, go over their own stress curve too. A manager who notices early and helps them set boundaries, pick a few disciplines and find support keeps good people performing and staying.",
+        "practices": [
+            "In one-on-ones, ask how they're managing, not only what they're delivering: energy, load, and how in control they feel.",
+            "Share the four patterns and the disciplines as tools they can use, never as labels you put on them.",
+            "Record only what they choose to tell you, and ask before writing anything down. Record their consent, and whether they're happy for HR to see it.",
+            "Ask what support would help, not why. If someone mentions a health condition or needs an adjustment, point them to HR and don't keep the details in your own notes.",
+            "Help them build their own network: a buddy, a mentor, someone outside the team.",
+        ],
+        "pitfalls": [
+            "Turning a support conversation into a performance review.",
+            "Sharing what someone told you without their agreement.",
+            "Writing down diagnoses or family details that belong with HR, if anywhere.",
+        ],
+        "questions": [
+            "Who on my team is carrying the most right now, and do they know I've noticed?",
+            "What would make it safe for them to tell me they're struggling?",
+        ],
+        "try": [
+            "Ask one person this week: \"How are you managing the load right now, and what would help?\"",
+        ],
+        "related": ['/people', '/coaching/one-on-ones', '/coaching/psychological-safety'], "reading": [F90],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -1403,8 +1535,10 @@ TIPS = {
                  ("Read each unit's culture in three layers: what's visible, the everyday norms, and the assumptions underneath. Start the Culture map.", "joining-from-outside", 14),
                  ("Add acronyms and names to the Glossary as you hear them. Speaking like the locals builds trust quickly.", "joining-from-outside", 14)],
     "/search": [("Search when you know the word; Ask when you have a question. Both see only what your privacy level allows.", "learn-fast", 20)],
-    "/today": [("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
-    "/people": [("Notice who people defer to on which topics. Mark opinion leaders and where their influence comes from.", "building-alliances", 44),
+    "/today": [("Ten minutes at the end of the day: what you planned, what got done, and the few things that matter tomorrow.", "personal-disciplines", 52),
+        ("Start the day by protecting one block of time for the most important thing, not the most urgent.", "managing-yourself")],
+    "/people": [("Ask your people how they're managing, not only what they're delivering. Record only what they agree to share.", "helping-people-manage-themselves", 52),
+        ("Notice who people defer to on which topics. Mark opinion leaders and where their influence comes from.", "building-alliances", 44),
                 ("Assess what people do now and the results they get, not the previous leader. Criticizing who came before gains nothing.", "building-the-team", 39),
                ("Keep a running note for each person, so every one-on-one picks up where the last one left off.", "one-on-ones"),
                 ("Set a check-in cadence for the people who matter most. Relationships fade quietly when you're busy.", "one-on-ones", 5),
@@ -1496,7 +1630,8 @@ TIPS = {
                    ("Check the direction before anything else, unless the area is a realignment: there the trouble is usually in processes and skills.", "org-as-a-system", 35)],
     "/escalation": [("Review incidents without blame: look at the system, not the person.", "psychological-safety"),
                     ("Meet each system's business contacts and responders before an incident, not during one.", "peer-relationships", 14)],
-    "/me": [("Make your evaluation criteria explicit before you assess anyone: how much each of six weighs with you, and your threshold.", "building-the-team", 40),
+    "/me": [("Expect a dip three to six months in. Take the core challenges check at day 30, 60 and 90, and the transition self-check monthly.", "transition-traps", 52),
+        ("Make your evaluation criteria explicit before you assess anyone: how much each of six weighs with you, and your threshold.", "building-the-team", 40),
             ("Look after the person doing the leading. Rate your energy each week and notice the trend.", "managing-yourself"),
             ("Moving into a new role? Make the break from the old one on purpose, instead of letting the two blur together.", "new-role-mindset", 15),
             ("Rate which kinds of problems you're drawn to under Problem preferences. The ones you avoid are where blind spots grow.", "new-role-mindset", 16),
@@ -1508,6 +1643,7 @@ TIPS = {
     "/audiences": [("Different audiences need different detail. Ask each how they like to be informed.", "your-manager")],
     "/plain-language": [("Plain words build trust. Jargon makes people feel left out.", "honest-status")],
     "/decks": [("Show working software in reviews, not slides, whenever you can. Save decks for leadership stories.", "ceremonies")],
+    "/coaching": [("No one leads alone: map your technical, cultural and political advisers, inside and outside.", "advice-network", 52)],
 }
 
 # Reflection prompts by how far into the role you are (day numbers from the contract start date).
@@ -1563,6 +1699,19 @@ ANYTIME_PROMPTS = [
 ]
 
 
+# A structured look at how the transition is going: added for existing installs as "Take stock" (since 52).
+TAKE_STOCK_PROMPTS = [
+    "How excited, confident and in control do I feel right now, and what's behind each?",
+    "Who haven't I connected with yet, and why?",
+    "Which meeting or moment troubled me most so far, and what did it tell me?",
+    "Which interactions would I handle differently, and which went better than I expected?",
+    "Which of my decisions worked out, which didn't, and why?",
+    "Which missed chance do I regret most: was it down to me or to the situation?",
+    "Is my biggest difficulty about the situation, or about me? What would I do if it were about me?",
+]
+TAKE_STOCK_SINCE = 52
+
+
 def guide(slug: str) -> dict | None:
     return next((g for g in GUIDES if g["slug"] == slug), None)
 
@@ -1576,7 +1725,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 51  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 52  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

@@ -495,20 +495,47 @@ def check_roster_import(body: dict = Body(...), viewer: Viewer = Depends(get_vie
     return {"checks": incoming_checks(conn, entries), "never": sorted({f for e in entries if isinstance(e, dict) for f in e if f in PERSON_NEVER})}
 
 
-ADVICE_KINDS = ("technical", "political", "personal")
+ADVICE_KINDS = ("technical", "cultural", "political", "personal")
+QUALITIES_KEY = "advice.qualities"
+# Qualities of a good network. The first two are read from your data; you tick the rest yourself.
+NETWORK_QUALITIES = [
+    ("mix_kinds", "The right mix of technical advisers, cultural interpreters and political counselors", "auto"),
+    ("mix_places", "The right mix of insiders and outsiders", "auto"),
+    ("loyal_outside", "Outside supporters loyal to you, not to the organization", "manual"),
+    ("trusted_inside", "Insiders you trust, whose agendas don't conflict with yours, who give straight advice", "manual"),
+    ("constituencies", "People from the key groups, so you hear more than one or two views", "manual"),
+]
 
 
-@router.get("/api/people/advice-network")
+@router.get("/api/people/advice-network", dependencies=[Depends(no_judgments)])
 def advice_network(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
-    """Your advisors by the kind of advice they give. Higher up, political counsel and personal advice matter more."""
+    """Your advisers by the kind of advice they give, inside and outside the organization. Higher up, political counsel matters more."""
     if viewer.floor != Level.PRIVATE:
         return {"hidden": True}
     out = {k: [] for k in ADVICE_KINDS}
+    grid = {place: {k: [] for k in ADVICE_KINDS} for place in ("inside", "outside")}
     for p in models.people.fetch_all(conn, "active = 1"):
+        place = "outside" if p.get("outside_org") else "inside"
         for k in p.get("advice") or []:
             if k in out:
                 out[k].append({"id": p["id"], "name": p["name"]})
-    return {"kinds": out, "missing": [k for k in ("political", "personal") if not out[k]]}
+                grid[place][k].append({"id": p["id"], "name": p["name"]})
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (QUALITIES_KEY,)).fetchone()
+    ticked = json.loads(row["value"]) if row else {}
+    auto = {"mix_kinds": all(out[k] for k in ("technical", "cultural", "political")),
+            "mix_places": any(grid["inside"][k] for k in ADVICE_KINDS) and any(grid["outside"][k] for k in ADVICE_KINDS)}
+    qualities = [{"key": k, "label": l, "auto": how == "auto", "met": auto[k] if how == "auto" else bool(ticked.get(k))} for k, l, how in NETWORK_QUALITIES]
+    return {"kinds": out, "grid": grid, "qualities": qualities, "missing": [k for k in ("cultural", "political", "personal") if not out[k]],
+            "gaps": [f"{place} {k}" for place in grid for k in ("technical", "cultural", "political") if not grid[place][k]]}
+
+
+@router.put("/api/people/advice-network/qualities")
+def save_qualities(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    manual = {k for k, _, how in NETWORK_QUALITIES if how == "manual"}
+    ticked = {k: bool(v) for k, v in body.items() if k in manual}
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (QUALITIES_KEY, json.dumps(ticked)))
+    return {"ticked": ticked}
 
 
 ROSTER_SHAREABLE = ("role", "relationship")

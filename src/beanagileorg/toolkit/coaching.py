@@ -46,6 +46,9 @@ def seed_once(conn) -> bool:
     for pos, (route, text, slug, since) in enumerate(starter.tip_entries()):
         if newer(since):
             models.coaching_tips.create(conn, {"route": route, "text": text, "guide_slug": slug, "position": pos}, "starter")
+    if newer(starter.TAKE_STOCK_SINCE):
+        for i, text in enumerate(starter.TAKE_STOCK_PROMPTS):
+            models.coaching_prompts.create(conn, {"phase": "Take stock", "text": text, "position": 900 + i}, "starter")
     if not have:
         pos = 0
         for name, _, _, prompts in starter.REFLECTION_PHASES:
@@ -136,6 +139,16 @@ def _day_of_role(conn) -> int | None:
     return (date.today() - date.fromisoformat(row["value"])).days + 1
 
 
+def _day_on(conn, when: str) -> int | None:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (START_DATE_KEY,)).fetchone()
+    return (date.fromisoformat(when) - date.fromisoformat(row["value"])).days + 1 if row and when else None
+
+
+def _insight(conn) -> dict:
+    from .self_manage import reflection_insight
+    return reflection_insight(conn)
+
+
 @router.get("/api/coaching/reflect", dependencies=[Depends(no_judgments)])
 def reflect(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     if viewer.floor != Level.PRIVATE:
@@ -149,9 +162,12 @@ def reflect(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "phase": phase,
         "prompts": [p for p in prompts if p["phase"] == phase],
         "anytime": [p for p in prompts if p["phase"] == "Any time"],
-        "phases": [name for name, *_ in starter.REFLECTION_PHASES] + ["Any time"],
+        "phases": [name for name, *_ in starter.REFLECTION_PHASES] + ["Any time", "Take stock"],
         "entries": entries[:30],
-        "trend": [{"date": e["date"], "energy": e["energy"], "confidence": e["confidence"]} for e in reversed(entries[:12])],
+        "trend": [{"date": e["date"], "energy": e["energy"], "confidence": e["confidence"], "in_control": e.get("in_control"), "load": e.get("load"),
+                   "day": _day_on(conn, e["date"])} for e in reversed(entries[:16])],
+        "insight": _insight(conn),
+        "take_stock": [p for p in prompts if p["phase"] == "Take stock"],
         "focus": [{"slug": g["slug"], "title": g["title"], "focus": g["focus"]} for g in models.coaching_guides.fetch_all(conn, "focus IS NOT NULL")],
     }
 
