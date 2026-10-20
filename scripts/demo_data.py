@@ -3,19 +3,22 @@
 Every value is bracketed placeholder text. Run it against a scratch instance, never your real data:
 
     BEANAGILEORG_DATA=/tmp/ba-demo .venv/bin/beanagileorg toolkit &
-    python scripts/demo_data.py http://127.0.0.1:8801 '<password>'
+    python scripts/demo_data.py http://127.0.0.1:8801 '<password>' /tmp/ba-demo/toolkit/toolkit.db
 
-On a fresh instance it sets the password first; otherwise it signs in with it.
+On a fresh instance it sets the password first; otherwise it signs in with it. The optional database path lets it
+backdate the change log, so the finished Sprint 1 has a day-by-day history for its burndown.
 """
 
 import http.cookiejar
 import json
+import sqlite3
 import sys
 import urllib.request
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
 BASE, PASSWORD = sys.argv[1].rstrip("/"), sys.argv[2]
+DB = sys.argv[3] if len(sys.argv) > 3 else None
 jar = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 
@@ -98,6 +101,42 @@ for title, roam, i in (("[Placeholder risk 1]", "owned", 0), ("[Placeholder risk
                        ("[Placeholder risk 3]", "accepted", 2), ("[Placeholder risk 4]", "unroamed", 3)):
     api("POST", "/api/pi-risks", {"pi_id": pi, "title": title, "roam": roam, "owner_id": p(i)})
 api("POST", f"/api/pis/{pi}/confidence", {"votes": [4, 4, 5, 3, 4, 4, 5]})
+
+# ---- a finished Sprint 1: committed, one story added mid-sprint, stories done across the two weeks, one carried over
+api("POST", "/api/backlog/paste", {"text": "\n".join(f"ABC-{100 + n} [Placeholder sprint 1 story {n}] | {pts}"
+                                                      for n, pts in enumerate((3, 5, 2, 8, 3, 5, 2, 3), 1))})
+s1_items = {i["jira_key"]: i["id"] for i in api("GET", "/api/backlog-items") if (i.get("jira_key") or "").startswith("ABC-10")}
+s1_keys = [f"ABC-{100 + n}" for n in range(1, 9)]
+for key in s1_keys:
+    api("PATCH", f"/api/backlog-items/{s1_items[key]}", {"status": "ready"})
+for key in s1_keys[:7]:
+    api("POST", f"/api/sprint-planning/{sprints[1]}/pull", {"item_id": s1_items[key]})
+api("POST", f"/api/sprint-planning/{sprints[1]}/commit", {})
+api("POST", f"/api/sprint-planning/{sprints[1]}/pull", {"item_id": s1_items[s1_keys[7]]})  # added mid-sprint
+done_on = {s1_keys[0]: 1, s1_keys[2]: 2, s1_keys[1]: 4, s1_keys[4]: 5, s1_keys[3]: 7, s1_keys[7]: 8, s1_keys[5]: 9}
+for key in done_on:
+    api("PATCH", f"/api/backlog-items/{s1_items[key]}", {"status": "done"})
+if DB:
+    s1 = next(s for s in api("GET", "/api/sprints") if s["number"] == 1)
+    d, s1_days = date.fromisoformat(s1["start_date"]), []
+    while d.isoformat() <= s1["end_date"]:
+        if d.weekday() < 5:
+            s1_days.append(d.isoformat())
+        d += timedelta(days=1)
+    before = (date.fromisoformat(s1["start_date"]) - timedelta(days=1)).isoformat()
+    conn = sqlite3.connect(DB)
+    def stamp(key, day, where):
+        conn.execute(f"UPDATE change_log SET at = ? WHERE entity = 'backlog_item' AND record_id = ? AND {where}", (f"{day} 12:00:00", str(s1_items[key])))
+    for key in s1_keys:
+        joined = s1_days[3] if key == s1_keys[7] else before
+        stamp(key, before, "NOT (field IN ('sprint_id', 'status'))")
+        stamp(key, before, "field = 'status' AND new_value IN ('needs refinement', 'ready')")
+        stamp(key, joined, "(field = 'sprint_id' OR (field = 'status' AND new_value = 'in sprint'))")
+        if key in done_on:
+            stamp(key, s1_days[done_on[key]], "field = 'status' AND new_value = 'done'")
+    conn.commit()
+    conn.close()
+api("POST", f"/api/sprint-planning/{sprints[1]}/close", {})
 
 # ---- the sprint backlog beside Jira: refined, estimated, four stories pulled into the current sprint
 api("POST", "/api/backlog/paste", {"text": "\n".join(f"ABC-{120 + n} [Placeholder backlog story {n}] | {(3, 5, 2, 8, 3, 5, 3, 2)[n - 1]}" for n in range(1, 9))})
