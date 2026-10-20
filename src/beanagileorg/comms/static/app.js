@@ -557,6 +557,7 @@
           <input name="title" placeholder="[Placeholder deck title]" required style="max-width:420px">
           <button class="btn primary" type="submit">New deck</button><span class="spacer"></span>
           <button class="btn" type="button" id="from-plan" title="Build a deck from the toolkit's 30/60/90 plans">Deck from toolkit plans</button>
+          <button class="btn" type="button" id="tour" title="Every deck builder feature, in the order of the official reveal.js demo">Load the feature tour</button>
           <button class="btn" type="button" id="seed">Load placeholder deck</button></form></section>
         <div class="deck-cards">${
           decks.map((d) => `<div class="card deck-card" data-id="${d.id}"><div class="row"><h2>${esc(d.title)}</h2><span class="spacer"></span><span class="pill ${DECK_TONES[d.status] || ""}">${esc(d.status)}</span></div>
@@ -573,6 +574,11 @@
       main.querySelector("#from-plan").onclick = BA.guard(async () => {
         const res = await BA.api("/api/decks/from-toolkit-plan", { method: "POST", body: {} });
         BA.toast(`Built ${res.slides} slides from the plan outline.`);
+        BA.go(`/decks/${res.deck_id}`);
+      });
+      main.querySelector("#tour").onclick = BA.guard(async () => {
+        const res = await BA.api("/api/decks/tour", { method: "POST" });
+        BA.toast(`Built the ${res.slides}-slide feature tour.`);
         BA.go(`/decks/${res.deck_id}`);
       });
       main.querySelector("#seed").onclick = BA.guard(async () => {
@@ -677,7 +683,7 @@
 
   async function editor(main, deckId) {
     await loadAssets();
-    const { LAYOUTS, render, attach } = window.BADeck;
+    const { LAYOUTS, SLIDE_OPTIONS, render, attach, indicesOf } = window.BADeck;
     let data = await BA.api(`/api/decks/${deckId}/full`);
     let current = data.slides[0]?.id ?? null;
     document.getElementById("view-title").textContent = data.deck.title;
@@ -718,6 +724,11 @@
     };
 
     const slide = () => data.slides.find((s) => s.id === current);
+    // Jump the canvas to a slide, wherever it sits (stacked slides are vertical in the deck).
+    const go = (id) => {
+      const ix = indicesOf(deck, revealEl, id);
+      if (ix) deck.slide(ix.h, ix.v || 0, 99);
+    };
     const indexOf = (id) => data.slides.findIndex((s) => s.id === id);
     const titleOf = (s) => s.content?.heading || s.content?.quote || "[Untitled]";
 
@@ -731,9 +742,8 @@
       runtime.clear();
       revealEl.querySelector(".slides").innerHTML = render(data.slides, data.media, { includeHidden: true });
       deck.sync();
-      const i = indexOf(current);
       runtime.quietly(() => {
-        if (i >= 0) deck.slide(i, 0, 99);
+        go(current);
         runtime.refresh();
       });
     }
@@ -742,7 +752,7 @@
       listEl.innerHTML =
         data.slides
           .map((s, i) => `<div class="ed-thumb${s.id === current ? " on" : ""}${s.hidden ? " is-hidden" : ""}" draggable="true" data-id="${s.id}">
-            <span class="ed-num">${i + 1}</span><div><div class="ed-thumb-title">${esc(titleOf(s))}</div>
+            <span class="ed-num">${s.content?.vertical ? "↳" : ""}${i + 1}</span><div><div class="ed-thumb-title">${esc(titleOf(s))}</div>
             <div class="quiet">${esc(LAYOUTS[s.layout]?.label || s.layout)}${s.hidden ? " · hidden" : ""}</div></div></div>`)
           .join("") || '<p class="quiet">No slides yet.</p>';
       let dragId = null;
@@ -771,8 +781,8 @@
       current = id;
       renderList();
       renderInspector();
-      const i = indexOf(id);
-      if (i >= 0 && deck.getIndices().h !== i) runtime.quietly(() => deck.slide(i, 0, 99));
+      const ix = indicesOf(deck, revealEl, id), now = deck.getIndices();
+      if (ix && (now.h !== ix.h || (now.v || 0) !== (ix.v || 0))) runtime.quietly(() => go(id));
     }
 
     deck.on("slidechanged", (e) => {
@@ -814,7 +824,7 @@
 
     function readContent(form, spec) {
       const content = {};
-      for (const f of spec.fields) {
+      for (const f of [...spec.fields, ...SLIDE_OPTIONS]) {
         const el = form.elements[`c.${f.name}`];
         if (!el) continue;
         if (f.type === "lines") content[f.name] = el.value.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -835,6 +845,8 @@
       inspector.innerHTML = `<h2>Slide ${indexOf(s.id) + 1}</h2><form id="insp">
         <label>Layout<select name="layout">${Object.entries(LAYOUTS).map(([k, l]) => `<option value="${k}"${k === s.layout ? " selected" : ""}>${esc(l.label)}</option>`).join("")}</select></label>
         ${spec.fields.map((f) => field(f, s.content?.[f.name])).join("")}
+        <details class="slide-options"${SLIDE_OPTIONS.some((f) => s.content?.[f.name]) ? " open" : ""}><summary><b>Slide options</b> <span class="quiet">stacking, auto-animate, background</span></summary>
+          ${SLIDE_OPTIONS.map((f) => field(f, s.content?.[f.name])).join("")}</details>
         <label>Transition<select name="transition"><option value="">Deck default</option>${TRANSITIONS.map((t) => `<option${t === s.transition ? " selected" : ""}>${t}</option>`).join("")}</select></label>
         <label>Speaker notes<textarea name="notes">${esc(s.notes)}</textarea></label>
         <label class="check"><input type="checkbox" name="hidden"${s.hidden ? " checked" : ""}> Hide this slide when presenting</label>

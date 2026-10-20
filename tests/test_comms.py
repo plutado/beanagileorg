@@ -107,3 +107,13 @@ def test_present_page_and_vendored_libraries(client):
         assert client.get(path).status_code == 200, path
     anon = TestClient(client.app, follow_redirects=False)
     assert anon.get(f"/present/{deck}").status_code == 303
+
+
+def test_feature_tour_deck_builds_with_new_layouts_and_options(client):
+    res = client.post("/api/decks/tour")
+    assert res.status_code == 201 and res.json()["slides"] >= 25
+    full = client.get(f"/api/decks/{res.json()['deck_id']}/full").json()
+    layouts = {s["layout"] for s in full["slides"]}
+    assert {"code", "table", "fit-text", "shapes"} <= layouts
+    assert any(s["content"].get("vertical") for s in full["slides"]) and any(s["hidden"] for s in full["slides"])
+    assert any(s["content"].get("auto_animate") for s in full["slides"])

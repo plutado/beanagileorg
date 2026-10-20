@@ -239,11 +239,13 @@ Image generation in the Comms studio is also optional: point it at any local ser
 **Presentations**
 
 - **Deck builder:** a three-pane editor (slide list with drag to reorder, live reveal.js canvas, inspector) over slides stored as structured data.
-- **Eleven layouts:** title, section break, one big number, points (optionally revealed one at a time), quote, comparison, image, video, audio, animation and closing.
+- **Fifteen layouts:** title, section break, one big number, points (bulleted or numbered, optionally revealed one at a time in a chosen style such as fade up, grow or highlight the current point), quote, comparison, code (highlighted, with line ranges lit step by step), table (rows optionally revealed one by one), fit text (words sized to fill the slide), shapes (for auto-animate), image, video, audio, animation and closing.
+- **Slide options on every layout:** stack a slide under the one before it (vertical slides), auto-animate from the previous slide (matching headings, code and shapes move into place), and a background colour, gradient or image (filled, fitted or tiled) with its own transition and light text for dark backgrounds.
+- **Feature tour:** one click builds a 29-slide deck that walks through every deck builder feature in the order of the official reveal.js demo, rewritten in our own words, with credit to its author.
 - **Media players:** video and audio with trim start and end, loop, poster frame, captions, and play on entering the slide, on a click or only when pressed.
 - **Lottie animations:** loop, play once, play on a click, speed and frame segments. The light player runs no expressions.
 - **Versions and review:** save named versions, compare them slide by slide, restore one, and move a deck from draft to review to approved to presented, with each step saved. Approved decks are locked until you start a new draft; any saved version can be presented, and a deck can be copied for another audience.
-- **Present:** full screen from the same renderer as the editor, with reveal.js's speaker view (notes, next slide, timer).
+- **Present:** full screen from the same renderer as the editor, with reveal.js's speaker view (notes, next slide, timer), the overview (Esc), pause (B) and PDF export (add ?print-pdf to the address and print).
 - **Media library:** uploads of video, audio, images, Lottie and WebVTT captions, with type checks, seekable playback, source and license recorded, and license details kept private.
 
 **Visuals**

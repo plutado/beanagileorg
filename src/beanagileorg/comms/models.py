@@ -7,7 +7,7 @@ S, P, E = Level.PRESENTABLE, Level.PRIVATE, Level.EXPORTABLE
 
 LAYOUTS = (
     "title", "section", "big-number", "bullets", "quote", "comparison",
-    "image", "video", "audio", "lottie", "closing",
+    "image", "video", "audio", "lottie", "closing", "code", "table", "fit-text", "shapes",
 )
 TRANSITIONS = ("none", "fade", "slide", "convex", "concave", "zoom")
 MEDIA_KINDS = ("video", "audio", "image", "lottie", "captions")

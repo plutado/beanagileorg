@@ -39,3 +39,42 @@
 .reveal.ba-theme .ba-missing { border: 3px dashed var(--ba-muted); color: var(--ba-muted); border-radius: 0.35em; padding: 1.4em; text-align: center; font-size: 0.75em; }
 .reveal.ba-theme .ba-trigger { display: none; }
 .reveal.ba-theme .controls { color: var(--ba-accent); }
+
+/* Stacks: the wrapper has no padding of its own; each slide in it does. */
+.reveal.ba-theme .slides > section.ba-stack { padding: 0; }
+.reveal.ba-theme .slides > section > section { height: 100%; padding: 56px 72px; box-sizing: border-box; }
+.reveal.ba-theme ol { margin: 0; padding-left: 1.3em; }
+.reveal.ba-theme ol li::marker { color: var(--ba-accent); font-weight: 700; }
+
+/* Light text over dark backgrounds. */
+.reveal.ba-theme .ba-dark { color: #f8fafc; }
+.reveal.ba-theme .ba-dark .ba-sub, .reveal.ba-theme .ba-dark .ba-caption, .reveal.ba-theme .ba-dark .ba-attrib { color: #cbd5e1; }
+.reveal.ba-theme .ba-dark h3, .reveal.ba-theme .ba-dark .ba-closing h1, .reveal.ba-theme .ba-dark .ba-number { color: #a5b4fc; }
+
+/* Code, with step-by-step line highlights. */
+.reveal.ba-theme pre.ba-code { margin: 0; width: 100%; font-size: 0.58em; line-height: 1.5; background: #0f172a; color: #e2e8f0; border-radius: 0.5em; padding: 0.9em 0; box-shadow: none; text-align: left; }
+.reveal.ba-theme pre.ba-code code { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; max-height: 470px; overflow: auto; }
+.reveal.ba-theme .ba-line { display: block; padding: 0 1.2em 0 0; transition: opacity 0.35s ease; white-space: pre; }
+.reveal.ba-theme .ba-ln { display: inline-block; width: 3em; padding-right: 1em; text-align: right; color: #64748b; user-select: none; }
+.reveal.ba-theme .ba-line.ba-dim { opacity: 0.28; }
+.reveal.ba-theme .hljs-keyword, .reveal.ba-theme .hljs-built_in, .reveal.ba-theme .hljs-selector-tag { color: #c4b5fd; }
+.reveal.ba-theme .hljs-string, .reveal.ba-theme .hljs-attr, .reveal.ba-theme .hljs-template-variable { color: #86efac; }
+.reveal.ba-theme .hljs-number, .reveal.ba-theme .hljs-literal { color: #fdba74; }
+.reveal.ba-theme .hljs-comment { color: #64748b; font-style: italic; }
+.reveal.ba-theme .hljs-title, .reveal.ba-theme .hljs-function .hljs-title, .reveal.ba-theme .hljs-title.function_ { color: #7dd3fc; }
+.reveal.ba-theme .hljs-tag, .reveal.ba-theme .hljs-name, .reveal.ba-theme .hljs-property { color: #f9a8d4; }
+.reveal.ba-theme .hljs-variable, .reveal.ba-theme .hljs-params { color: #e2e8f0; }
+
+/* Tables. */
+.reveal.ba-theme table.ba-table { border-collapse: collapse; width: 100%; font-size: 0.75em; }
+.reveal.ba-theme .ba-table th { text-align: left; color: var(--ba-accent); border-bottom: 3px solid var(--ba-accent); padding: 0.45em 0.6em; }
+.reveal.ba-theme .ba-table td { border-bottom: 1px solid rgba(0, 0, 0, 0.1); padding: 0.45em 0.6em; }
+
+/* Fit text and shapes (for auto-animate). */
+.reveal.ba-theme .r-fit-text { font-weight: 800; letter-spacing: -0.02em; }
+.reveal.ba-theme .ba-shapes { display: flex; gap: 0.8em; align-items: center; justify-content: center; min-height: 360px; }
+.reveal.ba-theme .ba-shapes-column { flex-direction: column; }
+.reveal.ba-theme .ba-shapes.ba-shapes-stack { display: grid; place-items: start center; justify-content: center; align-content: center; }
+.reveal.ba-theme .ba-shapes-stack > .ba-shape { grid-area: 1 / 1; }
+.reveal.ba-theme .ba-fit { display: block; width: 100%; }
+.reveal.ba-theme .ba-shape { border-radius: 0.3em; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.8em; box-shadow: 0 0.2em 0.6em rgba(0, 0, 0, 0.15); }

@@ -127,6 +127,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-20: Deck builder parity with the reveal.js demo: code with stepped highlights, tables, fit text, shapes, numbered lists and reveal styles; vertical stacks, auto-animate and backgrounds on every slide; a built-in feature tour deck.
 - [x] 2026-10-20: Scrum benefits, challenges and implementation: a common-challenges check on the Agile reference's coverage view (role ambiguity, scope creep, resistance to change) built from existing records. Section 2 of the scaling course complete.
 - [x] 2026-10-20: Scrum building blocks: enabler stories as a backlog type, user and enabler story templates, INVEST checks for the definition of ready, user-stories reference entry with INVEST, the three Cs and enablers.
 - [x] 2026-10-20: Scrum events (#34): sprint review panel (done and not done, agenda, stakeholder feedback into backlog items), retro commitments onto the backlog as ready items, Scrum timeboxes on the planning screen.

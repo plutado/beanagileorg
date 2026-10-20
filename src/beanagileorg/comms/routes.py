@@ -211,6 +211,19 @@ def seed(request: Request, viewer: Viewer = Depends(get_viewer), conn=Depends(ge
     return {"deck_id": deck["id"], "slides": len(slides)}
 
 
+@router.post("/api/decks/tour", status_code=201)
+def load_tour(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Build the feature tour deck: every deck builder feature, in the order of the official reveal.js demo."""
+    from . import tour
+
+    require_write(viewer)
+    deck = models.decks.create(conn, {"title": tour.TITLE, "transition": "slide", "audience": "Anyone learning the deck builder"}, viewer.source)
+    for position, (layout, content, notes, transition, hidden) in enumerate(tour.SLIDES):
+        models.slides.create(conn, {"deck_id": deck["id"], "position": position, "layout": layout, "content": content,
+                                    "notes": notes, "transition": transition, "hidden": hidden}, viewer.source)
+    return {"deck_id": deck["id"], "slides": len(tour.SLIDES)}
+
+
 # ---- present page ----
 
 
