@@ -95,7 +95,10 @@ def guide(slug: str, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn
     if not rows:
         raise HTTPException(404, "No such guide.")
     tips = models.coaching_tips.fetch_all(conn, "guide_slug = ?", (slug,))
-    return {"guide": models.coaching_guides.visible(rows[0], viewer), "tips": models.coaching_tips.visible_all(tips, viewer), "themes": _themes(conn)}
+    out = {"guide": models.coaching_guides.visible(rows[0], viewer), "tips": models.coaching_tips.visible_all(tips, viewer), "themes": _themes(conn)}
+    if viewer.floor == Level.PRIVATE and not viewer.guarded:
+        out["reflections"] = [{"id": r["id"], "date": r["date"], "prompt": r.get("prompt"), "entry": r.get("entry")} for r in models.reflections.fetch_all(conn, "guide_slug = ?", (slug,))][:10]
+    return out
 
 
 @router.post("/api/coaching-guides", status_code=201)
@@ -169,6 +172,7 @@ def reflect(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
         "insight": _insight(conn),
         "take_stock": [p for p in prompts if p["phase"] == "Take stock"],
         "focus": [{"slug": g["slug"], "title": g["title"], "focus": g["focus"]} for g in models.coaching_guides.fetch_all(conn, "focus IS NOT NULL")],
+        "guides": [{"slug": g["slug"], "title": g["title"]} for g in models.coaching_guides.fetch_all(conn, "status = 'published'")],
     }
 
 
@@ -234,3 +238,61 @@ def import_pack(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), co
             models.coaching_prompts.create(conn, {"phase": p.get("phase") or "Any time", "text": p["text"]}, viewer.source)
             prompts_added += 1
     return {"guides_added": added, "guides_replaced": replaced, "guides_skipped": skipped, "tips_added": tips_added, "prompts_added": prompts_added}
+
+
+# ---- coaching suggested from what's happening ----
+
+
+def suggestions(conn) -> list[dict]:
+    """Guides that fit what's going on right now, each with the reason, at most four."""
+    from datetime import timedelta
+
+    t = date.today()
+    t_iso = t.isoformat()
+    published = {r["slug"]: r["title"] for r in conn.execute("SELECT slug, title FROM coaching_guides WHERE status = 'published'")}
+    out = []
+
+    def add(slug, why):
+        if slug in published and slug not in {o["slug"] for o in out}:
+            out.append({"slug": slug, "title": published[slug], "why": why})
+
+    n = conn.execute("SELECT COUNT(*) FROM retro_commitments WHERE status IN ('committed', 'in progress') AND due IS NOT NULL AND due < ?", (t_iso,)).fetchone()[0]
+    if n:
+        add("retros", f"{n} retro commitment{'s are' if n != 1 else ' is'} past due. Did we do what we said?")
+    if conn.execute("SELECT 1 FROM risks WHERE level = 'high' AND status = 'open'").fetchone():
+        add("honest-status", "A high risk is open, so this week's status is likely red. Say it early and plainly.")
+    recent = models.reflections.fetch_all(conn, "date >= ?", ((t - timedelta(days=21)).isoformat(),))[:3]
+    if len(recent) == 3 and all((r.get("energy") or 5) <= 2 for r in recent):
+        add("transition-traps", "Your energy has been low in your last three reflections.")
+    from .self_manage import reflection_insight
+    if reflection_insight(conn).get("over_the_top"):
+        add("personal-disciplines", "Load is rising while energy falls. Time to drop or defer something.")
+    closed = [p for p in models.sprint_plans.fetch_all(conn, "status = 'closed' AND committed_points > 0")]
+    closed.sort(key=lambda p: p.get("closed_on") or "", reverse=True)
+    if len(closed) >= 2 and all((p.get("completed_points") or 0) < 0.8 * p["committed_points"] for p in closed[:2]):
+        add("refinement-and-estimation", "The last two sprints finished well short of their commitment.")
+    sprint = conn.execute("SELECT id FROM sprints WHERE start_date <= ? AND (end_date IS NULL OR end_date >= ?) ORDER BY start_date DESC LIMIT 1", (t_iso, t_iso)).fetchone()
+    if sprint and conn.execute("SELECT COUNT(*) FROM change_requests WHERE sprint_id = ? AND decision LIKE 'accepted%'", (sprint["id"],)).fetchone()[0] >= 2:
+        add("change-mid-sprint", "Two or more changes have come into the current sprint.")
+    from .people_crm import people_due
+    due = people_due(conn)
+    if len(due["check_ins"]) >= 2:
+        add("one-on-ones", f"{len(due['check_ins'])} people are past their check-in cadence.")
+    if due.get("sideways") and due["sideways"].get("top_heavy"):
+        add("peer-relationships", "More of your conversations went up than sideways lately.")
+    late_wins = conn.execute("SELECT COUNT(*) FROM plan_items WHERE early_win = 1 AND status NOT IN ('done', 'dropped') AND due_day IS NOT NULL AND due_day < ?",
+                             (_day_of_role(conn) or 0,)).fetchone()[0]
+    if late_wins:
+        add("early-wins", f"{late_wins} early win{'s are' if late_wins != 1 else ' is'} past its day.")
+    if conn.execute("SELECT 1 FROM culture_observations WHERE status = 'open' AND COALESCE(action, 'not yet') = 'not yet' AND date <= ?", ((t - timedelta(days=14)).isoformat(),)).fetchone():
+        add("calling-out-harm", "Something you noted about the culture has gone two weeks without a response.")
+    return out[:4]
+
+
+@router.get("/api/coaching/suggestions", dependencies=[Depends(no_judgments)])
+def get_suggestions(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    if viewer.floor != Level.PRIVATE:
+        return {"hidden": True}
+    week = date.today().isocalendar()[1]
+    prompts = models.coaching_prompts.fetch_all(conn, "active = 1")
+    return {"suggestions": suggestions(conn), "prompt": prompts[week % len(prompts)]["text"] if prompts else None}

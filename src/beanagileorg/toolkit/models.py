@@ -2086,6 +2086,12 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        71,
+        """
+        ALTER TABLE reflections ADD COLUMN guide_slug TEXT;
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -3341,6 +3347,7 @@ reflections = Record(
         "confidence": Field("int", P),
         "in_control": Field("int", P),
         "load": Field("int", P),
+        "guide_slug": Field("text", P),
         "tags": Field("list", P),
     },
     hide_when_empty=True,

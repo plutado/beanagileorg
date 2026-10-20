@@ -1746,6 +1746,15 @@ TIPS = {
     "/plain-language": [("Plain words build trust. Jargon makes people feel left out.", "honest-status")],
     "/decks": [("Show working software in reviews, not slides, whenever you can. Save decks for leadership stories.", "ceremonies")],
     "/coaching": [("No one leads alone: map your technical, cultural and political advisers, inside and outside.", "advice-network", 52)],
+    # Detail pages: a tip at the moment it helps, on a single record.
+    "/retros/*": [("Start with last time's commitments: did we do what we said? Then choose one thing to change, not five.", "retros", 54)],
+    "/people/*": [("Before a one-on-one, check Before you meet: open follow-ups, what you owe them, and what they said last time.", "one-on-ones", 54)],
+    "/onboarding/*": [("Go through Set up to succeed together at the day-7 check-in, and fix the risks while they're small.", "supporting-a-new-hire", 54)],
+    "/vendors/*": [("Log what was agreed in each vendor conversation, with a date to check it actually happened.", "vendor-partnerships", 54)],
+    "/changes/*": [("Look at the impact before deciding: what it would swap out of the sprint, and who needs to hear either way.", "change-mid-sprint", 54)],
+    "/dev-sync/*": [("Every item needs an owner and a next action. A question nobody owns is a question nobody answers.", "delegation", 54)],
+    "/releases/*": [("Go or no-go is a decision, not a date: check readiness and QA sign-off before the call, and say who made it.", "quality-culture", 54)],
+    "/teams/*": [("Keep each team's status current before the Scrum of Scrums, so the meeting spends its time on what's stuck.", "scrum-of-scrums", 54)],
 }
 
 # Reflection prompts by how far into the role you are (day numbers from the contract start date).
@@ -1827,7 +1836,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 53  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 54  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

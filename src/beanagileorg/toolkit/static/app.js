@@ -227,6 +227,18 @@
           d.goals_at_risk.map((g) => `<div class="item"><a href="#/me">${esc(g.goal)}</a></div>`).join("") || empty("None at risk.")
         }</section></div>`;
       bindSelfToday(main);
+      BA.api("/api/coaching/suggestions").then((cs) => {
+        if (!cs || cs.hidden || (!cs.suggestions.length && !cs.prompt) || main.querySelector("#coach-week")) return;
+        const el = document.createElement("section");
+        el.className = "card";
+        el.id = "coach-week";
+        el.innerHTML = `<div class="row"><h2>Coaching this week</h2><span class="spacer"></span><a class="btn" href="#/coaching">All guides</a></div>
+          ${cs.suggestions.map((x) => `<div class="item">${BA.icon("lightbulb")}<span>${esc(x.why)}</span><span class="spacer"></span><a href="#/coaching/${esc(x.slug)}">${esc(x.title)}</a></div>`).join("") || '<p class="quiet">Nothing stands out this week.</p>'}
+          ${cs.prompt ? `<p class="quiet" style="margin-top:8px">Prompt of the week: <a href="#/coaching/reflect" data-week-prompt>${esc(cs.prompt)}</a></p>` : ""}`;
+        (main.querySelector("#eod") || main.querySelector("section.card"))?.after(el);
+        const wp = el.querySelector("[data-week-prompt]");
+        if (wp) wp.onclick = () => { try { sessionStorage.setItem("ba-reflect-prompt", cs.prompt); } catch {} };
+      }).catch(() => {});
       main.querySelectorAll("[data-agenda]").forEach((b) => (b.onclick = () => { try { sessionStorage.setItem("ba-person-tab", "manager"); } catch {} }));
       BA.askBox(main.querySelector("#ask-host"), { placeholder: "Ask the toolkit, such as: what's overdue, who haven't I talked to, what decisions are open?" });
       const ql = main.querySelector("#quick-log");
@@ -5387,7 +5399,7 @@
   const ORIGIN_TONES = { "built-in": "", mine: "good", imported: "accent" };
   const COMMS_SCREENS = [["/this-week", "Comms: This week"], ["/messages", "Comms: Messages"], ["/templates", "Comms: Templates"], ["/calendar", "Comms: Calendar"],
     ["/audiences", "Comms: Audiences"], ["/plain-language", "Comms: Plain language"], ["/decks", "Comms: Decks"], ["/media", "Comms: Media"]];
-  const screenLabel = (route) => (BA.session.nav.find((n) => n.path === route) || {}).label || (COMMS_SCREENS.find(([r]) => r === route) || [, route])[1];
+  const screenLabel = (route) => route.endsWith("/*") ? `${screenLabel(route.slice(0, -2))}: each record` : (BA.session.nav.find((n) => n.path === route) || {}).label || (COMMS_SCREENS.find(([r]) => r === route) || [, route])[1];
   const coachTabs = (active) => `<nav class="tabs">${[["", "Guides"], ["reflect", "Reflect"], ["tips", "Tips and prompts"], ["share", "Share"]]
     .map(([k, label]) => `<a href="#/coaching${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
   const asLines = (v) => (v || "").split("\n").map((x) => x.trim()).filter(Boolean);
@@ -5457,6 +5469,7 @@
       ${ro ? "" : `<section class="card"><h2>For me <span class="quiet">(private)</span></h2><div class="row"><label class="check">My focus <select id="g-focus" style="max-width:200px"><option value=""></option>${opts(FOCUS, g.focus)}</select></label>
           <span class="spacer"></span><a class="btn" href="#/coaching/reflect" id="g-reflect">${BA.icon("notebook")} Reflect on this</a></div>
         <label>My notes<textarea id="g-notes" rows="4">${esc(g.my_notes || "")}</textarea></label></section>
+      ${(d.reflections || []).length ? `<section class="card"><h2>My reflections on this guide</h2><p class="quiet">Private.</p>${d.reflections.map((r) => `<details class="plan-item"><summary><span class="quiet">${BA.fmtDate(r.date)}</span><span>${esc(r.prompt || (r.entry || "").slice(0, 80))}</span></summary>${BA.md(r.entry || "")}</details>`).join("")}</section>` : ""}
       ${d.tips.length ? `<section class="card"><h2>Tips that point here</h2>${d.tips.map((tp) => `<div class="item"><span>${esc(tp.text)}</span><span class="spacer"></span><span class="quiet">${esc(screenLabel(tp.route))}</span></div>`).join("")}<p class="quiet"><a href="#/coaching/tips">Edit tips</a></p></section>` : ""}
       <details class="card"><summary><b>Edit this guide</b></summary><form id="edit-guide"><div class="grid2">
         <label>Title<input name="title" value="${esc(g.title)}" required></label><label>Theme<input name="theme" value="${esc(g.theme)}" list="coach-themes-e"><datalist id="coach-themes-e">${d.themes.map((th) => `<option value="${esc(th.key)}">${esc(th.title)}</option>`).join("")}</datalist></label>
@@ -5543,20 +5556,21 @@
         ${(d.take_stock || []).length ? `<details><summary><b>Take stock</b> <span class="quiet">· a structured look at how the transition is going</span></summary><div class="prompt-chips">${d.take_stock.map((p) => `<button type="button" class="chip-btn" data-prompt="${esc(p.text)}">${esc(p.text)}</button>`).join("")}</div></details>` : ""}
         <form id="add-reflection"><label>Prompt<input name="prompt" value="${esc(pre)}" placeholder="Pick one above or write your own"></label>
           <label>Reflection<textarea name="entry" rows="6" required></textarea></label>
+          <label>About a guide <span class="quiet">(optional: links this reflection to the guide you're working on)</span><select name="guide_slug" style="max-width:360px"><option value=""></option>${(d.focus || []).map((g) => `<option value="${esc(g.slug)}">${esc(g.title)}</option>`).join("")}${(d.guides || []).filter((g) => !(d.focus || []).some((f) => f.slug === g.slug)).map((g) => `<option value="${esc(g.slug)}">${esc(g.title)}</option>`).join("")}</select></label>
           <div class="row"><label class="check" title="How energized and excited you feel">Energy ${scale("energy")}</label><label class="check">Confidence ${scale("confidence")}</label><label class="check" title="How much your success feels in your hands">In control ${scale("in_control")}</label><label class="check" title="How heavy things feel: demands and emotional weight">Load ${scale("load")}</label>
             <input type="date" name="date" value="${BA.today()}" style="max-width:170px"><input name="tags" placeholder="Tags, comma separated" style="max-width:220px"><span class="spacer"></span><button class="btn primary" type="submit">Save</button></div></form></section>
       ${d.insight && d.insight.over_the_top ? `<p class="callout warn">${esc(d.insight.over_the_top)} <a href="#/coaching/transition-traps">Transition traps</a></p>` : ""}
       <div class="cards">${chart ? `<section class="card"><h2>How I've been</h2>${chart}${STRESS_CURVE}</section>` : `<section class="card"><h2>Pressure and performance</h2>${STRESS_CURVE}</section>`}
         ${d.focus.length ? `<section class="card"><h2>Guides I'm working on</h2>${d.focus.map((x) => `<div class="item"><a href="#/coaching/${esc(x.slug)}">${esc(x.title)}</a><span class="spacer"></span>${tonePill(x.focus, FOCUS_TONES)}</div>`).join("")}</section>` : ""}</div>
       <section class="card"><h2>Past reflections</h2>${d.entries.map((e) => `<details class="plan-item" data-r="${e.id}"><summary><span class="quiet">${BA.fmtDate(e.date)}</span><span>${esc(e.prompt || (e.entry || "").slice(0, 80))}</span><span class="spacer"></span>
-          ${["energy", "confidence", "in_control", "load"].filter((k) => e[k]).map((k) => `<span class="quiet">${k.replace("_", " ")} ${e[k]}</span>`).join("")}${(e.tags || []).length ? BA.chips(e.tags) : ""}</summary>${BA.md(e.entry || "")}
+          ${e.guide_slug ? `<a class="pill" href="#/coaching/${esc(e.guide_slug)}">guide</a>` : ""}${["energy", "confidence", "in_control", "load"].filter((k) => e[k]).map((k) => `<span class="quiet">${k.replace("_", " ")} ${e[k]}</span>`).join("")}${(e.tags || []).length ? BA.chips(e.tags) : ""}</summary>${BA.md(e.entry || "")}
           <div class="actions"><button class="btn danger" type="button" data-del>Delete</button></div></details>`).join("") || '<p class="quiet">Nothing yet.</p>'}</section>`;
     const form = main.querySelector("#add-reflection");
     main.querySelectorAll("[data-prompt]").forEach((b) => (b.onclick = () => { form.elements.prompt.value = b.dataset.prompt; form.elements.entry.focus(); }));
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      await BA.api("/api/reflections", { method: "POST", body: { date: fd.get("date"), prompt: fd.get("prompt") || null, entry: fd.get("entry"), energy: numOrNull(fd.get("energy")), confidence: numOrNull(fd.get("confidence")), in_control: numOrNull(fd.get("in_control")), load: numOrNull(fd.get("load")), tags: asLines((fd.get("tags") || "").replace(/,/g, "\n")) } });
+      await BA.api("/api/reflections", { method: "POST", body: { date: fd.get("date"), prompt: fd.get("prompt") || null, entry: fd.get("entry"), energy: numOrNull(fd.get("energy")), confidence: numOrNull(fd.get("confidence")), in_control: numOrNull(fd.get("in_control")), load: numOrNull(fd.get("load")), guide_slug: fd.get("guide_slug") || null, tags: asLines((fd.get("tags") || "").replace(/,/g, "\n")) } });
       BA.toast("Saved.");
       BA.rerender();
     });

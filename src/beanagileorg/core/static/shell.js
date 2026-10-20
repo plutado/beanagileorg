@@ -261,7 +261,8 @@
     const { tips, guide_base } = await loadTips();
     if (main.querySelector(":scope > .coach-tip")) return;
     const list = tips[key] || [];
-    if (!list.length || hashPath(location.hash) !== key && location.hash) return;
+    const base = key.endsWith("/*") ? key.slice(0, -2) : key, here = hashPath(location.hash);
+    if (!list.length || (key.endsWith("/*") ? !here.startsWith(base + "/") : here !== key && location.hash)) return;
     const i = (BA.coachIndex[key] || 0) % list.length;
     const tip = list[i];
     const external = !guide_base.startsWith("#");
@@ -546,6 +547,8 @@
       if (!param && token === routeToken) {
         await showCoachTip(main, key);
         await showIntro(main, key);
+      } else if (/^\d+$/.test(param) && token === routeToken) {
+        await showCoachTip(main, `${key}/*`);  // detail pages carry their own tips, at the moment they help
       }
       void main.offsetWidth;
       main.classList.add("entering");
