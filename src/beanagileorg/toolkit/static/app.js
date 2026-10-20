@@ -2020,7 +2020,9 @@
   BA.view("/roadmap", {
     title: "Roadmap",
     async render(main, param) {
-      const [items, settings, people] = await Promise.all([BA.api("/api/roadmap"), BA.api("/api/toolkit/settings"), BA.api("/api/people")]);
+      const [items, settings, people, mandatesAll, mItems] = await Promise.all([BA.api("/api/roadmap"), BA.api("/api/toolkit/settings"), BA.api("/api/people"), BA.api("/api/mandates"), BA.api("/api/mandate-items")]);
+      const myMandate = (mandatesAll || []).find((m) => m.mine);
+      const outcomes = myMandate ? (mItems || []).filter((x) => x.mandate_id === myMandate.id && x.kind === "outcome") : [];
       if (!items.length) {
         main.innerHTML = starterButton("roadmap");
         wireStarter(main);
@@ -2034,7 +2036,7 @@
         <div class="tablewrap"><table class="data" id="rm-table"><thead><tr>${presenting() ? "" : "<th></th>"}<th>Item</th><th>Kind</th><th>Target</th><th>Status</th><th>Owner</th>${presenting() ? "" : "<th></th>"}</tr></thead><tbody>${items
           .map((i) => presenting()
             ? `<tr><td><b>${esc(i.title)}</b> ${BA.issueKeys(i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td><td>${dayDateOf(settings.start_date, i.target_day)}</td><td>${BA.statusPill(i.status)}</td><td>${esc(i.owner_name || "")}</td></tr>`
-            : `<tr data-id="${i.id}" data-day="${i.target_day ?? ""}" draggable="true"><td class="drag-handle" title="Drag to reorder" style="cursor:grab;color:var(--muted);user-select:none">⠿</td><td><b>${esc(i.title)}</b> ${BA.keysEditor(`/api/roadmap/${i.id}`, i.jira_keys)}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
+            : `<tr data-id="${i.id}" data-day="${i.target_day ?? ""}" draggable="true"><td class="drag-handle" title="Drag to reorder" style="cursor:grab;color:var(--muted);user-select:none">⠿</td><td><b>${esc(i.title)}</b> ${BA.keysEditor(`/api/roadmap/${i.id}`, i.jira_keys)}${outcomes.length ? `<select name="serves_id" title="Which mandate outcome this serves" style="max-width:220px;margin-left:6px"><option value="">Serves no outcome</option>${outcomes.map((o) => `<option value="${o.id}"${o.id === i.serves_id ? " selected" : ""}>Serves: ${esc(o.text.slice(0, 60))}</option>`).join("")}</select>` : ""}<div class="quiet">${esc(i.description || "")}</div></td><td>${esc(i.kind)}</td>
               <td><input type="number" name="target_day" value="${esc(i.target_day ?? "")}" style="max-width:90px"> <span class="quiet">${dayDateOf(settings.start_date, i.target_day).replace(/^Day \d+ · /, "")}</span></td>
               <td><select name="status">${ROADMAP_STATUS.map((s) => `<option${s === i.status ? " selected" : ""}>${s}</option>`).join("")}</select></td>
               <td><select name="owner_id">${personOptions(people, i.owner_id)}</select></td><td><button class="btn danger" data-del="${i.id}">Delete</button></td></tr>`)
@@ -2105,13 +2107,15 @@
           : `<td class="raci-cell"><select data-cell="${dec.id}" data-role="${esc(role)}"><option value=""></option>${["R", "A", "C", "I"].map((l) => `<option${dec.cells[role] === l ? " selected" : ""}>${l}</option>`).join("")}</select></td>`;
       main.innerHTML = `<p class="quiet">R does the work. A makes the final call, exactly one per row. C is asked before. I is told after. A blank cell means you haven\'t found out yet.</p>
         <div class="tablewrap"><table class="data raci"><thead><tr><th>Decision</th>${d.roles.map((r) => `<th>${esc(r)}</th>`).join("")}<th>Status</th></tr></thead><tbody>${d.decisions
-          .map((dec) => `<tr><td><b>${esc(dec.decision)}</b>${aCount(dec) === 1 ? "" : ` <span class="pill ${aCount(dec) ? "bad" : "warn"}">${aCount(dec) ? "more than one A" : "no A yet"}</span>`}</td>
+          .map((dec) => `<tr><td><b>${esc(dec.decision)}</b>${aCount(dec) === 1 ? "" : ` <span class="pill ${aCount(dec) ? "bad" : "warn"}">${aCount(dec) ? "more than one A" : "no A yet"}</span>`}${(dec.stages || []).length ? `<div class="quiet">Governs SDLC stage: ${dec.stages.map(esc).join(", ")}</div>` : ""}</td>
             ${d.roles.map((r) => cell(dec, r)).join("")}
             <td>${presenting() ? esc(dec.status) : `<select data-status="${dec.id}">${["to confirm", "confirmed", "changed"].map((s) => `<option${s === dec.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</td></tr>`)
           .join("")}</tbody></table></div>
         ${presenting() ? "" : `<section class="card" style="margin-top:16px"><form id="add" class="row"><input name="decision" placeholder="New decision" required style="max-width:320px"><button class="btn primary" type="submit">Add decision</button></form>
           <form id="roles" class="row" style="margin-top:10px"><input name="roles" value="${esc(d.roles.join(", "))}"><button class="btn" type="submit">Save roles</button></form>
-          <p class="quiet">Roles are generic on purpose; rename them to fit the organization.</p></section>`}`;
+          <p class="quiet">Roles are generic on purpose; rename them to fit the organization.</p></section>`}
+        ${(d.mandate_rights || []).length ? `<section class="card"><div class="row"><h2>Decision rights in my mandate</h2><span class="spacer"></span><a class="btn" href="#/first90/mandates">Open the mandate</a></div><p class="quiet">What you proposed or agreed you can decide. Where it differs from the RACI above, one of them needs updating.</p>
+          ${d.mandate_rights.map((r) => `<div class="item"><span>${esc(r.text)}</span><span class="spacer"></span>${tonePill(r.authority || "to clarify", AUTH_TONES)}</div>`).join("")}</section>` : ""}`;
       main.querySelectorAll("[data-cell]").forEach((sel) => (sel.onchange = BA.guard(async () => {
         await BA.api(`/api/raci/${sel.dataset.cell}/cell`, { method: "PUT", body: { role: sel.dataset.role, letter: sel.value || null } });
         BA.rerender();
@@ -3059,7 +3063,17 @@
           ${pg.processes.map((x) => `<p><b>${esc(x.key[0].toUpperCase() + x.key.slice(1))}.</b> ${esc(x.what)}</p>`).join("")}
           <form id="dp-suggest"><p class="quiet">Answer what applies to the decision in front of you.</p>${pg.questions.map((q) => `<label class="check"><input type="checkbox" name="${q.key}"> ${esc(q.question)}</label>`).join("")}
             ${pg.situations.length ? `<p class="quiet">Your situations (${pg.situations.map(esc).join(", ")}) are weighed in too.</p>` : ""}<div class="actions"><button class="btn" type="submit">Suggest a process</button></div></form><div id="dp-result"></div>
-          <p class="callout">${esc(pg.fair)}</p><p class="quiet">${esc(pg.charade)} ${esc(pg.switch)} ${esc(pg.time)}</p></details></section>`;
+          <p class="callout">${esc(pg.fair)}</p><p class="quiet">${esc(pg.charade)} ${esc(pg.switch)} ${esc(pg.time)}</p></details></section>
+        <section class="card"><div class="row"><h2>Decision log</h2><span class="spacer"></span><select id="dl-kind" style="max-width:180px"><option value="">Every kind</option></select></div>
+          <p class="quiet">Every decision recorded anywhere in the toolkit, newest first: decisions needed, architecture, tech debt, change requests, releases, team changes and mandates. Who decided, how, and what.</p><div id="dl-list"></div></section>`;
+      const dl = async (kind = "") => {
+        const r = await BA.api(`/api/decision-log${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`);
+        const sel = main.querySelector("#dl-kind");
+        if (sel.options.length === 1) r.kinds.forEach((k) => sel.add(new Option(k, k)));
+        main.querySelector("#dl-list").innerHTML = r.decisions.slice(0, 60).map((x) => `<div class="item"><span class="quiet" style="min-width:90px">${x.date ? BA.fmtDate(x.date) : "–"}</span><span class="pill">${esc(x.kind)}</span><a href="#${x.path}"><b>${esc(x.title)}</b></a><span>${esc(x.decision || "")}</span><span class="spacer"></span><span class="quiet">${[x.who, x.how].filter(Boolean).map(esc).join(" · ")}</span></div>`).join("") || '<p class="quiet">Nothing decided yet.</p>';
+      };
+      dl();
+      main.querySelector("#dl-kind").onchange = (e) => dl(e.target.value);
       const num = (v) => (v ? Number(v) : null);
       main.querySelectorAll("tr[data-risk]").forEach((tr) => (tr.onchange = BA.guard(async (e) => {
         await BA.api(`/api/risks/${tr.dataset.risk}`, { method: "PATCH", body: { [e.target.name]: e.target.value } });
@@ -5178,7 +5192,7 @@
       if (param === "environments") return renderEnvs(main, d, ro, starterCard, bindStarter);
       if (param === "policies") return renderPolicies(main, d, ro, starterCard, bindStarter);
       if (param === "history") return renderSdlcHistory(main, d, ro);
-      const systems = await BA.api("/api/systems");
+      const [systems, raci] = await Promise.all([BA.api("/api/systems"), BA.api("/api/raci")]);
       const stage = (s, i) => `<section class="card sdlc-stage" id="stage-${s.id}" data-stage="${s.id}">
           <div class="row"><span class="stage-n">${i + 1}</span><h2>${esc(s.name)}</h2><span class="spacer"></span>${s.duration ? `<span class="quiet">${esc(s.duration)}</span>` : ""}
             ${ro ? "" : `<button class="icon-btn" title="Move earlier" data-move="up"${i === 0 ? " disabled" : ""}>${BA.icon("arrow-up")}</button><button class="icon-btn" title="Move later" data-move="down"${i === d.stages.length - 1 ? " disabled" : ""}>${BA.icon("arrow-down")}</button>`}</div>
@@ -5198,6 +5212,7 @@
               <label>Done when <span class="quiet">(one per line)</span><textarea name="exit_criteria" rows="4">${esc(s.exit_criteria.join("\n"))}</textarea></label></div>
             <label>What happens<textarea name="activities">${esc(s.activities || "")}</textarea></label>
             <label>Tools</label><div class="case-picks">${systems.map((x) => `<label class="check"><input type="checkbox" name="system_ids" value="${x.id}"${s.system_ids.includes(x.id) ? " checked" : ""}> ${esc(x.name)}</label>`).join("") || '<span class="quiet">Add systems and tools under Architecture first.</span>'}</div>
+            <label>Decisions that govern it <span class="quiet">(from the RACI)</span></label><div class="case-picks">${(raci.decisions || []).map((x) => `<label class="check"><input type="checkbox" name="raci_ids" value="${x.id}"${(s.raci_ids || []).includes(x.id) ? " checked" : ""}> ${esc(x.decision)}</label>`).join("") || '<span class="quiet">No RACI decisions yet.</span>'}</div>
             <label>Private notes<textarea name="notes">${esc(s.notes || "")}</textarea></label>
             <div class="actions"><button class="btn danger left" type="button" data-del>Delete stage</button>${BA.historyButton("sdlc_stage", s.id)}<button class="btn primary" type="submit">Save</button></div></form></details>`}</section>`;
       main.innerHTML = `${sdlcTabs("")}${starterCard}
@@ -5221,7 +5236,7 @@
           const f = new FormData(form);
           await BA.api(`/api/sdlc-stages/${id}`, { method: "PATCH", body: { name: f.get("name"), duration: f.get("duration"), roles: f.get("roles"), artifacts: f.get("artifacts"), environment: f.get("environment"),
             links: f.get("links"), purpose: f.get("purpose"), entry_criteria: lines(f.get("entry_criteria")), exit_criteria: lines(f.get("exit_criteria")), activities: f.get("activities"),
-            system_ids: f.getAll("system_ids").map(Number), notes: f.get("notes") } });
+            system_ids: f.getAll("system_ids").map(Number), raci_ids: f.getAll("raci_ids").map(Number), notes: f.get("notes") } });
           BA.rerender();
         });
         sec.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this stage?")) return; await BA.api(`/api/sdlc-stages/${id}`, { method: "DELETE" }); BA.rerender(); });
@@ -5284,21 +5299,32 @@
     main.querySelector("#add-policy").onsubmit = BA.guard(async (e) => { e.preventDefault(); const f = new FormData(e.target); await BA.api("/api/sdlc-policies", { method: "POST", body: { title: f.get("title"), category: f.get("category") } }); BA.rerender(); });
     main.querySelectorAll("[data-policy]").forEach((det) => {
       const id = det.dataset.policy, form = det.querySelector("form");
-      form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api(`/api/sdlc-policies/${id}`, { method: "PATCH", body: read(form) }); BA.rerender(); });
+      form.onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const before = (d.policies.find((x) => String(x.id) === String(id)) || {}).status, body = read(form);
+        await BA.api(`/api/sdlc-policies/${id}`, { method: "PATCH", body });
+        if (body.status === "agreed" && before !== "agreed") { await BA.api("/api/sdlc/versions", { method: "POST", body: { reason: `Policy agreed: ${body.title}` } }); BA.toast("Agreed. A version of the SDLC document was kept."); }
+        BA.rerender();
+      });
       det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this policy? Marking it retired keeps the record.")) return; await BA.api(`/api/sdlc-policies/${id}`, { method: "DELETE" }); BA.rerender(); });
     });
   }
 
   async function renderSdlcHistory(main, d, ro) {
-    const doc = await BA.api("/api/sdlc/document");
+    const [doc, versions] = await Promise.all([BA.api("/api/sdlc/document"), BA.api("/api/sdlc-versions")]);
     const label = { sdlc_stage: "stage", sdlc_environment: "environment", sdlc_policy: "policy" };
     main.innerHTML = `${sdlcTabs("history")}
       <section class="card"><div class="row"><h2>Share it</h2><span class="spacer"></span>${ro ? "" : `<button class="btn primary" id="copy-sdlc">${BA.icon("copy")} Copy as Markdown</button>`}</div>
         <p class="quiet">The whole SDLC as one document, without private notes: for the team wiki, a new member, or leadership. New members get a link to it in their onboarding checklist.</p>
         <details><summary>Preview</summary><div class="msg-preview">${BA.md(doc.markdown)}</div></details></section>
+      <section class="card"><div class="row"><h2>Versions</h2><span class="spacer"></span>${ro ? "" : '<button class="btn" type="button" id="keep-sdlc">Keep a version</button>'}</div>
+        <p class="quiet">The document as it stood at each point. One is kept automatically whenever a policy is agreed.</p>
+        ${versions.map((v) => `<details class="plan-item"><summary><span class="quiet">${BA.fmtDate(v.taken_on)}</span><span>${esc(v.reason || "Version")}</span></summary><div class="msg-preview">${BA.md(v.markdown)}</div></details>`).join("") || '<p class="quiet">No versions yet.</p>'}</section>
       ${d.history ? `<section class="card"><h2>Recent changes</h2><div class="tablewrap"><table class="data"><thead><tr><th>When</th><th>What</th><th>Field</th><th>By</th></tr></thead><tbody>${
         d.history.map((h) => `<tr><td>${esc(h.at)}</td><td>${label[h.entity] || esc(h.entity)} ${esc(h.record_id)}</td><td>${esc(h.field)}</td><td>${esc(h.source)}</td></tr>`).join("") || '<tr><td colspan="4" class="empty">No changes yet.</td></tr>'
       }</tbody></table></div></section>` : ""}`;
+    const keep = main.querySelector("#keep-sdlc");
+    if (keep) keep.onclick = BA.guard(async () => { const reason = prompt("Why keep this version?", "[Reason]"); if (reason === null) return; const r = await BA.api("/api/sdlc/versions", { method: "POST", body: { reason } }); BA.toast(r.unchanged ? "Nothing has changed since the last version." : "Version kept."); BA.rerender(); });
     const copy = main.querySelector("#copy-sdlc");
     if (copy) copy.onclick = BA.guard(async () => {
       const out = await BA.api("/api/sdlc/document/export", { method: "POST", body: {} });
@@ -7028,18 +7054,38 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       <section class="card"><h2>What success looks like</h2><p class="quiet">The outcomes expected, how you'll know, and roughly by when (day of your first 90).</p>
         ${m.outcomes.map((o) => `<div class="item mandate-row" data-item="${o.id}">${ro ? `<span>${esc(o.text)}</span><span class="quiet">${esc(o.measure || "")}</span><span class="spacer"></span>${tonePill(o.status, M_TONES)}` :
           `<input name="text" value="${esc(o.text)}" style="flex:2;min-width:200px"><input name="measure" value="${esc(o.measure || "")}" placeholder="How we'll know" style="flex:1.4;min-width:150px">
-           <input name="due_day" type="number" min="1" value="${esc(o.due_day ?? "")}" placeholder="Day" style="width:76px" title="${o.due ? BA.fmtDate(o.due) : "Day of your first 90"}"><select name="status" style="max-width:120px">${opts(M_STATUS, o.status)}</select><button class="icon-btn" data-del title="Remove">${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">None yet.</p>'}
+           <input name="due_day" type="number" min="1" value="${esc(o.due_day ?? "")}" placeholder="Day" style="width:76px" title="${o.due ? BA.fmtDate(o.due) : "Day of your first 90"}"><select name="status" style="max-width:120px">${opts(M_STATUS, o.status)}</select><button class="icon-btn" data-del title="Remove">${BA.icon("x")}</button>`}</div>${(o.served_by || []).length ? `<div class="quiet" style="margin:-4px 0 8px 12px">Served by: ${o.served_by.map((x) => `<a href="#${x.path}">${esc(x.title)}</a> <span class="pill">${esc(x.status)}</span>`).join(" · ")}</div>` : ""}`).join("") || '<p class="quiet">None yet.</p>'}
         ${ro ? "" : `<form id="add-outcome" class="row" style="margin-top:8px"><input name="text" required placeholder="An outcome, such as: Scrum running where it's missing" style="flex:1;min-width:240px"><button class="btn" type="submit">Add</button>
           ${m.mine ? '<button class="btn" type="button" id="from-brief">Add from my Role brief</button>' : ""}</form>`}</section>
       <section class="card"><h2>Decisions</h2><p class="quiet">For each area: can ${m.mine ? "you" : "they"} decide alone, decide and then inform, only recommend, or just be consulted? "To clarify" means it hasn't been discussed yet.</p>
         ${m.decisions.map((dd) => `<div class="item mandate-row" data-item="${dd.id}">${ro ? `<span>${esc(dd.text)}</span><span class="spacer"></span>${tonePill(dd.authority || "to clarify", AUTH_TONES)}` :
           `<input name="text" value="${esc(dd.text)}" style="flex:2;min-width:200px"><select name="authority" style="max-width:260px">${opts(AUTHORITY, dd.authority || "to clarify")}</select><button class="icon-btn" data-del title="Remove">${BA.icon("x")}</button>`}</div>`).join("") || '<p class="quiet">None yet.</p>'}
         ${ro ? "" : '<form id="add-decision" class="row" style="margin-top:8px"><input name="text" required placeholder="A decision area" style="flex:1;min-width:240px"><button class="btn" type="submit">Add</button></form>'}</section>
+      <section class="card" id="m-versions"><div class="row"><h2>Versions</h2><span class="spacer"></span>${ro ? "" : '<button class="btn" type="button" id="m-snap">Keep a snapshot</button>'}</div>
+        <p class="quiet">A snapshot is kept when the mandate is agreed; keep others at day 30 and day 90, then compare what was agreed with what stands now. Link plan items and roadmap items to an outcome (on their own forms) and they show above as what serves it.</p>
+        <div id="m-vlist"></div><div id="m-diff"></div></section>
       <section class="card"><form id="m-more">${textBlock("boundaries", "Boundaries", "(what's out of scope, or needs sign-off)")}${textBlock("resources", "Resources and support", "(people, budget, tools, help)")}
         ${textBlock("questions", "Proposals and open questions", m.mine ? "(what you'll recommend, and the few things only your manager can answer)" : "(what you'll propose to them, and what you need to hear from them)", 8)}${ro ? "" : `${textBlock("notes", "Private notes", "")}<div class="actions"><button class="btn primary" type="submit">Save</button></div>`}</form></section>
       ${m.mine && !ro ? `<details class="card"><summary><b>Import from a file</b></summary><p class="quiet">Fill this mandate from a JSON file with purpose, resources, boundaries, questions, outcomes and decisions. Anything already here is kept; nothing is added twice.</p>
         <input type="file" id="m-file" accept=".json,application/json"><textarea id="m-json" rows="5" class="mono"></textarea><div class="actions"><button class="btn primary" id="m-import">Import</button></div></details>` : ""}`;
+    const vlist = main.querySelector("#m-vlist");
+    const loadVersions = async () => {
+      const vs = await BA.api(`/api/mandates/${id}/versions`);
+      vlist.innerHTML = vs.length ? `<div class="row"><select id="m-va" style="max-width:240px">${vs.map((v) => `<option value="${v.id}">${esc(v.label)} (${BA.fmtDate(v.taken_on)})</option>`).join("")}</select><span>compared with</span>
+        <select id="m-vb" style="max-width:240px"><option value="">Now</option>${vs.map((v) => `<option value="${v.id}">${esc(v.label)} (${BA.fmtDate(v.taken_on)})</option>`).join("")}</select><button class="btn" type="button" id="m-cmp">Compare</button></div>` : '<p class="quiet">No snapshots yet.</p>';
+      const cmpBtn = vlist.querySelector("#m-cmp");
+      if (cmpBtn) cmpBtn.onclick = BA.guard(async () => {
+        const a = vlist.querySelector("#m-va").value, b = vlist.querySelector("#m-vb").value;
+        const r = await BA.api(`/api/mandates/${id}/compare?a=${a}${b ? `&b=${b}` : ""}`);
+        const line = (x) => `<li><span class="pill ${x.change === "added" ? "good" : x.change === "removed" ? "bad" : "warn"}">${x.change}</span> ${esc(x.text)}${x.fields ? ` <span class="quiet">${Object.entries(x.fields).map(([f, [o, n]]) => `${esc(f.replace("_", " "))}: ${esc(o ?? "–")} → ${esc(n ?? "–")}`).join("; ")}</span>` : ""}</li>`;
+        const none = !r.outcomes.length && !r.decisions.length && !r.sections.length;
+        main.querySelector("#m-diff").innerHTML = `<h3>${esc(r.before)} → ${esc(r.after)}</h3>${none ? '<p class="quiet">No changes.</p>' : ""}
+          ${r.sections.length ? `<p>Changed text: ${r.sections.map(esc).join(", ")}</p>` : ""}${r.outcomes.length ? `<p><b>Outcomes</b></p><ul>${r.outcomes.map(line).join("")}</ul>` : ""}${r.decisions.length ? `<p><b>Decisions</b></p><ul>${r.decisions.map(line).join("")}</ul>` : ""}`;
+      });
+    };
+    loadVersions();
     if (ro) return;
+    main.querySelector("#m-snap").onclick = BA.guard(async () => { const label = prompt("Name this snapshot", "Day 30"); if (label === null) return; await BA.api(`/api/mandates/${id}/versions`, { method: "POST", body: { label } }); BA.toast("Snapshot kept."); loadVersions(); });
     const patchItem = (row) => BA.guard(async () => {
       const body = {};
       row.querySelectorAll("input, select").forEach((el) => (body[el.name] = el.name === "due_day" ? numOrNull(el.value) : el.value || null));

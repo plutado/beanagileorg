@@ -131,7 +131,18 @@ def raci(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     decisions = models.raci_decisions.visible_all(models.raci_decisions.fetch_all(conn), viewer)
     for d in decisions:
         d["cells"] = cells.get(d["id"], {})
-    return {"roles": raci_roles(conn), "decisions": decisions}
+    rights = []
+    mine = next(iter(models.mandates.fetch_all(conn, "mine = 1")), None)
+    if mine:
+        rights = [{"text": i["text"], "authority": i.get("authority")} for i in models.mandate_items.visible_all(
+            models.mandate_items.fetch_all(conn, "mandate_id = ? AND kind = 'decision'", (mine["id"],)), viewer)]
+    stages = {}
+    for st in models.sdlc_stages.visible_all(models.sdlc_stages.fetch_all(conn), viewer):
+        for rid in st.get("raci_ids") or []:
+            stages.setdefault(rid, []).append(st["name"])
+    for d in decisions:
+        d["stages"] = stages.get(d["id"], [])
+    return {"roles": raci_roles(conn), "decisions": decisions, "mandate_rights": rights}
 
 
 @router.put("/api/raci/roles")

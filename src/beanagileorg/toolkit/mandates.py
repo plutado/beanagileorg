@@ -54,6 +54,14 @@ def _full(conn, m: dict, viewer: Viewer) -> dict:
         i["due"] = (start + timedelta(days=i["due_day"] - 1)).isoformat() if start and i.get("due_day") else None
     outcomes = [i for i in items if i["kind"] == "outcome"]
     decisions = [i for i in items if i["kind"] == "decision"]
+    if outcomes:
+        ids = [o["id"] for o in outcomes]
+        marks = ",".join("?" * len(ids))
+        plan = models.plan_items.visible_all(models.plan_items.fetch_all(conn, f"serves_id IN ({marks})", tuple(ids)), viewer)
+        road = models.roadmap_items.visible_all(models.roadmap_items.fetch_all(conn, f"serves_id IN ({marks})", tuple(ids)), viewer)
+        for o in outcomes:
+            o["served_by"] = [{"kind": "plan item", "title": p["title"], "status": p["status"], "path": "/plans"} for p in plan if p.get("serves_id") == o["id"]] + \
+                             [{"kind": "roadmap", "title": r["title"], "status": r["status"], "path": "/roadmap"} for r in road if r.get("serves_id") == o["id"]]
     return {**m, "outcomes": outcomes, "decisions": decisions,
             "to_clarify": sum(1 for d in decisions if d.get("authority") in (None, "to clarify")),
             "at_risk": sum(1 for o in outcomes if o["status"] == "at risk"), "done": sum(1 for o in outcomes if o["status"] == "done")}
@@ -135,7 +143,65 @@ def agree(mandate_id: int, body: dict = Body(default={}), viewer: Viewer = Depen
             who = row["manager_id"] if row else None
         else:
             who = me_id(conn)
-    return models.mandates.update(conn, mandate_id, {"status": "agreed", "agreed_on": on, "review_on": review, "agreed_with_id": who}, viewer.source)
+    out = models.mandates.update(conn, mandate_id, {"status": "agreed", "agreed_on": on, "review_on": review, "agreed_with_id": who}, viewer.source)
+    snapshot(conn, mandate_id, f"Agreed {on}", viewer)
+    return out
+
+
+def snapshot(conn, mandate_id: int, label: str, viewer: Viewer) -> dict:
+    """Keep the mandate as it stands, so what was agreed at one point can be compared with a later one."""
+    m = _full(conn, _get(conn, mandate_id), viewer)
+    keep = {k: m.get(k) for k in ("purpose", "boundaries", "resources", "questions", "status", "agreed_on")}
+    keep["outcomes"] = [{k: o.get(k) for k in ("id", "text", "measure", "due_day", "status")} for o in m["outcomes"]]
+    keep["decisions"] = [{k: d.get(k) for k in ("id", "text", "authority")} for d in m["decisions"]]
+    return models.mandate_versions.create(conn, {"mandate_id": mandate_id, "taken_on": today().isoformat(), "label": label[:80], "snapshot": keep}, viewer.source)
+
+
+@router.post("/api/mandates/{mandate_id}/versions", status_code=201)
+def take_version(mandate_id: int, body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    require_write(viewer)
+    return snapshot(conn, mandate_id, (body.get("label") or "").strip() or f"Snapshot {today().isoformat()}", viewer)
+
+
+@router.get("/api/mandates/{mandate_id}/versions")
+def versions(mandate_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    _get(conn, mandate_id)
+    return [{k: v[k] for k in ("id", "taken_on", "label")} for v in models.mandate_versions.fetch_all(conn, "mandate_id = ?", (mandate_id,))]
+
+
+@router.get("/api/mandates/{mandate_id}/compare")
+def compare(mandate_id: int, a: int, b: int | None = None, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """What changed between a snapshot and a later one (or the mandate as it stands now)."""
+    va = models.mandate_versions.fetch(conn, a)
+    if not va or va["mandate_id"] != mandate_id:
+        raise HTTPException(404, "No such snapshot of this mandate.")
+    if b:
+        vb = models.mandate_versions.fetch(conn, b)
+        if not vb or vb["mandate_id"] != mandate_id:
+            raise HTTPException(404, "No such snapshot of this mandate.")
+        after, after_label = vb["snapshot"], vb["label"]
+    else:
+        m = _full(conn, _get(conn, mandate_id), viewer)
+        after = {**{k: m.get(k) for k in ("purpose", "boundaries", "resources", "questions", "status")},
+                 "outcomes": [{k: o.get(k) for k in ("id", "text", "measure", "due_day", "status")} for o in m["outcomes"]],
+                 "decisions": [{k: d.get(k) for k in ("id", "text", "authority")} for d in m["decisions"]]}
+        after_label = "Now"
+    before = va["snapshot"]
+
+    def items(kind, fields):
+        old = {i["id"]: i for i in before.get(kind) or []}
+        new = {i["id"]: i for i in after.get(kind) or []}
+        out = [{"change": "added", "text": new[i]["text"]} for i in new if i not in old]
+        out += [{"change": "removed", "text": old[i]["text"]} for i in old if i not in new]
+        for i in old.keys() & new.keys():
+            diffs = {f: [old[i].get(f), new[i].get(f)] for f in fields if old[i].get(f) != new[i].get(f)}
+            if diffs:
+                out.append({"change": "changed", "text": new[i]["text"], "fields": diffs})
+        return out
+
+    return {"before": va["label"], "after": after_label,
+            "sections": [f for f in ("purpose", "boundaries", "resources", "questions") if (before.get(f) or "") != (after.get(f) or "")],
+            "outcomes": items("outcomes", ("text", "measure", "due_day", "status")), "decisions": items("decisions", ("text", "authority"))}
 
 
 @router.post("/api/mandates/mine/from-brief")

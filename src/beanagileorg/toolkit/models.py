@@ -2036,6 +2036,26 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        68,
+        """
+        ALTER TABLE roadmap_items ADD COLUMN serves_id INTEGER REFERENCES mandate_items (id) ON DELETE SET NULL;
+        ALTER TABLE sdlc_stages ADD COLUMN raci_ids TEXT;
+        CREATE TABLE mandate_versions (
+            id INTEGER PRIMARY KEY,
+            mandate_id INTEGER NOT NULL REFERENCES mandates (id) ON DELETE CASCADE,
+            taken_on DATE NOT NULL,
+            label TEXT NOT NULL,
+            snapshot TEXT NOT NULL
+        );
+        CREATE TABLE sdlc_versions (
+            id INTEGER PRIMARY KEY,
+            taken_on DATE NOT NULL,
+            reason TEXT,
+            markdown TEXT NOT NULL
+        );
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -2466,6 +2486,7 @@ roadmap_items = Record(
     path="/api/roadmap",
     order_by="target_day IS NULL, target_day, position, id",
     fields={
+        "serves_id": Field("int", S),
         "title": Field("text", E, required=True),
         "description": Field("text", E),
         "kind": Field("text", E, choices=ROADMAP_KINDS, default="milestone"),
@@ -3161,6 +3182,7 @@ sdlc_stages = Record(
     path="/api/sdlc-stages",
     order_by="position, id",
     fields={
+        "raci_ids": Field("ids", E),
         "name": Field("text", E, required=True),
         "position": Field("int", E, default=0),
         "purpose": Field("text", E),
@@ -4428,6 +4450,25 @@ career_entries = Record(
 )
 
 
+# Snapshots of a mandate (when agreed, at day 30, at day 90) and of the SDLC document when a policy is agreed.
+mandate_versions = Record(
+    entity="mandate_version",
+    table="mandate_versions",
+    path="/api/mandate-versions",
+    order_by="taken_on DESC, id DESC",
+    fields={"mandate_id": Field("int", S, required=True), "taken_on": Field("date", S, required=True), "label": Field("text", S, required=True),
+            "snapshot": Field("json", S, required=True)},
+)
+
+sdlc_versions = Record(
+    entity="sdlc_version",
+    table="sdlc_versions",
+    path="/api/sdlc-versions",
+    order_by="taken_on DESC, id DESC",
+    fields={"taken_on": Field("date", E, required=True), "reason": Field("text", E), "markdown": Field("text", E, required=True)},
+)
+
+
 RECORDS = [
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
@@ -4448,5 +4489,5 @@ RECORDS = [
     interactions, commitments, manager_notes, growth_goals,
     standards, standard_checks, trust_pulses, culture_observations, culture_reads, glossary_terms, preference_assessments, behavior_targets, team_agreements, work_log, reports, change_requests, team_changes, first90_milestones, mandates, mandate_items, learning_questions, situations, boss_conversations, mentoring_sessions, mentored_practices,
     core_challenge_checks, syndrome_checks, disciplines, day_reviews, support_profiles, support_checkins,
-    transition_units, open_seats, seat_candidates, career_entries,
+    transition_units, open_seats, seat_candidates, career_entries, mandate_versions, sdlc_versions,
 ]

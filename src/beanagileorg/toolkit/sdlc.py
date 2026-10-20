@@ -1,5 +1,7 @@
 """The SDLC: lifecycle stages with entry and exit criteria, environments and the promotion path, and policies."""
 
+from datetime import date
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from beanagileorg.core.app import get_conn, get_viewer
@@ -168,6 +170,18 @@ def build_document(conn) -> dict:
         for p in live:
             lines += [f"### {p['title']}" + (" (draft)" if p["status"] == "draft" else ""), "", p["body"] or "", ""]
     return {"title": "How we deliver: our SDLC", "markdown": "\n".join(lines).rstrip() + "\n"}
+
+
+@router.post("/api/sdlc/versions", status_code=201)
+def save_version(body: dict = Body(default={}), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Keep the SDLC document as it stands now, for example when a policy is agreed."""
+    require_write(viewer)
+    doc = build_document(conn)
+    last = models.sdlc_versions.fetch_all(conn)
+    if last and last[0]["markdown"].strip() == doc["markdown"].strip():
+        return {**last[0], "unchanged": True}
+    return models.sdlc_versions.create(conn, {"taken_on": date.today().isoformat(), "reason": (body.get("reason") or None) and str(body["reason"])[:200],
+                                              "markdown": doc["markdown"]}, viewer.source)
 
 
 @router.get("/api/sdlc/document")
