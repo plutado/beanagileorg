@@ -3616,7 +3616,8 @@
         d.commitments.map((c) => `<div class="item" data-cm="${c.id}"><span>${esc(c.commitment)}</span>${BA.keysEditor(`/api/retro-commitments/${c.id}`, c.jira_keys)}<span class="spacer"></span>
           ${ro ? `${esc(c.owner_name || "")} ${BA.fmtDate(c.due)} ${tonePill(c.status, COMMIT_TONES)}` : `<select name="owner_id" style="max-width:200px">${personOptions(people, c.owner_id)}</select>
           <input type="date" name="due" value="${esc(c.due || "")}" style="max-width:160px">
-          <select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>`}</div>`).join("") ||
+          <select name="status" style="max-width:140px">${COMMIT_STATUS.map((s) => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select>
+          <button class="btn" type="button" data-cm-backlog="${c.id}" title="Make it a ready backlog item for the next sprint">To backlog</button>`}</div>`).join("") ||
         '<p class="quiet">No commitments yet. Use "Commit" on a point, or add one here.</p>'
       }${ro ? "" : `<form id="add-cm" class="row" style="margin-top:10px"><input name="commitment" placeholder="We will…" required style="max-width:380px">
         <select name="owner_id" style="max-width:200px">${personOptions(people)}</select><input type="date" name="due" style="max-width:160px"><button class="btn primary" type="submit">Add commitment</button></form>`}</section>
@@ -3638,6 +3639,11 @@
     main.querySelectorAll("[data-carry]").forEach((row) => (row.onchange = BA.guard(async (e) => {
       await BA.api(`/api/retro-commitments/${row.dataset.carry}/review`, { method: "POST", body: { [e.target.name]: e.target.value, reviewed_in_id: id } });
       BA.toast("Recorded.");
+    })));
+    main.querySelectorAll("[data-cm-backlog]").forEach((b) => (b.onclick = BA.guard(async () => {
+      await BA.api(`/api/retro-commitments/${b.dataset.cmBacklog}/to-backlog`, { method: "POST" });
+      BA.toast("On the backlog as a ready item. Pull it into the next sprint.");
+      b.disabled = true;
     })));
     main.querySelectorAll("[data-cm]").forEach((row) => (row.onchange = BA.guard(async (e) => {
       const el = e.target;
@@ -5870,6 +5876,25 @@
     });
   }
 
+  // The sprint review as a working session: progress toward the goals, the done work to show, and feedback straight onto the backlog.
+  async function showReview(box, sprintId, ro) {
+    if (!box) return;
+    const r = await BA.api(`/api/sprint-planning/${sprintId}/review`);
+    const li = (i) => `<div class="item">${BA.issueKeys(i.jira_key)}<span>${esc(i.title)}</span><span class="spacer"></span>${ptsLabel(i)}</div>`;
+    box.innerHTML = `<section class="card"><h2>Sprint review</h2>
+      <p class="quiet">A working session with stakeholders, not a presentation${r.timebox ? ` (${esc(r.timebox.split(" for a")[0].toLowerCase())})` : ""}: look at what's done against the sprint goal${r.product_goal ? " and the product goal" : ""}, then decide together what to do next.</p>
+      <div class="grid2"><div><h3>Done and ready to show <span class="quiet">${r.done.length}</span></h3>${r.done.map(li).join("") || '<p class="quiet">Nothing finished yet.</p>'}</div>
+        <div><h3>Not done <span class="quiet">${r.not_done.length}</span></h3>${r.not_done.map(li).join("") || '<p class="quiet">Everything planned is done.</p>'}</div></div>
+      <h3>Feedback onto the backlog <span class="quiet">${r.feedback.length}</span></h3>
+      ${r.feedback.map((i) => `<div class="item"><span>${esc(i.title)}</span><span class="spacer"></span><a href="#/planning">${esc(i.status)}</a></div>`).join("") || '<p class="quiet">Each piece of feedback becomes a backlog item to refine, so the review adjusts the backlog.</p>'}
+      ${ro ? "" : `<form id="rv-fb" class="row"><input name="text" placeholder="What a stakeholder asked for or noticed" style="flex:1" required><input name="from" placeholder="Who (optional)" style="max-width:200px"><button class="btn" type="submit">Add to backlog</button></form>
+      <div class="actions"><button class="btn" id="rv-copy">${BA.icon("copy")} Copy agenda</button></div>`}</section>`;
+    const f = box.querySelector("#rv-fb");
+    if (f) f.onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(f); await BA.api(`/api/sprint-planning/${sprintId}/review/feedback`, { method: "POST", body: { text: fd.get("text"), from: fd.get("from") } }); BA.toast("Added to the backlog."); showReview(box, sprintId, ro); });
+    const cp = box.querySelector("#rv-copy");
+    if (cp) cp.onclick = BA.guard(async () => { await BA.shareText(r.markdown); BA.toast("Agenda copied."); });
+  }
+
   const planTabs = (active) => `<nav class="tabs">${[["", "Backlog"], ["plan", "Plan a sprint"], ["ready", "Definition of ready"]]
     .map(([k, label]) => `<a href="#/planning${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${label}</a>`).join("")}</nav>`;
   const readiness = (i) => (i.ready_total ? `<span class="pill ${i.ready_met === i.ready_total ? "good" : "warn"}" title="Definition of ready">${i.ready_met}/${i.ready_total} ready</span>` : "");
@@ -6016,6 +6041,7 @@
       <div class="row"><select id="sprint-pick" style="max-width:220px">${[...sprints].sort((a, b) => b.number - a.number).map((x) => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>Sprint ${x.number}${x.start_date ? " · " + BA.fmtDate(x.start_date) : ""}</option>`).join("")}</select>
         ${tonePill(plan.status, { planning: "warn", committed: "accent", closed: "good" })}<span class="quiet">${d.working_days ? `${d.working_days} working days` : "Set sprint dates in the sprint notebook"}</span><span class="spacer"></span>
         ${ro ? "" : `<button class="btn" id="copy-plan">${BA.icon("copy")} Copy plan</button>`}</div>
+      ${d.timeboxes ? `<p class="quiet">Timeboxes for a ${d.timeboxes.weeks}-week sprint: planning ${esc(d.timeboxes.planning.split(" for a")[0].replace(/^Up to/, "up to"))} · daily scrum 15 minutes · review ${esc(d.timeboxes.review.split(" for a")[0].replace(/^Up to/, "up to"))} · retrospective ${esc(d.timeboxes.retro.split(" for a")[0].replace(/^Up to/, "up to"))}. <a href="#/agile/scrum">Set the sprint length</a></p>` : ""}
       ${productGoalCard(d.product_goal, ro)}
       <section class="card"><h2>Sprint goal</h2>${ro || plan.status === "closed" ? `<p>${esc(s.goal || "Not set.")}</p>` : `<textarea id="goal" rows="2" placeholder="What will be true at the end of this sprint?">${esc(s.goal || "")}</textarea>`}</section>
       <div class="cards">
@@ -6028,7 +6054,7 @@
         <section class="card"><h2>Who's available</h2>${d.people.map((p) => `<div class="item"><span>${esc(p.name)}</span><span class="spacer"></span>${ro ? `<span class="quiet">${p.days ?? "?"} days</span>`
           : `<input type="number" min="0" data-avail="${p.person_id}" value="${esc(p.days ?? "")}" style="max-width:70px"><span class="quiet">days</span>`}</div>`).join("") || '<p class="quiet">No team members yet. Add people with the employee or contractor relationship.</p>'}</section>
       </div>
-      ${plan.status === "planning" ? "" : '<div id="burndown"></div>'}
+      ${plan.status === "planning" ? "" : '<div id="burndown"></div><div id="review"></div>'}
       <div class="plan-cols">
         <section class="card"><h2>In sprint ${s.number} <span class="quiet">${d.pulled.length}</span></h2>${d.pulled.map((i) => row(i, true)).join("") || '<p class="quiet">Nothing pulled in yet.</p>'}</section>
         ${plan.status === "closed" ? "" : `<section class="card"><h2>Ready on the backlog <span class="quiet">${d.ready.length}</span></h2>${d.ready.map((i) => row(i, false)).join("") || '<p class="quiet">No ready stories. <a href="#/planning">Refine the backlog</a>.</p>'}</section>`}
@@ -6038,6 +6064,7 @@
     main.querySelector("#sprint-pick").onchange = (e) => BA.go(`/planning/${e.target.value}`);
     wireProductGoal(main);
     showBurndown(main.querySelector("#burndown"), s.id);
+    showReview(main.querySelector("#review"), s.id, ro);
     if (ro) return;
     const goal = main.querySelector("#goal");
     if (goal) goal.onchange = BA.guard(async () => { await BA.api(`/api/sprints/${s.id}`, { method: "PATCH", body: { goal: goal.value } }); BA.toast("Goal saved."); });

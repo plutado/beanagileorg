@@ -81,6 +81,23 @@ def commit_from_item(item_id: int, body: dict = Body(default={}), viewer: Viewer
     return models.retro_commitments.create(conn, data, viewer.source)
 
 
+@router.post("/api/retro-commitments/{commitment_id}/to-backlog", status_code=201)
+def commitment_to_backlog(commitment_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """The Scrum Guide lets the most helpful improvement go into the next Sprint Backlog: make it a ready backlog item."""
+    require_write(viewer)
+    c = models.retro_commitments.fetch(conn, commitment_id)
+    if c is None:
+        raise HTTPException(404, "No commitment with that id.")
+    marker = f"retro commitment {commitment_id}"
+    if any(marker in (i.get("labels") or []) for i in models.backlog_items.fetch_all(conn)):
+        raise HTTPException(409, "That improvement is already on the backlog.")
+    rank = conn.execute("SELECT COALESCE(MAX(rank), 0) + 1 FROM backlog_items").fetchone()[0]
+    return models.backlog_items.create(conn, {
+        "title": c["commitment"][:200], "item_type": "task", "status": "ready", "owner_id": c.get("owner_id"),
+        "description": "An improvement agreed at a retrospective.", "labels": ["retro improvement", marker],
+        "jira_key": (c.get("jira_keys") or [None])[0], "rank": rank, "added_on": date.today().isoformat()}, viewer.source)
+
+
 @router.post("/api/retro-commitments/{commitment_id}/review")
 def review_commitment(commitment_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """Record the outcome of an earlier commitment at a later retro."""

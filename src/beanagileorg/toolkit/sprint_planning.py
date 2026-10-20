@@ -229,6 +229,16 @@ def _velocity(conn, before_number: int, team_id: int | None) -> dict:
     return {"history": history, "average": round(sum(recent) / len(recent)) if recent else None}
 
 
+def _timeboxes(conn) -> dict:
+    """The Scrum Guide's limits for the events, scaled to the team's sprint length (set in the Agile reference)."""
+    from .agile import DEFAULT_SPRINT_WEEKS, SPRINT_WEEKS_KEY, timebox_for
+
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (SPRINT_WEEKS_KEY,)).fetchone()
+    weeks = int(row["value"]) if row else DEFAULT_SPRINT_WEEKS
+    return {"weeks": weeks, "planning": timebox_for("sprint-planning", weeks), "review": timebox_for("sprint-review", weeks),
+            "retro": timebox_for("retrospective", weeks), "daily": "15 minutes, every working day"}
+
+
 def build_plan(conn, sprint_id: int, viewer: Viewer) -> dict:
     s = _sprint_or_404(conn, sprint_id)
     plan = models.sprint_plans.visible(_plan(conn, sprint_id), viewer)
@@ -259,6 +269,7 @@ def build_plan(conn, sprint_id: int, viewer: Viewer) -> dict:
                      "unestimated": sum(1 for i in pulled if i.get("points") is None)},
         "pulled": pulled, "ready": ready, "carried": carried, "previous": dict(prev) if prev else None,
         "product_goal": product_goal(conn),
+        "timeboxes": _timeboxes(conn),
     }
 
 
@@ -422,6 +433,60 @@ def burndown(conn, sprint_id: int) -> dict:
 @router.get("/api/sprint-planning/{sprint_id}/burndown")
 def get_burndown(sprint_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     return burndown(conn, sprint_id)
+
+
+REVIEW_LABEL = "sprint review"
+
+
+def _review_feedback(conn, number: int) -> list[dict]:
+    tag = f"sprint {number}"
+    return [i for i in models.backlog_items.fetch_all(conn) if REVIEW_LABEL in (i.get("labels") or []) and tag in (i.get("labels") or [])]
+
+
+def build_review(conn, sprint_id: int, viewer: Viewer) -> dict:
+    """What the sprint review works from: progress toward the sprint and product goals, the done work to show,
+    what isn't done, and the feedback captured so far as new backlog items. A working session, not a presentation."""
+    s = _sprint_or_404(conn, sprint_id)
+    items = _decorate(conn, models.backlog_items.visible_all(models.backlog_items.fetch_all(conn, "sprint_id = ?", (sprint_id,)), viewer))
+    carried = _decorate(conn, models.backlog_items.visible_all(models.backlog_items.fetch_all(conn, "carried_from_id = ?", (sprint_id,)), viewer))
+    done = [i for i in items if i["status"] == "done"]
+    open_ = [i for i in items if i["status"] not in ("done", "removed")] + [i for i in carried if i["id"] not in {x["id"] for x in items}]
+    feedback = models.backlog_items.visible_all(_review_feedback(conn, s["number"]), viewer)
+    pg = product_goal(conn)["text"]
+    key = lambda i: f"{i['jira_key']} " if i.get("jira_key") else ""
+    lines = [f"# Sprint {s['number']} review", ""]
+    if pg:
+        lines += [f"**Product goal:** {pg}", ""]
+    lines += [f"**Sprint goal:** {s.get('goal') or '[Placeholder: sprint goal]'}", "",
+              f"## Done and ready to show ({sum(i.get('points') or 0 for i in done)} points)", ""]
+    lines += [f"- {key(i)}{i['title']}" for i in done] or ["- Nothing finished yet."]
+    lines += ["", "## Not done", ""] + ([f"- {key(i)}{i['title']}" for i in open_] or ["- Everything planned is done."])
+    lines += ["", "## Questions for the room", "", "- What did we learn about what users need?",
+              "- What has changed in the market, the timeline or the budget?", "- What should we do next to move toward the product goal?"]
+    if feedback:
+        lines += ["", "## Feedback captured", ""] + [f"- {i['title']}" for i in feedback]
+    return {"sprint": models.sprints.visible(s, viewer), "product_goal": pg, "done": done, "not_done": open_, "feedback": feedback,
+            "timebox": _timeboxes(conn)["review"], "markdown": "\n".join(lines) + "\n"}
+
+
+@router.get("/api/sprint-planning/{sprint_id}/review")
+def get_review(sprint_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    return build_review(conn, sprint_id, viewer)
+
+
+@router.post("/api/sprint-planning/{sprint_id}/review/feedback", status_code=201)
+def add_feedback(sprint_id: int, body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """Stakeholder feedback from the review becomes a backlog item to refine, so the review adjusts the backlog."""
+    require_write(viewer)
+    s = _sprint_or_404(conn, sprint_id)
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "Write the feedback first.")
+    who = (body.get("from") or "").strip()
+    rank = conn.execute("SELECT COALESCE(MAX(rank), 0) + 1 FROM backlog_items").fetchone()[0]
+    return models.backlog_items.create(conn, {
+        "title": text[:200], "description": f"From the sprint {s['number']} review" + (f", raised by {who}." if who else "."),
+        "labels": [REVIEW_LABEL, f"sprint {s['number']}"], "rank": rank, "added_on": _today()}, viewer.source)
 
 
 def build_summary(conn, sprint_id: int) -> dict:
