@@ -24,14 +24,16 @@ https://github.com/user-attachments/assets/f906cc07-34af-40fc-9b03-c959b42b93e9
 
 | | |
 | --- | --- |
-| ![Toolkit: PI planning](docs/images/toolkit-pi-planning.png) | ![Toolkit: weekly report](docs/images/toolkit-weekly-report.png) |
-| **PI planning**: the program board, with features by sprint, points and milestones | **Reports**: a weekly status drafted from what's logged, with a suggested overall status |
-| ![Toolkit: alliances](docs/images/toolkit-alliances.png) | ![Toolkit: 90-day cycles](docs/images/toolkit-cycles.png) |
-| **Alliances**: an influence diagram colored by stance, with the winning alliance | **90-day cycles**: a focus and goals for each cycle, lined up with the PI |
-| ![Toolkit: Agile reference](docs/images/toolkit-agile-reference.png) | ![Toolkit: timed link](docs/images/toolkit-timed-link.png) |
-| **Agile reference**: SAFe first, with how far each part is practiced | **Timed sharing**: a page shared through a link that expires and needs an access code |
-| ![Comms studio: deck builder](docs/images/comms-deck-builder.png) | ![Toolkit: sprint burndown](docs/images/toolkit-burndown.png) |
-| **Comms studio**: the reveal.js deck builder | **Sprint burndown**: points remaining against the ideal line, with scope changes, built from the change log |
+| ![Toolkit: PI planning](docs/images/toolkit-pi-planning.png) | ![Toolkit: Agile Release Train](docs/images/toolkit-art-backlog.png) |
+| **PI planning**: the program board, with features by sprint, points and milestones | **Agile Release Train**: the teams, PIs with predictability, and the ART backlog ranked by WSJF |
+| ![Toolkit: weekly report](docs/images/toolkit-weekly-report.png) | ![Toolkit: sprint burndown](docs/images/toolkit-burndown.png) |
+| **Reports**: a weekly status drafted from what's logged, with a suggested overall status | **Sprint burndown**: points remaining against the ideal line, with scope changes, built from the change log |
+| ![Toolkit: sprint review](docs/images/toolkit-sprint-review.png) | ![Toolkit: alliances](docs/images/toolkit-alliances.png) |
+| **Sprint review**: what's done to show, what isn't, and stakeholder feedback straight onto the backlog | **Alliances**: an influence diagram colored by stance, with the winning alliance |
+| ![Toolkit: 90-day cycles](docs/images/toolkit-cycles.png) | ![Toolkit: Agile reference](docs/images/toolkit-agile-reference.png) |
+| **90-day cycles**: a focus and goals for each cycle, following the PI calendar | **Agile reference**: SAFe first, with how far each part is practiced |
+| ![Toolkit: timed link](docs/images/toolkit-timed-link.png) | ![Comms studio: deck builder](docs/images/comms-deck-builder.png) |
+| **Timed sharing**: a page shared through a link that expires and needs an access code | **Comms studio**: the reveal.js deck builder |
 
 All screenshots use placeholder data (`scripts/demo_data.py`, captured with `scripts/screenshots.py`); every value in brackets is invented.
 

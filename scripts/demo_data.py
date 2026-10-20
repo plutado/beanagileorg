@@ -137,6 +137,7 @@ if DB:
     conn.commit()
     conn.close()
 api("POST", f"/api/sprint-planning/{sprints[1]}/close", {})
+api("PUT", "/api/planning/product-goal", {"text": "[Placeholder product goal]"})
 
 # ---- the sprint backlog beside Jira: refined, estimated, four stories pulled into the current sprint
 api("POST", "/api/backlog/paste", {"text": "\n".join(f"ABC-{120 + n} [Placeholder backlog story {n}] | {(3, 5, 2, 8, 3, 5, 3, 2)[n - 1]}" for n in range(1, 9))})
@@ -147,6 +148,9 @@ for k, item in enumerate(items):
         api("PATCH", f"/api/backlog-items/{item['id']}", {"status": "ready"})
     if k < 4:
         api("POST", f"/api/sprint-planning/{sprints[2]}/pull", {"item_id": item["id"]})
+
+# the Sprint 1 review's feedback, added after the backlog is refined so it waits to be refined itself
+api("POST", f"/api/sprint-planning/{sprints[1]}/review/feedback", {"text": "[Placeholder stakeholder request from the review]", "from": "[Name 4]"})
 
 # ---- the Agile Release Train: roles, the team, the PI, and an ART backlog scored by WSJF
 art = api("POST", "/api/arts", {"name": "[Placeholder train]", "mission": "[Placeholder train mission]", "rte_id": p(1),
