@@ -3196,7 +3196,14 @@
         const fwName = { scrum: "Scrum", practice: "Common practices", safe: "SAFe" };
         main.innerHTML = `${tabs}<section class="card"><h2>What the team practices today</h2><div class="tablewrap"><table class="data"><thead><tr><th></th>${d.statuses.map((s) => `<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>${Object.entries(d.coverage).map(([fw, c]) => `<tr><td><b>${fwName[fw]}</b></td>${d.statuses.map((s) => `<td>${c[s]}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
           <h3>Not yet or only partly practiced</h3>${d.entries.filter((e) => ["not yet", "partly"].includes(e.status)).map((e) => `<div class="item"><span class="pill ${AGILE_TONES[e.status]}">${esc(e.status)}</span><a href="#/agile${e.framework === "practice" ? "/practices" : e.framework === "scrum" ? "/scrum" : ""}">${esc(e.name)}</a></div>`).join("") || '<p class="quiet">Nothing outstanding in Scrum or the common practices.</p>'}
-          <p class="quiet">Mark anything your organization doesn't use "not used here".</p></section>`;
+          <p class="quiet">Mark anything your organization doesn't use "not used here".</p></section>
+          <div id="challenges"></div>`;
+        const ch = await BA.api("/api/agile/challenges");
+        const tone = { ok: "good", watch: "warn", unknown: "" }, word = { ok: "looks fine", watch: "worth a look", unknown: "not enough data" };
+        main.querySelector("#challenges").innerHTML = `<section class="card"><h2>Common challenges</h2>
+          <p class="quiet">Three problems that often slow Scrum down, checked against what's already recorded here.</p>
+          ${ch.map((c) => `<div class="plan-item"><div class="row"><b>${esc(c.title)}</b><span class="pill ${tone[c.status]}">${word[c.status]}</span><span class="spacer"></span><a href="${c.link}">Open</a></div>
+            <p>${esc(c.evidence)}</p><p class="quiet">${esc(c.practice)}</p></div>`).join("")}</section>`;
         return;
       }
       const fw = AGILE_FW[tab] || "safe";

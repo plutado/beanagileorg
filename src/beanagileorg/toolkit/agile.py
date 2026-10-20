@@ -518,3 +518,71 @@ def study_plan(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     have = {r["topic"] for r in conn.execute("SELECT topic FROM learning_sessions")}
     made = [models.learning_sessions.create(conn, {"topic": t}, viewer.source)["id"] for t in STUDY_SESSIONS if t not in have]
     return {"created": len(made)}
+
+
+# ---- common challenges: the three the course names, checked against what's already recorded ----
+
+
+def _challenge(key, title, status, evidence, practice, link):
+    return {"key": key, "title": title, "status": status, "evidence": evidence, "practice": practice, "link": link}
+
+
+def challenges(conn) -> list[dict]:
+    """Role ambiguity, scope creep and resistance to change, each with what the data shows and the practice that helps.
+    Counts only, so nothing private shows."""
+    from . import models
+    from .sprint_planning import _velocity, burndown
+
+    out = []
+    # Role ambiguity: every decision should have exactly one accountable role.
+    decisions = conn.execute("SELECT id, status FROM raci_decisions").fetchall()
+    accountable = {r["decision_id"]: r["n"] for r in conn.execute(
+        "SELECT decision_id, COUNT(*) AS n FROM raci_assignments WHERE letter = 'A' GROUP BY decision_id")}
+    if not decisions:
+        out.append(_challenge("roles", "Role ambiguity", "unknown", "No decisions mapped yet, so it's hard to see who decides what.",
+                              "Map the decisions that cause friction in the RACI, with one accountable role each, and confirm it with the team.", "#/raci"))
+    else:
+        unclear = sum(1 for d in decisions if accountable.get(d["id"], 0) != 1)
+        unconfirmed = sum(1 for d in decisions if d["status"] == "to confirm")
+        status = "watch" if unclear or unconfirmed > len(decisions) / 2 else "ok"
+        out.append(_challenge("roles", "Role ambiguity", status,
+                              f"{len(decisions)} decisions mapped; {unclear} without exactly one accountable role, {unconfirmed} still to confirm.",
+                              "Give every decision one accountable role, and confirm the map with the people in it.", "#/raci"))
+    # Scope creep: scope added during the latest sprint, work carried over, and how much is refined and ready.
+    sprint = conn.execute("SELECT s.id, s.number, s.team_id FROM sprint_plans p JOIN sprints s ON s.id = p.sprint_id "
+                          "WHERE p.status IN ('committed', 'closed') AND s.start_date IS NOT NULL ORDER BY s.number DESC LIMIT 1").fetchone()
+    ready = conn.execute("SELECT COALESCE(SUM(points), 0) AS pts FROM backlog_items WHERE sprint_id IS NULL AND status = 'ready'").fetchone()["pts"]
+    if sprint is None:
+        out.append(_challenge("scope", "Scope creep", "unknown", "No committed sprint yet to measure.",
+                              "Commit each sprint with a goal, and treat anything added mid-sprint as a conversation with the product owner.", "#/planning/plan"))
+    else:
+        b = burndown(conn, sprint["id"])
+        carried = conn.execute("SELECT COUNT(*) FROM backlog_items WHERE carried_from_id = ?", (sprint["id"],)).fetchone()[0]
+        vel = _velocity(conn, sprint["number"] + 1, sprint["team_id"])["average"]
+        added = b.get("scope_added", 0)
+        share = round(100 * added / b["start_scope"]) if b.get("start_scope") else 0
+        runway = round(ready / vel, 1) if vel else None
+        status = "watch" if share >= 15 or carried >= 2 or (runway is not None and runway < 1) else "ok"
+        bits = [f"Sprint {sprint['number']}: {added} points added after it started ({share}% of the starting scope), {carried} {'story' if carried == 1 else 'stories'} carried over"]
+        bits.append(f"{ready} points refined and ready, about {runway} sprints of work" if runway is not None else f"{ready} points refined and ready")
+        out.append(_challenge("scope", "Scope creep", status, "; ".join(bits) + ".",
+                              "Keep about two sprints of stories refined and ready, protect the sprint goal, and negotiate anything new with the product owner.", f"#/planning/{sprint['id']}"))
+    # Resistance to change: changes announced without a reason, and how many get dropped.
+    changes = conn.execute("SELECT status, why, how_we_try FROM team_changes").fetchall()
+    if not changes:
+        out.append(_challenge("change", "Resistance to change", "unknown", "No changes recorded yet.",
+                              "Bring each change in with its reason, try it for a set time, and review it with the team before keeping it.", "#/first90/changes"))
+    else:
+        active = [c for c in changes if c["status"] in ("announced", "trial", "review")]
+        no_reason = sum(1 for c in active if not (c["why"] or "").strip())
+        dropped = sum(1 for c in changes if c["status"] == "dropped")
+        status = "watch" if no_reason or dropped > len(changes) / 3 else "ok"
+        out.append(_challenge("change", "Resistance to change", status,
+                              f"{len(active)} changes in progress, {no_reason} without a stated reason; {dropped} of {len(changes)} dropped so far.",
+                              "Start small with one team, explain why before what, run changes as trials, and keep coaching and listening.", "#/first90/changes"))
+    return out
+
+
+@router.get("/api/agile/challenges")
+def get_challenges(viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    return challenges(conn)

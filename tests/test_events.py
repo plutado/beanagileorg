@@ -55,3 +55,15 @@ def test_invest_checks_join_the_definition_of_ready_once_and_enablers_are_a_type
     assert items[0] == "[Our own check]" and len(items) == 7 and items[1].startswith("Independent:")
     assert len(c.post("/api/planning/definition-of-ready/invest").json()["items"]) == 7
     assert c.post("/api/backlog-items", json={"title": "[Enabler]", "item_type": "enabler"}).json()["item_type"] == "enabler"
+
+
+def test_common_challenges_read_the_records(c):
+    ch = {x["key"]: x for x in c.get("/api/agile/challenges").json()}
+    assert {k: v["status"] for k, v in ch.items()} == {"roles": "unknown", "scope": "unknown", "change": "unknown"}
+    d = c.post("/api/raci-decisions", json={"decision": "[Release go/no-go]"}).json()["id"]
+    role = c.get("/api/raci").json()["roles"][0]
+    c.put(f"/api/raci/{d}/cell", json={"role": role, "letter": "R"})
+    c.post("/api/team-changes", json={"title": "[Change]", "status": "trial"})
+    ch = {x["key"]: x for x in c.get("/api/agile/challenges").json()}
+    assert ch["roles"]["status"] == "watch" and "1 without exactly one accountable role" in ch["roles"]["evidence"]
+    assert ch["change"]["status"] == "watch" and "1 without a stated reason" in ch["change"]["evidence"]

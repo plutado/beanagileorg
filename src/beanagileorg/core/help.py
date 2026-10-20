@@ -41,7 +41,8 @@ TOOLKIT = {
     },
     "/agile": {
         "purpose": "A reference to SAFe, the framework the toolkit is built around; Scrum, how each team inside it works (accountabilities, events, artifacts and commitments); and the practices teams commonly add, each with how it's done here and where the toolkit supports it.",
-        "steps": ["Read an entry: what it is, why it matters, its timebox, and a link to where the toolkit supports it.",
+        "steps": ["On Coverage, Common challenges checks role clarity, scope creep and how changes are landing, using what is already recorded.",
+                  "Read an entry: what it is, why it matters, its timebox, and a link to where the toolkit supports it.",
                   "Set how far the team practices it (not yet, partly, practiced, not used here) and write how you do it here.",
                   "Use Coverage to see the gaps, and bring them to a retro or your manager as proposals.",
                   "Under The Scrum Guide, import the official guide from scrumguides.org into your data (or paste it), read it by section, and plan four team reading sessions.",
