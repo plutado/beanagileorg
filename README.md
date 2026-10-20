@@ -48,7 +48,7 @@ How the toolkit maps onto the work of adopting Agile:
 
 ## Status
 
-Actively developed and used daily by the author. It works end to end and has a test suite that runs on every push, but it is young: the database schema may still change between versions (upgrades are applied automatically on start), and there are no tagged releases yet. Back up your data before pulling a new version (`beanagileorg backup all`).
+Actively developed. It works end to end and has a test suite that runs on every push, but it is young: the database schema may still change between versions (upgrades are applied automatically on start), and there are no tagged releases yet. Back up your data before pulling a new version (`beanagileorg backup all`).
 
 ## Quick start
 
