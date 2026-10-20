@@ -4,7 +4,15 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 
-**Be an Agile organization.** beanagileorg is a private, local toolkit for the people who bring Agile to software teams and keep it working: engineering managers, Scrum Masters and delivery leads. It is built around SAFe as the organization's framework, with each team working in Scrum as the Scrum Guide defines it, and around working in 90-day cycles of strategy and execution. It helps teams adopt practices one trial at a time, keeps the train planning together each PI, and keeps the people side (trust, one-on-ones, a new leader's first 90 days) beside the delivery side.
+**Be an Agile organization.** beanagileorg is a private, local-first workbench for an individual engineering manager: one place to run your team's delivery, look after your people and report upward, without stitching together documents, spreadsheets and chat. It assumes SAFe as the organization's framework, with each team working in Scrum, and plans your own work in 90-day cycles of strategy and execution, starting with the first 90 days in a new role.
+
+In a typical week it helps you:
+
+- **Start each day knowing what needs you.** Today lists overdue tasks and follow-ups, one-on-ones this week with a drafted agenda, releases due soon that aren't ready, reports due and milestones in your plan, and suggests coaching from what's happening.
+- **Run the team's rhythm.** Sprint planning against real capacity, ceremony notes, retros whose commitments are checked next time, PI planning with objectives and a program board, and an ART sync log with an owner and date on every cross-team item.
+- **Look after your people.** One-on-ones, growth paths, onboarding for new hires and a record of conversations, with judgments about people kept on your machine and never in anything you share.
+- **Report without extra meetings.** A weekly status draft built from what's already recorded, sprint and monthly reports, delivery metrics against outside benchmarks, and decks and updates from the Comms studio.
+- **See risks and decisions in one place.** Risks, go/no-go release calls, decisions and who made them, so nothing depends on memory.
 
 Two small web apps run on your own machine: a **Toolkit** for leading the team and its delivery (sprints, retros, the backlog, PI planning, the ART sync, people, plans and reports), and a **Comms studio** for the updates and decks that make progress visible. Everything is stored in a SQLite file on your disk, the apps listen on localhost only, and every field carries a privacy level, so you can share your screen in a meeting without exposing private notes. No account, no cloud service and no telemetry.
 
