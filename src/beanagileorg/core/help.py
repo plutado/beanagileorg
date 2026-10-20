@@ -345,8 +345,9 @@ TOOLKIT = {
         "related": ["/today", "/coaching"],
     },
     "/settings": {
-        "purpose": "Sign-in, API tokens, coaching tips, backups and the history of changes and exports.",
-        "steps": ["Turn on an authenticator for sign-in.", "Create a token with the least access it needs.", "Back up now, or check that nightly backups are passing."],
+        "purpose": "Sign-in, the Ask model, words that need a second look, API tokens, coaching tips, backups and the history of changes and exports.",
+        "steps": ["Turn on an authenticator for sign-in.", "Choose the Ask model. A cloud model can see private data only if you allow it, and judgments about people only if you allow that too.",
+                  "Add words your organization treats as sensitive; text that leaves the app is checked for them.", "Create a token with the least access it needs.", "Back up now, or check that nightly backups are passing."],
         "privacy": "Hidden while presenting.",
         "related": [],
     },

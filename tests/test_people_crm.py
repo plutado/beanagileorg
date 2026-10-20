@@ -97,7 +97,7 @@ def test_roster_import_and_placeholders(client):
         {"key": "b", "name": "[Contractor]", "relationship": "contractor", "reports_to": "me", "on_team": True},
         {"key": "c", "name": "Real Peer", "relationship": "peer"},
     ]}
-    r = client.post("/api/people/roster", json=roster).json()
+    r = client.post("/api/people/roster", json={**roster, "acknowledged": True}).json()
     assert len(r["created"]) == 5 and r["team_members"] == 2 and r["me"]
     again = client.post("/api/people/roster", json=roster).json()
     assert again["created"] == [] and len(again["reused"]) == 5

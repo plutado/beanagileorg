@@ -70,3 +70,39 @@ def test_roster_never_carries_support_notes(tmp_path):
     r = a.post("/api/people/roster/export", json={"scope": "everyone", "include_private": True, "acknowledged": True}).json()
     p = next(x for x in r["people"] if x["name"] == "[Person 1]")
     assert not {"support_notes", "stance", "motivations"} & set(p)
+
+
+def test_scan_endpoint_and_your_own_words(tmp_path):
+    a = make(tmp_path, "a")
+    a.post("/api/people", json={"name": "[Person 1]"})
+    text = "## Status\n\nShipped the [Release 1] fixes.\n\n- [Person 1] is a low performer\n- [Project Falcon] slipped a week"
+    r = a.post("/api/sensitivity/scan", json={"text": text}).json()
+    assert r["level"] == "warn" and {f["excerpt"] for f in r["findings"] if f["level"] == "warn"} == {"- [Person 1] is a low performer"}
+    # A name in one paragraph and a judgment word in another don't add up to a warning.
+    assert a.post("/api/sensitivity/scan", json={"text": "[Person 1] led the demo.\n\nThe vendor seems resistant."}).json()["level"] == "note"
+    saved = a.put("/api/sensitivity/terms", json={"terms": ["[Project Falcon]", "reorg*", " ", "reorg*"]}).json()
+    assert saved["terms"] == ["[Project Falcon]", "reorg*"] and "judgment" in saved["built_in"]
+    hits = [f for f in a.post("/api/sensitivity/scan", json={"text": "The reorganisation of [Project Falcon]"}).json()["findings"]]
+    assert {w for f in hits for w in f["words"]} == {"reorganisation", "[project falcon]"} and all(f["level"] == "warn" for f in hits)
+    assert a.put("/api/sensitivity/terms", json={"terms": "nope"}).status_code == 400
+
+
+def test_roster_import_asks_and_never_takes_judgment_fields(tmp_path):
+    a = make(tmp_path, "a")
+    roster = {"people": [{"key": "x", "name": "[Person 1]", "working_style": "[Style]", "support_notes": "[Support]", "stance": "skeptic"},
+                         {"key": "y", "name": "[Person 2]", "role": "[Role]"}]}
+    chk = a.post("/api/people/roster/check-import", json=roster).json()
+    assert [c["name"] for c in chk["checks"]] == ["[Person 1]"] and chk["never"] == ["stance", "support_notes"]
+    assert a.post("/api/people/roster", json=roster).status_code == 409
+    r = a.post("/api/people/roster", json={**roster, "drop_private": True}).json()
+    assert r["left_out"] == ["stance", "support_notes"]
+    p = next(x for x in a.get("/api/people").json() if x["name"] == "[Person 1]")
+    assert not p.get("working_style") and not p.get("support_notes") and not p.get("stance")
+
+
+def test_comms_drafts_get_an_about_people_check():
+    from beanagileorg.comms.checks import run_checks
+    from beanagileorg.core.sensitivity import compile_terms
+    res = {r["check"]: r for r in run_checks("Summary.\n\n[Person 1] can't be trusted.", people={"names": ["[Person 1]"], "custom": compile_terms([])})}
+    assert res["about_people"]["result"] == "warn" and not res["about_people"]["blocks"]
+    assert "about_people" not in {r["check"] for r in run_checks("Summary.")}

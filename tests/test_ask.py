@@ -127,3 +127,21 @@ def test_plain_search_returns_paths(setup):
     r = client.get("/api/ask/search", params={"q": "searchable", "limit": 30}).json()
     hit = next(x for x in r if x["entity"] == "person" and x["id"] == p["id"])
     assert hit["path"] == f"/people/{p['id']}"
+
+
+def test_cloud_with_private_data_still_holds_back_judgments_about_people(setup, monkeypatch):
+    c, _ = setup
+    c.post("/api/actions", json={"concern": "[Automate sandbox refreshes?]", "notes": "[Private sandbox note]"})
+    pid = c.post("/api/people", json={"name": "[Person 1]", "motivations": "[Sandbox motivations]", "role": "[Sandbox role]"}).json()["id"]
+    c.post("/api/interactions", json={"date": "2026-10-01", "person_ids": [pid], "title": "[Sandbox one-on-one]", "notes": "[Sandbox judgment]"})
+    fake = FakeModel()
+    monkeypatch.setattr(ask_mod, "_post_json", fake)
+    c.put("/api/ask/settings", json={"provider": "openai", "base_url": "https://api.example.com/v1", "model": "[cloud-model]", "allow_private_cloud": True})
+    r = c.post("/api/ask", json={"question": "sandbox?"}).json()
+    out = fake.seen[1][2]["messages"][-1]["content"]
+    assert r["floor"] == "private" and r["held_back"]
+    assert "Private sandbox note" in out and "Sandbox one-on-one" not in out and "Sandbox motivations" not in out
+    # Allowing judgments too lifts the hold.
+    c.put("/api/ask/settings", json={"allow_judgments_cloud": True})
+    r = c.post("/api/ask", json={"question": "sandbox?"}).json()
+    assert not r["held_back"] and "Sandbox one-on-one" in fake.seen[-1][2]["messages"][-1]["content"]

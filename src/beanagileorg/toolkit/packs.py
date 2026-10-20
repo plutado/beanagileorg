@@ -17,7 +17,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Level, Viewer
-from beanagileorg.core.sensitivity import JUDGMENT_TABLES, check_record, people_names
+from beanagileorg.core.sensitivity import JUDGMENT_TABLES, check_record, context
 
 from . import models
 from .routes import require_write, today
@@ -72,13 +72,14 @@ def _extra(key: str, values: dict) -> list:
 
 def pack_checks(conn, pack: dict) -> list[dict]:
     """Records in a pack that deserve a second look: wording that may judge a person or be personal information."""
-    names = people_names(conn)
+    ctx = context(conn)
+    names = ctx["names"]
     out = []
     for key, data in (pack.get("kinds") or {}).items():
         for rec in data.get("records") or []:
             people = list((rec.get("people") or {}).values())
             values = rec.get("values") or {}
-            found = check_record(values, sorted(set(names) | set(people), key=len, reverse=True), people, _extra(key, values))
+            found = check_record(values, sorted(set(names) | set(people), key=len, reverse=True), people, _extra(key, values), ctx["custom"])
             if found:
                 out.append({"kind": key, "uid": rec.get("uid"), "label": values.get(KINDS[key].natural) if key in KINDS else None, **found})
     return out

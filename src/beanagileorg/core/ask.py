@@ -33,10 +33,11 @@ from .app import get_conn, get_viewer, require_full
 from .export import log_export
 from .privacy import Level, Viewer
 from .records import REGISTRY
+from .sensitivity import JUDGMENT_TABLES, PERSON_NEVER
 
 SETTINGS_KEY = "ask.settings"
 SECRET_FILE = "ask-secret.json"
-DEFAULTS = {"provider": "openai", "base_url": "http://127.0.0.1:11434/v1", "model": "qwen3.6:35b-a3b", "allow_private_cloud": False, "max_rounds": 6,
+DEFAULTS = {"provider": "openai", "base_url": "http://127.0.0.1:11434/v1", "model": "qwen3.6:35b-a3b", "allow_private_cloud": False, "allow_judgments_cloud": False, "max_rounds": 6,
             "release_after": True}
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 MAX_TOOL_CHARS = 6000
@@ -84,6 +85,23 @@ def is_local(base_url: str) -> bool:
     return host in LOCAL_HOSTS or host.endswith(".localhost") or host.endswith(".local")
 
 
+def guarded(viewer: Viewer, s: dict) -> bool:
+    """Whether judgments about people must be held back: a cloud provider that may see private data, unless you also
+    allowed judgments. (Without private access a cloud provider never sees them anyway: they're all private.)"""
+    cloud = s["provider"] == "anthropic" or not is_local(s["base_url"])
+    return cloud and effective_floor(viewer, s) == Level.PRIVATE and not s.get("allow_judgments_cloud")
+
+
+def _held_back(record, guard: bool) -> bool:
+    return guard and record.table in JUDGMENT_TABLES
+
+
+def _strip(record, rows: list[dict], guard: bool) -> list[dict]:
+    if not guard or record.table != "people":
+        return rows
+    return [{k: v for k, v in r.items() if k not in PERSON_NEVER} for r in rows]
+
+
 def effective_floor(viewer: Viewer, s: dict) -> Level:
     floor = viewer.floor
     cloud = s["provider"] == "anthropic" or not is_local(s["base_url"])
@@ -91,6 +109,8 @@ def effective_floor(viewer: Viewer, s: dict) -> Level:
         floor = max(floor, Level.EXPORTABLE)
     return floor
 
+
+HELD_BACK = "Held back: judgments about people stay on this machine when the model is in the cloud."
 
 # ---- the search index over everything visible ----
 
@@ -116,35 +136,37 @@ def _title_of(rec: dict) -> str:
     return f"#{rec['id']}"
 
 
-def build_index(conn, floor: Level) -> sqlite3.Connection:
+def build_index(conn, floor: Level, guard: bool = False) -> sqlite3.Connection:
     """An in-memory full-text index of every record visible at this floor; rebuilt only when data changes."""
     stamp = conn.execute("SELECT COALESCE(MAX(id), 0) FROM change_log").fetchone()[0]
-    cached = _INDEX_CACHE.get(int(floor))
+    cached = _INDEX_CACHE.get((int(floor), guard))
     if cached and cached[0] == stamp and cached[2] == conn.execute("PRAGMA database_list").fetchone()["file"]:
         return cached[1]
     viewer = Viewer(floor=floor, source="ask")
     idx = sqlite3.connect(":memory:", check_same_thread=False)
     idx.execute("CREATE VIRTUAL TABLE docs USING fts5(entity UNINDEXED, rid UNINDEXED, title, body, tokenize='porter unicode61')")
     for entity, record in REGISTRY.items():
+        if _held_back(record, guard):
+            continue
         try:
-            rows = record.visible_all(record.fetch_all(conn), viewer)
+            rows = _strip(record, record.visible_all(record.fetch_all(conn), viewer), guard)
         except sqlite3.Error:
             continue
         for r in rows:
             body = _text_of(r)
             if body:
                 idx.execute("INSERT INTO docs VALUES (?, ?, ?, ?)", (entity, r["id"], _title_of(r), body))
-    _INDEX_CACHE[int(floor)] = (stamp, idx, conn.execute("PRAGMA database_list").fetchone()["file"])
+    _INDEX_CACHE[(int(floor), guard)] = (stamp, idx, conn.execute("PRAGMA database_list").fetchone()["file"])
     return idx
 
 
-def search(conn, floor: Level, query: str, limit: int = 8) -> list[dict]:
+def search(conn, floor: Level, query: str, limit: int = 8, guard: bool = False) -> list[dict]:
     with _INDEX_LOCK:
-        return _search(conn, floor, query, limit)
+        return _search(conn, floor, query, limit, guard)
 
 
-def _search(conn, floor: Level, query: str, limit: int) -> list[dict]:
-    idx = build_index(conn, floor)
+def _search(conn, floor: Level, query: str, limit: int, guard: bool = False) -> list[dict]:
+    idx = build_index(conn, floor, guard)
     terms = [t for t in re.findall(r"[\w'-]+", query.lower()) if len(t) > 1]
     if not terms:
         return []
@@ -174,35 +196,44 @@ def _clip(obj) -> str:
     return s if len(s) <= MAX_TOOL_CHARS else s[:MAX_TOOL_CHARS] + " …(cut)"
 
 
-def run_tool(app: AskApp, conn, floor: Level, name: str, args: dict) -> str:
+def run_tool(app: AskApp, conn, floor: Level, name: str, args: dict, guard: bool = False) -> str:
     viewer = Viewer(floor=floor, source="ask")
     try:
         if name == "search":
-            return _clip(search(conn, floor, str(args.get("query", "")), int(args.get("limit") or 8)))
+            return _clip(search(conn, floor, str(args.get("query", "")), int(args.get("limit") or 8), guard))
         if name == "get_record":
             rec = REGISTRY.get(str(args.get("entity")))
             if not rec:
                 return "Unknown entity."
+            if _held_back(rec, guard):
+                return HELD_BACK
             r = rec.fetch(conn, int(args.get("id") or 0))
             shown = rec.visible(r, viewer) if r else None
+            shown = _strip(rec, [shown], guard)[0] if shown else None
             return _clip(shown) if shown else "Not found, or not visible here."
         if name == "list_records":
             rec = REGISTRY.get(str(args.get("entity")))
             if not rec:
                 return "Unknown entity."
+            if _held_back(rec, guard):
+                return HELD_BACK
             rows = rec.fetch_all(conn, "status = ?", (args["status"],)) if args.get("status") and "status" in rec.fields else rec.fetch_all(conn)
-            return _clip(rec.visible_all(rows, viewer)[: max(1, min(int(args.get("limit") or 15), 40))])
+            return _clip(_strip(rec, rec.visible_all(rows, viewer), guard)[: max(1, min(int(args.get("limit") or 15), 40))])
         for t in app.extra_tools:
             if t["name"] == name:
-                return _clip(t["run"](conn, viewer, args))
+                # Summaries can't be filtered field by field, so a guarded cloud call gets them at the presentable level,
+                # where every judgment about people is already hidden.
+                return _clip(t["run"](conn, Viewer(floor=Level.PRESENTABLE, source="ask") if guard else viewer, args))
         return "Unknown tool."
     except (ValueError, TypeError, sqlite3.Error, HTTPException) as e:
         return f"The tool failed: {e}"
 
 
-def system_prompt(app: AskApp, conn, floor: Level) -> str:
+def system_prompt(app: AskApp, conn, floor: Level, guard: bool = False) -> str:
     counts = []
     for entity, record in REGISTRY.items():
+        if _held_back(record, guard):
+            continue
         try:
             n = conn.execute(f"SELECT COUNT(*) FROM {record.table}").fetchone()[0]
         except sqlite3.Error:
@@ -212,6 +243,8 @@ def system_prompt(app: AskApp, conn, floor: Level) -> str:
     sections = "\n".join(f"- {s['label']} ({s['path']}): {s['purpose']}" for s in app.sections)
     level = {Level.PRIVATE: "everything, including private notes", Level.PRESENTABLE: "only what may be shown on a shared screen",
              Level.EXPORTABLE: "only data marked as shareable"}[floor]
+    if guard:
+        level = "private notes too, except judgments about people (assessments, one-on-ones, influence and stances), which stay on this machine"
     return f"""You answer questions about the {app.name}, a private work app for an engineering manager. Answer only from the app's data, which you reach through tools.
 
 Rules:
@@ -297,8 +330,9 @@ def settings_and_key(conn, request: Request) -> tuple[dict, str | None]:
 
 def ask(app: AskApp, conn, viewer: Viewer, s: dict, key: str | None, question: str, history: list[dict] | None = None) -> dict:
     floor = effective_floor(viewer, s)
+    guard = guarded(viewer, s)
     tools = _base_tools(app)
-    system = system_prompt(app, conn, floor)
+    system = system_prompt(app, conn, floor, guard)
     used, cited = [], set()
     prior = [{"role": h["role"], "content": h["content"]} for h in (history or [])[-6:] if h.get("role") in ("user", "assistant") and h.get("content")]
     answer = None
@@ -313,7 +347,7 @@ def ask(app: AskApp, conn, viewer: Viewer, s: dict, key: str | None, question: s
             results = []
             for c in calls:
                 used.append({"tool": c["name"], "args": c["args"]})
-                results.append({"type": "tool_result", "tool_use_id": c["id"], "content": run_tool(app, conn, floor, c["name"], c["args"])})
+                results.append({"type": "tool_result", "tool_use_id": c["id"], "content": run_tool(app, conn, floor, c["name"], c["args"], guard)})
             messages.append({"role": "user", "content": results})
     else:
         messages = [{"role": "system", "content": system}] + prior + [{"role": "user", "content": question}]
@@ -325,7 +359,7 @@ def ask(app: AskApp, conn, viewer: Viewer, s: dict, key: str | None, question: s
             messages.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": msg.get("tool_calls")})
             for c in calls:
                 used.append({"tool": c["name"], "args": c["args"]})
-                messages.append({"role": "tool", "tool_call_id": c["id"], "content": run_tool(app, conn, floor, c["name"], c["args"])})
+                messages.append({"role": "tool", "tool_call_id": c["id"], "content": run_tool(app, conn, floor, c["name"], c["args"], guard)})
     release(s)
     if answer is None:
         answer = "I couldn't finish within the allowed number of steps. Try a narrower question."
@@ -340,7 +374,7 @@ def ask(app: AskApp, conn, viewer: Viewer, s: dict, key: str | None, question: s
         if shown:
             path = app.links.get(entity, "")
             citations.append({"entity": entity, "id": rid, "title": _title_of(shown), "path": path.replace("{id}", str(rid)) if path else None})
-    return {"answer": answer, "citations": citations, "tools_used": used, "floor": floor.name.lower(),
+    return {"answer": answer, "citations": citations, "tools_used": used, "floor": floor.name.lower(), "held_back": guard,
             "provider": s["provider"], "model": s["model"], "local": s["provider"] != "anthropic" and is_local(s["base_url"])}
 
 
@@ -365,6 +399,8 @@ def build_router(app_info: Callable[[], AskApp]) -> APIRouter:
                 s[k] = str(body[k]).strip()
         if "allow_private_cloud" in body:
             s["allow_private_cloud"] = bool(body["allow_private_cloud"])
+        if "allow_judgments_cloud" in body:
+            s["allow_judgments_cloud"] = bool(body["allow_judgments_cloud"])
         if "release_after" in body:
             s["release_after"] = bool(body["release_after"])
         if not s["base_url"].startswith(("http://", "https://")):

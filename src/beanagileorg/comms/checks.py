@@ -1,9 +1,11 @@
-"""Writing checks run on every draft. Version 1: placeholders left, plain language, long sentences, summary first.
+"""Writing checks run on every draft: placeholders left, plain language, long sentences, summary first, and wording about people.
 
 All rule-based and local. A failed check that "blocks" stops a message from being marked ready.
 """
 
 import re
+
+from beanagileorg.core.sensitivity import check_text
 
 # Common workplace jargon and a plainer alternative. Glossary terms added in the app extend this list.
 JARGON = {
@@ -59,7 +61,7 @@ def _first_paragraph(body: str) -> str:
     return ""
 
 
-def run_checks(body: str, glossary: list[dict] | None = None) -> list[dict]:
+def run_checks(body: str, glossary: list[dict] | None = None, people: dict | None = None) -> list[dict]:
     body = body or ""
     results = []
 
@@ -112,6 +114,17 @@ def run_checks(body: str, glossary: list[dict] | None = None) -> list[dict]:
         "blocks": False,
         "findings": [problem] if problem else [],
     })
+
+    if people is not None:  # the scan context from core.sensitivity: names held here and your own word list
+        found = check_text(body, people)
+        warn = [f for f in (found or {}).get("findings", []) if f["level"] == "warn"]
+        results.append({
+            "check": "about_people",
+            "label": "About people",
+            "result": "warn" if warn else "pass",
+            "blocks": False,
+            "findings": list(dict.fromkeys(f'{f["reason"]} ({", ".join(f["words"][:3])}): {f["excerpt"][:90]}' for f in warn))[:5],
+        })
     return results
 
 

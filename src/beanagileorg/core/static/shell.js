@@ -21,6 +21,23 @@
     return res.status === 204 ? null : res.json();
   };
 
+  // Copy text that's about to leave the app (a report, a plan, a message), after a gentle check: wording that may be
+  // a judgment about a person, touch on someone's employment or pay, or be personal information asks first.
+  BA.checkText = async (text, verb = "Copy") => {
+    let r = null;
+    try { r = await BA.api("/api/sensitivity/scan", { method: "POST", body: { text: String(text ?? "") } }); } catch { r = null; }
+    if (r && r.level === "warn") {
+      const by = {};
+      r.findings.filter((f) => f.level === "warn" && f.reason !== "names a person").forEach((f) => (by[f.excerpt] = by[f.excerpt] || []).push(`${f.reason}${f.words.length ? ` (${f.words.slice(0, 3).join(", ")})` : ""}`));
+      const lines = Object.entries(by).map(([ex, why]) => `• "${ex.length > 90 ? ex.slice(0, 90) + "…" : ex}": ${why.join("; ")}`);
+      if (!confirm(`Before this leaves: some wording may be a judgment about a person or personal information.\n\n${lines.slice(0, 5).join("\n")}${lines.length > 5 ? "\n…" : ""}\n\nShare facts about work, not judgments about people. ${verb} anyway?`)) throw new Error(verb === "Copy" ? "Not copied." : "Nothing was shared.");
+    }
+  };
+  BA.shareText = async (text) => {
+    await BA.checkText(text);
+    await navigator.clipboard.writeText(text);
+  };
+
   BA.icon = (name, cls = "") =>
     `<svg class="icon ${cls}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/core-static/vendor/icons.svg#${name}"></use></svg>`;
 
@@ -548,6 +565,9 @@
       e.preventDefault();
       const q = form.elements.q.value.trim();
       if (!q) return;
+      let cloud = false;
+      try { cloud = !(await BA.api("/api/ask/settings")).local; } catch { cloud = false; }
+      if (cloud) await BA.checkText(q, "Send it to the cloud model");  // the question itself leaves this machine
       out.innerHTML = `<p class="quiet ask-thinking">Looking through the data…</p>`;
       form.querySelector("button").disabled = true;
       try {
@@ -555,7 +575,7 @@
         history.push({ role: "user", content: q }, { role: "assistant", content: r.answer });
         out.innerHTML = `<div class="ask-q quiet">${BA.esc(q)}</div><div class="msg-preview ask-a">${BA.md(linkify(r.answer, r.citations))}</div>
           ${r.citations.length ? `<p class="ask-cites">${r.citations.map((c) => (c.path ? `<a class="pill" href="#${c.path}">${BA.esc(c.title)}</a>` : `<span class="pill">${BA.esc(c.title)}</span>`)).join(" ")}</p>` : ""}
-          <p class="quiet ask-meta">${BA.esc(r.model)} · ${r.local ? "on this machine" : "cloud provider"} · sees ${r.floor === "private" ? "everything" : r.floor === "presentable" ? "presentable data" : "shareable data only"} · ${r.tools_used.length} lookups</p>`;
+          <p class="quiet ask-meta">${BA.esc(r.model)} · ${r.local ? "on this machine" : "cloud provider"} · sees ${r.floor === "private" ? (r.held_back ? "everything except judgments about people" : "everything") : r.floor === "presentable" ? "presentable data" : "shareable data only"} · ${r.tools_used.length} lookups</p>`;
         form.elements.q.value = "";
       } catch (err) {
         out.innerHTML = `<p class="error">${BA.esc(err.message)}</p><p class="quiet">Check the model under Settings → Ask.</p>`;
@@ -578,23 +598,48 @@
         <label>Address<input name="base_url" value="${BA.esc(s.base_url)}" placeholder="http://127.0.0.1:11434/v1"></label>
         <label>Model<input name="model" value="${BA.esc(s.model)}" placeholder="qwen3.6:35b-a3b"></label>
         <label>API key <span class="quiet">${s.has_key ? "(saved; leave blank to keep)" : "(not needed for a local model)"}</span><input type="password" name="api_key" autocomplete="off"></label>
-        <label class="check"><input type="checkbox" name="allow_private_cloud"${s.allow_private_cloud ? " checked" : ""}> Let a cloud provider see private data too</label>
+        <label class="check" style="grid-column:1/-1"><input type="checkbox" name="allow_private_cloud"${s.allow_private_cloud ? " checked" : ""}> Let a cloud provider see private data too</label>
+        <label class="check" style="grid-column:1/-1;margin-left:24px"><input type="checkbox" name="allow_judgments_cloud"${s.allow_judgments_cloud ? " checked" : ""}${s.allow_private_cloud ? "" : " disabled"}> …including judgments about people <span class="quiet">(assessments, one-on-ones, interviews, culture notes, influence and stances; left off, they stay on this machine)</span></label>
         <label class="check"><input type="checkbox" name="release_after"${s.release_after ? " checked" : ""}> Unload a local model after each answer <span class="quiet">(frees about 20 GB on a shared Mac; the next question takes longer to start)</span></label>
         <div class="actions"><span class="pill ${s.local ? "good" : "warn"}">${s.local ? "local" : "cloud"}</span>${s.has_key ? '<button class="btn" type="button" id="ask-forget">Forget the key</button>' : ""}<button class="btn primary" type="submit">Save</button></div></form>`;
     main.querySelector("section.card")?.after(sec);
     const f = sec.querySelector("#ask-set");
+    f.elements.allow_private_cloud.onchange = () => { const j = f.elements.allow_judgments_cloud; j.disabled = !f.elements.allow_private_cloud.checked; if (j.disabled) j.checked = false; };
     f.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
       const fd = new FormData(f);
-      const body = { provider: fd.get("provider"), base_url: fd.get("base_url"), model: fd.get("model"), allow_private_cloud: f.elements.allow_private_cloud.checked, release_after: f.elements.release_after.checked };
+      const body = { provider: fd.get("provider"), base_url: fd.get("base_url"), model: fd.get("model"), allow_private_cloud: f.elements.allow_private_cloud.checked, allow_judgments_cloud: f.elements.allow_private_cloud.checked && f.elements.allow_judgments_cloud.checked, release_after: f.elements.release_after.checked };
       if (fd.get("api_key")) body.api_key = fd.get("api_key");
-      if (body.allow_private_cloud && !confirm("A cloud provider would then receive private notes about people when it looks them up. Allow it?")) return;
+      if (body.allow_private_cloud && !s.allow_private_cloud && !confirm("A cloud provider would then receive your private notes when it looks things up. Judgments about people stay on this machine unless you tick that box too. Allow it?")) return;
+      if (body.allow_judgments_cloud && !s.allow_judgments_cloud && !confirm("A cloud provider would then receive your judgments about people: assessments, one-on-one notes, interviews, culture notes, stances and influence. These are the most sensitive things you hold, and may be covered by HR policy or privacy law. Allow it?")) return;
       await BA.api("/api/ask/settings", { method: "PUT", body });
       BA.toast("Saved.");
       BA.rerender();
     });
     const fg = sec.querySelector("#ask-forget");
     if (fg) fg.onclick = BA.guard(async () => { await BA.api("/api/ask/settings", { method: "PUT", body: { api_key: "" } }); BA.rerender(); });
+    renderSensitiveTerms(sec);
+  }
+
+  // Your own words to treat as sensitive, on top of the built-in list, wherever text leaves the app.
+  async function renderSensitiveTerms(after) {
+    let t;
+    try { t = await BA.api("/api/sensitivity/terms"); } catch { return; }
+    const sec = document.createElement("section");
+    sec.className = "card";
+    sec.id = "sens-terms";
+    const groups = { judgment: "Judgments about people", employment: "Employment and pay", personal: "Personal information" };
+    sec.innerHTML = `<h2>Words that need a second look</h2><p class="quiet">Before a pack, a roster, a copied report or a message leaves the app, its wording is checked for judgments about people and personal information, and you're asked to look again. Add words or phrases your organization treats as sensitive, one per line; end one with * to match any ending (for example <i>reorg*</i>). Your words always ask for a second look.</p>
+      <form id="sens-form"><textarea name="terms" rows="5" class="mono" placeholder="[a project code name]&#10;[an internal label]*">${BA.esc(t.terms.join("\n"))}</textarea>
+        <div class="actions"><button class="btn primary" type="submit">Save</button></div></form>
+      <details><summary>The built-in list</summary>${Object.entries(t.built_in).map(([g, ws]) => `<p><b>${BA.esc(groups[g] || g)}</b><br><span class="quiet">${ws.map(BA.esc).join(", ")}</span></p>`).join("")}</details>`;
+    after.after(sec);
+    sec.querySelector("#sens-form").onsubmit = BA.guard(async (e) => {
+      e.preventDefault();
+      const r = await BA.api("/api/sensitivity/terms", { method: "PUT", body: { terms: e.target.elements.terms.value.split("\n") } });
+      e.target.elements.terms.value = r.terms.join("\n");
+      BA.toast(`Saved ${r.terms.length} word${r.terms.length === 1 ? "" : "s"}.`);
+    });
   }
 
   BA.view("/settings", {

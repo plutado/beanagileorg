@@ -23,7 +23,9 @@ def test_roster_round_trip(tmp_path):
         {"key": "e1", "name": "[Engineer 1]", "relationship": "employee", "reports_to": "me", "on_team": True, "tags": ["[tag]"], "background": "[Private]"},
         {"key": "x", "name": "[Somebody else]", "relationship": "stakeholder"},
     ]}
-    a.post("/api/people/roster", json=roster)
+    assert a.post("/api/people/roster", json=roster).status_code == 409  # tags and background: a second look first
+    assert [c["name"] for c in a.post("/api/people/roster/check-import", json=roster).json()["checks"]] == ["[Engineer 1]"]
+    a.post("/api/people/roster", json={**roster, "acknowledged": True})
     team = a.post("/api/people/roster/export", json={}).json()
     names = {p["name"]: p for p in team["people"]}
     assert set(names) == {"[Me]", "[Boss]", "[Engineer 1]"} and team["me"] == names["[Me]"]["key"]

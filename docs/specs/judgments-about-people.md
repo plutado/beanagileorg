@@ -31,9 +31,15 @@ Much of what a manager keeps in the toolkit is personal judgment: who is trustwo
 
 The scan looks at wording, not meaning: it will miss some things and flag harmless ones. It's a prompt to think, backed by the coaching guide "Facts, not judgments, when you share about people".
 
+## Everywhere else text leaves
+
+6. **Copy, download and print.** Every Copy button for text (reports and the status draft, plans and check-ins, mandate documents, the Scrum of Scrums, dev-sync, sprint and debt summaries, agendas, release notes, onboarding plans) and Comms studio's copy, download and print run the same scan, a paragraph at a time, so a name in one paragraph and a judgment word in another don't add up. Only a second-look finding asks; a note doesn't interrupt.
+7. **Comms studio drafts.** An "About people" writing check shows the same findings as you write. It warns and never blocks.
+8. **Rosters coming in.** An incoming roster's working style, tags and background are listed before import; you bring them in or leave them out. Support notes, stances and other judgment fields never come in, even from an older file that carried them.
+9. **Ask with a cloud model.** With private data allowed, judgments about people are still held back (search, lookups and summaries alike) unless a second box is ticked. A question that sounds like a judgment about someone asks before it's sent.
+10. **Your own words.** Settings → Words that need a second look adds terms (a trailing * matches any ending) to every check above. Your words always ask.
+
 ## Next
 
-- The same scan as a gentle warning on the other ways text leaves: status and weekly reports, the status draft, plans and mandate documents, Scrum of Scrums notes, onboarding plans, and Comms studio messages.
-- Your own word list under Settings, to add terms your organization treats as sensitive.
-- The scan on roster import too, so a received roster's tags and working style get a second look.
-- A check on Ask with a cloud provider: flag judgment wording in what would be sent.
+- A per-record "never share" mark, for a risk or decision you know is sensitive whatever its wording.
+- The scan on the Odysseus link and on scoped API tokens, when those carry text off the machine.

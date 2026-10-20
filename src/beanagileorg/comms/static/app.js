@@ -303,15 +303,17 @@
         const fmt = b.dataset.export;
         const res = await BA.api(`/api/messages/${id}/export`, { method: "POST", body: { format: fmt } });
         if (fmt === "text") {
-          await navigator.clipboard.writeText(res.body);
+          await BA.shareText(res.body);
           BA.toast("Copied. Logged as an export.");
         } else if (fmt === "markdown") {
+          await BA.checkText(res.body, "Download");
           const a = Object.assign(document.createElement("a"), {
             href: URL.createObjectURL(new Blob([res.body], { type: "text/markdown" })),
             download: `${res.title.replace(/[^\w\- ]+/g, "").trim() || "message"}.md`,
           });
           a.click();
         } else {
+          await BA.checkText(res.body, "Print");
           const w = window.open("", "_blank");
           w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(res.title)}</title>
             <style>body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;color:#1c1c1a}

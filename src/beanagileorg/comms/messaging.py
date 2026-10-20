@@ -13,6 +13,7 @@ from beanagileorg.core.dates import next_occurrence
 from beanagileorg.core.db import transaction
 from beanagileorg.core.export import log_export
 from beanagileorg.core.privacy import Viewer
+from beanagileorg.core.sensitivity import context
 
 from . import checks, models
 from .starter import TEMPLATES as STARTER_TEMPLATES, load_starter_kit
@@ -98,13 +99,13 @@ def duplicate_message(message_id: int, viewer: Viewer = Depends(get_viewer), con
 def message_checks(message_id: int, viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     require_write(viewer)
     rec = message_or_404(conn, message_id)
-    return checks.run_checks(rec["body"], glossary(conn))
+    return checks.run_checks(rec["body"], glossary(conn), context(conn))
 
 
 @router.post("/api/check")
 def check_text(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
     """Check unsaved text, so the editor can show results while typing."""
-    return checks.run_checks(str(body.get("body") or ""), glossary(conn))
+    return checks.run_checks(str(body.get("body") or ""), glossary(conn), context(conn))
 
 
 @router.get("/api/messages/{message_id}/versions")
@@ -125,7 +126,7 @@ def change_state(message_id: int, body: dict = Body(...), viewer: Viewer = Depen
     target = body.get("state")
     if target not in TRANSITIONS.get(rec["state"], set()):
         raise HTTPException(400, f"A {rec['state']} message can't move to {target!r}.")
-    results = checks.run_checks(rec["body"], glossary(conn))
+    results = checks.run_checks(rec["body"], glossary(conn), context(conn))
     if target in ("ready", "sent") and checks.blocking(results):
         raise HTTPException(400, f"Fix these first: {', '.join(checks.blocking(results))}.")
     changes: dict = {"state": target}

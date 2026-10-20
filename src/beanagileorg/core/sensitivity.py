@@ -15,7 +15,13 @@ to the person and can breach HR policy or privacy law. Three layers keep it in:
 The scan is a prompt to think, not a guarantee: it can't understand meaning, so it errs on the side of asking.
 """
 
+import json
 import re
+import sqlite3
+
+from fastapi import APIRouter, Body, Depends, HTTPException
+
+from .privacy import Viewer
 
 # Records that are, by their nature, judgments about people or private reflection. Never exported between installs.
 JUDGMENT_TABLES = frozenset({
@@ -70,7 +76,11 @@ REASONS = {
     "employment": "may touch on someone's employment or pay",
     "personal": "may be personal information",
     "name": "names a person",
+    "custom": "matches a word on your own list",
 }
+
+TERMS_KEY = "sensitivity.terms"
+MAX_TERMS = 200
 
 def _term(t: str) -> str:
     return re.escape(t[:-1]) + r"\w*" if t.endswith("*") else re.escape(t) + r"(?!\w)"
@@ -81,19 +91,42 @@ _PATTERNS = {group: re.compile(r"(?<!\w)(" + "|".join(_term(t) for t in terms) +
 
 def people_names(conn) -> list[str]:
     """Names to look for in free text: each person's full name, and a first name that's distinctive enough."""
-    rows = conn.execute("SELECT name FROM people").fetchall()
+    try:
+        rows = conn.execute("SELECT name FROM people").fetchall()
+    except sqlite3.Error:  # an app without People
+        return []
     full = [r["name"].strip() for r in rows if r["name"] and r["name"].strip()]
     firsts = [n.split()[0] for n in full if not n.startswith("[") and " " in n]
     counts = {f.lower(): firsts.count(f) for f in firsts}
     return sorted(set(full) | {f for f in firsts if len(f) >= 3 and counts[f.lower()] == 1}, key=len, reverse=True)
 
 
-def scan_text(text, names=()) -> dict[str, list[str]]:
+def custom_terms(conn) -> list[str]:
+    """Your own words to treat as sensitive, kept in settings. Same syntax as the built-in list (a trailing * for any ending)."""
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (TERMS_KEY,)).fetchone()
+    try:
+        terms = json.loads(row["value"]) if row else []
+    except (TypeError, ValueError):
+        return []
+    return [t for t in terms if isinstance(t, str) and t.strip()]
+
+
+def compile_terms(terms) -> re.Pattern | None:
+    terms = [t.strip() for t in terms or () if t.strip() and t.strip() != "*"]
+    return re.compile(r"(?<!\w)(" + "|".join(_term(t) for t in terms) + r")", re.IGNORECASE) if terms else None
+
+
+def context(conn) -> dict:
+    """Everything a scan needs from this install: the names of people here and your own word list."""
+    return {"names": people_names(conn), "custom": compile_terms(custom_terms(conn))}
+
+
+def scan_text(text, names=(), custom: re.Pattern | None = None) -> dict[str, list[str]]:
     """What in this text deserves a second look, by group: {"judgment": [...], "personal": [...], "name": [...]}."""
     if not isinstance(text, str) or not text.strip():
         return {}
     found = {}
-    for group, pat in _PATTERNS.items():
+    for group, pat in [*_PATTERNS.items(), *([("custom", custom)] if custom else [])]:
         hits = sorted({m.group(1).lower().strip() for m in pat.finditer(text)})
         if hits:
             found[group] = hits
@@ -114,18 +147,18 @@ def _texts(value):
             yield from _texts(v)
 
 
-def check_record(values: dict, names=(), linked_people=(), extra: list | None = None) -> dict | None:
+def check_record(values: dict, names=(), linked_people=(), extra: list | None = None, custom: re.Pattern | None = None) -> dict | None:
     """Look over one outgoing record. Returns None, or {"level": "warn" | "note", "findings": [...]}.
 
     "warn" (must be acknowledged, or the record left out): personal or employment wording anywhere, or judgment
-    wording in a record that names or links a person. "note" (shown, nothing required): a person named in free text,
+    wording in a record that names or links a person, or a word on your own list. "note" (shown, nothing required): a person named in free text,
     or judgment wording with no person in sight.
     """
     findings, groups, about_person = [], set(), bool(linked_people)
     for f, v in (values or {}).items():
         hit = {}
         for t in _texts(v):
-            for g, terms in scan_text(t, names).items():
+            for g, terms in scan_text(t, names, custom).items():
                 hit.setdefault(g, set()).update(terms)
         for g, terms in hit.items():
             groups.add(g)
@@ -137,5 +170,55 @@ def check_record(values: dict, names=(), linked_people=(), extra: list | None = 
         findings.append(e)
     if not findings:
         return None
-    warn = bool(groups & {"personal", "employment"}) or ("judgment" in groups and about_person)
+    warn = bool(groups & {"personal", "employment", "custom"}) or ("judgment" in groups and about_person)
     return {"level": "warn" if warn else "note", "findings": findings}
+
+
+def check_text(text: str, ctx: dict) -> dict | None:
+    """Look over a document about to leave (a report, a plan, a message), paragraph by paragraph.
+
+    Each paragraph is judged on its own, so a name in one and a judgment word in another don't add up to a warning.
+    Returns None, or {"level", "findings": [{"reason", "words", "excerpt"}]} with the paragraphs that need a look.
+    """
+    findings, level = [], "note"
+    for para in re.split(r"\n\s*\n|\n(?=\s*[-*#|]|\s*\d+\.)", text or ""):
+        found = check_record({"text": para}, ctx["names"], custom=ctx["custom"])
+        if not found:
+            continue
+        if found["level"] == "warn":
+            level = "warn"
+        excerpt = " ".join(para.split())[:200]
+        for f in found["findings"]:
+            findings.append({"reason": f["reason"], "words": f["words"], "excerpt": excerpt, "level": found["level"]})
+    return {"level": level, "findings": findings} if findings else None
+
+
+def build_router() -> APIRouter:
+    from .app import get_conn, get_viewer, require_full  # imported here to avoid a circular import
+
+    router = APIRouter()
+
+    @router.post("/api/sensitivity/scan")
+    def scan(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+        """Check text before it leaves: wording that may judge a person, touch on employment or pay, or be personal."""
+        text = body.get("text")
+        if not isinstance(text, str):
+            raise HTTPException(400, "Send the text to check.")
+        return check_text(text[:200_000], context(conn)) or {"level": None, "findings": []}
+
+    @router.get("/api/sensitivity/terms")
+    def get_terms(viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
+        return {"terms": custom_terms(conn), "built_in": {g: list(t) for g, t in TERMS.items()}}
+
+    @router.put("/api/sensitivity/terms")
+    def put_terms(body: dict = Body(...), viewer: Viewer = Depends(require_full), conn=Depends(get_conn)):
+        terms = body.get("terms")
+        if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
+            raise HTTPException(400, "Send a list of words or phrases.")
+        clean = sorted({" ".join(t.split())[:60] for t in terms if t.strip() and t.strip() != "*"}, key=str.lower)
+        if len(clean) > MAX_TERMS:
+            raise HTTPException(400, f"Keep the list to {MAX_TERMS} words or phrases.")
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (TERMS_KEY, json.dumps(clean)))
+        return {"terms": clean, "built_in": {g: list(t) for g, t in TERMS.items()}}
+
+    return router

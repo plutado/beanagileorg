@@ -12,7 +12,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 
 from beanagileorg.core.app import get_conn, get_viewer
 from beanagileorg.core.privacy import Level, Viewer
-from beanagileorg.core.sensitivity import PERSON_CAUTION, PERSON_NEVER, check_record
+from beanagileorg.core.sensitivity import PERSON_CAUTION, PERSON_NEVER, check_record, compile_terms, custom_terms
 
 from . import models
 from .routes import create_action, require_write
@@ -433,6 +433,11 @@ def import_roster(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), 
     entries = body.get("people")
     if not isinstance(entries, list) or not entries:
         raise HTTPException(400, "The roster needs a list of people.")
+    checks = incoming_checks(conn, entries)
+    drop = bool(body.get("drop_private"))
+    if checks and not drop and not body.get("acknowledged"):
+        raise HTTPException(409, f"This roster carries impressions or labels for {len(checks)} {'person' if len(checks) == 1 else 'people'} "
+                                 "(working style, tags or background). Review them first, or import without them.")
     keys, created, reused = {}, [], []
     for e in entries:
         name = (e.get("name") or "").strip()
@@ -445,7 +450,8 @@ def import_roster(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), 
             keys[e["key"]] = row["id"]
             reused.append(name)
             continue
-        data = {k: e[k] for k in ("role", "relationship", "background", "tags", "working_style", "support_notes", "start_date") if e.get(k) is not None}
+        # Support notes and other judgment fields never come in, even from an older roster file that carried them.
+        data = {k: e[k] for k in ("role", "relationship", "start_date", *(() if drop else PERSON_CAUTION)) if e.get(k) is not None}
         data.update(name=name, placeholder=bool(e.get("placeholder", name.startswith("["))))
         keys[e["key"]] = models.people.create(conn, data, viewer.source)["id"]
         created.append(name)
@@ -469,7 +475,24 @@ def import_roster(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), 
         members = json.loads(team["member_ids"]) if team["member_ids"] else []
         members += [m for m in on_team if m not in members]
         models.teams.update(conn, team["id"], {"member_ids": members}, viewer.source)
-    return {"created": created, "reused": reused, "me": me, "team_members": len(on_team)}
+    left_out = sorted({f for e in entries for f in e if f in PERSON_NEVER})
+    return {"created": created, "reused": reused, "me": me, "team_members": len(on_team), "left_out": left_out}
+
+
+def incoming_checks(conn, entries: list) -> list[dict]:
+    """New people in an incoming roster whose working style, tags or background deserve a second look."""
+    have = {r["name"] for r in conn.execute("SELECT name FROM people").fetchall()}
+    fresh = [e for e in entries if isinstance(e, dict) and (e.get("name") or "").strip() not in have]
+    return roster_checks({"people": fresh}, compile_terms(custom_terms(conn)))
+
+
+@router.post("/api/people/roster/check-import")
+def check_roster_import(body: dict = Body(...), viewer: Viewer = Depends(get_viewer), conn=Depends(get_conn)):
+    """What in an incoming roster deserves a second look before it's imported. Changes nothing."""
+    entries = body.get("people")
+    if not isinstance(entries, list):
+        raise HTTPException(400, "The roster needs a list of people.")
+    return {"checks": incoming_checks(conn, entries), "never": sorted({f for e in entries if isinstance(e, dict) for f in e if f in PERSON_NEVER})}
 
 
 ADVICE_KINDS = ("technical", "political", "personal")
@@ -551,12 +574,12 @@ def build_roster(conn, scope: str = "team", include_private: bool = False) -> di
     return roster
 
 
-def roster_checks(roster: dict) -> list[dict]:
+def roster_checks(roster: dict, custom=None) -> list[dict]:
     """People in a roster whose private fields may carry a judgment or personal information."""
     out = []
     for p in roster.get("people") or []:
         findings = [{"field": f, "reason": why, "words": []} for f, why in PERSON_CAUTION.items() if p.get(f) not in (None, "", [])]
-        found = check_record({f: p.get(f) for f in PERSON_CAUTION if p.get(f)})
+        found = check_record({f: p.get(f) for f in PERSON_CAUTION if p.get(f)}, custom=custom)
         findings += [x for x in (found or {}).get("findings", []) if x not in findings]
         if findings:
             out.append({"name": p["name"], "level": "warn", "findings": findings})
@@ -568,7 +591,7 @@ def check_roster(body: dict = Body(default={}), viewer: Viewer = Depends(get_vie
     """What in a roster export deserves a second look before it goes. Writes and records nothing."""
     scope = body.get("scope") if body.get("scope") in ("team", "everyone") else "team"
     include_private = bool(body.get("include_private")) and viewer.floor == Level.PRIVATE
-    return {"checks": roster_checks(build_roster(conn, scope, include_private)) if include_private else []}
+    return {"checks": roster_checks(build_roster(conn, scope, include_private), compile_terms(custom_terms(conn))) if include_private else []}
 
 
 @router.post("/api/people/roster/export")
@@ -580,7 +603,7 @@ def export_roster(body: dict = Body(default={}), viewer: Viewer = Depends(get_vi
     scope = body.get("scope") if body.get("scope") in ("team", "everyone") else "team"
     include_private = bool(body.get("include_private")) and viewer.floor == Level.PRIVATE
     roster = build_roster(conn, scope, include_private)
-    checks = roster_checks(roster) if include_private else []
+    checks = roster_checks(roster, compile_terms(custom_terms(conn))) if include_private else []
     if checks and not body.get("acknowledged"):
         raise HTTPException(409, f"Private fields for {len(checks)} {'person' if len(checks) == 1 else 'people'} may carry a judgment or personal information. "
                                  "Review them first, or export without private fields.")

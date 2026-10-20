@@ -348,8 +348,14 @@
       main.querySelector("#roster-go").onclick = BA.guard(async () => {
         let body;
         try { body = JSON.parse(main.querySelector("#roster-text").value); } catch { throw new Error("That isn't valid roster JSON."); }
+        const chk = await BA.api("/api/people/roster/check-import", { method: "POST", body: { people: body.people || [] } });
+        if (chk.checks.length) {
+          const lines = chk.checks.slice(0, 8).map((c) => `• ${c.name}: ${c.findings.map((f) => f.field.replace(/_/g, " ")).join(", ")}`).join("\n");
+          const keep = confirm(`This roster carries impressions or labels about ${chk.checks.length} ${chk.checks.length === 1 ? "person" : "people"}:\n\n${lines}${chk.checks.length > 8 ? "\n…" : ""}\n\nIf it came from another manager, these are their views, not facts you've seen. OK brings them in; Cancel brings in names, roles and reporting lines only.`);
+          body = { ...body, ...(keep ? { acknowledged: true } : { drop_private: true }) };
+        }
         const r = await BA.api("/api/people/roster", { method: "POST", body });
-        BA.toast(`Added ${r.created.length}${r.reused.length ? `, ${r.reused.length} already here` : ""}.`);
+        BA.toast(`Added ${r.created.length}${r.reused.length ? `, ${r.reused.length} already here` : ""}${r.left_out.length ? `. Left out: ${r.left_out.join(", ").replace(/_/g, " ")}` : ""}.`);
         BA.go("/people");
       });
     }
@@ -522,7 +528,7 @@
         row.querySelector("[data-shared]").onchange = BA.guard(async (e) => { await BA.api(`/api/manager-notes/${row.dataset.mnote}`, { method: "PATCH", body: { shared: e.target.checked } }); BA.toast("Saved."); });
         row.querySelector("[data-del-note]").onclick = BA.guard(async () => { if (!confirm("Delete this note?")) return; await BA.api(`/api/manager-notes/${row.dataset.mnote}`, { method: "DELETE" }); again(); });
       });
-      box.querySelector("#copy-agenda").onclick = BA.guard(async () => { await navigator.clipboard.writeText(ag.markdown); BA.toast("Agenda copied."); });
+      box.querySelector("#copy-agenda").onclick = BA.guard(async () => { await BA.shareText(ag.markdown); BA.toast("Agenda copied."); });
       return;
     }
 
@@ -794,7 +800,7 @@
       if (md)
         md.onclick = BA.guard(async () => {
           const { markdown } = await BA.api("/api/rollup/markdown");
-          await navigator.clipboard.writeText(markdown);
+          await BA.shareText(markdown);
           BA.toast("Copied.");
         });
     },
@@ -1140,7 +1146,7 @@
       main.querySelector("#f-owner").onchange = (e) => ((state.owner = e.target.value), BA.rerender());
       main.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => BA.go(`/dev-sync/${tr.dataset.id}`)));
       const cb = main.querySelector("#copy-board");
-      if (cb) cb.onclick = BA.guard(async () => { const r = await BA.api("/api/dev-sync/board/export", { method: "POST" }); await navigator.clipboard.writeText(r.markdown); BA.toast(`Copied ${r.rows} row${r.rows === 1 ? "" : "s"}. Logged as an export.`); });
+      if (cb) cb.onclick = BA.guard(async () => { const r = await BA.api("/api/dev-sync/board/export", { method: "POST" }); await BA.shareText(r.markdown); BA.toast(`Copied ${r.rows} row${r.rows === 1 ? "" : "s"}. Logged as an export.`); });
       const add = main.querySelector("#add");
       if (add)
         add.onsubmit = BA.guard(async (e) => {
@@ -1176,7 +1182,7 @@
       box.innerHTML = `<div class="row"><h2>Update script</h2><span class="spacer"></span><button class="btn" id="copy-script">Copy</button></div>
         <p class="quiet">A two-to-three-minute script drafted from this row. Record it, or build a short deck from it in the Comms studio (Video pitch template), then paste the link above under "Latest update" and save.</p>
         <div class="msg-preview">${BA.md(s.markdown)}</div>`;
-      box.querySelector("#copy-script").onclick = BA.guard(async () => { await navigator.clipboard.writeText(s.markdown); BA.toast("Copied."); });
+      box.querySelector("#copy-script").onclick = BA.guard(async () => { await BA.shareText(s.markdown); BA.toast("Copied."); });
       box.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     main.querySelector("#del").onclick = BA.guard(async () => {
@@ -2364,7 +2370,7 @@
     if (crAdd) crAdd.onchange = BA.guard(async () => { if (!crAdd.value) return; await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { change_request_ids: [...(r.change_request_ids || []), Number(crAdd.value)] } }); BA.rerender(); });
     main.querySelectorAll("[data-cr-rm]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/releases/${id}`, { method: "PATCH", body: { change_request_ids: (r.change_request_ids || []).filter((x) => x !== Number(b.dataset.crRm)) } }); BA.rerender(); })));
     main.querySelector("#rel-from-sprint").onclick = BA.guard(async () => { await BA.api(`/api/releases/${id}/from-sprint`, { method: "POST", body: {} }); BA.rerender(); });
-    main.querySelector("#rel-notes").onclick = BA.guard(async () => { const x = await BA.api(`/api/releases/${id}/notes`); await navigator.clipboard.writeText(x.markdown); BA.toast("Release notes copied as Markdown."); });
+    main.querySelector("#rel-notes").onclick = BA.guard(async () => { const x = await BA.api(`/api/releases/${id}/notes`); await BA.shareText(x.markdown); BA.toast("Release notes copied as Markdown."); });
     const form = main.querySelector("#rel-form");
     form.onsubmit = BA.guard(async (e) => {
       e.preventDefault();
@@ -3009,11 +3015,11 @@
       let sb = main.querySelector("#script-box");
       if (!sb) { sb = document.createElement("section"); sb.className = "card"; sb.id = "script-box"; box.after(sb); }
       sb.innerHTML = `<div class="row"><h2>Video script</h2><span class="spacer"></span><button class="btn" id="copy-vs">Copy</button></div><p class="quiet">Drafted from this report's sections. Say it in your own words; send the report itself as the written version.</p><div class="msg-preview">${BA.md(s.markdown)}</div>`;
-      sb.querySelector("#copy-vs").onclick = BA.guard(async () => { await navigator.clipboard.writeText(s.markdown); BA.toast("Copied."); });
+      sb.querySelector("#copy-vs").onclick = BA.guard(async () => { await BA.shareText(s.markdown); BA.toast("Copied."); });
       sb.scrollIntoView({ behavior: "smooth", block: "start" });
     });
     box.querySelector("#rep-copy").onclick = BA.guard(async () => {
-      await navigator.clipboard.writeText(ta.value);
+      await BA.shareText(ta.value);
       await BA.api("/api/reports/exported", { method: "POST", body: { title: rep.title, markdown: ta.value, kind } });
       BA.toast("Copied. Logged as an export.");
     });
@@ -3149,7 +3155,7 @@
     main.querySelectorAll("[data-rep]").forEach((det) => {
       const r = list.find((x) => x.id === Number(det.dataset.rep));
       det.querySelector("[data-del]").onclick = BA.guard(async () => { if (!confirm("Delete this saved report?")) return; await BA.api(`/api/reports/${r.id}`, { method: "DELETE" }); BA.rerender(); });
-      det.querySelector("[data-copy]").onclick = BA.guard(async () => { await navigator.clipboard.writeText(r.markdown); await BA.api("/api/reports/exported", { method: "POST", body: { title: r.title, markdown: r.markdown, kind: r.kind } }); BA.toast("Copied. Logged as an export."); });
+      det.querySelector("[data-copy]").onclick = BA.guard(async () => { await BA.shareText(r.markdown); await BA.api("/api/reports/exported", { method: "POST", body: { title: r.title, markdown: r.markdown, kind: r.kind } }); BA.toast("Copied. Logged as an export."); });
       const sent = det.querySelector("[data-sent]");
       if (sent) sent.onclick = BA.guard(async () => { const to = prompt("Who did it go to? (optional)", ""); if (to === null) return; await BA.api(`/api/reports/${r.id}`, { method: "PATCH", body: { status: "sent", sent_on: BA.today(), sent_to: to || null } }); BA.rerender(); });
     });
@@ -3501,7 +3507,7 @@
         BA.toast("Checked in."); BA.rerender();
       })));
       const cp = box.querySelector("[data-ci-copy]");
-      if (cp) cp.onclick = BA.guard(async () => { const sum = await BA.api(`/api/plans/${pid}/checkin`); await navigator.clipboard.writeText(sum.markdown); BA.toast("Check-in summary copied as Markdown."); });
+      if (cp) cp.onclick = BA.guard(async () => { const sum = await BA.api(`/api/plans/${pid}/checkin`); await BA.shareText(sum.markdown); BA.toast("Check-in summary copied as Markdown."); });
     });
   }
 
@@ -3652,7 +3658,7 @@
       });
       main.querySelector("#copy-outline").onclick = BA.guard(async () => {
         const out = await BA.api("/api/plans/export", { method: "POST", body: {} });
-        await navigator.clipboard.writeText(out.markdown);
+        await BA.shareText(out.markdown);
         BA.toast("Outline copied. Only shareable fields are included.");
       });
       main.querySelectorAll("[data-agree-plan]").forEach((b) => (b.onclick = BA.guard(async () => { await BA.api(`/api/plans/${b.dataset.agreePlan}/agree`, { method: "POST", body: {} }); BA.toast("Marked agreed with your manager."); BA.rerender(); })));
@@ -4065,7 +4071,7 @@
     });
     main.querySelector("#copy-summary").onclick = BA.guard(async () => {
       const s = await BA.api(`/api/test-runs/${id}/summary`);
-      await navigator.clipboard.writeText(s.markdown);
+      await BA.shareText(s.markdown);
       BA.toast("Summary copied.");
     });
     main.querySelector("#del-run").onclick = BA.guard(async () => {
@@ -4613,7 +4619,7 @@
     main.querySelector("#ob-status").onchange = BA.guard(async (e) => { await BA.api(`/api/onboardings/${id}`, { method: "PATCH", body: { status: e.target.value } }); BA.toast("Saved."); });
     main.querySelector("#copy-ob").onclick = BA.guard(async () => {
       const out = await BA.api(`/api/onboardings/${id}/checklist/export`, { method: "POST", body: {} });
-      await navigator.clipboard.writeText(out.markdown);
+      await BA.shareText(out.markdown);
       BA.toast("Checklist copied. Private notes aren't included.");
     });
     main.querySelector("#add-task").onsubmit = BA.guard(async (e) => {
@@ -4829,7 +4835,7 @@
     const copy = main.querySelector("#copy-sdlc");
     if (copy) copy.onclick = BA.guard(async () => {
       const out = await BA.api("/api/sdlc/document/export", { method: "POST", body: {} });
-      await navigator.clipboard.writeText(out.markdown);
+      await BA.shareText(out.markdown);
       BA.toast("SDLC copied as Markdown.");
     });
   }
@@ -5177,7 +5183,7 @@
         <p class="quiet">Built only from shareable fields: what's open by category, the highest value for the effort, what's been accepted and when it will be revisited, and the capacity policy.</p>
         <div class="msg-preview">${BA.md(s.markdown)}</div></section>`;
     const c = main.querySelector("#copy-debt");
-    if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/debt/summary/export", { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Summary copied."); });
+    if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/debt/summary/export", { method: "POST", body: {} }); await BA.shareText(out.markdown); BA.toast("Summary copied."); });
   }
 
   function renderDebtPolicy(main, d) {
@@ -5411,7 +5417,7 @@
       BA.toast(`${r.completed_points} points done; ${r.carried} stories carried over.`);
       BA.rerender();
     });
-    main.querySelector("#copy-plan").onclick = BA.guard(async () => { const out = await BA.api(`/api/sprint-planning/${s.id}/summary/export`, { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Plan copied."); });
+    main.querySelector("#copy-plan").onclick = BA.guard(async () => { const out = await BA.api(`/api/sprint-planning/${s.id}/summary/export`, { method: "POST", body: {} }); await BA.shareText(out.markdown); BA.toast("Plan copied."); });
   }
 
   async function renderDor(main) {
@@ -5593,7 +5599,7 @@
         <p class="quiet">Each team's status, what's overdue, what's open across teams with owners and dates, and what was settled recently. Private notes are left out.</p>
         <div class="msg-preview">${BA.md(s.markdown)}</div></section>`;
     const c = main.querySelector("#copy-sos");
-    if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/sos/summary/export", { method: "POST", body: {} }); await navigator.clipboard.writeText(out.markdown); BA.toast("Summary copied."); });
+    if (c) c.onclick = BA.guard(async () => { const out = await BA.api("/api/sos/summary/export", { method: "POST", body: {} }); await BA.shareText(out.markdown); BA.toast("Summary copied."); });
   }
 
   // ---------------------------------------------------------------- Culture and trust
@@ -6051,7 +6057,7 @@
       ${ro ? "" : `<form id="policy" class="card"><h2>Edit the policy</h2><p class="quiet">Write the rules for what happens when someone asks for new work in the middle of a sprint. Before you use it, agree it with the product owner and the team, then explain it to the people who send requests. For headings and lists, start a line with # or -.</p>
         <textarea name="policy" rows="16">${esc(d.policy || "")}</textarea><div class="actions">${d.policy ? "" : '<button class="btn left" type="button" id="starter">Start from a draft</button>'}<button class="btn primary" type="submit">Save</button></div></form>`}
       <section class="card"><h2>Share it with stakeholders</h2><p class="quiet">A short summary for the people who send requests: your policy, what's happened over the last few sprints, and how to ask. Copy it into a message, a page, or the Comms studio.</p><button class="btn" id="policy-summary">Copy the summary</button></section>`;
-    main.querySelector("#policy-summary").onclick = BA.guard(async () => { const x = await BA.api("/api/change-requests/policy-summary"); await navigator.clipboard.writeText(x.markdown); BA.toast("Summary copied as Markdown."); });
+    main.querySelector("#policy-summary").onclick = BA.guard(async () => { const x = await BA.api("/api/change-requests/policy-summary"); await BA.shareText(x.markdown); BA.toast("Summary copied as Markdown."); });
     if (ro) return;
     const form = main.querySelector("#policy");
     form.onsubmit = BA.guard(async (e) => { e.preventDefault(); await BA.api("/api/change-requests/policy", { method: "PUT", body: { policy: form.elements.policy.value } }); BA.toast("Saved."); BA.rerender(); });
@@ -6433,7 +6439,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
     const st = main.querySelector("#ww-starter");
     if (st) st.onclick = () => { form.elements.text.value = d.starter; };
     const cp = main.querySelector("#ww-copy");
-    if (cp) cp.onclick = BA.guard(async () => { await navigator.clipboard.writeText(d.text); BA.toast("Copied."); });
+    if (cp) cp.onclick = BA.guard(async () => { await BA.shareText(d.text); BA.toast("Copied."); });
   }
 
   // ---- Mandates ----
@@ -6480,7 +6486,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
         const menu = [...mf.querySelectorAll(".menu-row")].map((r) => ({ option: r.querySelector('[name="m_option"]').value, cost: r.querySelector('[name="m_cost"]').value, delivers: r.querySelector('[name="m_delivers"]').value }));
         await BA.api("/api/first90/manager-focus", { method: "PUT", body: { priorities: f.getAll("priorities"), next_three: f.getAll("next_three"), protective: f.get("protective"), style: f.get("style"), menu } }); BA.toast("Saved."); BA.rerender(); });
       const mmd = fbox.querySelector("#menu-md");
-      if (mmd) mmd.onclick = () => { navigator.clipboard.writeText(["| Option | What it costs | What it delivers |", "| --- | --- | --- |", ...focus.menu.map((r) => `| ${r.option} | ${r.cost} | ${r.delivers} |`)].join("\n")); BA.toast("Copied."); };
+      if (mmd) mmd.onclick = BA.guard(async () => { await BA.shareText(["| Option | What it costs | What it delivers |", "| --- | --- | --- |", ...focus.menu.map((r) => `| ${r.option} | ${r.cost} | ${r.delivers} |`)].join("\n")); BA.toast("Copied."); });
       const box = document.createElement("section");
       box.className = "card";
       box.innerHTML = `<h2>Conversations with my manager</h2><p class="quiet">The conversations that set you up to succeed. Start with the situation, expectations and working style; take up resources once you've learned enough to ask well; bring up your development once the relationship is established, a few months in. Write down what was agreed, and come back to them.</p>
@@ -6558,7 +6564,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
       BA.toast("Agreed. A review is set for 90 days from now.");
       BA.rerender();
     });
-    main.querySelector("#m-copy").onclick = BA.guard(async () => { const r = await BA.api(`/api/mandates/${id}/export`, { method: "POST" }); await navigator.clipboard.writeText(r.markdown); BA.toast("Copied. Logged as an export."); });
+    main.querySelector("#m-copy").onclick = BA.guard(async () => { const r = await BA.api(`/api/mandates/${id}/export`, { method: "POST" }); await BA.shareText(r.markdown); BA.toast("Copied. Logged as an export."); });
     const mf = main.querySelector("#m-file");
     if (mf) {
       mf.onchange = async () => { if (mf.files[0]) main.querySelector("#m-json").value = await mf.files[0].text(); };
@@ -6613,7 +6619,7 @@ ${d.private ? `<section class="card f90-team"><h2>The team I inherit</h2>${d.tea
           <div class="actions"><button class="btn" type="submit">Save</button></div></form>`).join("") || '<p class="quiet">No areas yet.</p>'}
         ${ro ? "" : `<form id="add-sit" class="row" style="margin-top:8px"><input name="area" required placeholder="An area, such as: Release management" style="flex:1;min-width:220px"><button class="btn" type="submit">Add</button>${list.length ? "" : '<button class="btn" type="button" id="sit-starter">Start with common areas</button>'}</form>`}</section>`;
     const md = main.querySelector("#pf-md");
-    if (md) md.onclick = () => { navigator.clipboard.writeText(pfMarkdown()); BA.toast("Copied."); };
+    if (md) md.onclick = BA.guard(async () => { await BA.shareText(pfMarkdown()); BA.toast("Copied."); });
     if (ro) return;
     main.querySelector("#pf-pref").onchange = BA.guard(async (e) => { await BA.api("/api/situations/preferred", { method: "PUT", body: { kind: e.target.value || null } }); BA.rerender(); });
     main.querySelectorAll("[data-sit]").forEach((f) => {
