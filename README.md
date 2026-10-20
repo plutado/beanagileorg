@@ -6,7 +6,7 @@
 
 **Envisioned and created by [David Plutado Fugate](https://davidfugate.com).**
 
-**Be an Agile organization.** beanagileorg is a private, local-first workbench for an individual engineering manager: one place to run your team's delivery, look after your people and report upward, without stitching together documents, spreadsheets and chat. It assumes SAFe as the organization's framework, with each team working in Scrum, and plans your own work in 90-day cycles of strategy and execution, starting with the first 90 days in a new role.
+**Be an Agile organization.** A private, context-rich advisor for engineering managers. beanagileorg is a local-first workbench for an individual engineering manager: one place to run your team's delivery, look after your people and report upward, without stitching together documents, spreadsheets and chat. It assumes SAFe as the organization's framework, with each team working in Scrum, and plans your own work in 90-day cycles of strategy and execution, starting with the first 90 days in a new role.
 
 In a typical week it helps you:
 
