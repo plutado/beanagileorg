@@ -99,6 +99,16 @@ for title, roam, i in (("[Placeholder risk 1]", "owned", 0), ("[Placeholder risk
     api("POST", "/api/pi-risks", {"pi_id": pi, "title": title, "roam": roam, "owner_id": p(i)})
 api("POST", f"/api/pis/{pi}/confidence", {"votes": [4, 4, 5, 3, 4, 4, 5]})
 
+# ---- the sprint backlog beside Jira: refined, estimated, four stories pulled into the current sprint
+api("POST", "/api/backlog/paste", {"text": "\n".join(f"ABC-{120 + n} [Placeholder backlog story {n}] | {(3, 5, 2, 8, 3, 5, 3, 2)[n - 1]}" for n in range(1, 9))})
+backlog = api("GET", "/api/backlog")
+items = backlog["items"] if isinstance(backlog, dict) else backlog
+for k, item in enumerate(items):
+    if k < 6:
+        api("PATCH", f"/api/backlog-items/{item['id']}", {"status": "ready"})
+    if k < 4:
+        api("POST", f"/api/sprint-planning/{sprints[2]}/pull", {"item_id": item["id"]})
+
 # ---- an alliance plan with an influence diagram
 stances = ("champion", "supporter", "supporter", "neutral", "skeptic", "blocker")
 for i, s in enumerate(stances):
