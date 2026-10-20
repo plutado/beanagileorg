@@ -77,7 +77,7 @@ TOOLKIT = {
         "related": ["/planning", "/status", "/coaching/change-mid-sprint"],
     },
     "/first90": {
-        "purpose": "Your first 90 days, each new hire's, and the team you inherit, side by side by day: for them it's the first 90 days with a new manager who is bringing change.",
+        "purpose": "Work in 90-day cycles of strategy and execution. The first cycle is your first 90 days, each new hire's, and the team you inherit, side by side by day; each cycle after it gets a focus, a few goals and a review.",
         "steps": ["Set your start date in Settings and pick your own record under People, so the team and the day count are known.",
                   "Give your inherited team their milestones: first one-on-one, career conversation, growth goal, feedback both ways, a day-90 check-in.",
                   "Under Team decisions, set the days for conclusions about the team and for acting on them, mark where alignment and the team stand, and recognize key people early.",

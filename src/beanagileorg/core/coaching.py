@@ -595,7 +595,7 @@ GUIDES = [
             "Which decisions should wait for the people who'll carry them out?",
         ],
         "try": [
-            "Set your team decision deadlines in First 90 days, and mark your key people on their pages.",
+            "Set your team decision deadlines under 90-day cycles, and mark your key people on their pages.",
             "Ask HR who your partner is for any change to roles.",
         ],
         "related": ["/first90", "/people", "/alignment"], "reading": [F90],
@@ -1624,7 +1624,7 @@ GUIDES = [
             "What did the last cycle teach us that should change how we run this one?",
         ],
         "try": [
-            "Open 90-day cycles under First 90 days, write the current cycle's focus in one sentence, and pick its three goals.",
+            "Open Cycles under 90-day cycles, write the current cycle's focus in one sentence, and pick its three goals.",
         ],
         "related": ['/first90', '/plans', '/coaching/early-wins'], "reading": [F90],
     },
@@ -1676,7 +1676,7 @@ TIPS = {
                 ("Note what each key person expects from you, especially anyone who shapes how your work is judged.", "your-manager", 14),
                 ("Recognize quiet work too. Keeping things from breaking deserves as much credit as fixing what broke.", "read-the-situation", 24)],
     "/onboarding": [("Start each onboarding with its type (new hire, contractor, promotion, a move). The check-ins and the Set up to succeed check follow from it.", "supporting-a-new-hire", 53),
-        ("New hires and the team you inherit both need their first 90 days. Track both side by side under First 90 days.", "leading-change", 8),
+        ("New hires and the team you inherit both need their first 90 days. Track both side by side under 90-day cycles.", "leading-change", 8),
                     ("A new member's first week sets how they'll feel about the team. Make sure their buddy checks in daily.", "earning-trust"),
                     ("At the 30-day check-in, ask what the checklist missed and update the template.", "feedback"),
                     ("Hires from outside the company need a culture guide and a business orientation, not just accounts and tools.", "joining-from-outside", 13)],

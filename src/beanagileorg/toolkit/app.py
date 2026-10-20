@@ -52,7 +52,7 @@ NAV = [
     {"group": "Team"},
     {"path": "/people", "icon": "users", "label": "People"},
     {"path": "/culture", "icon": "heart-handshake", "label": "Culture and trust"},
-    {"path": "/first90", "icon": "calendar-days", "label": "First 90 days"},
+    {"path": "/first90", "icon": "calendar-days", "label": "90-day cycles"},
     {"path": "/onboarding", "icon": "list-checks", "label": "Onboarding"},
     {"path": "/skills", "icon": "graduation-cap", "label": "Skills and learning"},
     {"path": "/listening", "icon": "messages-square", "label": "Listening tour"},

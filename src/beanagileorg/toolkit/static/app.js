@@ -6685,7 +6685,7 @@
   const STAGE_TONES = { idea: "", announced: "accent", trial: "warn", review: "warn", adopted: "good", dropped: "" };
   const NEXT_STAGE = { idea: ["announced", "Announce it"], announced: ["trial", "Start the trial"], trial: ["review", "Review with the team"] };
   const AUTO_LABELS = { one_on_one: "a one-on-one logged under People", interview: "a listening tour conversation marked done", growth_goal: "a growth goal on their Manager tab", feedback: "feedback marked shared on their Manager tab", mandate: "their mandate marked agreed" };
-  const f90Tabs = (active) => `<nav class="tabs">${[["", "Overview"], ["cycles", "90-day cycles"], ["mandates", "Mandates"], ["situation", "Situation"], ["learning", "Learning agenda"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["mentoring", "Mentoring"], ["working", "Working with me"]]
+  const f90Tabs = (active) => `<nav class="tabs">${[["", "First 90 days"], ["cycles", "Cycles"], ["mandates", "Mandates"], ["situation", "Situation"], ["learning", "Learning agenda"], ["team", "The team I inherit"], ["changes", "Changes I'm bringing"], ["mentoring", "Mentoring"], ["working", "Working with me"]]
     .map(([k, l]) => `<a href="#/first90${k ? "/" + k : ""}" class="${k === active ? "active" : ""}">${l}</a>`).join("")}</nav>`;
   const f90Progress = (done, total) => `<span class="progress"><span style="width:${total ? Math.round((100 * done) / total) : 0}%"></span></span><span class="quiet">${done ?? 0} of ${total ?? 0}</span>`;
   const f90_dayLabel = (n) => n == null ? "not started" : n < 1 ? `starts in ${1 - n} day${1 - n === 1 ? "" : "s"}` : n > 90 ? `day ${n}, past 90` : `day ${n}`;
@@ -6733,7 +6733,7 @@
 
 
   BA.view("/first90", {
-    title: "First 90 days",
+    title: "90-day cycles",
     async render(main, param) {
       const views = { cycles: renderCycles, team: renderF90Team, changes: renderF90Changes, working: renderWorking, mandates: renderMandates, situation: renderSituation, learning: renderLearning, mentoring: renderMentoring };
       if (views[param]) return views[param](main);
