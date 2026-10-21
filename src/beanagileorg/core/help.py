@@ -442,7 +442,9 @@ COMMS = {
     },
     "/decks": {
         "purpose": "Build and present HTML slide decks with a live editor, media and animations, with versions and a review workflow.",
-        "steps": ["Start a deck, load the placeholder deck, or build one from the toolkit's 30/60/90 plans.", "Add slides from the eleven layouts and edit them in the inspector.",
+        "steps": ["Start a deck, load the feature tour or the placeholder deck, build one from the toolkit's 30/60/90 plans, or start from what worked with an audience before.",
+                  "Add slides from the fifteen layouts and edit them in the inspector; Slide options stack slides, auto-animate them and set backgrounds.",
+                  "Set the deck's audience in the toolbar, and after presenting note how it went under Versions, so the next deck for them learns from it.",
                   "Open Versions to save a version with a note, compare it with now, or restore it; send the deck for review, approve it, and mark it presented. Approved and presented decks are locked until you start a new draft.",
                   "Present full screen, with speaker notes in the presenter view, or present any saved version while you draft the next one. Make a copy to adapt a deck for another audience."],
         "privacy": "Shareable.",

@@ -61,3 +61,5 @@
 .ig-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .ig-thumb { display: flex; flex-direction: column; gap: 6px; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font: inherit; }
 @media (max-width: 860px) { .ig-layout { grid-template-columns: 1fr; } }
+#pattern-box ul, #pattern-box ol { padding-left: 1.3em; margin: 0.4em 0; }
+#pattern-box li { margin: 0.2em 0; }

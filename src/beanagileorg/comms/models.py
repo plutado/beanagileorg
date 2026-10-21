@@ -24,6 +24,9 @@ CHANNEL_KINDS = ("chat", "email", "meeting", "document", "other")
 RHYTHMS = ("weekly", "every two weeks", "monthly", "quarterly")
 
 DECK_STATUS = ("draft", "in review", "approved", "presented")
+LANDED = ("well", "mixed", "poorly")
+LENGTH = ("too short", "about right", "too long")
+DETAIL = ("needed more", "about right", "needed less")
 
 MIGRATIONS = [
     (
@@ -177,6 +180,21 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        5,
+        """
+        CREATE TABLE deck_outcomes (
+            id INTEGER PRIMARY KEY,
+            deck_id INTEGER NOT NULL REFERENCES decks (id) ON DELETE CASCADE,
+            date DATE,
+            audience TEXT,
+            landed TEXT,
+            length TEXT,
+            detail TEXT,
+            note TEXT
+        );
+        """,
+    ),
 ]
 
 # Decks are made to be shown, so their content is presentable. Speaker notes are presentable too:
@@ -199,6 +217,23 @@ decks = Record(
         "slide_count": ("(SELECT COUNT(*) FROM slides s WHERE s.deck_id = decks.id)", S),
         "version_count": ("(SELECT COUNT(*) FROM deck_versions v WHERE v.deck_id = decks.id)", S),
         "latest_version": ("(SELECT MAX(number) FROM deck_versions v WHERE v.deck_id = decks.id)", S),
+    },
+)
+
+# How a deck went with its audience, noted after presenting. The pattern suggestions weigh these.
+deck_outcomes = Record(
+    entity="deck_outcome",
+    table="deck_outcomes",
+    path="/api/deck-outcomes",
+    order_by="date DESC, id DESC",
+    fields={
+        "deck_id": Field("int", S, required=True),
+        "date": Field("date", S),
+        "audience": Field("text", S),
+        "landed": Field("text", S, choices=LANDED),
+        "length": Field("text", S, choices=LENGTH),
+        "detail": Field("text", S, choices=DETAIL),
+        "note": Field("text", P),
     },
 )
 

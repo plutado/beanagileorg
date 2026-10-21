@@ -559,6 +559,9 @@
           <button class="btn" type="button" id="from-plan" title="Build a deck from the toolkit's 30/60/90 plans">Deck from toolkit plans</button>
           <button class="btn" type="button" id="tour" title="Every deck builder feature, in the order of the official reveal.js demo">Load the feature tour</button>
           <button class="btn" type="button" id="seed">Load placeholder deck</button></form></section>
+        <section class="card" id="patterns-card"><h2>Start from what worked</h2>
+          <p class="quiet">Pick an audience and the next deck starts from what landed with them before: the length, the structure and how much detail, learned from your approved and presented decks and how each went.</p>
+          <select id="pattern-audience" style="max-width:320px"><option value="">Choose an audience…</option></select><div id="pattern-box"></div></section>
         <div class="deck-cards">${
           decks.map((d) => `<div class="card deck-card" data-id="${d.id}"><div class="row"><h2>${esc(d.title)}</h2><span class="spacer"></span><span class="pill ${DECK_TONES[d.status] || ""}">${esc(d.status)}</span></div>
             <p class="quiet">${d.slide_count} slides${d.latest_version ? ` · version ${d.latest_version}` : ""}${d.presented_on ? ` · presented ${BA.fmtDate(d.presented_on)}` : ""}${d.copied_from ? ` · copied from ${esc(d.copied_from)}` : ""}</p></div>`).join("") ||
@@ -576,6 +579,28 @@
         BA.toast(`Built ${res.slides} slides from the plan outline.`);
         BA.go(`/decks/${res.deck_id}`);
       });
+      const known = await BA.api("/api/decks/audiences").catch(() => []);
+      const pick = main.querySelector("#pattern-audience");
+      pick.innerHTML += known.map((a) => `<option value="${esc(a.audience)}">${esc(a.audience)} (${a.presented} presented${a.outcomes ? `, ${a.outcomes} noted` : ""})</option>`).join("");
+      if (!known.length) main.querySelector("#pattern-box").innerHTML = '<p class="quiet">No audiences yet. Set the audience in a deck\'s toolbar, then present it and note how it went.</p>';
+      pick.onchange = BA.guard(async () => {
+        const box = main.querySelector("#pattern-box");
+        if (!pick.value) { box.innerHTML = ""; return; }
+        const p = await BA.api(`/api/decks/patterns?audience=${encodeURIComponent(pick.value)}`);
+        box.innerHTML = !p.outline.length ? `<p class="quiet">${esc(p.advice[0])}</p>` : `<div class="grid2"><div>
+            <p><b>About ${p.target_slides} slides</b>, built on <a href="#/decks/${p.best_deck.id}">${esc(p.best_deck.title)}</a></p>
+            <ul>${p.advice.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+            <p class="quiet">Learned from ${p.decks_used.length} deck${p.decks_used.length === 1 ? "" : "s"}: ${p.decks_used.map((d) => `${esc(d.title)} (${esc(d.status)}${d.landed ? `, landed ${esc(d.landed)}` : ""})`).join("; ")}.</p></div>
+          <div><p class="quiet">Suggested outline</p><ol class="pattern-outline">${p.outline.map((o) => `<li>${esc(LAYOUTS_LABEL[o.layout] || o.layout)}${o.heading ? ` <span class="quiet">· last time: ${esc(o.heading)}</span>` : ""}</li>`).join("")}</ol></div></div>
+          <form id="from-pattern" class="row"><input name="title" placeholder="Title for the new deck" style="max-width:420px"><button class="btn primary" type="submit">Start a deck from this pattern</button></form>`;
+        const f = box.querySelector("#from-pattern");
+        if (f) f.onsubmit = BA.guard(async (e) => {
+          e.preventDefault();
+          const r = await BA.api("/api/decks/from-pattern", { method: "POST", body: { audience: pick.value, title: new FormData(f).get("title") } });
+          BA.toast(`Started a ${r.slides}-slide deck${r.facts ? " with this week's toolkit facts in the notes" : ""}.`);
+          BA.go(`/decks/${r.deck_id}`);
+        });
+      });
       main.querySelector("#tour").onclick = BA.guard(async () => {
         const res = await BA.api("/api/decks/tour", { method: "POST" });
         BA.toast(`Built the ${res.slides}-slide feature tour.`);
@@ -590,6 +615,9 @@
 
   // ---- deck versions and the review workflow ----
 
+  // Layout names for the decks list, which doesn't load the deck renderer.
+  const LAYOUTS_LABEL = { title: "Title", section: "Section break", "big-number": "One big number", bullets: "Points", quote: "Quote", comparison: "Comparison",
+    image: "Image", video: "Video", audio: "Audio", lottie: "Animation", closing: "Closing", code: "Code", table: "Table", "fit-text": "Fit text", shapes: "Shapes" };
   const DECK_TONES = { draft: "warn", "in review": "accent", approved: "good", presented: "good" };
   const STEP_LABELS = { "in review": "Send for review", approved: "Approve", presented: "Mark presented", draft: "" };
 
@@ -627,6 +655,16 @@
             <div class="quiet">${esc(v.saved_at)} · ${v.slide_count} slides${v.label && v.kind !== "saved" ? " · " + esc(v.kind) : ""}</div>${v.note ? `<div>${esc(v.note)}</div>` : ""}
             <div class="row"><button class="link-btn" type="button" data-preview>Preview</button><button class="link-btn" type="button" data-compare>Compare with now</button><button class="link-btn" type="button" data-restore>Restore</button></div>
             <div class="compare" hidden></div></div>`).join("") || '<p class="quiet">No versions yet. Save one when the deck reaches a point worth keeping.</p>'}</section>
+        <section id="outcome-box"><h3>How did it go?</h3>
+          <p class="quiet">A few seconds after presenting. The next deck for this audience learns from it.</p>
+          <form id="outcome" class="grid2"><label>Presented on<input type="date" name="date" value="${esc(d.deck.presented_on || BA.today())}"></label>
+            <label>To<input name="audience" value="${esc(d.deck.audience || "")}"></label>
+            <label>It landed<select name="landed"><option value=""></option>${["well", "mixed", "poorly"].map((x) => `<option>${x}</option>`).join("")}</select></label>
+            <label>Length<select name="length"><option value=""></option>${["too short", "about right", "too long"].map((x) => `<option>${x}</option>`).join("")}</select></label>
+            <label>Detail<select name="detail"><option value=""></option>${["needed more", "about right", "needed less"].map((x) => `<option>${x}</option>`).join("")}</select></label>
+            <label>Note <span class="quiet">(private)</span><input name="note" placeholder="What to keep or change next time"></label>
+            <div class="actions"><button class="btn" type="submit">Save how it went</button></div></form>
+          <div id="outcome-list"></div></section>
         <section><h3>Make a copy</h3><form id="copy-deck"><input name="title" placeholder="Title, such as: [Placeholder] for the team"><button class="btn" type="submit">Copy deck</button></form>
           <p class="quiet">For a version of this deck for a different audience. The copy has its own history.</p></section>`;
       drawer.querySelector("[data-close]").onclick = () => { drawer.hidden = true; };
@@ -640,13 +678,25 @@
         }
         const r = await BA.api(`/api/decks/${deckId}/status`, { method: "POST", body });
         BA.toast(`Now ${r.status}. Saved as version ${r.version.number}.`);
-        render();
+        await render();
+        if (r.status === "presented") drawer.querySelector("#outcome-box")?.scrollIntoView({ block: "start" });
       })));
       drawer.querySelector("#save-version").onsubmit = BA.guard(async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const v = await BA.api(`/api/decks/${deckId}/versions`, { method: "POST", body: { label: fd.get("label"), note: fd.get("note") } });
         BA.toast(`Saved version ${v.number}.`);
+        render();
+      });
+      const outs = await BA.api(`/api/deck-outcomes?deck_id=${deckId}`).catch(() => []);
+      drawer.querySelector("#outcome-list").innerHTML = (Array.isArray(outs) ? outs.filter((o) => o.deck_id === deckId) : []).map((o) => `<div class="version"><div class="row"><b>${esc(BA.fmtDate(o.date))}</b><span>${esc(o.audience || "")}</span><span class="spacer"></span>${o.landed ? `<span class="pill ${o.landed === "well" ? "good" : o.landed === "poorly" ? "bad" : "warn"}">landed ${esc(o.landed)}</span>` : ""}</div>
+        <div class="quiet">${[o.length, o.detail && `detail ${o.detail}`].filter(Boolean).map(esc).join(" · ")}</div>${o.note ? `<div>${esc(o.note)}</div>` : ""}</div>`).join("");
+      drawer.querySelector("#outcome").onsubmit = BA.guard(async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target), val = (k) => fd.get(k) || null;
+        await BA.api("/api/deck-outcomes", { method: "POST", body: { deck_id: deckId, date: val("date"), audience: val("audience"), landed: val("landed"), length: val("length"), detail: val("detail"), note: val("note") } });
+        if (val("audience") && val("audience") !== d.deck.audience) await BA.api(`/api/decks/${deckId}`, { method: "PATCH", body: { audience: val("audience") } }).catch(() => {});
+        BA.toast("Saved. The next deck for this audience will use it.");
         render();
       });
       drawer.querySelector("#copy-deck").onsubmit = BA.guard(async (e) => {
@@ -691,6 +741,7 @@
     main.innerHTML = `<div class="ed">
       <div class="ed-bar">
         <input id="deck-title" value="${esc(data.deck.title)}" aria-label="Deck title">
+        <input id="deck-audience" value="${esc(data.deck.audience || "")}" placeholder="Audience, such as [Placeholder group]" aria-label="Audience" style="max-width:240px" list="known-audiences"><datalist id="known-audiences"></datalist>
         <select id="deck-transition" aria-label="Transition">${TRANSITIONS.map((t) => `<option${t === data.deck.transition ? " selected" : ""}>${t}</option>`).join("")}</select>
         <span class="spacer"></span><span id="deck-status"></span><button class="btn" id="versions-btn" type="button">Versions</button><a class="btn" href="#/decks">All decks</a>
         <button class="btn primary" id="present" type="button">Present</button></div>
@@ -920,6 +971,11 @@
       await BA.api(`/api/decks/${deckId}`, { method: "PATCH", body: { title: e.target.value } });
       document.getElementById("view-title").textContent = e.target.value;
     });
+    main.querySelector("#deck-audience").onchange = BA.guard(async (e) => {
+      await BA.api(`/api/decks/${deckId}`, { method: "PATCH", body: { audience: e.target.value.trim() || null } });
+      BA.toast("Audience saved. Suggestions for the next deck learn from it.");
+    });
+    BA.api("/api/decks/audiences").then((list) => { main.querySelector("#known-audiences").innerHTML = list.map((a) => `<option value="${esc(a.audience)}">`).join(""); }).catch(() => {});
     main.querySelector("#deck-transition").onchange = BA.guard(async (e) => {
       await BA.api(`/api/decks/${deckId}`, { method: "PATCH", body: { transition: e.target.value } });
       deck.configure({ transition: e.target.value });

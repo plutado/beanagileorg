@@ -5,6 +5,7 @@ from beanagileorg.core.config import Settings
 
 from . import models
 from .messaging import router as messaging_router
+from .patterns import router as patterns_router
 from .routes import router
 from .versions import router as versions_router
 from .visuals import router as visuals_router
@@ -40,12 +41,13 @@ def build(settings: Settings | None = None):
         migrations=models.MIGRATIONS,
         # Custom routes first, so /api/media/upload isn't read as a media id.
         routers=[
+            patterns_router,
             messaging_router,
             versions_router,
             visuals_router,
             build_ask_router(lambda: AskApp(name="Comms studio", sections=[{"path": i["path"], "label": i["label"], "purpose": COMMS.get(i["path"], {}).get("purpose", "")} for i in NAV if i.get("path")], links={"message": "/messages/{id}", "deck": "/decks/{id}", "infographic": "/infographics"})),
             router,
-            *(r.router() for r in (models.decks, models.slides, models.media, models.infographics, models.messages, models.templates,
+            *(r.router() for r in (models.decks, models.deck_outcomes, models.slides, models.media, models.infographics, models.messages, models.templates,
                                    models.audiences, models.channels, models.cadences, models.glossary)),
         ],
         static_dir=Path(__file__).parent / "static",

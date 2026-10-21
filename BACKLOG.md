@@ -54,7 +54,6 @@ In priority order:
 
 ## Comms studio, later versions
 
-- [ ] **Decks that learn from what you've presented before** (#36): when starting a deck, suggest the narrative structure, slide patterns and level of detail that worked for the same audience, from your past decks, their approval and presentation history and a light outcome note recorded after presenting (landed well, too long, needed more detail). Facts are still pulled fresh from the toolkit, and patterns come only from your own decks.
 - [ ] Images and infographics, next: a brand palette setting for infographics; insert an infographic or generated image straight into a deck slide; a chart-from-Jira-sprint template; image edits and upscaling through the image service's edit and upscale endpoints
 - [ ] Media generation, video part (raised 2026-10-17; images and infographics built the same day). A Generate panel in the Comms studio calling separate generation services through a provider setting, as Ask calls Ollama. Images first: a local FLUX.2 Klein server on Apple Silicon, with an OpenAI-style images API for generations, edits and upscale, works today. Video next: a ComfyUI provider (workflow JSON templates, a job queue) on a rented cloud GPU over Tailscale, or a hosted video API; NVIDIA-tuned video models run slowly on Apple Silicon or not at all. Results go to the media library marked "generated", with prompt, workflow and model. Use for slide visuals, video-email thumbnails and Agile Cat; only David, designed characters or cats as subjects for work media, labelled as AI-made. Odysseus can call the same services but isn't required.
 
@@ -128,6 +127,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-21: Decks that learn from what you've presented before (#36): deck audience in the toolbar, outcome notes after presenting (landed, length, detail, private note), patterns per audience weighted by status and outcome, a suggested outline and advice, and a deck started from the pattern with this week's toolkit facts in the notes.
 - [x] 2026-10-20: Deck builder parity with the reveal.js demo: code with stepped highlights, tables, fit text, shapes, numbered lists and reveal styles; vertical stacks, auto-animate and backgrounds on every slide; a built-in feature tour deck.
 - [x] 2026-10-20: Scrum benefits, challenges and implementation: a common-challenges check on the Agile reference's coverage view (role ambiguity, scope creep, resistance to change) built from existing records. Section 2 of the scaling course complete.
 - [x] 2026-10-20: Scrum building blocks: enabler stories as a backlog type, user and enabler story templates, INVEST checks for the definition of ready, user-stories reference entry with INVEST, the three Cs and enablers.

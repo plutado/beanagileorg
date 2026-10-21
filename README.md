@@ -66,9 +66,10 @@ Most status reports are written from memory on a Friday afternoon. Here they're 
 
 **Asking before you write.** Before drafting, ask the toolkit a question in plain words: "What changed this month, and what's at risk?" or "Who haven't I talked to in three weeks?" Ask answers from your own records through the same tools the screens use, at your privacy level. It runs on a local model by default, and a cloud model sees only shareable data unless you allow more.
 
+**Starting from what worked.** After presenting, note in a few seconds how it went: it landed well, mixed or poorly; it was too short, about right or too long; they needed more detail or less, plus a private note. Next time you choose that audience, the Comms studio suggests a starting point learned from your approved and presented decks for them, weighted by how each went: about how many slides, the outline of the deck that worked best with last time's headings as placeholders to replace, and advice such as "they wanted less detail: one point per slide, the rest in the notes". One click starts the deck, with this week's toolkit status pulled fresh into the notes when the toolkit is connected.
+
 **Coming next.**
 - **An MCP server**, so assistants such as Claude can search the toolkit and draft from it directly, with the same per-token privacy rules as the API.
-- **Decks that learn from what you've presented before:** reusing the narrative structures, slide patterns and level of detail that worked for each audience, and suggesting them when you start the next deck.
 
 ## Status
 
@@ -255,6 +256,7 @@ Image generation in the Comms studio is also optional: point it at any local ser
 - **Deck builder:** a three-pane editor (slide list with drag to reorder, live reveal.js canvas, inspector) over slides stored as structured data.
 - **Fifteen layouts:** title, section break, one big number, points (bulleted or numbered, optionally revealed one at a time in a chosen style such as fade up, grow or highlight the current point), quote, comparison, code (highlighted, with line ranges lit step by step), table (rows optionally revealed one by one), fit text (words sized to fill the slide), shapes (for auto-animate), image, video, audio, animation and closing.
 - **Slide options on every layout:** stack a slide under the one before it (vertical slides), auto-animate from the previous slide (matching headings, code and shapes move into place), and a background colour, gradient or image (filled, fitted or tiled) with its own transition and light text for dark backgrounds.
+- **Start from what worked:** set each deck's audience, note after presenting how it landed, its length and its level of detail, and the next deck for that audience starts from a learned pattern: a target length, the outline of the deck that worked best with its headings as placeholders, advice on detail, and this week's toolkit status in the notes. Patterns come only from your own decks; outcome notes stay private.
 - **Feature tour:** one click builds a 29-slide deck that walks through every deck builder feature in the order of the official reveal.js demo, rewritten in our own words, with credit to its author.
 - **Media players:** video and audio with trim start and end, loop, poster frame, captions, and play on entering the slide, on a click or only when pressed.
 - **Lottie animations:** loop, play once, play on a click, speed and frame segments. The light player runs no expressions.
