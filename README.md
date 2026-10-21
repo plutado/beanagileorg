@@ -56,6 +56,20 @@ How the toolkit maps onto the work of adopting Agile:
 | **Make the case with facts.** Delivery metrics beside outside benchmarks such as DORA, sprint and weekly reports, and updates that need no meeting. | Metrics, Reports, Comms studio |
 | **Plan as a train.** PI planning with objectives, a program board and the confidence vote; an ART sync with owners and dates on every cross-team item; 90-day cycles that line up with PIs; and support for mentoring other managers as they adopt the practices. | PI planning, ART sync, Teams, 90-day cycles |
 
+## From your records to reports and decks
+
+Most status reports are written from memory on a Friday afternoon. Here they're built from what you already recorded during the week, so the facts are right and the writing time goes into the message.
+
+**The Friday update in five minutes.** Through the week you log wins, decisions and blockers in a line each, and the sprint, risk and release records you already keep for the team feed in too. On Friday the weekly report drafts itself for leadership or for your manager, with a suggested red, amber or green and the reason behind it ("a high risk is open"). You set the overall line in your own words, pull the draft into a Comms studio message, and the writing checks catch leftover placeholders, jargon and a missing opening summary before you send. If an update lands better as a short video, the same draft becomes a video script.
+
+**The monthly leadership deck.** Start a deck from your 30/60/90 plans, or from the placeholder deck's layouts, then add the numbers. Ask for an infographic ("show how much of what we committed we finished this sprint") and your model drafts it from the toolkit's own weekly, sprint, status or plan facts, using only numbers that appear there and leaving [Placeholder] where one is missing. It's drawn from data as SVG, never painted by an image model, so the figures stay exact. Save it and it lands in the media library, ready for any image slide. The deck builder handles the rest: code walkthroughs, tables, step-by-step reveals, backgrounds, speaker notes, versions with review and approval, and PDF export.
+
+**Asking before you write.** Before drafting, ask the toolkit a question in plain words: "What changed this month, and what's at risk?" or "Who haven't I talked to in three weeks?" Ask answers from your own records through the same tools the screens use, at your privacy level. It runs on a local model by default, and a cloud model sees only shareable data unless you allow more.
+
+**Coming next.**
+- **An MCP server**, so assistants such as Claude can search the toolkit and draft from it directly, with the same per-token privacy rules as the API.
+- **Decks that learn from what you've presented before:** reusing the narrative structures, slide patterns and level of detail that worked for each audience, and suggesting them when you start the next deck.
+
 ## Status
 
 Actively developed. It works end to end and has a test suite that runs on every push, but it is young: the database schema may still change between versions (upgrades are applied automatically on start), and there are no tagged releases yet. Back up your data before pulling a new version (`beanagileorg backup all`).
