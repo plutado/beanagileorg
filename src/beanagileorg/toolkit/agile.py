@@ -141,6 +141,16 @@ REFERENCE = [
     ("delivery-metrics", "practice", "practice", "Delivery metrics",
      "A few measures of the delivery system, such as cycle time, deployment frequency, change failure rate and escaped defects, compared with outside benchmarks.",
      "Facts make the case for change better than opinions. Measure the system, never individuals.", None, "#/metrics"),
+    # ---- SAFe: foundations
+    ("business-agility", "safe", "foundation", "Business agility and the dual operating system",
+     "The ability of a whole organization, not only its developers, to sense change and respond with new solutions faster than competitors. SAFe adds a second, network-like way of working organized around value (trains of agile teams) alongside the existing hierarchy, which keeps providing stability, hiring and operations. The idea of running both together comes from John Kotter.",
+     "Agile at scale isn't about replacing the org chart. It's about letting value flow across it, so the business moves as fast as its slowest part allows, and then speeding that part up.", None, "#/art"),
+    ("value-stream", "safe", "foundation", "The business agility value stream",
+     "The path from spotting an opportunity to customer value: sense the opportunity, fund a minimum viable product, organize the people around it, connect with the customer to understand the problem, deliver the MVP through PIs, decide to pivot or persevere from the evidence, keep delivering continuously if it works, and learn and adapt throughout.",
+     "Speed of learning beats speed of planning. Each step that waits for a phase gate, an annual budget or a big design up front lets the opportunity pass.", None, "#/art"),
+    ("mvp-pivot", "safe", "foundation", "MVP, pivot or persevere",
+     "A minimum viable product is the smallest solution that tests the business hypothesis and still gives customers something of value. When it's delivered, the evidence decides: persevere and keep investing, pivot to a different approach, or stop.",
+     "Funding a hypothesis instead of a full plan limits what's at risk, and makes stopping a normal, cheap outcome rather than a failure.", None, None),
     # ---- SAFe: roles and structure
     ("art", "safe", "structure", "Agile Release Train (ART)",
      "A long-lived team of agile teams, typically 50 to 125 people, that plans, commits, delivers and inspects together toward a shared mission.",
