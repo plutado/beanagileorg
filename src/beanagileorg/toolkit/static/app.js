@@ -6275,6 +6275,96 @@
     main.querySelector("#del-team").onclick = BA.guard(async () => { if (!confirm("Delete this team? Records tied to it are kept, without a team.")) return; await BA.api(`/api/teams/${id}`, { method: "DELETE" }); loadTeams(); BA.go("/teams"); });
   }
 
+  // ---------------------------------------------------------------- Portfolio
+
+  const EPIC_STATES = ["funnel", "reviewing", "analyzing", "ready", "implementing MVP", "implementing persevere", "done"];
+  const DECISION_TONES = { persevere: "good", pivot: "warn", stop: "" };
+  const HYPOTHESIS_HINT = "For [customers] who [need or problem], the [solution] is a [kind of solution] that [benefit]. Unlike [current alternative], ours [key difference].";
+
+  BA.view("/portfolio", {
+    title: "Portfolio",
+    async render(main, param) {
+      if (param && /^\d+$/.test(param)) return renderEpic(main, Number(param));
+      const [d, people] = await Promise.all([BA.api("/api/portfolio"), BA.api("/api/people")]);
+      const ro = presenting();
+      const card = (e) => `<div class="pf-card" data-epic="${e.id}"><b>${esc(e.title)}</b>
+          <div class="row" style="flex-wrap:wrap;gap:4px">${e.epic_type === "enabler" ? '<span class="pill">enabler</span>' : ""}${e.theme_name ? `<span class="pill">${esc(e.theme_name)}</span>` : ""}
+            ${e.wsjf != null ? `<span class="pill accent">WSJF ${e.wsjf}</span>` : ""}${e.decision ? `<span class="pill ${DECISION_TONES[e.decision]}">${esc(e.decision)}</span>` : ""}</div>
+          ${["analyzing", "reviewing"].includes(e.kanban_state) && e.case_missing.length ? `<p class="quiet" title="Needs ${esc(e.case_missing.join(", "))}">Business case: ${4 - e.case_missing.length} of 4 parts</p>` : ""}
+          ${e.feature_count ? `<p class="quiet">${e.features_done} of ${e.feature_count} features done</p>` : ""}</div>`;
+      main.innerHTML = `<p class="quiet">The themes you invest toward, and epics as funded hypotheses: each earns its next round of investment with evidence from an MVP.</p>
+        <section class="card"><h2>Strategic themes</h2>
+          ${d.themes.map((t) => `<div class="item"><b>${esc(t.name)}</b>${t.status === "retired" ? '<span class="pill">retired</span>' : ""}<span class="quiet">${esc(t.objective || "")}</span><span class="spacer"></span><span class="quiet">${t.active_epics} active of ${t.epics} epics</span></div>`).join("") || '<p class="quiet">No themes yet. Two to five is plenty.</p>'}
+          ${d.unthemed ? `<p class="quiet">${d.unthemed} open epic${d.unthemed === 1 ? " has" : "s have"} no theme.</p>` : ""}
+          ${ro ? "" : `<form id="add-theme" class="row"><input name="name" placeholder="Theme" required style="max-width:260px"><input name="objective" placeholder="Measurable objective, such as [Placeholder: a number by a date]" style="flex:1"><button class="btn" type="submit">Add theme</button></form>`}</section>
+        <section class="card"><h2>Portfolio Kanban</h2>
+          <div class="pf-board">${d.columns.map((col) => `<div class="pf-col${col.over ? " over" : ""}"><div class="pf-col-head"><b>${esc(col.state)}</b><span class="quiet">${col.epics.length}${col.limit ? ` / ${col.limit}` : ""}</span></div>
+            ${col.epics.map(card).join("") || '<p class="quiet pf-empty">—</p>'}</div>`).join("")}</div>
+          <p class="quiet">Numbers like 2 / 3 are WIP limits: starting less finishes more. An epic needs its lean business case before it's ready, and a decision on its MVP before it moves on.</p>
+          ${ro ? "" : `<form id="add-epic-pf" class="row"><input name="title" placeholder="An idea for the funnel" required style="flex:1"><select name="epic_type" style="max-width:140px"><option>business</option><option>enabler</option></select>
+            <select name="theme_id" style="max-width:220px"><option value="">No theme</option>${d.themes.filter((t) => t.status === "active").map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select><button class="btn" type="submit">Add to the funnel</button></form>`}</section>`;
+      main.querySelectorAll("[data-epic]").forEach((el) => (el.onclick = () => BA.go(`/portfolio/${el.dataset.epic}`)));
+      if (ro) return;
+      main.querySelector("#add-theme").onsubmit = BA.guard(async (e) => { e.preventDefault(); const fd = new FormData(e.target); await BA.api("/api/strategic-themes", { method: "POST", body: { name: fd.get("name"), objective: fd.get("objective") } }); BA.rerender(); });
+      main.querySelector("#add-epic-pf").onsubmit = BA.guard(async (e) => {
+        e.preventDefault(); const fd = new FormData(e.target);
+        const ep = await BA.api("/api/epics", { method: "POST", body: { title: fd.get("title"), epic_type: fd.get("epic_type"), theme_id: fd.get("theme_id") ? Number(fd.get("theme_id")) : null } });
+        BA.go(`/portfolio/${ep.id}`);
+      });
+    },
+  });
+
+  async function renderEpic(main, id) {
+    const [d, people] = await Promise.all([BA.api(`/api/epics/${id}/detail`), BA.api("/api/people")]);
+    const e = d.epic, ro = presenting();
+    document.getElementById("view-title").textContent = e.title;
+    const ta = (name, label, hint, rows = 3) => `<label>${label}${hint ? ` <span class="quiet">(${hint})</span>` : ""}${ro ? `<p>${esc(e[name] || "")}</p>` : `<textarea name="${name}" rows="${rows}">${esc(e[name] || "")}</textarea>`}</label>`;
+    const num = (name, label) => `<label>${label}${ro ? `<p>${e[name] ?? ""}</p>` : `<input type="number" min="0" name="${name}" value="${esc(e[name] ?? "")}" style="max-width:90px">`}</label>`;
+    const idx = EPIC_STATES.indexOf(e.kanban_state);
+    main.innerHTML = `<p><a href="#/portfolio">Portfolio</a></p>
+      <section class="card"><div class="row"><h2>${esc(e.title)}</h2><span class="pill accent">${esc(e.kanban_state)}</span>${e.decision ? `<span class="pill ${DECISION_TONES[e.decision]}">${esc(e.decision)}${e.decision_date ? ` · ${esc(BA.fmtDate(e.decision_date))}` : ""}</span>` : ""}<span class="spacer"></span>
+        ${ro ? "" : `${idx > 0 ? `<button class="btn" data-move="${EPIC_STATES[idx - 1]}">← ${esc(EPIC_STATES[idx - 1])}</button>` : ""}${idx < EPIC_STATES.length - 1 && e.kanban_state !== "implementing MVP" ? `<button class="btn primary" data-move="${EPIC_STATES[idx + 1]}">${esc(EPIC_STATES[idx + 1])} →</button>` : ""}`}</div>
+        ${e.case_missing.length && idx < 3 ? `<p class="quiet">Before it's ready, the business case needs ${esc(e.case_missing.join(", "))}.</p>` : ""}
+        ${e.decision_notes ? `<p class="quiet"><b>Why:</b> ${esc(e.decision_notes)}</p>` : ""}</section>
+      ${e.kanban_state === "implementing MVP" && !ro ? `<section class="card"><h2>Pivot or persevere</h2><p class="quiet">What do the leading indicators say? Decide on the evidence: persevere and keep investing, pivot back to analysis, or stop.</p>
+        <form id="decide" class="row"><input name="notes" placeholder="What the evidence showed" style="flex:1"><button class="btn primary" type="submit" value="persevere">Persevere</button><button class="btn" type="submit" value="pivot">Pivot</button><button class="btn danger" type="submit" value="stop">Stop</button></form></section>` : ""}
+      <form id="epic-form">
+      <section class="card"><h2>Lean business case</h2>
+        <div class="grid2"><label>Title${ro ? "" : `<input name="title" value="${esc(e.title)}" required>`}</label>
+          <label>Type${ro ? `<p>${esc(e.epic_type)}</p>` : `<select name="epic_type"><option${e.epic_type === "business" ? " selected" : ""}>business</option><option${e.epic_type === "enabler" ? " selected" : ""}>enabler</option></select>`}</label>
+          <label>Strategic theme${ro ? `<p>${esc(e.theme_name || "")}</p>` : `<select name="theme_id"><option value="">None</option>${d.themes.map((t) => `<option value="${t.id}"${t.id === e.theme_id ? " selected" : ""}>${esc(t.name)}</option>`).join("")}</select>`}</label>
+          <label>Epic Owner${ro ? `<p>${esc(e.owner_name || "")}</p>` : `<select name="owner_id">${personOptions(people.filter((p) => p.active), e.owner_id)}</select>`}</label></div>
+        ${ta("hypothesis", "Hypothesis", HYPOTHESIS_HINT, 3)}
+        <div class="grid2">${ta("outcomes", "Business outcomes", "what will be true if it works")}${ta("leading_indicators", "Leading indicators", "what you'll see within weeks if it's working")}</div>
+        ${ta("mvp", "Minimum viable product", "the smallest thing that tests the hypothesis and still helps customers")}
+        <div class="grid2"><label>MVP estimate${ro ? `<p>${esc(e.mvp_estimate || "")}</p>` : `<input name="mvp_estimate" value="${esc(e.mvp_estimate || "")}" placeholder="[Placeholder: cost or effort]">`}</label>
+          <label>Full estimate${ro ? `<p>${esc(e.full_estimate || "")}</p>` : `<input name="full_estimate" value="${esc(e.full_estimate || "")}" placeholder="[Placeholder: if it perseveres]">`}</label></div>
+        <label>Trains that will build it${ro ? `<p>${esc(d.arts.filter((a) => (e.art_ids || []).includes(a.id)).map((a) => a.name).join(", "))}</p>` : `<select name="art_ids" multiple size="3">${d.arts.map((a) => `<option value="${a.id}"${(e.art_ids || []).includes(a.id) ? " selected" : ""}>${esc(a.name)}</option>`).join("")}</select>`}</label></section>
+      <section class="card"><h2>WSJF <span class="quiet">${e.wsjf != null ? e.wsjf : ""}</span></h2><p class="quiet">Cost of delay (business value + time criticality + risk reduction) divided by job size, scored on the same relative scale as other epics, so the portfolio funds the highest cost of delay first.</p>
+        <div class="row">${num("business_value", "Value")}${num("time_criticality", "Time")}${num("risk_reduction", "Risk")}${num("job_size", "Size")}</div></section>
+      ${ro ? "" : '<div class="actions"><button class="btn primary" type="submit">Save</button></div>'}</form>
+      <section class="card"><h2>Features <span class="quiet">${d.features.length}</span></h2>${d.features.map((f) => `<div class="item"><b>${esc(f.title)}</b>${f.feature_type === "enabler" ? '<span class="pill">enabler</span>' : ""}<span class="quiet">${f.pi_number ? `PI ${f.pi_number}` : "ART backlog"}</span><span class="spacer"></span><span class="quiet">${f.points || 0} pts</span>${tonePill(f.status, { done: "good", "in progress": "accent", blocked: "bad" })}</div>`).join("") || '<p class="quiet">No features yet. Link features to this epic on the PI planning board or the ART backlog.</p>'}
+        ${d.points ? `<p class="quiet">${d.done_points} of ${d.points} points done.</p>` : ""}</section>`;
+    if (ro) return;
+    main.querySelectorAll("[data-move]").forEach((b) => (b.onclick = BA.guard(async () => {
+      try { await BA.api(`/api/epics/${id}/move`, { method: "POST", body: { to: b.dataset.move } }); }
+      catch (err) { if (String(err.message || err).includes("WIP limit") && confirm(`${err.message || err}\n\nMove it anyway?`)) await BA.api(`/api/epics/${id}/move`, { method: "POST", body: { to: b.dataset.move, over_limit: true } }); else throw err; }
+      BA.rerender();
+    })));
+    const dec = main.querySelector("#decide");
+    if (dec) dec.onsubmit = BA.guard(async (ev) => { ev.preventDefault(); const r = await BA.api(`/api/epics/${id}/decide`, { method: "POST", body: { decision: ev.submitter.value, notes: new FormData(dec).get("notes") } }); BA.toast(`Decided: ${r.decision}.`); BA.rerender(); });
+    main.querySelector("#epic-form").onsubmit = BA.guard(async (ev) => {
+      ev.preventDefault();
+      const f = ev.target, fd = new FormData(f), n = (k) => (fd.get(k) === "" ? null : Number(fd.get(k)));
+      const body = { title: fd.get("title"), epic_type: fd.get("epic_type"), theme_id: n("theme_id"), owner_id: n("owner_id"),
+        art_ids: [...f.elements.art_ids.selectedOptions].map((o) => Number(o.value)) };
+      for (const k of ["hypothesis", "outcomes", "leading_indicators", "mvp", "mvp_estimate", "full_estimate"]) body[k] = fd.get(k);
+      for (const k of ["business_value", "time_criticality", "risk_reduction", "job_size"]) body[k] = n(k);
+      await BA.api(`/api/epics/${id}`, { method: "PATCH", body });
+      BA.toast("Saved."); BA.rerender();
+    });
+  }
+
   // ---------------------------------------------------------------- Agile Release Train
 
   BA.view("/art", {

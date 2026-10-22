@@ -12,7 +12,7 @@ Nothing right now.
 
 In priority order:
 
-- [ ] **SAFe as the default framework** (#32): steps 1 to 4 done 2026-10-20 (the ART as a record with roles, teams, PIs and a WSJF-ranked backlog; system demos, Inspect and Adapt and predictability; cycles following dated PIs; generic starters with an optional Salesforce and MuleSoft pack). Still to build, later: a portfolio level (epics with lean business cases, a portfolio Kanban, WSJF across trains).
+- [ ] **SAFe competency self-assessment** (#37): rate each of the seven core competencies over time, with notes and evidence, and let the weakest shape the next cycle's focus.
 - [ ] **Setting up a new install:** turn on nightly backups (`beanagileorg schedule --write`, then `launchctl load`), choose an encrypted backup location, and set up the local domain (DNS records or hosts lines, Caddy, `caddy trust`) per docs/local-domain.md; publish site/ with the cat video for the public beanagile.org
 
 ## Toolkit, later versions
@@ -127,6 +127,7 @@ In priority order:
 
 ## Done
 
+- [x] 2026-10-21: SAFe as the default framework (#32), finished: the portfolio level with strategic themes, epics as funded hypotheses with a lean business case, a portfolio Kanban with WIP limits and the pivot-or-persevere decision, and WSJF across trains. Earlier phases: the ART, PI cadence, cycles following PIs, generic starters.
 - [x] 2026-10-21: Decks that learn from what you've presented before (#36): deck audience in the toolbar, outcome notes after presenting (landed, length, detail, private note), patterns per audience weighted by status and outcome, a suggested outline and advice, and a deck started from the pattern with this week's toolkit facts in the notes.
 - [x] 2026-10-20: Deck builder parity with the reveal.js demo: code with stepped highlights, tables, fit text, shapes, numbered lists and reveal styles; vertical stacks, auto-animate and backgrounds on every slide; a built-in feature tour deck.
 - [x] 2026-10-20: Scrum benefits, challenges and implementation: a common-challenges check on the Agile reference's coverage view (role ambiguity, scope creep, resistance to change) built from existing records. Section 2 of the scaling course complete.

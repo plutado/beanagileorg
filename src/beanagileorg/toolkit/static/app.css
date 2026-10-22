@@ -305,3 +305,12 @@ td.heat-0 { background: transparent; } td.heat-1 { background: var(--warn-soft);
 .bd-legend { display: flex; gap: 18px; font-size: 0.875rem; color: var(--muted); margin-bottom: 4px; }
 .bd-legend i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 2px solid var(--accent); }
 .bd-legend i.bd-key-ideal { border-top: 2px dashed var(--muted); }
+.pf-board { display: grid; grid-template-columns: repeat(7, minmax(170px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.pf-col { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; min-height: 160px; }
+.pf-col.over { border-color: var(--warn); background: var(--warn-soft); }
+.pf-col-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 0.875rem; text-transform: capitalize; }
+.pf-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px; cursor: pointer; font-size: 0.875rem; }
+.pf-card:hover { border-color: var(--accent); }
+.pf-card p { margin: 4px 0 0; }
+.pf-empty { text-align: center; }
+.pf-card .pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

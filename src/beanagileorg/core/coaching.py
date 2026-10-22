@@ -1690,6 +1690,38 @@ GUIDES = [
         ],
         "related": ["/art", "/pi", "/sos"], "reading": [SG],
     },
+    {
+        "slug": "lean-portfolio", "theme": "agile", "minutes": 6, "since": 58,
+        "title": "Epics as funded hypotheses",
+        "summary": "Fund a hypothesis, not a plan. Each epic earns its next round of investment with evidence from a minimum viable product, and stopping is a normal outcome.",
+        "why": "Big initiatives funded up front for a year tend to keep going whatever they learn. Treating each one as a hypothesis with an MVP and leading indicators limits what's at risk, surfaces bad bets early, and frees money and people for the ideas that are working.",
+        "practices": [
+            "Keep a handful of strategic themes, each with a measurable objective, and tie every epic to one.",
+            "Let anyone add an idea to the funnel; review regularly and move only the promising ones into analysis.",
+            "Write the lean business case in plain words: who it's for, what it does, what will be true if it works, and how you'll know early.",
+            "Define the MVP as the smallest thing that tests the hypothesis and still helps customers.",
+            "Choose leading indicators you can see within weeks, not lagging ones you'll only see next year.",
+            "Rank ready epics by WSJF across every train, so the portfolio funds the highest cost of delay first.",
+            "Respect WIP limits on analyzing and implementing. Starting less finishes more.",
+            "When the MVP's evidence is in, decide on purpose: persevere, pivot or stop, and write down why.",
+        ],
+        "pitfalls": [
+            "An MVP that is really the whole project in disguise.",
+            "Leading indicators chosen after the results are in.",
+            "Never stopping anything, so every epic drifts into implementing forever.",
+            "Themes so broad that every idea fits them.",
+        ],
+        "questions": [
+            "What would we have to see in the next six weeks to keep investing in this?",
+            "Which epic would we stop today if a better idea arrived?",
+            "Does every epic in implementing still serve an active theme?",
+        ],
+        "try": [
+            "Under Portfolio, write the lean business case for one epic in analyzing, including two leading indicators.",
+            "Look at the implementing columns and ask which epic has the least evidence behind it.",
+        ],
+        "related": ["/portfolio", "/art", "/coaching/agile-release-train"], "reading": [SG],
+    },
 ]
 
 # Short nudges shown at the top of each screen; each points to a guide. Keyed by route, shared by both apps.
@@ -1770,6 +1802,8 @@ TIPS = {
                   ("Keep two sprints' worth of stories refined and ready, so planning is short and the commitment is real.", "refinement-and-estimation", 3),
                   ("When estimates spread widely, ask the highest and lowest to explain before voting again.", "refinement-and-estimation", 3),
                   ("Plan to recent velocity, adjusted for who's away, and leave room for surprises.", "refinement-and-estimation", 3)],
+    "/portfolio": [("Fund a hypothesis, not a plan: every epic needs an MVP and leading indicators before it's ready.", "lean-portfolio", 58),
+                   ("Stopping an epic on the evidence is a good outcome. It frees people for what's working.", "lean-portfolio", 58)],
     "/art": [("Rank the ART backlog by WSJF, then argue about the scores, not the order.", "agile-release-train", 57),
              ("Show integrated, working software at every system demo, not each team's slides.", "agile-release-train", 57)],
     "/retros": [("Open every retro by reviewing last time's commitments. That's what makes retros worth the hour.", "retros"),
@@ -1929,7 +1963,7 @@ def phase_for(day: int | None) -> str:
     return "Any time"
 
 
-STARTER_VERSION = 57  # bump when adding guides or tips, and mark the new ones with "since"
+STARTER_VERSION = 58  # bump when adding guides or tips, and mark the new ones with "since"
 
 
 def tip_entries():

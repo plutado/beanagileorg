@@ -142,6 +142,16 @@ TOOLKIT = {
         "privacy": "Teams can be shown on screen; private notes stay private.",
         "related": ["/sos", "/people", "/coaching/scrum-of-scrums"],
     },
+    "/portfolio": {
+        "purpose": "The portfolio: the strategic themes you invest toward, and epics as funded hypotheses moving across the portfolio Kanban, from idea to MVP to a decision to persevere, pivot or stop.",
+        "steps": ["Write a few strategic themes, each with a measurable objective.",
+                  "Add epics to the funnel as ideas, and review the ones worth a closer look.",
+                  "While analyzing, write the lean business case: the hypothesis, the outcomes expected, the leading indicators, the MVP and the estimates.",
+                  "Score WSJF on ready epics to rank them across trains, and keep the analyzing and implementing columns within their WIP limits.",
+                  "When the MVP's evidence is in, decide: persevere and keep investing, pivot back to analysis, or stop."],
+        "privacy": "Themes and epics are shareable.",
+        "related": ["/art", "/pi", "/roadmap", "/coaching/lean-portfolio"],
+    },
     "/art": {
         "purpose": "The Agile Release Train: the team of teams that plans and delivers together each PI, with its mission, roles, teams, PIs and the backlog of features waiting for the next PI.",
         "steps": ["Create the train and write its mission in one sentence.",

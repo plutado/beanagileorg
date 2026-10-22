@@ -152,6 +152,26 @@ for k, item in enumerate(items):
 # the Sprint 1 review's feedback, added after the backlog is refined so it waits to be refined itself
 api("POST", f"/api/sprint-planning/{sprints[1]}/review/feedback", {"text": "[Placeholder stakeholder request from the review]", "from": "[Name 4]"})
 
+# ---- the portfolio: two strategic themes and epics across the Kanban, including the PI's own epics
+themes = [api("POST", "/api/strategic-themes", {"name": f"[Placeholder theme {n}]", "objective": f"[Placeholder measurable objective {n}]"})["id"] for n in (1, 2)]
+case = lambda n: {"hypothesis": f"[Placeholder hypothesis {n}]", "outcomes": f"[Placeholder outcomes {n}]",
+                  "leading_indicators": f"[Placeholder leading indicators {n}]", "mvp": f"[Placeholder MVP {n}]", "mvp_estimate": "[Placeholder estimate]"}
+api("PATCH", f"/api/epics/{epics[0]}", {**case(1), "theme_id": themes[0], "owner_id": p(1), "kanban_state": "implementing MVP",
+                                         "business_value": 13, "time_criticality": 8, "risk_reduction": 5, "job_size": 8})
+api("PATCH", f"/api/epics/{epics[1]}", {**case(2), "theme_id": themes[1], "owner_id": p(2), "kanban_state": "implementing persevere",
+                                         "decision": "persevere", "decision_date": day(-20), "decision_notes": "[Placeholder: what the leading indicators showed]"})
+for n, (state, theme, kind, scores, with_case) in enumerate((("funnel", None, "business", None, False), ("reviewing", 0, "business", None, False),
+                                                             ("analyzing", 1, "enabler", (5, 3, 13, 5), False), ("ready", 0, "business", (8, 13, 3, 5), True),
+                                                             ("ready", 1, "enabler", (3, 5, 8, 2), True), ("done", 0, "business", None, True)), 3):
+    body = {"title": f"[Placeholder epic {n}]", "epic_type": kind, "kanban_state": state, "theme_id": themes[theme] if theme is not None else None}
+    if scores:
+        body.update(dict(zip(("business_value", "time_criticality", "risk_reduction", "job_size"), scores)))
+    if with_case:
+        body.update(case(n))
+    if state == "done":
+        body.update({"decision": "stop", "decision_date": day(-45), "decision_notes": "[Placeholder: why it stopped]"})
+    api("POST", "/api/epics", body)
+
 # ---- the Agile Release Train: roles, the team, the PI, and an ART backlog scored by WSJF
 art = api("POST", "/api/arts", {"name": "[Placeholder train]", "mission": "[Placeholder train mission]", "rte_id": p(1),
                                 "product_manager_id": p(2), "architect_id": p(3), "business_owner_ids": [p(4), p(5)]})["id"]

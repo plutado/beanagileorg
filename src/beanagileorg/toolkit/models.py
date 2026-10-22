@@ -62,6 +62,9 @@ RETRO_FORMATS = {
 COMMITMENT_STATUS = ("committed", "in progress", "done", "dropped")
 PRIORITIES = ("highest", "high", "medium", "low")
 FEATURE_TYPES = ("business", "enabler")
+# SAFe's portfolio Kanban: an epic moves left to right as it earns more investment.
+EPIC_STATES = ("funnel", "reviewing", "analyzing", "ready", "implementing MVP", "implementing persevere", "done")
+EPIC_DECISIONS = ("persevere", "pivot", "stop")
 WORK_STATUS = ("not started", "in progress", "done", "blocked")
 OBJECTIVE_KINDS = ("committed", "stretch")
 DEPENDENCY_STATUS = ("open", "met", "at risk")
@@ -2155,6 +2158,36 @@ MIGRATIONS = [
         );
         """,
     ),
+    (
+        74,
+        """
+        CREATE TABLE strategic_themes (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            objective TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            position INTEGER NOT NULL DEFAULT 0
+        );
+        ALTER TABLE epics ADD COLUMN theme_id INTEGER REFERENCES strategic_themes (id) ON DELETE SET NULL;
+        ALTER TABLE epics ADD COLUMN epic_type TEXT NOT NULL DEFAULT 'business';
+        ALTER TABLE epics ADD COLUMN kanban_state TEXT NOT NULL DEFAULT 'funnel';
+        ALTER TABLE epics ADD COLUMN hypothesis TEXT;
+        ALTER TABLE epics ADD COLUMN outcomes TEXT;
+        ALTER TABLE epics ADD COLUMN leading_indicators TEXT;
+        ALTER TABLE epics ADD COLUMN mvp TEXT;
+        ALTER TABLE epics ADD COLUMN mvp_estimate TEXT;
+        ALTER TABLE epics ADD COLUMN full_estimate TEXT;
+        ALTER TABLE epics ADD COLUMN art_ids TEXT NOT NULL DEFAULT '[]';
+        ALTER TABLE epics ADD COLUMN business_value INTEGER;
+        ALTER TABLE epics ADD COLUMN time_criticality INTEGER;
+        ALTER TABLE epics ADD COLUMN risk_reduction INTEGER;
+        ALTER TABLE epics ADD COLUMN job_size INTEGER;
+        ALTER TABLE epics ADD COLUMN decision TEXT;
+        ALTER TABLE epics ADD COLUMN decision_date DATE;
+        ALTER TABLE epics ADD COLUMN decision_notes TEXT;
+        """,
+    ),
 ]
 
 # A record marked never share is private whatever its fields say: hidden while presenting, from exports, packs,
@@ -2785,6 +2818,47 @@ epics = Record(
         "owner_id": Field("int", S),
         "status": Field("text", S, choices=WORK_STATUS, default="not started"),
         "ticket_key": Field("key", S),
+        "theme_id": Field("int", S),
+        "epic_type": Field("text", S, choices=FEATURE_TYPES, default="business"),
+        "kanban_state": Field("text", S, choices=EPIC_STATES, default="funnel"),
+        "hypothesis": Field("text", S),
+        "outcomes": Field("text", S),
+        "leading_indicators": Field("text", S),
+        "mvp": Field("text", S),
+        "mvp_estimate": Field("text", S),
+        "full_estimate": Field("text", S),
+        "art_ids": Field("ids", S),
+        "business_value": Field("int", S),
+        "time_criticality": Field("int", S),
+        "risk_reduction": Field("int", S),
+        "job_size": Field("int", S),
+        "decision": Field("text", S, choices=EPIC_DECISIONS),
+        "decision_date": Field("date", S),
+        "decision_notes": Field("text", S),
+    },
+    computed={
+        "wsjf": ("(CASE WHEN epics.job_size > 0 AND epics.business_value IS NOT NULL AND epics.time_criticality IS NOT NULL "
+                 "AND epics.risk_reduction IS NOT NULL THEN ROUND((epics.business_value + epics.time_criticality + epics.risk_reduction) * 1.0 "
+                 "/ epics.job_size, 1) END)", S),
+        "theme_name": ("(SELECT name FROM strategic_themes t WHERE t.id = epics.theme_id)", S),
+        "owner_name": ("(SELECT name FROM people p WHERE p.id = epics.owner_id)", S),
+        "feature_count": ("(SELECT COUNT(*) FROM features f WHERE f.epic_id = epics.id)", S),
+        "features_done": ("(SELECT COUNT(*) FROM features f WHERE f.epic_id = epics.id AND f.status = 'done')", S),
+    },
+)
+
+# Strategic themes: the few business goals the portfolio invests toward, each with a measurable objective.
+strategic_themes = Record(
+    entity="strategic_theme",
+    table="strategic_themes",
+    path="/api/strategic-themes",
+    order_by="status = 'retired', position, id",
+    fields={
+        "name": Field("text", S, required=True),
+        "description": Field("text", S),
+        "objective": Field("text", S),
+        "status": Field("text", S, choices=("active", "retired"), default="active"),
+        "position": Field("int", S, default=0),
     },
 )
 
@@ -4674,7 +4748,7 @@ cycles = Record(
 
 
 RECORDS = [
-    arts, system_demos, inspect_adapts,
+    arts, system_demos, inspect_adapts, strategic_themes,
     people, interviews, learning_goals, learning_log, tasks, obligations,
     action_items, learning_sessions, systems, severities, escalation_steps, incidents,
     vendors, vendor_interactions, vendor_concerns,
